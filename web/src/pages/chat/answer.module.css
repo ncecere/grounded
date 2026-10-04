@@ -55,20 +55,55 @@
 }
 
 /* A search step's title wraps on narrow screens instead of being cut off. */
+/*
+ * A step's header: the icon beside its title (a long query wraps under the title, never under the icon, US-09), the
+ * chevron at the end of the first line, the state and summary on a line under the title.
+ */
 .step {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
 
   & > span {
     white-space: normal;
     overflow-wrap: anywhere;
   }
+
+  & > span:nth-of-type(1) {
+    grid-area: 1 / 1;
+    align-self: start;
+    padding-block-start: 0.2em;
+  }
+
+  & > span:nth-of-type(2) {
+    grid-area: 1 / 2 / 2 / 4;
+  }
+
+  & > span:nth-of-type(3) {
+    grid-area: 2 / 2;
+  }
+
+  & > span:nth-of-type(4) {
+    grid-area: 2 / 3;
+  }
+
+  & > svg {
+    grid-area: 1 / 4;
+  }
 }
 
-/* The composer's keyboard hint, on devices without a keyboard. */
-@media (hover: none) and (pointer: coarse) {
+/* The composer's keyboard hint, on devices without a keyboard, and on phone widths (VI-33). */
+@media (hover: none) and (pointer: coarse), (max-width: 40rem) {
   .keyHint {
     display: none;
   }
+}
+
+/* A source card's buttons draw their focus ring inside: the sources list clips anything outside it (US-17). */
+.sourceCard :focus-visible {
+  outline-offset: -2px;
 }
 
 /* The answer's claims (SystemOne citation checks): "9 of 10 claims supported · 1 uncited", above its sources. */
@@ -90,6 +125,11 @@
 /* A chip and the punctuation right after it stay on one line ("…refunded 3✓." never leaves the "." alone). */
 .chipTail {
   white-space: nowrap;
+
+  /* The punctuation sits right after the chip, without the chip's outer margin (US-10). */
+  & > button:last-of-type {
+    margin-inline-end: 0;
+  }
 }
 
 /* A source card a chip leads to stays clear of the conversation's "Scroll to latest" button (WCAG 2.4.11). */

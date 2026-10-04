@@ -5,19 +5,20 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Download, MoreHorizontal, Pencil, SquarePen, Trash2 } from "lucide-react";
+import { Download, MessageSquareOff, MoreHorizontal, Pencil, SquarePen, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { conversationsKey } from "../../api/queries";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
 import { AlertDialog, Dialog, DialogClose } from "@/components/ui/dialog/dialog";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Field, Form } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { Menu, MenuItem, MenuLinkItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
-import { Time } from "@/components/ui/time/time";
+import { RelativeTime } from "../../components/templates/list-page";
 import { toast } from "@/components/ui/toast/toast";
 import { groupByDay } from "../../lib/group-by-day";
 import c from "./chat.module.css";
@@ -26,13 +27,17 @@ type Card = Schemas["AgentCard"];
 export type ConversationSummary = Schemas["Conversation"];
 
 
+/** The reader's IANA time zone ("" when the browser doesn't say). */
+const readerZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+
 /** Rename, export and delete a conversation, from a compact "…" menu. */
 export function ConversationMenu({ conversation, onDeleted, label }: { conversation: ConversationSummary; onDeleted: () => void; label?: string }) {
   const qc = useQueryClient();
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const title = conversation.title || "Untitled conversation";
-  const exportHref = (format: "markdown" | "json") => `/v1/conversations/${conversation.id}/export?format=${format}`;
+  // Times in the reader's zone, as the chat shows them (US-03).
+  const exportHref = (format: "markdown" | "json") => `/v1/conversations/${conversation.id}/export?format=${format}&tz=${encodeURIComponent(readerZone())}`;
   const remove = useMutation({
     mutationFn: async () => unwrap(await api.DELETE("/v1/conversations/{conversationId}", { params: { path: { conversationId: conversation.id } } })),
     onSuccess: () => {
@@ -40,6 +45,14 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
       qc.invalidateQueries({ queryKey: conversationsKey });
       toast.success("Conversation deleted");
       onDeleted();
+      // The menu's row is gone: focus the page's heading rather than leaving it on the page itself (US-17).
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body) return;
+        const heading = document.querySelector<HTMLElement>("main h1");
+        if (!heading) return;
+        heading.tabIndex = -1;
+        heading.focus();
+      });
     },
   });
   return (
@@ -121,6 +134,23 @@ function RenameDialog({ conversation, onClose }: { conversation: ConversationSum
   );
 }
 
+/** A link to a conversation that was deleted or never existed (US-01): one request, then this, with a way to start over. */
+export function ConversationGone({ onNew }: { onNew: () => void }) {
+  return (
+    <EmptyState
+      icon={<MessageSquareOff />}
+      titleAs="h2"
+      title="This conversation isn't available."
+      description="It was deleted, or the link is wrong."
+      action={
+        <Button variant="secondary" onClick={onNew}>
+          <SquarePen aria-hidden /> Start a new chat
+        </Button>
+      }
+    />
+  );
+}
+
 type ConversationsResult = { isLoading: boolean; error: unknown; data?: { items: ConversationSummary[] } };
 
 type ListProps = {
@@ -163,9 +193,12 @@ export function ConversationList({ card, conversations, selected, onNew, onPick,
                 <ul className={c.convList}>
                   {g.items.map((conv) => (
                     <li key={conv.id} className={c.conv} data-current={conv.id === selected ? "" : undefined}>
-                      <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick}>
+                      <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick} title={conv.title || undefined}>
                         <span className={c.convTitle}>{conv.title || "Untitled conversation"}</span>
-                        <Time value={conv.updatedAt} format="time" className={c.convDate} />
+                        {/* Lists are relative, with the exact time on hover (VI-16). */}
+                        <span className={c.convDate}>
+                          <RelativeTime value={conv.updatedAt} />
+                        </span>
                       </Link>
                       <ConversationMenu conversation={conv} onDeleted={() => conv.id === selected && onNew()} />
                     </li>

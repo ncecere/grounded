@@ -259,10 +259,56 @@ describe("chat page", () => {
     const stop = screen.getByRole("button", { name: "Stop generating" });
     await userEvent.click(stop);
     expect(signal?.aborted).toBe(true);
-    expect(await screen.findByText("Stopped. This is a partial answer.")).toBeInTheDocument();
+    expect(await screen.findByText("Stopped. The answer may be incomplete.")).toBeInTheDocument();
     expect(screen.getByText("Partial answer")).toBeInTheDocument();
     await waitFor(() => expect(box).toHaveFocus());
     expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
+  });
+
+  it("Stop hides a marker cut off mid-way, offers Ask again, and a reload still says Stopped (US-05)", async () => {
+    let n = 0;
+    const calls = mockApi(
+      routes({
+        "POST /v1/agents/registrar/registrar-assistant/chat": (_b, call) =>
+          n++ === 0
+            ? openSSE(
+                [
+                  ["conversation", { conversationId: "c2", userMessageId: "u", agentVersion: 1 }],
+                  ["retrieval", { query: "vpn", hits: [{ n: 1, title: "VPN", snippet: "…" }] }],
+                  ["message_start", { messageId: "m2" }],
+                  ["text_delta", { delta: "Request it through a software request [1" }],
+                ],
+                call.signal,
+              )
+            : sse(answerEvents("Use the portal [1].", "c2")),
+      }),
+    );
+    renderApp(chatPath);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "Can I use the VPN?{Enter}");
+    await screen.findByText(/Request it through a software request/);
+    await userEvent.click(screen.getByRole("button", { name: "Stop generating" }));
+    const note = (await screen.findByText("Stopped. The answer may be incomplete.")).closest("li")!;
+    expect(screen.getByText(/software request/).textContent).not.toMatch(/\[1/);
+    await userEvent.click(within(note).getByRole("button", { name: "Ask again" }));
+    expect(await screen.findByText(/Use the portal/)).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "POST").map((c) => (c.body as { message: string }).message)).toEqual(["Can I use the VPN?", "Can I use the VPN?"]);
+  });
+
+  it("a stored stopped answer says Stopped after a reload, with Ask again (US-05)", async () => {
+    mockApi(
+      routes({
+        "GET /v1/conversations/c1": () => ({
+          conversation: { id: "c1", agentId: "ag1", agentName: card.name, agentSlug: card.slug, teamSlug: "registrar", agentDeleted: false, title: "VPN", createdAt: "2026-09-26T10:00:00Z", updatedAt: "2026-09-26T10:00:00Z" },
+          messages: [
+            { id: "q1", seq: 1, role: "user", text: "Can I use the VPN?", createdAt: "2026-09-26T10:00:00Z" },
+            { id: "m1", seq: 2, role: "assistant", text: "Request it [1].", citations: [citation], stopReason: "aborted", toolCalls: [], createdAt: "2026-09-26T10:00:01Z" },
+          ],
+        }),
+      }),
+    );
+    renderApp(chatPath + "?c=c1");
+    const note = (await screen.findByText("Stopped. The answer may be incomplete.")).closest("li")!;
+    expect(within(note).getByRole("button", { name: "Ask again" })).toBeInTheDocument();
   });
 
   it("a stopped answer shows its markers as chips and its sources right away (M4)", async () => {
@@ -285,7 +331,7 @@ describe("chat page", () => {
     await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "How do I drop?{Enter}");
     await screen.findByText(/Drop it in the portal/);
     await userEvent.click(screen.getByRole("button", { name: "Stop generating" }));
-    expect(await screen.findByText("Stopped. This is a partial answer.")).toBeInTheDocument();
+    expect(await screen.findByText("Stopped. The answer may be incomplete.")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/[【】]|\[9\]/);
     expect(screen.getByRole("button", { name: "Source 1: Drop/Add" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Source 2: Fees" })).toBeInTheDocument();
@@ -438,7 +484,7 @@ describe("chat page", () => {
     // The header's compact menu acts on the open conversation.
     expect(await screen.findByRole("button", { name: "Conversation actions" })).toBeInTheDocument();
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Dropping" }));
-    expect((await screen.findByText("Export as Markdown")).closest("a")).toHaveAttribute("href", "/v1/conversations/c1/export?format=markdown");
+    expect((await screen.findByText("Export as Markdown")).closest("a")).toHaveAttribute("href", expect.stringMatching(/^\/v1\/conversations\/c1\/export\?format=markdown&tz=/));
     await userEvent.click(screen.getByRole("menuitem", { name: "Delete…" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toMatch(/removed permanently under the platform's retention policy/);

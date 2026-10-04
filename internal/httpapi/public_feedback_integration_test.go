@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ncecere/grounded/internal/agents"
@@ -46,7 +47,7 @@ func TestPublicFeedback(t *testing.T) {
 	// saved answer goes.
 	var res apitypes.FeedbackResult
 	code, e = v.call("POST", path, map[string]any{"rating": "down", "reason": "missing_sources", "share": true}, &res)
-	if code != 200 || !res.Shared || res.Rating != apitypes.Down {
+	if code != 200 || !res.Shared || res.Rating != apitypes.FeedbackRatingDown {
 		t.Fatalf("thumbs-down = %d %s %+v", code, e, res)
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM gap_questions WHERE message_id = $1 AND shared AND signals = ARRAY['thumbs_down']
@@ -65,10 +66,19 @@ func TestPublicFeedback(t *testing.T) {
 		t.Errorf("thumbs-up = %d %s", code, e)
 	}
 
-	// Rate-limited like questions (per session per minute, counted apart).
+	// "none" takes the rating back (v0.4.2 US-11).
+	var none apitypes.FeedbackResult
+	if code, e := v.call("POST", path, map[string]any{"rating": "none"}, &none); code != 200 || none.Rating != apitypes.FeedbackRatingNone ||
+		env.scalar(t, `SELECT count(*) FROM message_events WHERE message_id = $1 AND feedback IS NULL AND feedback_reason IS NULL`, start.MessageID) != 1 {
+		t.Errorf("taken back = %d %s %+v", code, e, none)
+	}
+
+	// Rate-limited like questions (per session per minute, counted apart), and said so (US-12).
 	setTeamLimits(t, env.admin, env.team, map[string]any{"public_queries_per_session_per_minute": 2})
-	if code, e := v.call("POST", path, map[string]any{"rating": "up"}, nil); code != 429 || e != "rate_limited" {
-		t.Fatalf("past the limit = %d %s", code, e)
+	res2, raw := v.do("POST", path, map[string]any{"rating": "up"}, nil)
+	if res2.StatusCode != 429 || errorCode(raw) != "rate_limited" || !strings.Contains(string(raw), "rating answers too quickly") ||
+		!strings.Contains(string(raw), `"counter":"feedback"`) {
+		t.Fatalf("past the limit = %d %s", res2.StatusCode, raw)
 	}
 	setTeamLimits(t, env.admin, env.team, map[string]any{"public_queries_per_session_per_minute": nil})
 

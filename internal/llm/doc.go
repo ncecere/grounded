@@ -27,6 +27,9 @@
 //     and thinking blocks end when a block of another kind starts; tool calls
 //     end when the response finishes. After an error, open blocks are not
 //     ended.
+//   - Reasoning written in content between <think> and </think> becomes
+//     thinking; a bare </think> turns the message's text so far into
+//     thinking, announced by text_to_thinking (thinktags.go).
 //   - Every event carries ContentIndex (-1 for start, done and error) and a
 //     snapshot of the partial AssistantMessage; the terminal event carries the
 //     final message. Snapshots are never mutated, so consumers may keep them.

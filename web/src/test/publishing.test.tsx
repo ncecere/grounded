@@ -134,7 +134,8 @@ describe("public page", () => {
     const { container } = renderApp("/a/registrar-help");
     expect(await screen.findByRole("heading", { level: 1, name: "Registrar help" })).toBeInTheDocument();
     expect(screen.getByText("Campus RAG")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+    // Without single sign-on, Sign in goes to the sign-in page and comes back here (US-06).
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/?next=%2Fa%2Fregistrar-help");
     expect(screen.queryByRole("navigation", { name: /main|primary/i })).toBeNull();
     // One header bar (W12): the instance, the agent and Sign in together; New chat once there's a conversation.
     const bar = screen.getByRole("heading", { level: 1, name: "Registrar help" }).closest("header")!;
@@ -229,6 +230,42 @@ describe("embed page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Good answer" }));
     await waitFor(() => expect(calls.find((c) => c.url.endsWith("/messages/m1/feedback"))?.body).toEqual({ rating: "up" }));
     expect(calls.find((c) => c.url.endsWith("/messages/m1/feedback"))!.headers.get("Grounded-Channel")).toBe("widget");
+  });
+
+  it("has one header (the loader's), puts the cursor in the composer when the panel opens, and New chat once asked (US-16)", async () => {
+    mockApi({
+      [`GET /v1/public/agents/${publicAgent.id}`]: () => publicAgent,
+      "GET /v1/auth/config": signedOut["GET /v1/auth/config"]!,
+      "GET /v1/public/sessions/current": () => Reply.error(401, "session_required"),
+      "POST /v1/public/sessions": () => new Reply(201, { data: { agentId: publicAgent.id, channel: "widget", expiresAt: "2026-09-27T10:00:00Z" } }),
+      [`POST /v1/public/agents/${publicAgent.id}/chat`]: () => sse(answer()),
+    });
+    // Framed by the loader.
+    const parent = { postMessage: vi.fn() };
+    vi.stubGlobal("parent", parent);
+    const { container } = renderApp(`/embed/${publicAgent.id}?key=pk_abc`);
+    const box = await screen.findByRole("textbox", { name: "Message Registrar help" });
+    await waitFor(() => expect(box).toHaveFocus());
+    // The name is for screen readers only: the loader's bar shows it with Close.
+    expect(screen.getByRole("heading", { level: 1, name: "Registrar help" }).closest("header")).toHaveClass("sr-only");
+    expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.type(box, "How do I order a transcript?{Enter}");
+    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New chat" })).toBeInTheDocument();
+  });
+
+  it("replaces the chat with the refusal when this site may not embed it (US-16)", async () => {
+    mockApi({
+      [`GET /v1/public/agents/${publicAgent.id}`]: () => publicAgent,
+      "GET /v1/auth/config": signedOut["GET /v1/auth/config"]!,
+      "GET /v1/public/sessions/current": () => Reply.error(401, "session_required"),
+      "POST /v1/public/sessions": () => Reply.error(403, "origin_not_allowed", "This site is not allowed to embed this assistant."),
+    });
+    renderApp(`/embed/${publicAgent.id}?key=pk_abc`);
+    await userEvent.click(await screen.findByRole("button", { name: "How do I order a transcript?" }));
+    expect(await screen.findByText("This site is not allowed to embed this assistant.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "How do I order a transcript?" })).toBeNull();
   });
 
   it("shows the server's error for a refused embed", async () => {

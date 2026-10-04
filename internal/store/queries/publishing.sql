@@ -45,7 +45,10 @@ WHERE a.deleted_at IS NULL AND a.published_version_id IS NOT NULL AND a.status =
   AND (sqlc.narg(search)::text IS NULL
        OR a.name ILIKE '%' || sqlc.narg(search)::text || '%'
        OR a.description ILIKE '%' || sqlc.narg(search)::text || '%'
-       OR t.name ILIKE '%' || sqlc.narg(search)::text || '%')
+       OR t.name ILIKE '%' || sqlc.narg(search)::text || '%'
+       -- "wifi" finds "Wi-Fi": letters and digits only, on both sides (v0.4.2 US-13).
+       OR (sqlc.narg(loose)::text <> '' AND regexp_replace(lower(a.name || ' ' || a.description || ' ' || t.name), '[^[:alnum:]]+', '', 'g')
+           LIKE '%' || sqlc.narg(loose)::text || '%'))
   AND (sqlc.narg(team)::text IS NULL OR t.slug = sqlc.narg(team)::text OR t.id::text = sqlc.narg(team)::text)
 ORDER BY lower(a.name), a.id
 LIMIT 500;

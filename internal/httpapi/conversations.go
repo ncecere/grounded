@@ -146,6 +146,8 @@ func (a *api) exportConversation(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
+	// Numbered as the chat shows the answers (US-03).
+	v = agents.ExportNumbers(v)
 	name := "conversation-" + id.String()[:8]
 	w.Header().Set("Cache-Control", "no-store")
 	if format == "json" {
@@ -158,7 +160,7 @@ func (a *api) exportConversation(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.md"`)
-	_, _ = w.Write([]byte(agents.ExportMarkdown(v)))
+	_, _ = w.Write([]byte(agents.ExportMarkdown(v, exportZone(r.URL.Query().Get("tz")))))
 }
 
 func (a *api) setMessageFeedback(w http.ResponseWriter, r *http.Request) {
@@ -175,10 +177,23 @@ func (a *api) setMessageFeedback(w http.ResponseWriter, r *http.Request) {
 		s := string(*in.Reason)
 		reason = &s
 	}
-	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.FeedbackRatingDown
 	if err := a.Agents.SetFeedback(r.Context(), a.actor(r), id, string(in.Rating), reason, share); err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, apitypes.FeedbackResult{MessageId: id, Rating: in.Rating, Reason: in.Reason, Shared: share})
+}
+
+// exportZone is the reader's time zone for an export's times, UTC when
+// absent or unknown.
+func exportZone(name string) *time.Location {
+	if name == "" || len(name) > 64 {
+		return time.UTC
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
 }

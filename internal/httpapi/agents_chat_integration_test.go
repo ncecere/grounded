@@ -154,7 +154,7 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 			t.Fatalf("event order = %v", names)
 		}
 	}
-	if steps := statusSteps(evs); strings.Join(steps, ",") != "searching,answering" {
+	if steps := statusSteps(evs); strings.Join(steps, ",") != "searching,thinking,answering" {
 		t.Fatalf("status steps = %v", steps)
 	}
 	// Follow-up suggestions come after the answer, before done (suggestions_integration_test.go).

@@ -1565,7 +1565,7 @@ func (q *Queries) NextMessageSeq(ctx context.Context, conversationID uuid.UUID) 
 }
 
 const renameConversation = `-- name: RenameConversation :one
-UPDATE conversations SET title = $1, updated_at = now() WHERE id = $2 RETURNING id, agent_id, user_id, title, last_version_id, created_at, updated_at, deleted_at, anonymous, anon_session_id
+UPDATE conversations SET title = $1 WHERE id = $2 RETURNING id, agent_id, user_id, title, last_version_id, created_at, updated_at, deleted_at, anonymous, anon_session_id
 `
 
 type RenameConversationParams struct {

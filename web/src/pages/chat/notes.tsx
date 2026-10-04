@@ -5,23 +5,31 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Wrench } from "lucide-react";
+import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Undo2, Wrench } from "lucide-react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
 import { Menu, MenuCheckboxItem, MenuGroup, MenuItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { MessageAction } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import { toast } from "@/components/ui/toast/toast";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ui/tool/tool";
 import { judgedSummary } from "@/lib/systemone";
 import { useFeedbackSender } from "./feedback-sender";
 import { type AssistantItem, type FeedbackRating, type FeedbackReason, type SearchStep, chatErrorText, feedbackReasons } from "./stream";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 
-function stepTitle(step: SearchStep) {
+/**
+ * A step's title. A follow-up searched together with the earlier question (the server joins them when it can't
+ * rewrite it) reads as the question "with your earlier question", not as the two run together (US-09).
+ */
+function stepTitle(step: SearchStep, question?: string) {
   if (step.name) return `Used ${step.name}`;
-  const q = step.query ? `“${step.query}”` : "the knowledge base";
+  const asked = question?.trim();
+  const joined = Boolean(asked && step.query && step.query !== asked && step.query.endsWith(` ${asked}`));
+  const q = joined ? `“${asked}” with your earlier question` : step.query ? `“${step.query}”` : "the knowledge base";
   return step.kind === "retrieval" ? `Searched the knowledge base for ${q}` : `Searched: ${q}`;
 }
 
@@ -35,7 +43,7 @@ function searchSummary(s: SearchStep) {
 const failure = (s: SearchStep) => (s.isError ? (s.error ?? (s.name ? "The call failed." : "The search failed.")) : undefined);
 
 /** Steps of an answer (all of them, or a group between two parts of its reasoning: timeline.ts); running until their result while streaming. */
-export function Steps({ steps, streaming }: { steps: SearchStep[]; streaming: boolean }) {
+export function Steps({ steps, streaming, question }: { steps: SearchStep[]; streaming: boolean; question?: string }) {
   if (steps.length === 0) return null;
   return (
     <div className={c.steps}>
@@ -54,7 +62,7 @@ export function Steps({ steps, streaming }: { steps: SearchStep[]; streaming: bo
               className={a.step}
               name={s.name ?? (s.kind === "retrieval" ? "retrieve" : "search_knowledge")}
               icon={tool ? <Wrench /> : <Search />}
-              title={stepTitle(s)}
+              title={stepTitle(s, question)}
               state={state}
               summary={summary}
             />
@@ -87,7 +95,7 @@ const refusalNote = (item: AssistantItem) =>
 
 type NotesProps = {
   item: AssistantItem;
-  /** Ask again after the connection was lost mid-answer (the last answer only). */
+  /** Ask again after the connection was lost mid-answer or after Stop (the last answer only). */
   onRetry?: () => void;
   /** The agent's starter questions, offered under a refusal (the last answer only). */
   starters?: string[];
@@ -120,7 +128,8 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
     );
   }
   const notes: { icon: typeof Ban; text: string; tone: "info" | "warning" }[] = [];
-  if (item.status === "aborted") notes.push({ icon: CircleStop, text: "Stopped. This is a partial answer.", tone: "info" });
+  // Stopped: said again after a reload (the stored answer is marked stopped too, US-05), with a way to ask again.
+  if (item.status === "aborted") notes.push({ icon: CircleStop, text: "Stopped. The answer may be incomplete.", tone: "info" });
   const refusal = item.refused ? refusalNote(item) : undefined;
   if (refusal) notes.push({ icon: Ban, text: refusal, tone: "info" });
   else if (!item.refused && item.noContext && item.status === "done" && item.noContextReason !== "small_talk")
@@ -136,6 +145,11 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
             <li key={n.text} className={c.statusNote} data-tone={n.tone}>
               <n.icon aria-hidden className={c.noteIcon} />
               {n.text}
+              {n.icon === CircleStop && onRetry && (
+                <Button size="sm" variant="ghost" onClick={onRetry}>
+                  <RotateCcw aria-hidden /> Ask again
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -187,10 +201,11 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
   const save = useMutation({
     mutationFn: ({ body }: { body: FeedbackBody; shareOnly?: boolean }) => send(item.id!, body),
     onSuccess: (res, { shareOnly }) => {
-      onChange({ rating: res.rating, reason: res.reason, shared: res.shared });
+      onChange(res.rating === "none" ? undefined : { rating: res.rating, reason: res.reason, shared: res.shared });
       setShare(res.shared === true);
       if (shareOnly) toast.success(res.shared ? "Your question is shared with the team" : "Your question is no longer shared");
-      else toast.success("Thanks for the feedback");
+      // The pressed thumb shows it was saved; no toast over the conversation list (US-11). Screen readers hear it.
+      else setSaid(res.rating === "none" ? "Your rating was removed." : "Thanks for the feedback.");
     },
     onError: (err) => {
       setShare(item.feedback?.shared === true);
@@ -199,6 +214,7 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
   });
   const rating = item.feedback?.rating;
   const [share, setShare] = useState(item.feedback?.shared === true);
+  const [said, setSaid] = useState("");
   const reason = feedbackReasons.find((r) => r.value === item.feedback?.reason)?.label;
   const submit = (body: FeedbackBody, shareOnly = false) => !save.isPending && save.mutate({ body, shareOnly });
   const changeShare = (v: boolean) => {
@@ -212,12 +228,15 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
         label="Good answer"
         pressed={rating === "up"}
         className={c.feedbackAction}
-        onClick={() => rating !== "up" && submit({ rating: "up" })}
+        // Pressed again, it takes the rating back (US-11).
+        onClick={() => submit({ rating: rating === "up" ? "none" : "up" })}
       >
         <ThumbsUp aria-hidden />
       </MessageAction>
+      <VisuallyHidden role="status">{said}</VisuallyHidden>
       <Menu
         side="top"
+        className={pm.fitMenu}
         trigger={
           // A menu trigger, so a plain IconButton (MessageAction adds a tooltip trigger of its own).
           <IconButton
@@ -241,6 +260,14 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
             </MenuItem>
           ))}
         </MenuGroup>
+        {rating === "down" && (
+          <>
+            <MenuSeparator />
+            <MenuItem icon={<Undo2 aria-hidden />} onClick={() => submit({ rating: "none" })}>
+              Remove my rating
+            </MenuItem>
+          </>
+        )}
       </Menu>
     </>
   );

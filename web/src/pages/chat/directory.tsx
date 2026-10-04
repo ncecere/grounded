@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
-import { RelativeTime, useListFilters } from "../../components/templates/list-page";
+import { RelativeTime, SEARCH_PARAM, useListFilters } from "../../components/templates/list-page";
+import { useSearchParams } from "@/lib/url-search";
+import { DirectoryChips } from "./directory-chips";
 import { audienceLabel, audienceLabels, terms } from "../../lib/terms";
 import { useDebounced } from "../admin/hooks";
 import { AgentAvatar } from "./welcome";
@@ -176,6 +178,7 @@ const first = (v: FilterValue | undefined) => (Array.isArray(v) ? v[0] : undefin
 export function AgentDirectoryPage() {
   const facets = useDirectoryFacets();
   const filters = useListFilters(facets);
+  const [, setParams] = useSearchParams();
   const q = useDebounced(filters.query.trim(), 250);
   return (
     <Stack gap={6} className={s.page}>
@@ -187,6 +190,8 @@ export function AgentDirectoryPage() {
         facets={facets}
         value={filters.values}
         onValueChange={filters.setValues}
+        // Discover's own chips also show the search, and its Clear all clears it (US-13).
+        chips={false}
         start={
           <Input
             type="search"
@@ -197,6 +202,20 @@ export function AgentDirectoryPage() {
             onChange={(e) => filters.setQuery(e.target.value)}
             className={d.search}
           />
+        }
+      />
+      <DirectoryChips
+        facets={facets}
+        values={filters.values}
+        query={filters.query}
+        onValues={filters.setValues}
+        onQuery={filters.setQuery}
+        onClearAll={() =>
+          setParams((p) => {
+            const out = new URLSearchParams(p);
+            for (const id of [SEARCH_PARAM, ...facets.map((f) => f.id)]) out.delete(id);
+            return out;
+          })
         }
       />
       <DirectoryGroups q={q} team={first(filters.values.team) ?? ""} show={first(filters.values.show) as Group | undefined} />

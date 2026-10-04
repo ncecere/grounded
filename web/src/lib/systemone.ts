@@ -36,7 +36,8 @@ export const modeLabels: Record<SystemOneJudging["mode"], string> = {
 
 /** "20 passages checked, 5 used" for the chat's search steps. */
 export function judgedSummary(j: { judged: number; kept: number }) {
-  return `${j.judged} ${j.judged === 1 ? "passage" : "passages"} checked, ${j.kept} used`;
+  // "kept", not "used": beside "Used 1 source" (a source can give several passages), "2 used" read as a contradiction (US-18).
+  return `${j.judged} ${j.judged === 1 ? "passage" : "passages"} checked, ${j.kept} kept`;
 }
 
 export const pct = (p: number) => `${Math.round(p * 100)}%`;

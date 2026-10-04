@@ -86,15 +86,23 @@ export function useSignOut() {
   });
 }
 
+/** A same-site path from ?next= (never another site: "//host" and "/\\host" are refused), or undefined. */
+export function nextPath(search: string): string | undefined {
+  const n = new URLSearchParams(search).get("next");
+  return n && n.startsWith("/") && !n.startsWith("//") && !n.startsWith("/\\") ? n : undefined;
+}
+
 export function SignInPage() {
   const config = useAuthConfig();
   const instance = instanceOf(config.data);
   const qc = useQueryClient();
   const devLogin = useMutation({
     mutationFn: async (account: string) => unwrap(await api.POST("/auth/dev", { body: { account } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }),
+    // From a public page's Sign in (?next=): back to that page, now signed in (US-06).
+    onSuccess: () => (returnTo ? window.location.assign(returnTo) : qc.invalidateQueries({ queryKey: ["me"] })),
   });
-  const next = window.location.pathname + window.location.search;
+  const returnTo = nextPath(window.location.search);
+  const next = returnTo ?? window.location.pathname + window.location.search;
 
   return (
     <main className={styles.page}>

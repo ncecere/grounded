@@ -350,8 +350,9 @@ func (s *Service) DeleteConversation(ctx context.Context, a authz.Actor, id uuid
 	return s.q.SoftDeleteConversation(ctx, id)
 }
 
-// ExportMarkdown renders a conversation as Markdown with its citations.
-func ExportMarkdown(v ConversationView) string {
+// ExportMarkdown renders a conversation as Markdown with its citations, its
+// times in the reader's zone.
+func ExportMarkdown(v ConversationView, loc *time.Location) string {
 	var b strings.Builder
 	title := v.Conversation.Title
 	if title == "" {
@@ -359,14 +360,14 @@ func ExportMarkdown(v ConversationView) string {
 	}
 	fmt.Fprintf(&b, "# %s\n\n", title)
 	fmt.Fprintf(&b, "- Agent: %s (%s/%s)\n", v.Agent.Name, v.TeamSlug, v.Agent.Slug)
-	fmt.Fprintf(&b, "- Started: %s\n", v.Conversation.CreatedAt.UTC().Format(time.RFC3339))
-	fmt.Fprintf(&b, "- Exported: %s\n\n", time.Now().UTC().Format(time.RFC3339))
+	fmt.Fprintf(&b, "- Started: %s\n", v.Conversation.CreatedAt.In(loc).Format(time.RFC3339))
+	fmt.Fprintf(&b, "- Exported: %s\n\n", time.Now().In(loc).Format(time.RFC3339))
 	for _, m := range v.Messages {
 		who := "You"
 		if m.Role == "assistant" {
 			who = v.Agent.Name
 		}
-		fmt.Fprintf(&b, "## %s (%s)\n\n", who, m.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"))
+		fmt.Fprintf(&b, "## %s (%s)\n\n", who, m.CreatedAt.In(loc).Format("2006-01-02 15:04 MST"))
 		text := strings.TrimSpace(m.Text)
 		switch {
 		case text != "":
@@ -399,6 +400,9 @@ func ExportMarkdown(v ConversationView) string {
 	}
 	return b.String()
 }
+
+// FeedbackNone takes a rating back (v0.4.2 US-11): the answer has none again.
+const FeedbackNone = "none"
 
 // Feedback reasons (docs/phase3-agents.md §7).
 var feedbackReasons = map[string]bool{
@@ -437,8 +441,11 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 
 // checkFeedback validates a rating and its reason ("" is none).
 func checkFeedback(rating string, reason *string) (*string, error) {
-	if rating != "up" && rating != "down" {
-		return nil, apperr.Invalid("invalid_rating", "Rating must be up or down")
+	if rating != "up" && rating != "down" && rating != FeedbackNone {
+		return nil, apperr.Invalid("invalid_rating", "Rating must be up, down or none")
+	}
+	if rating == FeedbackNone {
+		return nil, nil
 	}
 	if reason != nil && *reason == "" {
 		reason = nil
@@ -452,9 +459,13 @@ func checkFeedback(rating string, reason *string) (*string, error) {
 // recordFeedback stores a rating on the answer's analytics event and acts on
 // it (afterFeedback); errNoMessage when the answer has no event.
 func (s *Service) recordFeedback(ctx context.Context, messageID uuid.UUID, rating string, reason *string, share bool, asker *string, errNoMessage error) error {
+	stored := &rating
+	if rating == FeedbackNone {
+		stored = nil // taken back: no rating (v0.4.2 US-11)
+	}
 	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		n, err := q.SetMessageFeedback(ctx, dbgen.SetMessageFeedbackParams{
-			MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: &rating, FeedbackReason: reason, FeedbackShared: share,
+			MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: stored, FeedbackReason: reason, FeedbackShared: share,
 		})
 		if err != nil {
 			return err

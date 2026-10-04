@@ -59,8 +59,13 @@ const (
 	EventToolCallStart EventType = "toolcall_start"
 	EventToolCallDelta EventType = "toolcall_delta"
 	EventToolCallEnd   EventType = "toolcall_end"
-	EventDone          EventType = "done"
-	EventError         EventType = "error"
+	// EventTextToThinking: the message's text so far was the model's
+	// reasoning, ended by a bare </think> in the text (thinktags.go).
+	// Message now has it as thinking; a consumer that added up the text
+	// deltas drops that text.
+	EventTextToThinking EventType = "text_to_thinking"
+	EventDone           EventType = "done"
+	EventError          EventType = "error"
 )
 
 // Terminal reports whether t ends a stream.

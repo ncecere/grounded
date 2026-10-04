@@ -9,7 +9,7 @@ import { MessagesSquare, SearchX } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { agentDirectoryQuery, conversationsKey } from "../../api/queries";
 import { LoadMore } from "../../components/query-view";
-import { useListFilters } from "../../components/templates/list-page";
+import { RelativeTime, useListFilters } from "../../components/templates/list-page";
 import { terms } from "../../lib/terms";
 import { useDebounced } from "../admin/hooks";
 import { ConversationMenu, type ConversationSummary } from "../chat/conversations";
@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
-import { Time } from "@/components/ui/time/time";
 import type { DateRangeSelection } from "@/components/ui/date-picker/date-picker";
 import { groupByDay } from "../../lib/group-by-day";
 import s from "../shared.module.css";
@@ -148,7 +147,8 @@ function ConversationLink({ item }: { item: ConversationSummary }) {
   const meta = (
     <span className={c.meta}>
       {item.agentName}
-      {item.agentDeleted && " (deleted)"} · <Time value={item.updatedAt} format="time" />
+      {/* Lists are relative, with the exact time on hover (VI-16). */}
+      {item.agentDeleted && " (deleted)"} · <RelativeTime value={item.updatedAt} />
     </span>
   );
   // A deleted agent's conversation opens read-only.

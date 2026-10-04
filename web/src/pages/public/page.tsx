@@ -20,11 +20,11 @@ import { PublicChat } from "./public-chat";
 import { isTeamAddress, publicAgentQuery, publicRef } from "./session";
 import p from "./public.module.css";
 
-/** Where "Sign in" goes: single sign-on returning here, or the sign-in page. */
+/** Where "Sign in" goes: single sign-on returning here, or the sign-in page, which comes back here (US-06). */
 function useSignInHref(path: string) {
   const config = useAuthConfig();
   if (config.data?.oidcEnabled) return `${config.data.loginUrl}?next=${encodeURIComponent(path)}`;
-  return "/";
+  return `/?next=${encodeURIComponent(path)}`;
 }
 
 export function PublicAgentPage({ fallback }: { fallback?: ReactNode }) {

@@ -4,6 +4,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* The answer starts clear of its steps (US-09). */
+  margin-block-end: var(--space-3);
 }
 
 .thinking {
@@ -62,13 +64,14 @@
   margin-top: 0.2em;
 }
 
+/* The widget's welcome is smaller (panel.module.css). */
 .welcome {
-  gap: var(--space-3);
+  gap: var(--welcome-gap, var(--space-3));
 }
 
 .welcomeName {
   margin: var(--space-1) 0 0;
-  font-size: var(--font-size-xl);
+  font-size: var(--welcome-name-size, var(--font-size-xl));
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--letter-spacing-tight);
 }
@@ -83,7 +86,7 @@
 
 .starters {
   max-width: 44rem;
-  margin-top: var(--space-3);
+  margin-top: var(--welcome-starters-gap, var(--space-3));
 }
 
 /* ---------------- chat page ---------------- */
@@ -250,6 +253,11 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
+
+  /* A short window (200% zoom, a phone on its side): a slimmer chat header, more room for the thread (US-18). */
+  @media (max-height: 32rem) {
+    padding-block: var(--space-1);
+  }
 }
 
 .headerText {
@@ -276,6 +284,10 @@
   font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  @media (max-height: 32rem) {
+    display: none;
+  }
 }
 
 /*
@@ -304,7 +316,8 @@
 
 .pagePanel .content {
   max-width: calc(var(--reading-width) + 2 * var(--reading-gutter));
-  padding: var(--space-6) var(--reading-gutter);
+  /* Smaller in the widget (panel.module.css). */
+  padding: var(--chat-content-pad, var(--space-6)) var(--reading-gutter);
 }
 
 .pagePanel .composer,
@@ -320,7 +333,7 @@
 }
 
 .pagePanel .composer {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--chat-composer-gap, var(--space-4));
 }
 
 /* The agent editor's Test tab: a framed conversation above the composer (beside the source viewer when it is open). */

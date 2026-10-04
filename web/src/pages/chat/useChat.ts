@@ -137,10 +137,16 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
     } catch (err) {
       // After the answer: the suggestions' wait was cut short (a new question, a reset or a lost connection).
       if (released) return true;
+      if (isAbort(err) && sawEnd) {
+        // Stopped while its citations were being checked: the answer itself had arrived whole (message_end).
+        set({ ...local, status: local.status === "streaming" ? "done" : local.status, latencyMs: Date.now() - started });
+        announce(outcome(local));
+        return true;
+      }
       if (isAbort(err)) {
         // No message_end after Stop: settle the partial answer's markers and citations here (M4).
         set(settlePartial({ ...local, status: "aborted", stopReason: "aborted" }));
-        announce("Stopped. The partial answer is kept.");
+        announce("Stopped. The partial answer is kept, with a way to ask again.");
         return true;
       }
       if (err instanceof ApiError) {

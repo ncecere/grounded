@@ -21,6 +21,8 @@ import { type Facet, type FilterValues, filterValuesFromSearchParams, filterValu
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Time } from "@/components/ui/time/time";
+import { formatDate, toDate } from "@/lib/bitop-format";
+import { needsCalendarDay, relativeDay } from "@/lib/relative-day";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../pages/shared.module.css";
 import { ActionMenu, type ActionItem } from "./action-menu";
@@ -46,6 +48,14 @@ export function useListFilters<T>(facets: Facet<T>[] = []) {
 
 /** A relative date cell ("3 hours ago"), with the full date as a tooltip. */
 export function RelativeTime({ value }: { value: string | Date | null | undefined }) {
+  // Days count by the calendar ("yesterday" is the day before today, v0.4.2 US-07).
+  const date = needsCalendarDay(value) ? toDate(value) : undefined;
+  if (date)
+    return (
+      <time dateTime={date.toISOString()} title={formatDate(date, { style: "long" })}>
+        {relativeDay(date)}
+      </time>
+    );
   return <Time value={value} format="relative" fallback="—" />;
 }
 

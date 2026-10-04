@@ -111,6 +111,7 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 		return user, errSuspended
 	}
 	s.setSessionCookie(w, secret)
+	s.rotateVisit(w)
 	return user, nil
 }
 
@@ -135,6 +136,7 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.setCookie(w, s.sessionCookieName(), "", -1)
+	s.rotateVisit(w)
 	httpx.JSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

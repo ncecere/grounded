@@ -36,8 +36,8 @@ func thinkingOff(body map[string]any) bool {
 // Reasoning effort (docs/v0.4.0.md §4, owner decision 4): the agent's own
 // wins, else the audience's from its moderation policy (Public: low until
 // an admin chooses); off turns thinking off the way the model says (and the
-// query rewrite too); checked and buffered answers say "thinking" while
-// the model reasons, then "answering".
+// query rewrite too); answers say "thinking" from the model's start while
+// it reasons, then "answering" (never "answering" first, v0.4.2 US-08).
 func TestReasoningEffortAndThinkingStatus(t *testing.T) {
 	env := newPublishEnv(t)
 	var m apitypes.Model
@@ -82,7 +82,7 @@ func TestReasoningEffortAndThinkingStatus(t *testing.T) {
 			steps = append(steps, string(st.Step))
 		}
 	}
-	if got := strings.Join(steps, ","); !strings.HasSuffix(got, "answering,thinking,answering") || len(evs.all("thinking_delta")) != 0 {
+	if got := strings.Join(steps, ","); !strings.HasSuffix(got, "searching,thinking,answering") || len(evs.all("thinking_delta")) != 0 {
 		t.Errorf("status steps = %s, thinking deltas %d", got, len(evs.all("thinking_delta")))
 	}
 

@@ -35,6 +35,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Wording: read-only notices say who can change what in one way; members opening evaluation or gap pages are told only editors see them (was "Page not found"); Team settings → General names platform admins; the repeated-blocks card says when a block was found but kept, and names its rule's unit; the save bar counts invalid fields; the knowledge base's "Used by agents" card shows its count once.
   - Tabs no longer open with a second page header (Crawl domains, API keys, evaluation sets, questions, runs), and empty states don't repeat the header's button.
 
+- **Chat, public page, widget and conversations (v0.4.2 M1; [`docs/v0.4.2.md`](docs/v0.4.2.md#as-built-m1)):**
+  - A link to a deleted or unknown conversation (`?c=`) no longer loops (it sent about 70 requests a second until the person was rate-limited out of the app): it says "This conversation isn't available." with **Start a new chat**.
+  - A public answer no longer leaks the model's `</think>` or repeats itself: reasoning a model writes in its answer text (`<think>…</think>`, or a bare `</think>` from Qwen3 with thinking off after a tool call) becomes thinking, in every chunking (`internal/llm`, a new stream event `text_to_thinking`).
+  - Source numbers no longer change when an answer ends: sources are numbered by their first citation while streaming and after, and **Copy answer** (now with its sources) and both exports use the same numbers; export times are in the reader's time zone.
+  - Follow-up suggestions are questions: a passage's title or heading is dropped, also from saved answers when they replay.
+  - Stop hides a cut-off marker ("[1"), offers **Ask again**, and a stopped answer still says Stopped after a reload (also when Stop came after the model finished but before the answer reached the reader).
+  - An anonymous public conversation ends when someone signs in or out on the same browser; Sign in on the public page comes back to the agent.
+  - The status says "Thinking about your question…" before "Writing the answer…", in one wording everywhere; the search step keeps its icon beside a long query and a follow-up searched with the earlier question reads as the question; a citation chip keeps its punctuation and the word before it on its line.
+  - A thumbs-up can be taken back (and a thumbs-down, from its menu); ratings no longer toast over the conversation list; a visitor's feedback limit talks about ratings.
+  - Discover: "wifi" finds "Wi-Fi", the search shows as a filter chip, and **Clear all** clears it.
+  - Dates by calendar day ("2 days ago" for Friday evening on Sunday) in lists, Home and ⌘K; conversation lists show relative times with the exact time on hover; renaming a conversation keeps its time; full titles on hover in the recent conversations.
+  - Notification settings list only the team events a person can get; members don't see the team's data level on its Overview.
+  - The widget has one header, its starters in view, scroll shadows, the cursor in the composer when it opens, a feedback menu that fits, a buffered answer shown from its text, and a site that may not embed it gets the refusal in place of the chat.
+  - Phones and zoom: the conversations sheet has its own icon, a slimmer chat header in short windows, no keyboard hint on phone widths, "6 passages checked, 2 kept", focus after deleting a conversation, focus rings inside source cards, and the composer's ring no longer hidden under the conversation.
+  - API (additive): `FeedbackRating` `none` (takes a rating back; the generated Go constants are now `FeedbackRatingUp`/`Down`/`None`), the export's `tz`, and the status step `thinking` at the model's start. No migration.
+
 ## [0.4.1] - 2026-10-02
 
 Small wins: follow-up suggestions, evaluation questions that need attention, OCR for every TIFF page and partly scanned PDFs, SystemOne capacity that keeps answers first, and reasoning shown in order. The release notes are [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).

@@ -186,7 +186,7 @@ SELECT * FROM conversations WHERE id = $1 AND deleted_at IS NULL FOR UPDATE;
 UPDATE conversations SET updated_at = now(), last_version_id = @last_version_id WHERE id = @id;
 
 -- name: RenameConversation :one
-UPDATE conversations SET title = @title, updated_at = now() WHERE id = @id RETURNING *;
+UPDATE conversations SET title = @title WHERE id = @id RETURNING *;
 
 -- name: SoftDeleteConversation :exec
 UPDATE conversations SET deleted_at = now() WHERE id = $1;

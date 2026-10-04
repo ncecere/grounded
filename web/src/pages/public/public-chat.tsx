@@ -10,10 +10,11 @@
  * for screen readers), so the agent's name keeps the room it needs (mem-7).
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SquarePen } from "lucide-react";
+import { Bot, SquarePen } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, setPublicChannel } from "../../api/client";
 import { Button } from "@/components/ui/button/button";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { FeedbackSenderContext, publicFeedback } from "../chat/feedback-sender";
 import { ChatPanel } from "../chat/panel";
@@ -39,6 +40,8 @@ type Props = {
 };
 
 const sessionEnded = (code?: string) => code === "session_expired" || code === "session_required";
+/** Widget refusals no retry fixes. */
+const widgetRefused = new Set(["origin_not_allowed", "invalid_publishable_key"]);
 
 export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions }: Props) {
   const qc = useQueryClient();
@@ -108,23 +111,26 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
     agent.status !== "active" ? "This assistant has been turned off." : needsCaptcha && !captchaToken ? "Complete the verification below to start." : undefined;
   const look = { name: agent.name, accentColor: agent.accentColor, welcomeMessage: agent.welcomeMessage, starterQuestions: agent.starterQuestions, description: agent.description };
 
+  // The widget's loader already shows the agent's name and Close: the frame names it for screen readers only, and
+  // has a slim row for New chat once there's a conversation (one header, US-16).
+  const slim = compact && chat.items.length === 0;
   return (
     <section className={p.chat} aria-labelledby="public-chat-title">
-      <header className={compact ? p.compactHead : `${c.header} ${p.bar}`}>
+      <header className={compact ? (slim ? "sr-only" : p.compactHead) : `${c.header} ${p.bar}`}>
         {brand}
         {!compact && (
           <span className={p.avatar}>
             <AgentAvatar agent={agent} size="md" />
           </span>
         )}
-        <div className={c.headerText}>
-          <h1 id="public-chat-title" className={compact ? p.compactTitle : c.title}>
+        <div className={compact ? `${c.headerText} ${p.compactText}` : c.headerText}>
+          <h1 id="public-chat-title" className={compact ? "sr-only" : c.title}>
             {agent.name}
           </h1>
           {!compact && <p className={c.subtitle}>{agent.teamName}</p>}
         </div>
         {/* Nothing to start over from before the first question. */}
-        {(compact || chat.items.length > 0) && (
+        {chat.items.length > 0 && (
           <Button variant="ghost" size="sm" onClick={newChat} disabled={chat.streaming || chat.items.length === 0}>
             <SquarePen aria-hidden /> <span className={p.barLabel}>New chat</span>
           </Button>
@@ -133,6 +139,9 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
       </header>
       {session.isLoading ? (
         <Loading label="Loading…" />
+      ) : compact && chat.error && widgetRefused.has(chat.error.code) ? (
+        // The widget can't work here (this site isn't allowed, or the key is off): say so in place of the chat (US-16).
+        <EmptyState className={p.unavailable} icon={<Bot />} title={chat.error.title} description={chat.error.message} />
       ) : (
         <FeedbackSenderContext.Provider value={rate}>
           <ChatPanel
@@ -147,6 +156,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
             maxLength={agent.maxMessageChars}
             disabledReason={disabledReason}
             label={`Conversation with ${agent.name}`}
+            compact={compact}
           />
         </FeedbackSenderContext.Provider>
       )}

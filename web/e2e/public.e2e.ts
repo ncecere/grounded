@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { baseURL } from "./support/env";
+import { composerClips } from "./support/layout";
 import { type Page } from "@playwright/test";
 import { expect, test } from "./support/fixtures";
 
@@ -72,6 +73,7 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await expect(composer).toBeEnabled();
   await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
   await a11y(page, "public agent page");
+  expect(await composerClips(page)).toEqual([]); // BU-19
 
   await composer.fill("How much is a student parking permit?");
   const stream = await chatStream(page);
@@ -180,6 +182,10 @@ test("the widget on an allowed origin, and nothing on another", async ({ page, a
       const widget = page.frameLocator('iframe[title="Chat with Widget parking"]');
       const composer = widget.getByRole("textbox", { name: "Message Widget parking" });
       await expect(composer).toBeEnabled();
+      // Typing straight away goes to the composer (US-16), and it isn't cut off (BU-19).
+      await expect(composer).toBeFocused();
+      const frame = page.frames().find((f) => f.url().includes("/embed/"))!;
+      expect(await composerClips(frame)).toEqual([]);
       await a11y(page, "widget panel open");
       await composer.fill("How much is a student parking permit?");
       const stream = await chatStream(page);

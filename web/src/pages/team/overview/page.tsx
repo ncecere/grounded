@@ -54,7 +54,8 @@ function Overview() {
         meta={
           <>
             {role && <RoleBadge role={role} prefix="Your role: " tone="info" />}
-            <Badge variant="outline">Approved up to {levelName(team.maxClassification)}</Badge>
+            {/* The data level the team may hold matters to those who add sources and agents, not to members (US-14). */}
+            {role !== "member" && <Badge variant="outline">Approved up to {levelName(team.maxClassification)}</Badge>}
             {archived && <Badge tone="warning">Archived (read-only)</Badge>}
           </>
         }

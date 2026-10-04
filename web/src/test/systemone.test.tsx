@@ -105,8 +105,8 @@ describe("SystemOne settings form", () => {
     expect(settingsChanges({ ...defaults, modelId: "s1" }, { ...f, mode: "batched", thresholds: { ...f.thresholds, relevant: "30" } })).toBe(2);
     expect(settingsChanges({ ...defaults, modelId: "s1" }, { ...f, timeLimit: "1.50" })).toBe(0);
     expect(settingsInput({ ...f, timeLimit: "0.5" }).judging.timeLimitMs).toBe(500);
-    expect(judgedSummary({ judged: 20, kept: 5 })).toBe("20 passages checked, 5 used");
-    expect(judgedSummary({ judged: 1, kept: 0 })).toBe("1 passage checked, 0 used");
+    expect(judgedSummary({ judged: 20, kept: 5 })).toBe("20 passages checked, 5 kept");
+    expect(judgedSummary({ judged: 1, kept: 0 })).toBe("1 passage checked, 0 kept");
   });
 });
 
@@ -157,14 +157,14 @@ describe("KB playground judging", () => {
 });
 
 describe("chat judging line", () => {
-  it("says how many passages were checked and used", async () => {
+  it("says how many passages were checked and kept", async () => {
     let a = pendingAssistant();
     a = applyChatEvent(a, "retrieval", { query: "fees", hits: [{ n: 1, title: "Fees", snippet: "Ten dollars" }], judging: { judged: 20, kept: 5, dropped: 15 } });
     a = applyChatEvent(a, "message_end", { messageId: "m1", stopReason: "stop", text: "Ten dollars [1]", citations: [], refused: false, noContext: false });
     expect(a.steps[0]?.judging).toEqual({ judged: 20, kept: 5, dropped: 15 });
     const items: ChatItem[] = [{ role: "user", key: "u1", text: "Fees?" }, { ...a, status: "done" }];
     const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper" }} />);
-    expect((await screen.findAllByText("20 passages checked, 5 used")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("20 passages checked, 5 kept")).length).toBeGreaterThan(0);
     expect(await axe(container)).toHaveNoViolations();
     // Without judging the step still counts results.
     const plain = applyChatEvent(pendingAssistant(), "retrieval", { query: "fees", hits: [{ n: 1, title: "Fees", snippet: "x" }] });

@@ -1847,16 +1847,19 @@ func (e EvaluationTargetType) Valid() bool {
 
 // Defines values for FeedbackRating.
 const (
-	Down FeedbackRating = "down"
-	Up   FeedbackRating = "up"
+	FeedbackRatingDown FeedbackRating = "down"
+	FeedbackRatingNone FeedbackRating = "none"
+	FeedbackRatingUp   FeedbackRating = "up"
 )
 
 // Valid indicates whether the value is a known member of the FeedbackRating enum.
 func (e FeedbackRating) Valid() bool {
 	switch e {
-	case Down:
+	case FeedbackRatingDown:
 		return true
-	case Up:
+	case FeedbackRatingNone:
+		return true
+	case FeedbackRatingUp:
 		return true
 	default:
 		return false
@@ -6118,7 +6121,9 @@ type ConversationMessage struct {
 	CreatedAt time.Time `json:"createdAt"`
 
 	// ErrorCode moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice
-	ErrorCode      *string         `json:"errorCode,omitempty"`
+	ErrorCode *string `json:"errorCode,omitempty"`
+
+	// Feedback up or down; none takes the reader's rating back (v0.4.2).
 	Feedback       *FeedbackRating `json:"feedback,omitempty"`
 	FeedbackReason *FeedbackReason `json:"feedbackReason,omitempty"`
 
@@ -7407,6 +7412,7 @@ type EvaluationTargetType string
 
 // Feedback defines model for Feedback.
 type Feedback struct {
+	// Rating up or down; none takes the reader's rating back (v0.4.2).
 	Rating FeedbackRating  `json:"rating"`
 	Reason *FeedbackReason `json:"reason,omitempty"`
 
@@ -7414,7 +7420,7 @@ type Feedback struct {
 	Share *bool `json:"share,omitempty"`
 }
 
-// FeedbackRating defines model for FeedbackRating.
+// FeedbackRating up or down; none takes the reader's rating back (v0.4.2).
 type FeedbackRating string
 
 // FeedbackReason defines model for FeedbackReason.
@@ -7423,9 +7429,11 @@ type FeedbackReason string
 // FeedbackResult defines model for FeedbackResult.
 type FeedbackResult struct {
 	MessageId openapi_types.UUID `json:"messageId"`
-	Rating    FeedbackRating     `json:"rating"`
-	Reason    *FeedbackReason    `json:"reason,omitempty"`
-	Shared    bool               `json:"shared"`
+
+	// Rating up or down; none takes the reader's rating back (v0.4.2).
+	Rating FeedbackRating  `json:"rating"`
+	Reason *FeedbackReason `json:"reason,omitempty"`
+	Shared bool            `json:"shared"`
 }
 
 // FusionWeights Weighted reciprocal rank fusion of vector and keyword (full-text) search: score = vector / (60 + vector rank) + keyword / (60 + keyword rank). Each weight is 0-1 and at least one is above 0. A keyword weight of 0 makes retrieval vector-only.
@@ -11530,6 +11538,9 @@ type ListConversationsParams struct {
 // ExportConversationParams defines parameters for ExportConversation.
 type ExportConversationParams struct {
 	Format *ExportConversationParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Tz The reader's IANA time zone (such as America/New_York) for the Markdown's times; UTC when absent or unknown.
+	Tz *string `form:"tz,omitempty" json:"tz,omitempty"`
 }
 
 // ExportConversationParamsFormat defines parameters for ExportConversation.
