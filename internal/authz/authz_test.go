@@ -2,6 +2,7 @@ package authz
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/ncecere/grounded/internal/apperr"
@@ -51,12 +52,17 @@ func TestAudienceAllowed(t *testing.T) {
 }
 
 func TestCheckLevelOrdering(t *testing.T) {
-	ok := []Level{{"open", 0, AudiencePublic}, {"sensitive", 1, AudienceAllAuthenticated}, {"restricted", 2, AudienceTeam}}
+	ok := []Level{{"open", 0, AudiencePublic, ""}, {"sensitive", 1, AudienceAllAuthenticated, ""}, {"restricted", 2, AudienceTeam, ""}}
 	if err := CheckLevelOrdering(ok); err != nil {
 		t.Fatal(err)
 	}
-	bad := []Level{{"open", 0, AudienceTeam}, {"sensitive", 1, AudiencePublic}}
-	if err := CheckLevelOrdering(bad); err == nil {
+	bad := []Level{{"open", 0, AudienceTeam, "Open"}, {"sensitive", 1, AudiencePublic, ""}}
+	err := CheckLevelOrdering(bad)
+	if err == nil {
 		t.Fatal("inverted ordering accepted")
+	}
+	// Names where known, not raw keys (AD-20).
+	if !strings.Contains(err.Error(), "(sensitive) can't allow a wider audience than a less sensitive one (Open)") {
+		t.Errorf("message = %v", err)
 	}
 }
