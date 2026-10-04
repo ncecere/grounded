@@ -66,11 +66,17 @@ describe("pure helpers", () => {
     expect(sectionSummary("knowledge", { ...input, c: { ...config, kbs: [] } })).toMatch(/can't answer yet/);
     expect(sectionSummary("answering", input)).toBe("Search before every answer · only from sources · title, snippet and link");
     expect(sectionSummary("safety", input)).toBe("Platform policy only");
-    expect(sectionSummary("advanced", input)).toBe("model's temperature · 6,000 source tokens · rewrites follow-up questions into searches · suggests follow-up questions");
+    // Capitalised like the others, and the default temperature is the model's default (BU2-11).
+    expect(sectionSummary("advanced", input)).toBe("The model's default temperature · 6,000 source tokens · rewrites follow-up questions into searches · suggests follow-up questions");
+    // Tools are named (BU2-11).
+    const names = (id: string) => ({ t1: "check_outage", t2: "find_room", t3: "book_room" })[id];
+    expect(sectionSummary("tools", { ...input, c: { ...config, tools: ["t1"] }, toolName: names })).toBe("check_outage");
+    expect(sectionSummary("tools", { ...input, c: { ...config, tools: ["t1", "t2", "t3"] }, toolName: names })).toBe("check_outage, find_room and 1 more");
+    expect(sectionSummary("tools", { ...input, c: { ...config, tools: ["t1"] } })).toBe("1 tool");
     // Reasoning and answer length first, and reranking once the platform has a rerank model (BU-15).
     const tuned = { ...input, c: { ...config, reasoningEffort: "off" as const, maxOutputTokens: 600, rerankTopN: 4 }, rerank: { defaultTopN: 6 } };
     expect(sectionSummary("advanced", tuned)).toBe(
-      "reasoning off · answers up to 600 tokens · model's temperature · 6,000 source tokens · reranks, keeps 4 · rewrites follow-up questions into searches · suggests follow-up questions",
+      "Reasoning off · answers up to 600 tokens · the model's default temperature · 6,000 source tokens · reranks, keeps 4 · rewrites follow-up questions into searches · suggests follow-up questions",
     );
     expect(sectionSummary("advanced", { ...tuned, c: { ...tuned.c, rerank: false } })).toContain("no reranking");
     expect(sectionSummary("systemone", { ...input, systemOne: { judging: true, citations: false, citationMode: "annotate", scope: false } })).toBe(

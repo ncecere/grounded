@@ -21,28 +21,50 @@ type SummaryInput = {
   systemOne?: { judging: boolean; citations: boolean; citationMode: string; scope: boolean };
   /** The platform's reranking, when a rerank model is set (the passages kept by default). */
   rerank?: { defaultTopN: number };
+  /** A tool's name by its id (Tools' summary names them). */
+  toolName?: (id: string) => string | undefined;
 };
 
-const effortText: Record<NonNullable<AgentConfig["reasoningEffort"]>, string> = { off: "reasoning off", low: "low reasoning", medium: "medium reasoning", high: "high reasoning" };
+const effortText: Record<NonNullable<AgentConfig["reasoningEffort"]>, string> = {
+  off: "reasoning off",
+  low: "low reasoning",
+  medium: "medium reasoning",
+  high: "high reasoning",
+};
+
+/** The summary starts with a capital, like the other sections' (BU2-11). */
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Advanced's summary: what changes answers most first (reasoning, length), then the rest (BU-15). */
 function advancedSummary(c: AgentConfig, rerank?: { defaultTopN: number }) {
   const reranking = c.rerank === false ? "no reranking" : rerank ? `reranks, keeps ${c.rerankTopN ?? rerank.defaultTopN}` : null;
-  return [
-    c.reasoningEffort ? effortText[c.reasoningEffort] : null,
-    c.maxOutputTokens ? `answers up to ${c.maxOutputTokens.toLocaleString()} tokens` : null,
-    c.temperature !== undefined ? `temperature ${c.temperature}` : "model's temperature",
-    `${c.contextTokenBudget.toLocaleString()} source tokens`,
-    c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
-    reranking,
-    c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
-    c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  return capitalise(
+    [
+      c.reasoningEffort ? effortText[c.reasoningEffort] : null,
+      c.maxOutputTokens ? `answers up to ${c.maxOutputTokens.toLocaleString()} tokens` : null,
+      c.temperature !== undefined ? `temperature ${c.temperature}` : "the model's default temperature",
+      `${c.contextTokenBudget.toLocaleString()} source tokens`,
+      c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
+      reranking,
+      c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
+      c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
 }
 
-export function sectionSummary(section: BuildSection, { c, model, kbName, systemOne, rerank }: SummaryInput): string {
+/** Tools' summary names them (BU2-11): "check_outage", "check_outage and 2 more". */
+function toolsSummary(c: AgentConfig, toolName?: (id: string) => string | undefined) {
+  const ids = c.tools ?? [];
+  if (ids.length === 0) return "No tools: the agent only searches its knowledge bases";
+  const names = ids.map((id) => toolName?.(id)).filter((n): n is string => Boolean(n));
+  if (names.length === 0) return ids.length === 1 ? "1 tool" : `${ids.length} tools`;
+  const shown = names.slice(0, 2).join(", ");
+  return ids.length > 2 ? `${shown} and ${ids.length - 2} more` : names.length < ids.length ? `${shown} and 1 more` : shown;
+}
+
+export function sectionSummary(section: BuildSection, { c, model, kbName, systemOne, rerank, toolName }: SummaryInput): string {
   switch (section) {
     case "instructions": {
       const text = c.instructions.trim().replace(/\s+/g, " ");
@@ -56,10 +78,8 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
       const filter = describeFilter(c.filters);
       return filter === "None" || !filter ? names : `${names} · filtered: ${filter}`;
     }
-    case "tools": {
-      const n = c.tools?.length ?? 0;
-      return n === 0 ? "No tools: the agent only searches its knowledge bases" : n === 1 ? "1 tool" : `${n} tools`;
-    }
+    case "tools":
+      return toolsSummary(c, toolName);
     case "answering":
       return [
         c.retrievalMode === "always" ? "Search before every answer" : `The model searches (up to ${c.maxTurns})`,

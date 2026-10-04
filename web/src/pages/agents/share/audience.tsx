@@ -12,6 +12,9 @@ import type { AgentDraft } from "../draft";
 import { type Audience, type Sharing, audienceLabels } from "./sharing";
 import sh from "./share.module.css";
 
+/** "Only team admins…" after a colon reads "only team admins…"; a name or acronym keeps its capital. */
+const lowerFirst = (s: string) => (/^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+
 export function AudienceSection({ d, sharing, published }: { d: AgentDraft; sharing: Sharing; published: boolean }) {
   const value = d.draft.config.audience;
   const problem = d.problems.find((p) => p.field.replace(/^draft\./, "") === "audience")?.problem;
@@ -43,8 +46,9 @@ export function AudienceSection({ d, sharing, published }: { d: AgentDraft; shar
                 {blocked && (
                   <span className={sh.whyNot}>
                     {" "}
+                    {/* A sentence after the colon starts in lower case (BU2-11). */}
                     {kept ? `${live ? "The live version uses it. " : ""}You can't publish to it: ` : "Not available: "}
-                    {o!.reasons.join(". ")}.
+                    {lowerFirst(o!.reasons.join(". "))}.
                   </span>
                 )}
               </>

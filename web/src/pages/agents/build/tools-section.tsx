@@ -152,14 +152,16 @@ function ToolRow({ tool, label, checked, full, aboveCeiling, levelName, onChange
               {where}
               {/* The server's latest health check failed (Admin → MCP servers): calls will likely fail too (BU-07). */}
               <span className={cf.toolHealth}>
-                <CircleAlert aria-hidden /> {tool.serverName} is failing its health checks
-                {tool.serverHealth.since && (
-                  <>
-                    {" "}
-                    (since <RelativeTime value={tool.serverHealth.since} />)
-                  </>
+                <CircleAlert aria-hidden />{" "}
+                {/* "started failing … 4 days ago", not "(since 4 days ago )" (BU2-11). */}
+                {tool.serverHealth.since ? (
+                  <span>
+                    {`${tool.serverName} started failing its health checks `}
+                    <RelativeTime value={tool.serverHealth.since} />: calls to this tool may fail.
+                  </span>
+                ) : (
+                  `${tool.serverName} is failing its health checks: calls to this tool may fail.`
                 )}
-                : calls to this tool may fail.
               </span>
             </>
           ) : (
