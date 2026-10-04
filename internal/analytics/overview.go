@@ -61,6 +61,8 @@ type ModelTokens struct {
 	ModelName                        string // "" when the model was deleted
 	Kind                             string // chat, embedding, …; "" when deleted
 	ChatInput, ChatOutput, Embedding int64
+	// Other is SystemOne, rerank and OCR (vision) tokens, which Costs counts too (AD-28).
+	Other int64
 }
 
 // TopAgent is one of the agents with the most answers.

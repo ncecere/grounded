@@ -12746,7 +12746,7 @@ components:
     PlatformAnalyticsModel:
       type: object
       description: One model's tokens in the usage ledger (all usage, including draft tests, and ingestion for embedding models)
-      required: [modelId, modelName, kind, chatInputTokens, chatOutputTokens, embeddingTokens]
+      required: [modelId, modelName, kind, chatInputTokens, chatOutputTokens, embeddingTokens, otherTokens]
       properties:
         modelId: { type: string, format: uuid }
         modelName: { type: string, description: '"" when the model was deleted' }
@@ -12754,6 +12754,7 @@ components:
         chatInputTokens: { type: integer, format: int64 }
         chatOutputTokens: { type: integer, format: int64 }
         embeddingTokens: { type: integer, format: int64 }
+        otherTokens: { type: integer, format: int64, description: "SystemOne, rerank and OCR (vision) tokens, as Costs counts them" }
     PlatformAnalyticsAgent:
       type: object
       required: [agentId, agentSlug, agentName, teamId, teamSlug, teamName, deleted, answers, noContextRate, satisfaction, citationSupportRate]

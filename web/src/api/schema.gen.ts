@@ -9753,6 +9753,11 @@ export interface components {
             chatOutputTokens: number;
             /** Format: int64 */
             embeddingTokens: number;
+            /**
+             * Format: int64
+             * @description SystemOne, rerank and OCR (vision) tokens, as Costs counts them
+             */
+            otherTokens: number;
         };
         PlatformAnalyticsAgent: {
             /** Format: uuid */

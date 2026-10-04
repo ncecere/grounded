@@ -244,6 +244,18 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'rerank_requests' AND agent_id = $1`, ag.Id); n != 1 {
 		t.Errorf("chat rerank usage = %d", n)
 	}
+	// Admin analytics count rerank tokens too, as Costs does (AD-28).
+	var pa apitypes.PlatformAnalytics
+	env.admin.get("/v1/admin/analytics", &pa)
+	other := int64(0)
+	for _, m := range pa.Models {
+		if m.ModelId == env.reranker.Id {
+			other = m.OtherTokens
+		}
+	}
+	if other <= 0 {
+		t.Errorf("rerank tokens in analytics = %d (%+v)", other, pa.Models)
+	}
 	var st apitypes.RerankSettings
 	if env.admin.get("/v1/admin/rerank", &st); st.Agents != 1 {
 		t.Errorf("agents reranking = %d", st.Agents)

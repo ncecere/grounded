@@ -9,7 +9,7 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import s from "../../shared.module.css";
 
-const kindLabels: Record<string, string> = { chat: "Chat", embedding: "Embedding", rerank: "Rerank", moderation: "Moderation" };
+const kindLabels: Record<string, string> = { chat: "Chat", embedding: "Embedding", rerank: "Rerank", moderation: "Moderation", systemone: "SystemOne", vision: "Vision (OCR)" };
 
 export function ModelTokens({ models, audienceFiltered }: { models: Schemas["PlatformAnalyticsModel"][]; audienceFiltered?: boolean }) {
   return (
@@ -18,7 +18,7 @@ export function ModelTokens({ models, audienceFiltered }: { models: Schemas["Pla
       description={
         audienceFiltered
           ? "From the usage ledger, which doesn't record the audience: every audience's tokens, including draft tests and document ingestion."
-          : "From the usage ledger: all chat and embedding use, including draft tests and document ingestion."
+          : "From the usage ledger: every model's tokens, as Costs counts them (chat, embedding, SystemOne, rerank and OCR), including draft tests and document ingestion."
       }
       flush
     >
@@ -27,7 +27,7 @@ export function ModelTokens({ models, audienceFiltered }: { models: Schemas["Pla
       ) : (
         <Table
           caption="Token use per model"
-          columns={["Model", "Kind", { label: "Chat input", numeric: true }, { label: "Chat output", numeric: true }, { label: "Embedding", numeric: true }]}
+          columns={["Model", "Kind", { label: "Chat input", numeric: true }, { label: "Chat output", numeric: true }, { label: "Embedding", numeric: true }, { label: "Other", numeric: true }]}
         >
           {models.map((m) => (
             <Tr key={m.modelId}>
@@ -36,6 +36,7 @@ export function ModelTokens({ models, audienceFiltered }: { models: Schemas["Pla
               <Td numeric>{num(m.chatInputTokens)}</Td>
               <Td numeric>{num(m.chatOutputTokens)}</Td>
               <Td numeric>{num(m.embeddingTokens)}</Td>
+              <Td numeric>{num(m.otherTokens)}</Td>
             </Tr>
           ))}
         </Table>

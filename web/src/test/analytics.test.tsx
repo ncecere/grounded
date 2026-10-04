@@ -50,9 +50,9 @@ const overview: Schemas["PlatformAnalytics"] = {
     { stage: "input", decision: "flag", category: "personal_data", count: 6 },
   ],
   models: [
-    { modelId: "m1", modelName: "Chat large", kind: "chat", chatInputTokens: 420000, chatOutputTokens: 51000, embeddingTokens: 0 },
-    { modelId: "m2", modelName: "Embed", kind: "embedding", chatInputTokens: 0, chatOutputTokens: 0, embeddingTokens: 90000 },
-    { modelId: "m3", modelName: "", kind: "", chatInputTokens: 10, chatOutputTokens: 5, embeddingTokens: 0 },
+    { modelId: "m1", modelName: "Chat large", kind: "chat", chatInputTokens: 420000, chatOutputTokens: 51000, embeddingTokens: 0, otherTokens: 0 },
+    { modelId: "m2", modelName: "Embed", kind: "embedding", chatInputTokens: 0, chatOutputTokens: 0, embeddingTokens: 90000, otherTokens: 0 },
+    { modelId: "m3", modelName: "", kind: "", chatInputTokens: 10, chatOutputTokens: 5, embeddingTokens: 0, otherTokens: 0 },
   ],
   topAgents: [
     { agentId: "a1", agentSlug: "help", agentName: "Registrar help", teamId: "t1", teamSlug: "registrar", teamName: "Registrar", deleted: false, answers: 120, noContextRate: 0.1, satisfaction: 0.8, citationSupportRate: 0.91 },

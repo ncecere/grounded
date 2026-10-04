@@ -9357,6 +9357,9 @@ type PlatformAnalyticsModel struct {
 
 	// ModelName "" when the model was deleted
 	ModelName string `json:"modelName"`
+
+	// OtherTokens SystemOne, rerank and OCR (vision) tokens, as Costs counts them
+	OtherTokens int64 `json:"otherTokens"`
 }
 
 // PlatformAnalyticsTeam defines model for PlatformAnalyticsTeam.
