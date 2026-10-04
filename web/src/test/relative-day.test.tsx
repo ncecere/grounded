@@ -10,7 +10,8 @@ describe("relative dates by calendar day", () => {
     expect(relativeDay(new Date(2026, 9, 2, 22, 19), now)).toBe("2 days ago");
     expect(relativeDay(new Date(2026, 9, 2, 10, 41), now)).toBe("2 days ago");
     expect(relativeDay(new Date(2026, 9, 3, 8, 0), now)).toBe("yesterday");
-    expect(needsCalendarDay(new Date(2026, 9, 2, 22, 19), now)).toBe(true);
+    // bitop-format counts calendar days too since M5's bitop-ui update, so the two agree.
+    expect(needsCalendarDay(new Date(2026, 9, 2, 22, 19), now)).toBe(false);
   });
 
   it("keeps hours within half a day, and weeks from a week on", () => {
