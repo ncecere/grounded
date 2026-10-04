@@ -104,7 +104,8 @@ describe("app shell", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Welcome, Casey" })).toBeInTheDocument();
     expect(screen.getByText(/To build your own, join a team/)).toBeInTheDocument();
     expect(screen.queryByText(/your teams have published/)).toBeNull();
-    expect(screen.getByText("You aren't on a team yet.")).toBeInTheDocument();
+    // Below the agents, once they've loaded (VI-14b).
+    expect(await screen.findByText("You aren't on a team yet.")).toBeInTheDocument();
     // Without a request form or help link: ask a platform admin.
     expect(screen.getByText(/To join a team, ask one of its owners to add you\. Not sure who\? Ask a platform admin\./)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Request a new team" })).toBeNull();

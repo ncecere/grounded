@@ -98,12 +98,12 @@
   color: var(--color-text-subtle);
 }
 
-/* Quality & spend (I3): evaluation scores and this month's spend side by side, one column when narrow. */
+/* Quality & spend (I3): evaluation scores and this month's spend side by side, one column when narrow; cards in a row are the same height (VI-14). */
 .quality {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
   gap: var(--space-6);
-  align-items: start;
+  align-items: stretch;
 }
 
 .qualityBody {

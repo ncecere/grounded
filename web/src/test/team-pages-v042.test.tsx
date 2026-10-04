@@ -144,3 +144,49 @@ describe("Compare runs (BU-20)", () => {
     expect(runOptionLabel(b)).toMatch(/not reranked/);
   });
 });
+
+describe("no layout shift as the overview loads (VI-14, VI-14b)", () => {
+  it("shows the team dashboard's cards together, once a slow query is in, each with a caption", async () => {
+    let release!: () => void;
+    const slow = new Promise<void>((r) => (release = r));
+    mockApi({
+      ...shellRoutes("none", "owner"),
+      "GET /v1/teams/registrar/sources": () => [{ id: "s1", name: "Policies", documents: { total: 3, pending: 0, processing: 0, ready: 3, failed: 0, skipped: 0, bytes: 1, chunks: 1 } }],
+      "GET /v1/teams/registrar/kbs": () => [],
+      "GET /v1/teams/registrar/agents": () => [],
+      "GET /v1/teams/registrar/limits": () => ({ items: [] }),
+      "GET /v1/teams/registrar/audit": () => ({ items: [], nextCursor: null }),
+      "GET /v1/teams/registrar/domain-requests": async () => {
+        await slow;
+        return [{ id: "d1", pattern: "*.example.org", status: "pending" }];
+      },
+    });
+    renderApp("/teams/registrar");
+    await screen.findByRole("status", { name: "Loading…" });
+    expect(screen.queryByRole("region", { name: "At a glance" })).toBeNull();
+    release();
+    const counts = await screen.findByRole("region", { name: "At a glance" });
+    // Needs attention is there in the same render: it doesn't push the cards below it down later.
+    expect(screen.getByRole("list", { name: "Needs attention" })).toBeInTheDocument();
+    expect(within(counts).getByText("No failed documents")).toBeInTheDocument();
+    expect(within(counts).getAllByText("None yet")).toHaveLength(2);
+  });
+
+  it("shows Home's conversations and teams once the agents are in", async () => {
+    let release!: () => void;
+    const slow = new Promise<void>((r) => (release = r));
+    mockApi({
+      ...shellRoutes("none", "owner"),
+      "GET /v1/agents": async () => {
+        await slow;
+        return [];
+      },
+    });
+    renderApp("/");
+    await screen.findByRole("heading", { level: 1, name: /Welcome/ });
+    expect(screen.queryByRole("heading", { name: "Your teams" })).toBeNull();
+    release();
+    expect(await screen.findByRole("heading", { name: "Your teams" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Continue where you left off" })).toBeInTheDocument();
+  });
+});
