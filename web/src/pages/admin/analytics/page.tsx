@@ -96,7 +96,7 @@ export function AdminAnalyticsPage() {
                 <Stack gap={6}>
                   <DailyChart
                     days={d.daily}
-                    description="The paler bars are answers; the darker ones conversations started. The table and CSV add the quality and moderation counts."
+                    description="Each day's answers are the bar behind; conversations started, the bar in front. The table and CSV add the quality and moderation counts."
                     csvHref={csvHref(d, f)}
                     extra={[
                       { label: "No context", value: (x) => x.noContext },
