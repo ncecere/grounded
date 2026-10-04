@@ -98,7 +98,7 @@ export function AdminTeamPage() {
             value: "settings",
             label: "Settings",
             icon: <Settings2 aria-hidden />,
-            content: <TeamSettingsTab key={t.revision} team={t} isAdmin={isAdmin} onArchive={() => setArchiving(true)} status={status} />,
+            content: <TeamSettingsTab team={t} isAdmin={isAdmin} onArchive={() => setArchiving(true)} status={status} />,
           },
         ]}
       />

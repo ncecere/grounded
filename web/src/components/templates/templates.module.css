@@ -181,3 +181,13 @@
   max-width: 100%;
   min-width: 0;
 }
+
+/* A save conflict (AD-01): the fields changed elsewhere. */
+.conflictList {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.conflictField {
+  font-weight: var(--font-weight-medium);
+}

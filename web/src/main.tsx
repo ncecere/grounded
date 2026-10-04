@@ -21,9 +21,12 @@ const queryClient: QueryClient = new QueryClient({
     },
   }),
   mutationCache: new MutationCache({
-    // Refused for maintenance: show the banner and disabled actions now, not at the next poll.
     onError: (err) => {
+      // Refused for maintenance: show the banner and disabled actions now, not at the next poll.
       if (isMaintenanceError(err)) void queryClient.invalidateQueries({ queryKey: maintenanceKey });
+      // A save conflict (412): load the latest version of whatever is on screen, so the form can show what
+      // changed and save over it on purpose (AD-01). Forms keep the person's edits (useRevisionForm).
+      if (err instanceof ApiError && err.status === 412) void queryClient.invalidateQueries();
     },
   }),
   defaultOptions: {

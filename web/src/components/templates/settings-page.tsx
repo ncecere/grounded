@@ -14,6 +14,11 @@
  *
  * Danger-zone buttons act on their own (with a confirmation); they're not
  * part of the save. Give them type="button" (bitop's Button's default).
+ *
+ * A form over a revisioned object passes `revision` from useRevisionForm:
+ * when the object changes elsewhere while the person edits, or a save comes
+ * back 412, their edits stay, a notice lists what changed, and the save bar
+ * offers "Overwrite with mine" and "Discard mine and load theirs" (AD-01).
  */
 import { type FormEvent, type ReactNode, useEffect } from "react";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
@@ -24,6 +29,8 @@ import { SaveBar } from "@/components/ui/save-bar/save-bar";
 import { terms } from "@/lib/terms";
 import styles from "./templates.module.css";
 import { type UnsavedGuardOptions, useUnsavedChangesGuard } from "./unsaved-guard";
+import { ConflictNotice, conflictLabels } from "./conflict-notice";
+import { isRevisionConflict, type RevisionControl } from "./revision-form";
 
 export type SettingsPageProps = {
   /** The form differs from what's saved: shows the save bar and arms the guard. */
@@ -44,6 +51,8 @@ export type SettingsPageProps = {
   /** Disable Save, e.g. while a field is invalid. */
   saveDisabled?: boolean;
   guard?: UnsavedGuardOptions;
+  /** From useRevisionForm: keeps the edits through a change made elsewhere and asks whose to keep. */
+  revision?: RevisionControl;
   children: ReactNode;
   className?: string;
 };
@@ -60,15 +69,23 @@ export function SettingsPage({
   readOnlyNote = "You can view these settings, but your role can't change them.",
   saveDisabled = false,
   guard,
+  revision,
   children,
   className,
 }: SettingsPageProps) {
-  const open = canEdit && dirty;
+  const conflict = Boolean(revision && (revision.changes || revision.waiting));
+  const open = canEdit && (dirty || conflict);
   // A settings page is one form: switching its page's tabs (?tab=) leaves it too.
   const dialog = useUnsavedChangesGuard(open, { samePath: true, ...guard });
+  const status = revision?.status;
+  useEffect(() => status?.(saving, error), [status, saving, error]);
+  const save = () => {
+    revision?.submitting();
+    onSave();
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (open && !saving && !saveDisabled) onSave();
+    if (open && !saving && !saveDisabled && !conflict) save();
   };
   return (
     <Form noValidate onSubmit={submit} className={className ?? styles.settings}>
@@ -78,15 +95,34 @@ export function SettingsPage({
         </Alert>
       )}
       {children}
-      {open && Boolean(error) && <ErrorAlert error={error} title="Couldn't save the changes" />}
-      <SaveBar open={open} message={message}>
-        <Button variant="ghost" disabled={saving} onClick={onDiscard}>
-          Discard
-        </Button>
-        <Button type="submit" loading={saving} disabled={saveDisabled}>
-          {saveLabel}
-        </Button>
-      </SaveBar>
+      {open && conflict && <ConflictNotice changes={revision?.changes ?? null} />}
+      {open && Boolean(error) && !(conflict && isRevisionConflict(error)) && <ErrorAlert error={error} title="Couldn't save the changes" />}
+      {conflict && revision ? (
+        <SaveBar open={open} message="Changed elsewhere while you were editing">
+          <Button variant="ghost" disabled={saving || !revision.changes} onClick={revision.discardMine}>
+            {conflictLabels.discard}
+          </Button>
+          <Button
+            loading={saving}
+            disabled={saveDisabled || !revision.changes}
+            onClick={() => {
+              revision.overwrite();
+              save();
+            }}
+          >
+            {conflictLabels.overwrite}
+          </Button>
+        </SaveBar>
+      ) : (
+        <SaveBar open={open} message={message}>
+          <Button variant="ghost" disabled={saving} onClick={onDiscard}>
+            Discard
+          </Button>
+          <Button type="submit" loading={saving} disabled={saveDisabled}>
+            {saveLabel}
+          </Button>
+        </SaveBar>
+      )}
       {dialog}
     </Form>
   );
