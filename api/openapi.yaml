@@ -2333,6 +2333,10 @@ paths:
       tags: [agents]
       operationId: listUsableChatModels
       summary: Chat models teams can choose for agents
+      description: >-
+        Enabled chat models on enabled connections, with each model's latest
+        stored health (healthy, failing or untested), so the New agent dialog
+        can default to a working model and the pickers can warn.
       responses:
         "200":
           description: Enabled chat models on enabled connections, by display name
@@ -2353,9 +2357,9 @@ paths:
       summary: MCP tools teams can choose for agents
       description: >-
         Approved tools of enabled MCP servers (docs/mcp-client.md), with the
-        server's name and classification ceiling: an agent whose knowledge
-        bases hold data above a server's ceiling can't use its tools. The
-        server's URL and credentials are never returned.
+        server's name, classification ceiling and latest stored health: an
+        agent whose knowledge bases hold data above a server's ceiling can't
+        use its tools. The server's URL and credentials are never returned.
       responses:
         "200":
           description: Tools, by server and name
@@ -3972,6 +3976,13 @@ paths:
       tags: [agents]
       operationId: updateAgent
       summary: Change profile fields and/or replace the draft config (editors). The draft is checked leniently.
+      description: >-
+        Editors may change the draft of any agent. The profile fields (name,
+        slug, description, accent colour, welcome message and starter
+        questions) aren't versioned: they reach people at once. So while the
+        agent is published beyond the team (to signed-in users or the
+        public), only team admins and owners may change them, as only they
+        may publish there (403 live_profile_forbidden for editors).
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       requestBody:
@@ -9255,7 +9266,7 @@ components:
         message: { type: string, description: A short message for admins (never a header value or a raw body) }
     MCPToolOption:
       type: object
-      required: [id, serverId, serverName, name, title, description, maxClassification]
+      required: [id, serverId, serverName, name, title, description, maxClassification, serverHealth]
       properties:
         id: { type: string, format: uuid }
         serverId: { type: string, format: uuid }
@@ -9264,6 +9275,17 @@ components:
         title: { type: string }
         description: { type: string, description: What the model reads about the tool }
         maxClassification: { type: string, description: "The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it" }
+        serverHealth: { $ref: "#/components/schemas/PickerHealth" }
+    PickerHealth:
+      type: object
+      description: >-
+        A model's or MCP server's latest stored health as pickers show it to
+        team members (adminListHealthChecks has the details): untested when
+        it was never checked.
+      required: [status]
+      properties:
+        status: { type: string, enum: [healthy, failing, untested] }
+        since: { type: string, format: date-time, description: "When the current status began (absent when untested)" }
     HealthSubjectKind:
       type: string
       description: What a health check tested
@@ -9922,7 +9944,7 @@ components:
         revision: { $ref: "#/components/schemas/Revision" }
     ChatModelOption:
       type: object
-      required: [id, key, displayName, description, maxClassification, supportsTools, supportsReasoningEffort, supportsThinkingOff]
+      required: [id, key, displayName, description, maxClassification, supportsTools, supportsReasoningEffort, supportsThinkingOff, health]
       properties:
         id: { type: string, format: uuid }
         key: { type: string }
@@ -9934,6 +9956,7 @@ components:
         supportsTools: { type: boolean, description: "Required for retrieval mode tool" }
         supportsReasoningEffort: { type: boolean, description: "Reasoning effort low, medium and high can be chosen" }
         supportsThinkingOff: { type: boolean, description: "Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off)" }
+        health: { $ref: "#/components/schemas/PickerHealth" }
     EmbeddingProfileOption:
       type: object
       required: [id, key, name, description, dimensions, chunkSize, maxClassification, isDefault]

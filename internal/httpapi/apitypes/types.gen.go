@@ -2072,16 +2072,16 @@ func (e HealthCheckErrorClass) Valid() bool {
 
 // Defines values for HealthCheckStatus.
 const (
-	Failing HealthCheckStatus = "failing"
-	Healthy HealthCheckStatus = "healthy"
+	HealthCheckStatusFailing HealthCheckStatus = "failing"
+	HealthCheckStatusHealthy HealthCheckStatus = "healthy"
 )
 
 // Valid indicates whether the value is a known member of the HealthCheckStatus enum.
 func (e HealthCheckStatus) Valid() bool {
 	switch e {
-	case Failing:
+	case HealthCheckStatusFailing:
 		return true
-	case Healthy:
+	case HealthCheckStatusHealthy:
 		return true
 	default:
 		return false
@@ -3147,6 +3147,27 @@ func (e PepperKeyState) Valid() bool {
 	case PepperKeyStatePrevious:
 		return true
 	case PepperKeyStateRetired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PickerHealthStatus.
+const (
+	PickerHealthStatusFailing  PickerHealthStatus = "failing"
+	PickerHealthStatusHealthy  PickerHealthStatus = "healthy"
+	PickerHealthStatusUntested PickerHealthStatus = "untested"
+)
+
+// Valid indicates whether the value is a known member of the PickerHealthStatus enum.
+func (e PickerHealthStatus) Valid() bool {
+	switch e {
+	case PickerHealthStatusFailing:
+		return true
+	case PickerHealthStatusHealthy:
+		return true
+	case PickerHealthStatusUntested:
 		return true
 	default:
 		return false
@@ -5685,11 +5706,14 @@ type ChatHistoryMessageRole string
 
 // ChatModelOption defines model for ChatModelOption.
 type ChatModelOption struct {
-	ContextWindow *int32             `json:"contextWindow,omitempty"`
-	Description   string             `json:"description"`
-	DisplayName   string             `json:"displayName"`
-	Id            openapi_types.UUID `json:"id"`
-	Key           string             `json:"key"`
+	ContextWindow *int32 `json:"contextWindow,omitempty"`
+	Description   string `json:"description"`
+	DisplayName   string `json:"displayName"`
+
+	// Health A model's or MCP server's latest stored health as pickers show it to team members (adminListHealthChecks has the details): untested when it was never checked.
+	Health PickerHealth       `json:"health"`
+	Id     openapi_types.UUID `json:"id"`
+	Key    string             `json:"key"`
 
 	// MaxClassification Most sensitive data the model may process; an agent's knowledge bases must not exceed it
 	MaxClassification string `json:"maxClassification"`
@@ -8153,11 +8177,14 @@ type MCPToolOption struct {
 	Id          openapi_types.UUID `json:"id"`
 
 	// MaxClassification The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it
-	MaxClassification string             `json:"maxClassification"`
-	Name              string             `json:"name"`
-	ServerId          openapi_types.UUID `json:"serverId"`
-	ServerName        string             `json:"serverName"`
-	Title             string             `json:"title"`
+	MaxClassification string `json:"maxClassification"`
+	Name              string `json:"name"`
+
+	// ServerHealth A model's or MCP server's latest stored health as pickers show it to team members (adminListHealthChecks has the details): untested when it was never checked.
+	ServerHealth PickerHealth       `json:"serverHealth"`
+	ServerId     openapi_types.UUID `json:"serverId"`
+	ServerName   string             `json:"serverName"`
+	Title        string             `json:"title"`
 }
 
 // MCPToolUse An agent whose published version uses an MCP tool
@@ -9203,6 +9230,16 @@ type PersonRef struct {
 	Email       string             `json:"email"`
 	Id          openapi_types.UUID `json:"id"`
 }
+
+// PickerHealth A model's or MCP server's latest stored health as pickers show it to team members (adminListHealthChecks has the details): untested when it was never checked.
+type PickerHealth struct {
+	// Since When the current status began (absent when untested)
+	Since  *time.Time         `json:"since,omitempty"`
+	Status PickerHealthStatus `json:"status"`
+}
+
+// PickerHealthStatus defines model for PickerHealth.Status.
+type PickerHealthStatus string
 
 // PlatformAnalytics defines model for PlatformAnalytics.
 type PlatformAnalytics struct {

@@ -19,7 +19,11 @@ var agentPolicies = map[string]policy{
 		return post(c.team("/agents"), map[string]any{"name": fmt.Sprintf("matrix agent %d", c.e.next())})
 	}},
 	"getAgent": {own: members.and(readKeys), build: func(c *mctx) request { return get(c.ag("")) }},
-	"updateAgent": {own: editors, build: func(c *mctx) request {
+	// Team B's main agent is public: its profile (here the description) reaches
+	// people at once, so only admins and owners change it, as only they publish
+	// beyond the team (BU-09). Editors still change its draft
+	// (TestEditorsKeepTheDraftOfAWiderAgent).
+	"updateAgent": {own: admins, build: func(c *mctx) request {
 		return patch(c.ag(""), map[string]any{"description": upd}).h(c.rev(c.ag("")))
 	}},
 	// Editors edit agents; deleting one is for team admins and owners.

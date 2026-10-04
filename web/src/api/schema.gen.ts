@@ -1481,7 +1481,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Chat models teams can choose for agents */
+        /**
+         * Chat models teams can choose for agents
+         * @description Enabled chat models on enabled connections, with each model's latest stored health (healthy, failing or untested), so the New agent dialog can default to a working model and the pickers can warn.
+         */
         get: operations["listUsableChatModels"];
         put?: never;
         post?: never;
@@ -1500,7 +1503,7 @@ export interface paths {
         };
         /**
          * MCP tools teams can choose for agents
-         * @description Approved tools of enabled MCP servers (docs/mcp-client.md), with the server's name and classification ceiling: an agent whose knowledge bases hold data above a server's ceiling can't use its tools. The server's URL and credentials are never returned.
+         * @description Approved tools of enabled MCP servers (docs/mcp-client.md), with the server's name, classification ceiling and latest stored health: an agent whose knowledge bases hold data above a server's ceiling can't use its tools. The server's URL and credentials are never returned.
          */
         get: operations["listUsableMCPTools"];
         put?: never;
@@ -2510,7 +2513,10 @@ export interface paths {
         delete: operations["deleteAgent"];
         options?: never;
         head?: never;
-        /** Change profile fields and/or replace the draft config (editors). The draft is checked leniently. */
+        /**
+         * Change profile fields and/or replace the draft config (editors). The draft is checked leniently.
+         * @description Editors may change the draft of any agent. The profile fields (name, slug, description, accent colour, welcome message and starter questions) aren't versioned: they reach people at once. So while the agent is published beyond the team (to signed-in users or the public), only team admins and owners may change them, as only they may publish there (403 live_profile_forbidden for editors).
+         */
         patch: operations["updateAgent"];
         trace?: never;
     };
@@ -6195,6 +6201,17 @@ export interface components {
             description: string;
             /** @description The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it */
             maxClassification: string;
+            serverHealth: components["schemas"]["PickerHealth"];
+        };
+        /** @description A model's or MCP server's latest stored health as pickers show it to team members (adminListHealthChecks has the details): untested when it was never checked. */
+        PickerHealth: {
+            /** @enum {string} */
+            status: "healthy" | "failing" | "untested";
+            /**
+             * Format: date-time
+             * @description When the current status began (absent when untested)
+             */
+            since?: string;
         };
         /**
          * @description What a health check tested
@@ -6957,6 +6974,7 @@ export interface components {
             supportsReasoningEffort: boolean;
             /** @description Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off) */
             supportsThinkingOff: boolean;
+            health: components["schemas"]["PickerHealth"];
         };
         EmbeddingProfileOption: {
             /** Format: uuid */
