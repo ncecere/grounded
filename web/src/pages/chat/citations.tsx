@@ -23,9 +23,9 @@
  * elsewhere its "Show source n below" opens the sources under the answer and
  * focuses that one.
  *
- * Sources are shown numbered 1..n in the order of their numbers, whatever the
- * numbers the model cited ([1], [4], [5] read 1, 2, 3); the stored numbers
- * don't change (displayNumbers). A chip keeps the punctuation right after it
+ * Sources are shown numbered 1..n in the order the answer first cites them,
+ * whatever the numbers the model cited ([2], [1], [4] read 1, 2, 3); the stored
+ * numbers don't change (displayNumbers, US-03). A chip keeps the punctuation right after it
  * on its line (remarkChipPunctuation).
  */
 import type { ComponentPropsWithRef, ReactNode } from "react";
@@ -34,6 +34,7 @@ import type { Components, ExtraProps } from "react-markdown";
 import { type CitationSourceAction, InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { verificationLabel, worstVerification } from "@/lib/systemone";
 import { type Claim, ClaimQuote, claimChipVerification, claimLabel, claimOfMarker } from "./claims";
+import { displayNumbers } from "./answer-text";
 import type { Citation, UncitedSentence } from "./stream";
 import a from "./answer.module.css";
 
@@ -114,11 +115,7 @@ export function remarkChipPunctuation() {
     });
 }
 
-/** The number each source is shown with: 1..n in the order of the cited numbers ([1], [4], [5] read 1, 2, 3). */
-export function displayNumbers(citations: { n: number }[]): (n: number) => number {
-  const ranks = new Map([...new Set(citations.map((c) => c.n))].sort((x, y) => x - y).map((n, i) => [n, i + 1]));
-  return (n) => ranks.get(n) ?? n;
-}
+export { displayNumbers } from "./answer-text";
 
 /**
  * The text with a sentinel after each uncited sentence (after a space, so a URL
@@ -234,9 +231,11 @@ export function useAnswerMarkers(
   sourceProps: ChipProps["sourceProps"],
   claims?: Claim[],
   actionLabel: ChipProps["actionLabel"] = jumpBelow,
+  /** The answer's text: sources are numbered by their first citation in it. */
+  text = "",
 ) {
   return useMemo(() => {
-    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, actionLabel, sourceProps, claims, num: displayNumbers(citations) };
+    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, actionLabel, sourceProps, claims, num: displayNumbers(citations, text) };
     const components: Components = {
       sup({ node: _node, children, ...rest }: SupProps) {
         const data = rest as Record<string, unknown>;
@@ -253,5 +252,5 @@ export function useAnswerMarkers(
     // renderCitation turns marker parsing on; the sup renderer above draws the chips.
     const renderCitation = (indices: number[]) => chip(props, indices, []);
     return { components, renderCitation, remarkPlugins: plugins };
-  }, [citations, onActivate, actionLabel, sourceProps, claims]);
+  }, [citations, onActivate, actionLabel, sourceProps, claims, text]);
 }

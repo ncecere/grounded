@@ -4921,11 +4921,17 @@ paths:
       tags: [chat]
       operationId: exportConversation
       summary: Download a conversation as Markdown or JSON (with citations)
+      description: "Answers are numbered as the chat shows them: sources 1..n in the order the answer first cites them, in the text, the source list and the claims (v0.4.2)."
       parameters:
         - name: format
           in: query
           required: false
           schema: { type: string, enum: [markdown, json], default: markdown }
+        - name: tz
+          in: query
+          required: false
+          description: "The reader's IANA time zone (such as America/New_York) for the Markdown's times; UTC when absent or unknown."
+          schema: { type: string, maxLength: 64 }
       responses:
         "200":
           description: The export, as an attachment (JSON is not wrapped in data)

@@ -350,8 +350,9 @@ func (s *Service) DeleteConversation(ctx context.Context, a authz.Actor, id uuid
 	return s.q.SoftDeleteConversation(ctx, id)
 }
 
-// ExportMarkdown renders a conversation as Markdown with its citations.
-func ExportMarkdown(v ConversationView) string {
+// ExportMarkdown renders a conversation as Markdown with its citations, its
+// times in the reader's zone.
+func ExportMarkdown(v ConversationView, loc *time.Location) string {
 	var b strings.Builder
 	title := v.Conversation.Title
 	if title == "" {
@@ -359,14 +360,14 @@ func ExportMarkdown(v ConversationView) string {
 	}
 	fmt.Fprintf(&b, "# %s\n\n", title)
 	fmt.Fprintf(&b, "- Agent: %s (%s/%s)\n", v.Agent.Name, v.TeamSlug, v.Agent.Slug)
-	fmt.Fprintf(&b, "- Started: %s\n", v.Conversation.CreatedAt.UTC().Format(time.RFC3339))
-	fmt.Fprintf(&b, "- Exported: %s\n\n", time.Now().UTC().Format(time.RFC3339))
+	fmt.Fprintf(&b, "- Started: %s\n", v.Conversation.CreatedAt.In(loc).Format(time.RFC3339))
+	fmt.Fprintf(&b, "- Exported: %s\n\n", time.Now().In(loc).Format(time.RFC3339))
 	for _, m := range v.Messages {
 		who := "You"
 		if m.Role == "assistant" {
 			who = v.Agent.Name
 		}
-		fmt.Fprintf(&b, "## %s (%s)\n\n", who, m.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"))
+		fmt.Fprintf(&b, "## %s (%s)\n\n", who, m.CreatedAt.In(loc).Format("2006-01-02 15:04 MST"))
 		text := strings.TrimSpace(m.Text)
 		switch {
 		case text != "":

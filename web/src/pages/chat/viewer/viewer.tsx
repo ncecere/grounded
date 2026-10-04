@@ -45,7 +45,7 @@ const isWeb = (url?: string) => Boolean(url && /^https?:\/\//.test(url));
 /** "Source 2 of 3" and where the passage is ("Fees › Transcripts · p. 4"). */
 export function viewerCaption(item: AssistantItem, n: number) {
   const sources = item.citations.filter((s) => s.kind !== "tool");
-  return `Source ${displayNumbers(item.citations)(n)} of ${sources.length}`;
+  return `Source ${displayNumbers(item.citations, item.text)(n)} of ${sources.length}`;
 }
 
 const checkTone = { verified: "success", unsupported: "warning", contradicted: "danger", unchecked: "neutral" } as const;
@@ -101,8 +101,8 @@ function Unavailable({ data, c }: { data: ViewerData; c: Citation }) {
 
 /** The answer's sources as numbered buttons, the current one marked. */
 function SourceNav({ item, n, onOpen }: { item: AssistantItem; n: number; onOpen: (n: number) => void }) {
-  const num = displayNumbers(item.citations);
-  const sources = item.citations.filter((s) => s.kind !== "tool");
+  const num = displayNumbers(item.citations, item.text);
+  const sources = item.citations.filter((s) => s.kind !== "tool").sort((x, y) => num(x.n) - num(y.n));
   if (sources.length < 2) return null;
   return (
     <nav aria-label="Sources of this answer" className={v.nav}>

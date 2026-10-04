@@ -28,11 +28,12 @@ describe("a verdict per citation marker", () => {
     });
     const one = cite(1, { verification: "verified", confidence: 0.99, markers: [{ verification: "verified", confidence: 0.99 }] });
     const { container } = renderBare(<ChatMessages items={thread(checked(text, [one, two]))} agent={{ name: "Helper" }} />);
-    const chips = await screen.findAllByRole("button", { name: /^Source 2: Page 2/ });
+    // [2] is cited first: it reads 1 (v0.4.2 US-03).
+    const chips = await screen.findAllByRole("button", { name: /^Source 1: Page 2/ });
     expect(chips.map((c) => c.getAttribute("data-verification"))).toEqual(["verified", "verified", "unsupported"]);
-    expect(chips[0]).toHaveAccessibleName("Source 2: Page 2. Verified: the source supports this (97% confidence)");
-    expect(chips[2]).toHaveAccessibleName("Source 2: Page 2. Not supported by this source (96% confidence)");
-    expect(screen.getByRole("button", { name: /^Source 1: Page 1/ })).toHaveAttribute("data-verification", "verified");
+    expect(chips[0]).toHaveAccessibleName("Source 1: Page 2. Verified: the source supports this (97% confidence)");
+    expect(chips[2]).toHaveAccessibleName("Source 1: Page 2. Not supported by this source (96% confidence)");
+    expect(screen.getByRole("button", { name: /^Source 2: Page 1/ })).toHaveAttribute("data-verification", "verified");
     // The source card still says how the source fared overall (the list starts collapsed).
     await userEvent.click(screen.getByRole("button", { name: "Used 2 sources" }));
     expect(within(screen.getByRole("list", { name: "Sources for this answer" })).getByText(/Not supported by this source \(96% confidence\)/)).toBeInTheDocument();

@@ -27,13 +27,17 @@ type Card = Schemas["AgentCard"];
 export type ConversationSummary = Schemas["Conversation"];
 
 
+/** The reader's IANA time zone ("" when the browser doesn't say). */
+const readerZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+
 /** Rename, export and delete a conversation, from a compact "…" menu. */
 export function ConversationMenu({ conversation, onDeleted, label }: { conversation: ConversationSummary; onDeleted: () => void; label?: string }) {
   const qc = useQueryClient();
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const title = conversation.title || "Untitled conversation";
-  const exportHref = (format: "markdown" | "json") => `/v1/conversations/${conversation.id}/export?format=${format}`;
+  // Times in the reader's zone, as the chat shows them (US-03).
+  const exportHref = (format: "markdown" | "json") => `/v1/conversations/${conversation.id}/export?format=${format}&tz=${encodeURIComponent(readerZone())}`;
   const remove = useMutation({
     mutationFn: async () => unwrap(await api.DELETE("/v1/conversations/{conversationId}", { params: { path: { conversationId: conversation.id } } })),
     onSuccess: () => {

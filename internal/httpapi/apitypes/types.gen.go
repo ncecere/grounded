@@ -11493,6 +11493,9 @@ type ListConversationsParams struct {
 // ExportConversationParams defines parameters for ExportConversation.
 type ExportConversationParams struct {
 	Format *ExportConversationParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Tz The reader's IANA time zone (such as America/New_York) for the Markdown's times; UTC when absent or unknown.
+	Tz *string `form:"tz,omitempty" json:"tz,omitempty"`
 }
 
 // ExportConversationParamsFormat defines parameters for ExportConversation.

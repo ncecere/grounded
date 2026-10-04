@@ -3138,7 +3138,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Download a conversation as Markdown or JSON (with citations) */
+        /**
+         * Download a conversation as Markdown or JSON (with citations)
+         * @description Answers are numbered as the chat shows them: sources 1..n in the order the answer first cites them, in the text, the source list and the claims (v0.4.2).
+         */
         get: operations["exportConversation"];
         put?: never;
         post?: never;
@@ -16663,6 +16666,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "markdown" | "json";
+                /** @description The reader's IANA time zone (such as America/New_York) for the Markdown's times; UTC when absent or unknown. */
+                tz?: string;
             };
             header?: never;
             path: {

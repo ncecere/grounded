@@ -438,7 +438,7 @@ describe("chat page", () => {
     // The header's compact menu acts on the open conversation.
     expect(await screen.findByRole("button", { name: "Conversation actions" })).toBeInTheDocument();
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Dropping" }));
-    expect((await screen.findByText("Export as Markdown")).closest("a")).toHaveAttribute("href", "/v1/conversations/c1/export?format=markdown");
+    expect((await screen.findByText("Export as Markdown")).closest("a")).toHaveAttribute("href", expect.stringMatching(/^\/v1\/conversations\/c1\/export\?format=markdown&tz=/));
     await userEvent.click(screen.getByRole("menuitem", { name: "Delete…" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toMatch(/removed permanently under the platform's retention policy/);

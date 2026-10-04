@@ -24,7 +24,7 @@ import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
 import { plainSnippet } from "@/lib/plain-text";
 import { verificationLabel } from "@/lib/systemone";
-import { citedSoFar, displayText, normalizePunctuation } from "./answer-text";
+import { citedSoFar, copyText, displayText } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
 import { Feedback, FollowUps, Notes, Steps, isAnswer } from "./notes";
@@ -139,11 +139,13 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     [viewer, item, goToSource],
   );
   // [n] markers: chips whose card (hover, click, Enter) shows the claim and offers the source; unknown numbers stay text.
-  // Checked paragraphs show chips of the sources they cite until message_end brings the checked citations.
-  const early = streaming && item.checked && item.citations.length === 0;
+  // While it streams, an answer's markers are chips of the sources they cite until message_end brings the citations,
+  // numbered by first citation as the finished answer is: no number changes at the end (US-03).
+  const early = streaming && item.citations.length === 0;
   const chips = useMemo(() => (early ? citedSoFar(item) : item.citations), [early, item]);
-  const markers = useAnswerMarkers(chips, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow);
-  const num = useMemo(() => displayNumbers(item.citations), [item.citations]);
+  const markers = useAnswerMarkers(chips, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow, item.text);
+  const num = useMemo(() => displayNumbers(item.citations, item.text), [item.citations, item.text]);
+  const listed = useMemo(() => [...item.citations].sort((x, y) => num(x.n) - num(y.n)), [item.citations, num]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
   const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
@@ -179,7 +181,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
           <Sources open={sourcesOpen} onOpenChange={setSourcesOpen}>
             <SourcesTrigger count={item.citations.length} />
             <SourcesContent label="Sources for this answer">
-              {item.citations.map((s) => (
+              {listed.map((s) => (
                 <Source
                   key={s.n}
                   id={sourceElementId(item.key, s.n)}
@@ -203,7 +205,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
-          <MessageCopyAction value={normalizePunctuation(item.text)} label="Copy answer" />
+          <MessageCopyAction value={copyText(item, sourceTitle)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
           {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
           {onAdd &&
