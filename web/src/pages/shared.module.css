@@ -229,8 +229,11 @@
   margin-top: calc(var(--font-size-sm) * var(--line-height-snug) + 0.375rem);
 }
 
-/* Page root: a vertical stack whose first child is the PageHeader. */
-.page > :first-child {
+/*
+ * Page root: a vertical stack whose first child is the PageHeader. A record page's root holds one stack, which
+ * gets no margin: it made Version history 8 px taller than its content (VI2-07).
+ */
+.page > :first-child:not(:only-child) {
   margin-bottom: var(--space-2);
 }
 
