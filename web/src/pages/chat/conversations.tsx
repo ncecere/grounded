@@ -5,13 +5,14 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Download, MoreHorizontal, Pencil, SquarePen, Trash2 } from "lucide-react";
+import { Download, MessageSquareOff, MoreHorizontal, Pencil, SquarePen, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { conversationsKey } from "../../api/queries";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
 import { AlertDialog, Dialog, DialogClose } from "@/components/ui/dialog/dialog";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Field, Form } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
@@ -118,6 +119,23 @@ function RenameDialog({ conversation, onClose }: { conversation: ConversationSum
         <ErrorAlert error={rename.error} />
       </Form>
     </Dialog>
+  );
+}
+
+/** A link to a conversation that was deleted or never existed (US-01): one request, then this, with a way to start over. */
+export function ConversationGone({ onNew }: { onNew: () => void }) {
+  return (
+    <EmptyState
+      icon={<MessageSquareOff />}
+      titleAs="h2"
+      title="This conversation isn't available."
+      description="It was deleted, or the link is wrong."
+      action={
+        <Button variant="secondary" onClick={onNew}>
+          <SquarePen aria-hidden /> Start a new chat
+        </Button>
+      }
+    />
   );
 }
 

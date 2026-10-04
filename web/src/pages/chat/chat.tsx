@@ -11,14 +11,14 @@ import { PanelLeft } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
-import { NotFoundState } from "../../components/not-found";
+import { NotFoundState, isNotFound } from "../../components/not-found";
 import { ConversationTranscript, conversationQuery } from "../conversations/transcript";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { IconButton } from "@/components/ui/button/button";
 import { Sheet } from "@/components/ui/sheet/sheet";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { AgentInfo } from "./agent-info";
-import { ConversationList, ConversationMenu } from "./conversations";
+import { ConversationGone, ConversationList, ConversationMenu } from "./conversations";
 import { useCanAddToEvaluations } from "../team/evaluations/queries";
 import { type AnswerToAdd, answerToAdd } from "../team/evaluations/answer-to-add";
 import { answerKey, useAddedAnswers } from "../team/evaluations/added";
@@ -58,14 +58,17 @@ export function ChatByShortNamePage() {
 function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknown; data?: Card } }) {
   const search = useSearch({ strict: false }) as { c?: string };
   // A link to a conversation with a deleted agent: its transcript, read-only (G2).
-  const stored = useQuery({ ...conversationQuery(search.c ?? ""), enabled: Boolean(search.c) && Boolean(profile.error), retry: false });
+  const lookUp = Boolean(search.c) && Boolean(profile.error);
+  const stored = useQuery({ ...conversationQuery(search.c ?? ""), enabled: lookUp, retry: false });
   if (profile.error && stored.data?.conversation.agentDeleted)
     return (
       <div className={c.unavailable}>
         <ConversationTranscript id={stored.data.conversation.id} />
       </div>
     );
-  if (profile.isLoading || stored.isLoading) return <Loading label="Loading the agent…" />;
+  // Only this gate's own lookup counts: the query is shared with the chat's (same key), and reading its
+  // fetch state while the chat loads the conversation unmounted the chat, which refetched on remount: a loop (US-01).
+  if (profile.isLoading || (lookUp && stored.isLoading)) return <Loading label="Loading the agent…" />;
   if (profile.error || !profile.data)
     return (
       <div className={c.unavailable}>
@@ -118,13 +121,16 @@ function AgentChat({ card }: { card: Card }) {
     queryKey: ["conversation", selected],
     queryFn: async () => unwrap(await api.GET("/v1/conversations/{conversationId}", { params: { path: { conversationId: selected! } } })),
     enabled: Boolean(selected) && !local.current.has(selected!),
+    retry: false,
   });
+  /** A link to a deleted or unknown conversation: say so once, and the next question starts a new one (US-01). */
+  const gone = Boolean(selected) && isNotFound(detail.error);
   const { reset } = chat;
   useEffect(() => {
-    current.current = selected;
+    current.current = gone ? undefined : selected;
     if (selected && local.current.has(selected)) return;
     reset([]);
-  }, [selected, reset]);
+  }, [selected, gone, reset]);
   useEffect(() => {
     if (detail.data && detail.data.conversation.id === selected) reset(itemsFromConversation(detail.data.messages));
   }, [detail.data, selected, reset]);
@@ -185,7 +191,7 @@ function AgentChat({ card }: { card: Card }) {
           onAddToEvaluations={canAdd ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}
           canAdd={needsEvaluation}
           added={(item) => isAdded(answerKey(item))}
-          loading={selected && !local.current.has(selected) ? detail.error ? <ErrorAlert error={detail.error} title="Couldn't open this conversation" /> : detail.isLoading ? <Loading label="Loading the conversation…" /> : undefined : undefined}
+          loading={selected && !local.current.has(selected) ? gone ? <ConversationGone onNew={newChat} /> : detail.error ? <ErrorAlert error={detail.error} title="Couldn't open this conversation" /> : detail.isLoading ? <Loading label="Loading the conversation…" /> : undefined : undefined}
         />
       </section>
       {adding && (
