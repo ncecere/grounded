@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { audienceTabs, modelProviderHint, modelProviderName } from "@/lib/moderation";
 import s from "../../shared.module.css";
+import md from "./moderation.module.css";
 import { EnabledBadge } from "../models/common";
 
 type Model = Schemas["Model"];
@@ -32,7 +33,7 @@ export function ProvidersTab({ models, providers, byAudience }: Props) {
       accessor: "displayName",
       sortable: true,
       rowHeader: true,
-      cell: (m) => <CellText primary={m.displayName} secondary={<span className={s.mono}>{m.upstreamModel}</span>} />,
+      cell: (m) => <CellText primary={m.displayName} secondary={<span className={`${s.mono} ${md.noBreak}`}>{m.upstreamModel}</span>} />,
     },
     { id: "provider", header: "Provider", accessor: (m) => modelProviderName(m), sortable: true, cell: (m) => <CellText primary={modelProviderName(m)} secondary={modelProviderHint(m)} /> },
     {

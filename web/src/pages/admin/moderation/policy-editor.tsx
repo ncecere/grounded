@@ -17,6 +17,7 @@ import { actionLabels, modelProviderName, moderationCategories, severityOptions,
 import s from "../../shared.module.css";
 import { changedCount, formProblems, policyForm, policyInput, type Policy, type PolicyForm, type RuleForm } from "./policy-form";
 import md from "./moderation.module.css";
+import { useModels } from "../models/common";
 
 type Model = Schemas["Model"];
 type Stage = "input" | "output";
@@ -38,6 +39,21 @@ const effortOptions = [
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
 ] as const;
+
+/**
+ * Why the chosen effort does nothing (AD-13): no enabled chat model accepts reasoning effort (Low, Medium, High) or
+ * knows how to turn thinking off (Off).
+ */
+export function effortNote(effort: PolicyForm["reasoningEffort"], chatModels: Pick<Model, "enabled" | "kind" | "compat">[]) {
+  const chat = chatModels.filter((m) => m.kind === "chat" && m.enabled);
+  if (effort === "off" && !chat.some((m) => m.compat?.thinkingOff)) {
+    return "No enabled chat model is set up to turn thinking off, so Off does nothing yet. Set How to turn thinking off on a model's Compatibility (Admin → Models).";
+  }
+  if ((effort === "low" || effort === "medium" || effort === "high") && !chat.some((m) => m.compat?.supportsReasoningEffort)) {
+    return "No enabled chat model accepts reasoning effort, so this does nothing yet. Turn on Accepts reasoning effort on a model's Compatibility (Admin → Models).";
+  }
+  return undefined;
+}
 
 const modeSummary = { stream_retract: "Streams, then retracts", stream_checked: "Streams checked paragraphs", buffer: "Buffers answers" } as const;
 
@@ -67,6 +83,8 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
   const changes = changedCount(policy, form);
   const isPublic = policy.audience === "public";
   const uncalibrated = providers.find((m) => m.id === form.modelId)?.moderationProvider === "chat_classifier";
+  const models = useModels();
+  const note = models.data ? effortNote(form.reasoningEffort, models.data) : undefined;
   const set = (patch: Partial<PolicyForm>) => setForm((f) => ({ ...f, ...patch }));
   const setRule = (c: keyof PolicyForm["rules"], stage: Stage, r: RuleForm) =>
     setForm((f) => ({ ...f, rules: { ...f.rules, [c]: { ...f.rules[c], [stage]: r } } }));
@@ -95,7 +113,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
       )}
       <Card title="Provider and behaviour" description={isPublic ? "Public moderation always fails closed." : "Moderation is optional for this audience."}>
         <div className={md.behaviour}>
-          <Field label="Provider" error={submitted ? problems.modelId : undefined} description="Moderation and SystemOne models from Admin → Models.">
+          <Field label="Provider" className={md.field} error={submitted ? problems.modelId : undefined} description="Moderation and SystemOne models from Admin → Models.">
             <NativeSelect disabled={!isAdmin} value={form.modelId} onChange={(e) => set({ modelId: e.target.value })}>
               <option value="">None</option>
               {providers.map((m) => (
@@ -128,6 +146,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
               />
               <Field
                 label="Block threshold for uncalibrated providers"
+                className={md.field}
                 description={
                   uncalibrated
                     ? `This provider isn't calibrated: block rules only flag scores below ${form.uncalibratedBlock || "?"}%.`
@@ -147,6 +166,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
       <Card title="Reasoning" description="Applies whether or not answers are moderated.">
         <Field
           label="Reasoning effort"
+          className={md.field}
           description={`How long the model thinks before answering, for agents that don't set their own (Build → Advanced). Lower starts answers sooner. Off needs a model set up to turn thinking off, and Low, Medium and High one that accepts reasoning effort (Admin → Models); otherwise the model's default applies.${isPublic ? " Public answers use Low until you choose." : ""}`}
         >
           <NativeSelect disabled={!isAdmin} value={form.reasoningEffort} onChange={(e) => set({ reasoningEffort: e.target.value as PolicyForm["reasoningEffort"] })}>
@@ -157,6 +177,11 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
             ))}
           </NativeSelect>
         </Field>
+        {note && (
+          <Alert tone="warning" title="This setting has no effect yet">
+            {note}
+          </Alert>
+        )}
       </Card>
       {form.modelId !== "" && (
         <SystemOneExtras form={form} set={set} isAdmin={isAdmin} systemOne={providers.find((m) => m.id === form.modelId)?.kind === "systemone"} problems={submitted ? problems : {}} />

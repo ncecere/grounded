@@ -70,7 +70,9 @@ export function ModerationPage() {
           { value: "providers" as const, label: "Providers", icon: <Plug aria-hidden />, content: <ProvidersTab models={models} providers={providers} byAudience={byAudience} /> },
         ]}
       />
-      {testing && <TestDialog providers={providers} policy={current} onClose={() => setTesting(false)} />}
+      {testing && (
+        <TestDialog providers={providers} policies={policies.flatMap((q) => (q.data ? [q.data] : []))} initial={current?.audience} onClose={() => setTesting(false)} />
+      )}
     </Stack>
   );
 }
