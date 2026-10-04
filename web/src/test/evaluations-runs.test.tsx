@@ -308,7 +308,7 @@ describe("Add to evaluations", () => {
 });
 
 describe("Admin → Limits › Evaluations", () => {
-  it("keeps only the evaluation limits and says where the switch is (Overview → Features)", async () => {
+  it("keeps only the evaluation limits and says where the switch is (Settings → Features)", async () => {
     const limits = { items: [], revision: 1, updatedAt: "2026-09-01T10:00:00Z" };
     mockApi({
       ...shellRoutes("platform_admin"),
@@ -317,7 +317,7 @@ describe("Admin → Limits › Evaluations", () => {
     });
     const { container } = renderApp("/admin/limits?tab=evaluations");
     expect(await screen.findByText(/Evaluations are off/, {}, T)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Overview → Features" })).toHaveAttribute("href", "/admin#features");
+    expect(screen.getByRole("link", { name: "Settings → Features" })).toHaveAttribute("href", "/admin/settings#features");
     expect(screen.queryByRole("switch")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });

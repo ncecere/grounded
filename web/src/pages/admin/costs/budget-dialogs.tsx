@@ -11,6 +11,7 @@ import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
+import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { amountError, modeLabels, monthLabel, overrideLabels, useCostSettings } from "@/lib/costs";
@@ -113,7 +114,7 @@ export function BudgetDialog({ team, budget, onClose }: { team: string; budget: 
           <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="Warning threshold (%)" description="Leave empty to use the platform threshold." error={submitted ? warnErr : undefined}>
-          <Input type="number" min={1} max={100} value={warn} onChange={(e) => setWarn(e.target.value)} />
+          <NumberInput maximumFractionDigits={0} min={1} max={100} value={warn} onValueChange={setWarn} />
         </Field>
         <ErrorAlert error={save.error} />
       </div>

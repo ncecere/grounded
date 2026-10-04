@@ -11,7 +11,7 @@ Grounded can act as an [MCP](https://modelcontextprotocol.io) (Model Context Pro
 
 The MCP server is **off** on a new install. While it's off, `/mcp` answers `404` to everyone.
 
-1. Open **Admin → Overview**, find **MCP server** under **Features** and turn on **Allow MCP clients**.
+1. Open **Admin → Settings**, find **MCP server** under **Features** and turn on **Allow MCP clients**.
 2. The row then shows the address clients use. **Setup guide** opens this page.
 
 Turning it off asks for confirmation: connected tools stop working at once. API keys and their scopes are kept, so turning it on again brings everything back. Auditors see the switch but can't change it. Each change is audited as `platform.mcp` ("Turned the MCP server on" or "…off").
@@ -24,7 +24,7 @@ API: `GET /v1/admin/settings/mcp` and `PUT /v1/admin/settings/mcp` with `If-Matc
 2. Tick **MCP: search and ask from AI tools**. Every team role may give a key this scope. It doesn't need the **Query** scope, and it grants nothing on the REST API.
 3. **Query** is ticked by default: untick it if the key is only for AI tools, so it can't also query the REST API.
 4. Optionally restrict the key to some knowledge bases or agents, and give it an expiry date.
-5. Copy the secret. The dialog also shows the MCP server's address: note it too, as it isn't shown again on the key's page (a platform admin finds it under **Admin → Overview → Features**; it's always `<APP_URL>/mcp`).
+5. Copy the secret. The dialog also shows the MCP server's address: note it too, as it isn't shown again on the key's page (a platform admin finds it under **Admin → Settings → Features**; it's always `<APP_URL>/mcp`).
 
 What the key can reach over MCP is what it could reach as a query key, and nothing more:
 
@@ -132,7 +132,7 @@ With this setting on, an AI tool can connect without an API key: the person usin
 ### Turning it on (platform admins)
 
 1. Turn on the MCP server (above).
-2. On **Admin → Overview → Features**, find **OAuth sign-in for MCP clients** (marked **Experimental**) and turn on **Allow OAuth sign-in**.
+2. On **Admin → Settings → Features**, find **OAuth sign-in for MCP clients** (marked **Experimental**) and turn on **Allow OAuth sign-in**.
 
 It only takes effect while the MCP server is on. While it's off, every endpoint below answers `404`, and existing tokens are refused (`401`, `oauth_off`) until it's turned on again (the connections are kept). Auditors see the switch but can't change it. Each change is audited as `platform.mcp_oauth`. API: the same `GET`/`PUT /v1/admin/settings/mcp`, with `oauthEnabled`; `GET /v1/me` reports it (in effect) as `capabilities.mcpOAuth`.
 

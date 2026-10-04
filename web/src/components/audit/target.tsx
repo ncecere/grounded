@@ -107,8 +107,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return team ? <Link to="/admin/teams/$team" params={{ team }} search={{ tab: "group-mapping" }} /> : <Link to="/admin/group-mapping" />;
     }
     case "evaluation_settings":
-      // The switch is on the Overview's Features card (v0.2.1 I2).
-      return <Link to="/admin" hash="features" />;
+      // The switch is on Admin → Settings › Features (AD-39).
+      return <Link to="/admin/settings" hash="features" />;
     case "moderation_policy":
       return <Link to="/admin/moderation" search={{ tab: id === "team" ? undefined : (id as "public" | "all_authenticated") }} />;
     default:

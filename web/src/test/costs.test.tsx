@@ -180,22 +180,25 @@ describe("Admin → Costs", () => {
     expect(await screen.findByRole("link", { name: "Admin → Teams" })).toHaveAttribute("href", "/admin/teams");
   });
 
-  it("saves the settings with If-Match", async () => {
+  it("saves the mode and threshold with If-Match, keeping the settings that moved to Admin → Settings (AD-39)", async () => {
     const calls = mockApi({ ...costRoutes("off"), "PUT /v1/admin/costs/settings": (body) => ({ ...settings("track"), ...(body as object), revision: 5 }) });
     const { container } = renderApp("/admin/costs?tab=settings");
     const mode = await screen.findByRole("combobox", { name: "Cost tracking" });
+    expect(screen.queryByRole("textbox", { name: /Currency|Default monthly budget/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Admin → Settings" })).toHaveAttribute("href", "/admin/settings");
     await userEvent.selectOptions(mode, "track");
-    const budget = screen.getByRole("textbox", { name: /Default monthly budget/ });
-    await userEvent.type(budget, "abc");
+    const warn = screen.getByRole("textbox", { name: /Warning threshold/ });
+    await userEvent.clear(warn);
+    await userEvent.type(warn, "101");
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
-    expect(await screen.findByText(/Enter the default budget as a number/)).toBeInTheDocument();
-    await userEvent.clear(budget);
-    await userEvent.type(budget, "250");
+    expect(await screen.findByText("Enter a whole percentage from 1 to 100.")).toBeInTheDocument();
+    await userEvent.clear(warn);
+    await userEvent.type(warn, "90");
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")).toBeDefined());
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"4"');
-    expect(put.body).toEqual({ mode: "track", currency: "USD", timeZone: "America/New_York", warnPercent: 80, defaultBudget: "250" });
+    expect(put.body).toEqual({ mode: "track", currency: "USD", timeZone: "America/New_York", warnPercent: 90, defaultBudget: null });
     expect(await axe(container)).toHaveNoViolations();
   });
 });

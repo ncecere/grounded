@@ -1,0 +1,26 @@
+/* Admin → Settings. Semantic tokens only. */
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+}
+
+/* The name, then what it holds: side by side when there's room, stacked on a phone. */
+.links li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.links li > :first-child {
+  flex: 0 0 9rem;
+}
+
+.links li > :last-child {
+  flex: 1 1 18rem;
+}

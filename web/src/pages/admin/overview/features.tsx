@@ -1,14 +1,15 @@
 /*
  * Admin Overview › Features (docs/v0.2.1.md I2): one row per optional feature
- * with its state and a link to where it's set up. Evaluations, the MCP
- * server and saved answers (the answer cache) have their switches here (platform admins; auditors see them
- * disabled, with the reason); the MCP row links to its guide. The rows read
- * one response (GET /v1/admin/features, AD-03), which also primes the
- * switches' own queries; each row shows its whole description (not clamped).
+ * with its state and a link to where it's set up. The switches (evaluations,
+ * the MCP server, its OAuth sign-in and saved answers) moved to Admin →
+ * Settings in v0.4.2 (AD-39); their rows here say whether each is on and link
+ * there. The rows read one response (GET /v1/admin/features, AD-03), which
+ * also primes the switches' own queries; each row shows its whole description
+ * (not clamped). FeatureList draws the rows for both pages.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownWideNarrow, ArrowRight, BookOpen, Cable, DatabaseZap, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowRight, Cable, DatabaseZap, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { Schemas } from "@/api/client";
@@ -20,16 +21,15 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, 
 import { cx } from "@/lib/bitop-utils";
 import { backendLabels } from "@/lib/parsing";
 import { terms } from "@/lib/terms";
-import { useIsPlatformAdmin } from "../hooks";
-import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "./answer-cache-switch";
-import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "./evaluations-switch";
+import { answerCacheText } from "./answer-cache-switch";
+import { evaluationsText } from "./evaluations-switch";
 import { costFeature, type FeatureState, plural, rerankFeature, systemOneFeature } from "./feature-text";
-import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "./mcp-switch";
-import { OAuthSwitch, oauthDocsUrl, oauthFeature, useOAuthSave } from "./oauth-switch";
-import { featuresQuery } from "./queries";
+import { mcpText } from "./mcp-switch";
+import { oauthFeature } from "./oauth-switch";
+import { answerCacheSettingsQuery, evaluationSettingsQuery, featuresQuery, mcpSettingsQuery } from "./queries";
 import o from "./overview.module.css";
 
-type Row = {
+export type Row = {
   id: string;
   icon: ReactNode;
   title: string;
@@ -44,75 +44,49 @@ type Row = {
   badge?: ReactNode;
 };
 
-const on: FeatureState = { label: "On", tone: "success" };
-const off: FeatureState = { label: "Off", tone: "neutral" };
+export const on: FeatureState = { label: "On", tone: "success" };
+export const off: FeatureState = { label: "Off", tone: "neutral" };
 
 /** A row from its query: "Loading…" or a short error until the setting is read. */
-function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description" | "state">, read: (d: T) => Pick<Row, "state" | "description">): Row {
+export function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description" | "state">, read: (d: T) => Pick<Row, "state" | "description">): Row {
   if (q.data !== undefined) return { ...base, ...read(q.data) };
   return { ...base, description: q.error ? "Couldn't load this setting." : "Loading…" };
 }
 
-type Switches = {
-  evaluations: ReturnType<typeof useEvaluationsSetting>;
-  mcp: ReturnType<typeof useMCPSetting>;
-  oauth: ReturnType<typeof useOAuthSave>;
-  cache: ReturnType<typeof useAnswerCacheSetting>;
-};
-
 type Features = Schemas["AdminFeatures"];
 
-function useRows(isAdmin: boolean, f: Features, { evaluations, mcp, oauth, cache }: Switches): Row[] {
+/** Where the switches are (AD-39). */
+const settingsLink = { action: "Settings", link: <Link to="/admin/settings" hash="features" /> };
+
+/** The switch features' rows: their state, with a link to Admin → Settings. */
+function useSwitchRows(): Row[] {
+  const evaluations = useQuery(evaluationSettingsQuery());
+  const mcp = useQuery(mcpSettingsQuery());
+  const cache = useQuery(answerCacheSettingsQuery());
+  return [
+    fromQuery(evaluations, { id: "evaluations", icon: <ClipboardCheck />, title: "Evaluations", ...settingsLink }, (d) => ({
+      state: d.enabled ? on : off,
+      description: evaluationsText(d.enabled),
+    })),
+    fromQuery(mcp, { id: "mcp", icon: <Cable />, title: "MCP server", ...settingsLink }, (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) })),
+    fromQuery(mcp, { id: "mcp-oauth", icon: <KeyRound />, title: "OAuth sign-in for MCP clients", badge: experimental, ...settingsLink }, oauthFeature),
+    fromQuery(cache, { id: "answer-cache", icon: <DatabaseZap />, title: "Saved answers", ...settingsLink }, (d) => ({
+      state: d.enabled ? on : off,
+      description: answerCacheText(d.enabled),
+    })),
+  ];
+}
+
+export const experimental = (
+  <Badge size="sm" tone="warning">
+    Experimental
+  </Badge>
+);
+
+function useRows(f: Features): Row[] {
   const rerank = rerankFeature(f.rerank, f.rerankModel);
   return [
-    fromQuery(
-      evaluations.settings,
-      {
-        id: "evaluations",
-        icon: <ClipboardCheck />,
-        title: "Evaluations",
-        control: <EvaluationsSwitch setting={evaluations} isAdmin={isAdmin} />,
-        action: "Evaluation limits",
-        link: <Link to="/admin/limits" search={{ tab: "evaluations" }} />,
-      },
-      (d) => ({ state: d.enabled ? on : off, description: evaluationsText(d.enabled) }),
-    ),
-    fromQuery(
-      mcp.settings,
-      {
-        id: "mcp",
-        icon: <Cable />,
-        title: "MCP server",
-        control: <MCPSwitch setting={mcp} isAdmin={isAdmin} />,
-        action: "Setup guide",
-        actionIcon: <BookOpen aria-hidden />,
-        link: <a href={mcpDocsUrl} target="_blank" rel="noreferrer" aria-label="MCP server setup guide (opens in a new tab)" />,
-      },
-      (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) }),
-    ),
-    fromQuery(
-      mcp.settings,
-      {
-        id: "mcp-oauth",
-        icon: <KeyRound />,
-        title: "OAuth sign-in for MCP clients",
-        badge: (
-          <Badge size="sm" tone="warning">
-            Experimental
-          </Badge>
-        ),
-        control: <OAuthSwitch setting={mcp} save={oauth} isAdmin={isAdmin} />,
-        action: "How it works",
-        actionIcon: <BookOpen aria-hidden />,
-        link: <a href={oauthDocsUrl} target="_blank" rel="noreferrer" aria-label="How OAuth sign-in works (opens in a new tab)" />,
-      },
-      oauthFeature,
-    ),
-    fromQuery(
-      cache.settings,
-      { id: "answer-cache", icon: <DatabaseZap />, title: "Saved answers", control: <AnswerCacheSwitch setting={cache} isAdmin={isAdmin} /> },
-      (d) => ({ state: d.enabled ? on : off, description: answerCacheText(d.enabled) }),
-    ),
+    ...useSwitchRows(),
     {
       id: "costs",
       icon: <CircleDollarSign />,
@@ -165,7 +139,7 @@ function useRows(isAdmin: boolean, f: Features, { evaluations, mcp, oauth, cache
   ];
 }
 
-const cardProps = { id: "features", className: o.features, title: "Features", description: "Optional features: whether each is on, and where to set it up." };
+const cardProps = { id: "features", className: o.features, title: "Features", description: "Optional features: whether each is on, and where to set it up. The switches are in Settings." };
 
 export function FeaturesCard() {
   const features = useQuery(featuresQuery(useQueryClient()));
@@ -185,67 +159,44 @@ export function FeaturesCard() {
 
 /** Mounted once the features have loaded (and primed the switches' queries). */
 function FeatureRows({ features }: { features: Features }) {
-  const isAdmin = useIsPlatformAdmin();
-  const evaluations = useEvaluationsSetting();
-  const mcp = useMCPSetting();
-  const oauth = useOAuthSave(mcp);
-  const cache = useAnswerCacheSetting();
-  const rows = useRows(isAdmin, features, { evaluations, mcp, oauth, cache });
+  return <FeatureList rows={useRows(features)} />;
+}
+
+/** The rows: icon, title with its state, the whole description, and the row's control or link (Overview and Settings). */
+export function FeatureList({ rows }: { rows: Row[] }) {
   return (
-    <>
-      {evaluations.save.error != null && (
-        <div className={o.cardAlert}>
-          <ErrorAlert error={evaluations.save.error} title="Couldn't change evaluations" />
-        </div>
-      )}
-      {mcp.save.error != null && (
-        <div className={o.cardAlert}>
-          <ErrorAlert error={mcp.save.error} title="Couldn't change the MCP server" />
-        </div>
-      )}
-      {cache.save.error != null && (
-        <div className={o.cardAlert}>
-          <ErrorAlert error={cache.save.error} title="Couldn't change saved answers" />
-        </div>
-      )}
-      {oauth.error != null && (
-        <div className={o.cardAlert}>
-          <ErrorAlert error={oauth.error} title="Couldn't change OAuth sign-in" />
-        </div>
-      )}
-      <ItemGroup className={o.queue}>
-        {rows.map((r) => (
-          <Item key={r.id} size="sm" className={o.row}>
-            <ItemMedia variant="icon" aria-hidden>
-              {r.icon}
-            </ItemMedia>
-            <ItemContent>
-              <ItemTitle className={o.featureTitle}>
-                {r.title}
-                {r.state && (
-                  <StatusBadge size="sm" tone={r.state.tone}>
-                    {r.state.label}
-                  </StatusBadge>
-                )}
-                {r.badge}
-              </ItemTitle>
-              {/* The whole sentence: what a feature does, or what turning it off hides, matters here. */}
-              <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
-            </ItemContent>
-            {(r.control || r.link) && (
-              <ItemActions className={cx(o.rowActions, o.featureActions)}>
-                {r.control}
-                {r.link && (
-                  <Button size="sm" variant="secondary" render={r.link}>
-                    {r.actionIcon}
-                    {r.action} {!r.actionIcon && <ArrowRight aria-hidden />}
-                  </Button>
-                )}
-              </ItemActions>
-            )}
-          </Item>
-        ))}
-      </ItemGroup>
-    </>
+    <ItemGroup className={o.queue}>
+      {rows.map((r) => (
+        <Item key={r.id} size="sm" className={o.row}>
+          <ItemMedia variant="icon" aria-hidden>
+            {r.icon}
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle className={o.featureTitle}>
+              {r.title}
+              {r.state && (
+                <StatusBadge size="sm" tone={r.state.tone}>
+                  {r.state.label}
+                </StatusBadge>
+              )}
+              {r.badge}
+            </ItemTitle>
+            {/* The whole sentence: what a feature does, or what turning it off hides, matters here. */}
+            <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
+          </ItemContent>
+          {(r.control || r.link) && (
+            <ItemActions className={cx(o.rowActions, o.featureActions)}>
+              {r.control}
+              {r.link && (
+                <Button size="sm" variant="secondary" render={r.link}>
+                  {r.actionIcon}
+                  {r.action} {!r.actionIcon && <ArrowRight aria-hidden />}
+                </Button>
+              )}
+            </ItemActions>
+          )}
+        </Item>
+      ))}
+    </ItemGroup>
   );
 }

@@ -1,6 +1,6 @@
 /*
  * Admin → Limits › Evaluations keeps only the two evaluation limits; the
- * feature's switch is on the Overview's Features card (v0.2.1 I2). This line
+ * feature's switch is on Admin → Settings › Features (AD-39; the Overview's Features card before v0.4.2). This line
  * says the state and where to change it.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +15,7 @@ export function EvaluationsNote() {
   return (
     <p className={s.muted}>
       {state ? `Evaluations are ${state}` : "Evaluations are turned on or off"} (
-      <TextLink render={<Link to="/admin" hash="features" />}>Overview → Features</TextLink>).
+      <TextLink render={<Link to="/admin/settings" hash="features" />}>Settings → Features</TextLink>).
     </p>
   );
 }

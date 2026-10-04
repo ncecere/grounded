@@ -82,7 +82,7 @@ describe("⌘K ranks an exact name first", () => {
     expect(router.state.location.search).toMatchObject(search);
   });
 
-  it("takes “features” and “evaluations” to the Overview's Features card", async () => {
+  it("takes “features” and “evaluations” to the feature switches on Admin → Settings (AD-39)", async () => {
     mockApi(adminRoutes());
     const { router, user, dialog, input } = await openPalette("/");
     await user.type(input, "evaluations");
@@ -90,7 +90,7 @@ describe("⌘K ranks an exact name first", () => {
     await user.clear(input);
     await user.type(input, "features");
     await user.keyboard("{Enter}");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/settings"));
     expect(router.state.location.hash).toBe("features");
   });
 
@@ -99,8 +99,10 @@ describe("⌘K ranks an exact name first", () => {
     // Its own page since v0.4.2 (OW-2); "Reranking settings" goes to the page's settings.
     ["reranking", "/admin/reranking", "", "Reranking"],
     ["reranking settings", "/admin/reranking", "settings", "Reranking settings"],
-    ["saved answers", "/admin", "features", "Saved answers"],
-    ["answer cache", "/admin", "features", "Saved answers"],
+    ["saved answers", "/admin/settings", "features", "Saved answers"],
+    ["answer cache", "/admin/settings", "features", "Saved answers"],
+    // Admin → Settings (AD-39) by what it holds.
+    ["time zone", "/admin/settings", "", "Settings"],
   ])("opens “%s”", async (text, pathname, hash, first) => {
     mockApi(adminRoutes());
     const { router, user, dialog, input } = await openPalette("/");

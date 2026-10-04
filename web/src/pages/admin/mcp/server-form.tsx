@@ -5,6 +5,7 @@ import { FormPage, FormSection } from "@/components/templates/form-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Field } from "@/components/ui/field/field";
+import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
@@ -143,7 +144,7 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
           </NativeSelect>
         </Field>
         <Field label="Timeout (seconds)" description="How long one tool call may take (1–120).">
-          <Input type="number" min={1} max={120} value={form.timeoutSeconds} onChange={(e) => set("timeoutSeconds", Number(e.target.value))} />
+          <NumberInput maximumFractionDigits={0} min={1} max={120} value={String(form.timeoutSeconds)} onValueChange={(v) => set("timeoutSeconds", Number(v))} />
         </Field>
         <Field
           label={currency ? `Price per call (${currency})` : "Price per call"}

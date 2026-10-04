@@ -7,7 +7,7 @@ Design: [`v0.4.0.md`](v0.4.0.md) §1 (roadmap A8). Code: `internal/answercache` 
 ## Who turns it on
 
 - **Each agent** has its own setting under **Agent → Settings → Saved answers**: on by default for agents published to the **public**, off by default for the others. Team editors, admins and owners change it. It isn't part of versions: a change applies to the next question.
-- **Platform admins** can turn saved answers off for every agent under **Admin → Overview → Features → Saved answers** (auditors see the switch read-only). While it's off nothing is reused and nothing is saved, including answers that were being written when it was turned off; saved answers stay until they expire. The same holds for the agent's own setting.
+- **Platform admins** can turn saved answers off for every agent under **Admin → Settings → Features → Saved answers** (auditors see the switch read-only). While it's off nothing is reused and nothing is saved, including answers that were being written when it was turned off; saved answers stay until they expire. The same holds for the agent's own setting.
 
 The agent's section also sets:
 
@@ -27,7 +27,7 @@ All of these must hold:
 - **The same audience** the agent is published to.
 - **The same question.** By default the match is exact after normalising: case, runs of spaces and trailing punctuation don't matter. With near-identical matching on, a question whose embedding is within cosine similarity 0.92 of a saved one is reused only when SystemOne confirms that both ask for the same information, so "hours on Saturday" never gets the answer about Sunday.
 - **The first question of a conversation.** Follow-ups are always answered live and never saved, whatever their wording: no word test can tell reliably whether "How much does that cost?" leans on the conversation, and a follow-up's answer was written with one person's earlier turns. For the OpenAI-compatible API, service keys and MCP `ask`, a question sent with earlier turns (`history`) is a follow-up.
-- **The same day, for questions about relative dates.** The agent's instructions tell the model today's date, so a question with words such as *today*, *tomorrow*, *this week*, *open*, *hours* or *deadline* has the date in its key. The date, like the one the model is told, is the day in the platform time zone (Admin → Costs → Settings, UTC by default; [`costs.md`](costs.md) §4).
+- **The same day, for questions about relative dates.** The agent's instructions tell the model today's date, so a question with words such as *today*, *tomorrow*, *this week*, *open*, *hours* or *deadline* has the date in its key. The date, like the one the model is told, is the day in the platform time zone (Admin → Settings, UTC by default; [`costs.md`](costs.md) §4).
 - **Not expired:** within the agent's time limit, measured with its current setting.
 
 Only the agent's **always** search mode is cached; agents that search with a tool (tool mode) answer every question live.

@@ -65,7 +65,7 @@ const pages = {
   costs: () => import("./pages/admin/costs/page"),
   notifications: () => import("./pages/notifications/routes"),
   publicAccess: () => import("./pages/admin/public-access/page"),
-  maintenance: () => import("./pages/admin/maintenance/page"),
+  maintenance: () => import("./pages/admin/maintenance/page"), adminSettings: () => import("./pages/admin/settings/page"),
   retention: () => import("./pages/admin/retention/routes"),
   breakGlass: () => import("./pages/admin/break-glass/page"),
   systemone: () => import("./pages/admin/systemone/page"), reranking: () => import("./pages/admin/reranking/page"),
@@ -375,7 +375,7 @@ const appTree = appRoute.addChildren([
       adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage"), { renamed: { report: "dry-run" } }),
       adminMoved("legal-holds", "/admin/retention", "holds", movedLegalHoldSearch),
       adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")), breakGlassConversationsRoute,
-      logsRoute,
+      logsRoute, admin("settings", lazy(pages.adminSettings, "AdminSettingsPage")),
       adminMoved("access-log", "/admin/logs", "access"), adminMoved("audit", "/admin/logs"),
     ]),
   ]);

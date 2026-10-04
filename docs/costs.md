@@ -98,7 +98,7 @@ Pricing arithmetic and effective dating (unit), the rollup against `usage_events
 1. ~~Who sets a team's budget?~~ **Platform admins only** (owner, 2026-09-28). Team owners and admins see their spend and budget but can't change them, like limits.
 2. ~~Per-agent budgets in v0.2?~~ **No** (owner, 2026-09-28). Reports show spend per agent; per-agent caps can come later.
 3. ~~What is refused at 100%?~~ **Everything that calls a model** (owner, 2026-09-28): chats, retrieval queries (`/retrieve`, the Search tab) and ingestion.
-4. ~~Budget month?~~ **The calendar month in a platform time zone, default UTC** (owner, 2026-09-28). Admins set the zone (an IANA name such as `America/New_York`) in Admin → Costs → Settings; reports' days use it too. Daily limits still reset at midnight UTC. Since v0.4.1 the zone also gives agents today's date ("Today is …" in their instructions) and the day saved answers to questions about relative dates are kept for ([`answer-cache.md`](answer-cache.md)).
+4. ~~Budget month?~~ **The calendar month in a platform time zone, default UTC** (owner, 2026-09-28). Admins set the zone (an IANA name such as `America/New_York`) in Admin → Settings (Admin → Costs → Settings before v0.4.2); reports' days use it too. Daily limits still reset at midnight UTC. Since v0.4.1 the zone also gives agents today's date ("Today is …" in their instructions) and the day saved answers to questions about relative dates are kept for ([`answer-cache.md`](answer-cache.md)).
 
 ## 10. Implementation notes
 

@@ -25,7 +25,7 @@ Prices can be entered while the mode is still Off, so tracking starts with corre
 - **A mistake:** delete the row from the model's price history. Usage on its days goes back to the row before it (or to unpriced). Adding and deleting prices are audited (`costs.price_add`, `costs.price_delete`).
 - **Unpriced usage costs nothing** and is flagged **Unpriced** in every report, so a missing price is visible rather than silently free. Check the Prices tab after adding a model.
 
-The currency (Settings) is a display code only; there is no conversion. Enter every price in that currency.
+The currency (**Admin → Settings**, [`settings.md`](settings.md)) is a display code only; there is no conversion. Enter every price in that currency.
 
 ## 2. Choose a mode
 
@@ -34,10 +34,9 @@ In **Admin → Costs → Settings**:
 | Setting | Default | Meaning |
 |---|---|---|
 | Cost tracking | Off | **Off**: nothing is tracked or refused. **Track only**: spend is reported to platform admins, auditors and each team's owners and admins; a team with a budget shows progress against it ("not enforced"), and nothing is refused or notified. **Enforce**: Track only, plus enforced monthly budgets. |
-| Currency | `USD` | The ISO 4217 code amounts are shown in. |
-| Time zone | `UTC` | The budget month and report days follow this zone (an IANA name such as `America/New_York`). Changing it needs no rebuild. Daily limits still reset at midnight UTC. |
 | Warning threshold | 80% | Owners and admins are notified once a month when spend reaches this share of the budget. |
-| Default monthly budget | none | The budget of teams without their own: enforced in Enforce, progress only in Track only. Without one, such teams are tracked but never refused. |
+
+The **currency**, **time zone** (the budget month and report days) and **default monthly budget** are in **Admin → Settings** since v0.4.2 ([`settings.md`](settings.md)).
 
 Saving is audited (`costs.settings_update`) and takes a revision check, so two admins can't overwrite each other.
 
