@@ -31,14 +31,22 @@ import { AppSidebar } from "./sidebar";
 
 const collapsedKey = "grounded.sidebarCollapsed";
 
-function initialCollapsed() {
+/**
+ * Below this width the sidebar starts as the icon rail, so lists and tables
+ * get the room (1024 px: a 240 px sidebar left tables scrolling inside
+ * themselves; AD-32). It follows the window until the person chooses.
+ */
+export const COMPACT_SHELL_QUERY = "(max-width: 68.75rem)";
+
+/** The person's own choice (the toggle), or null to follow the window's width. */
+function savedCollapsed(): boolean | null {
   try {
     const saved = globalThis.localStorage?.getItem(collapsedKey);
     if (saved !== null && saved !== undefined) return saved === "1";
   } catch {
     // Storage can be unavailable (private mode); fall through.
   }
-  return globalThis.matchMedia?.("(max-width: 48rem)").matches ?? false;
+  return null;
 }
 
 /** The signed-in layout. Renders the matched route, or `children` (e.g. the not-found page). */
@@ -46,7 +54,9 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const me = useCurrentUser();
   const loc = useLocationInfo();
   const { canAdmin, readOnlyAdmin } = useCapabilities(me);
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [choice, setChoice] = useState(savedCollapsed);
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const collapsed = choice ?? compact;
   // Chat pages have their own conversation list: the app sidebar shows icons
   // only there (two columns, not three; W11). Expanding it lasts for the
   // session and doesn't change the saved choice for other pages.
@@ -98,7 +108,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             setChatExpanded(!c);
             return;
           }
-          setCollapsed(c);
+          setChoice(c);
           try {
             globalThis.localStorage?.setItem(collapsedKey, c ? "1" : "0");
           } catch {

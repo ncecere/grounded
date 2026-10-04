@@ -1,7 +1,7 @@
 import { Outlet, createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect, useRouterState } from "@tanstack/react-router";
-import { type ReactNode, Suspense, lazy as reactLazy } from "react";
+import { type ReactNode, Suspense, lazy as reactLazy, useCallback } from "react";
 import { AppLayout } from "./components/layout/shell";
-import { HelpButton, NotFoundState } from "./components/not-found";
+import { NotFoundState } from "./components/not-found";
 import { publicRef } from "./pages/public/session";
 import {
   adminTeamTabs,
@@ -26,9 +26,8 @@ import {
   tabSearch,
   teamSettingsTabs,
 } from "./lib/tabs";
-import { InstanceSync, SignInPage, useCurrentUser, useInstance, useMe } from "./session";
-import { ErrorAlert } from "@/components/ui/alert/alert";
-import { Stack } from "@/components/ui/layout/layout";
+import { InstanceSync, SignInPage, useCurrentUser, useMe } from "./session";
+import { SessionUnavailable } from "./components/layout/session-unavailable";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Toaster } from "@/components/ui/toast/toast";
 import styles from "./router.module.css";
@@ -80,21 +79,22 @@ const lazy = lazyRouteComponent;
 // address /a/{team}/{agent} get the public page.
 const PublicAgentPage = reactLazy(() => pages.publicPages().then((m) => ({ default: m.PublicAgentPage })));
 
-/** Shows the sign-in page until there is a session (the public agent page for public agent addresses). */
+/**
+ * Shows the sign-in page until there is a session (the public agent page for
+ * public agent addresses). While the session can't load (a rate limit, a
+ * server error), a page says so and retries; once it has loaded, a failed
+ * background refresh keeps the app as it is (AD-03, VI-03).
+ */
 function SessionGate({ children }: { children: ReactNode }) {
   const me = useMe();
-  const { supportUrl } = useInstance();
   const path = useRouterState({ select: (st) => st.location.pathname });
-  if (me.isLoading) return <Loading className={styles.fullPage} label="Loading…" />;
-  if (me.error) {
-    return (
-      <main className={styles.fullPage}>
-        <Stack gap={4} className={styles.error}>
-          <ErrorAlert error={me.error} title="Couldn't load your session" />
-          {supportUrl && <HelpButton href={supportUrl} />}
-        </Stack>
-      </main>
-    );
+  const retry = useCallback(() => void me.refetch(), [me.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (me.data === undefined) {
+    // Loading, retrying after a failure (a rate limit waits for its Retry-After), or given up.
+    const failure = me.error ?? (me.failureCount > 0 ? me.failureReason : null);
+    // Keyed by the failure count: each new failure restarts the countdown to the next try.
+    if (failure) return <SessionUnavailable key={me.failureCount} error={failure} retrying={!me.error} onRetry={retry} />;
+    return <Loading className={styles.fullPage} label="Loading…" />;
   }
   if (!me.data && publicRef(path)) {
     return (

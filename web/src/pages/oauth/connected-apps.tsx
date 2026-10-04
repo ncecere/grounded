@@ -68,9 +68,20 @@ function intro(owner: ConnectedAppsOwner, canDisconnect: boolean) {
 
 /**
  * The Connected apps card. `hideWhenEmpty` leaves it out for a person with
- * no apps while OAuth sign-in is off (the API keys page).
+ * no apps while OAuth sign-in is off (the API keys page). `title` names the
+ * card where the page itself is already called Connected apps.
  */
-export function ConnectedApps({ owner, canDisconnect, hideWhenEmpty = false }: { owner: ConnectedAppsOwner; canDisconnect: boolean; hideWhenEmpty?: boolean }) {
+export function ConnectedApps({
+  owner,
+  canDisconnect,
+  hideWhenEmpty = false,
+  title = "Connected apps",
+}: {
+  owner: ConnectedAppsOwner;
+  canDisconnect: boolean;
+  hideWhenEmpty?: boolean;
+  title?: string;
+}) {
   const grants = useGrants(owner);
   const [target, setTarget] = useState<Grant | null>(null);
   const disconnect = useDisconnect(owner, () => setTarget(null));
@@ -80,7 +91,7 @@ export function ConnectedApps({ owner, canDisconnect, hideWhenEmpty = false }: {
   // A person's admin page is a record page: absolute dates there.
   const format = owner.self ? "relative" : "datetime";
   return (
-    <Card title="Connected apps" description={intro(owner, canDisconnect)}>
+    <Card title={title} description={intro(owner, canDisconnect)}>
       {grants.isLoading && <Loading label="Loading connected apps…" />}
       <ErrorAlert error={grants.error} title="Couldn't load connected apps" />
       {grants.isSuccess && list.length === 0 && <EmptyState size="compact" icon={<Plug />} title="No connected apps." description={empty} />}

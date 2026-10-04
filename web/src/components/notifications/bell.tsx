@@ -30,6 +30,8 @@ export function NotificationBell() {
       side="bottom"
       align="end"
       title="Notifications"
+      // Opened with the mouse, focus goes to the popup, so the first notification doesn't look selected (VI-19).
+      pointerFocus="popup"
       className={styles.popup}
       trigger={
         <Button variant="ghost" iconOnly aria-label={bellLabel(unread)} className={styles.bell}>

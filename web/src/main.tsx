@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api/client";
 import { isMaintenanceError, maintenanceKey } from "./lib/maintenance";
+import { retryDelay, shouldRetry } from "./lib/retry";
 import { router } from "./router";
 // bitop-ui (installed with the bitop CLI, see README.md): font, tokens, the
 // neutral theme and base styles. Grounded sets <html data-brand> from UI_THEME
@@ -28,8 +29,9 @@ const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      // Client errors (4xx) will not fix themselves; retry only server/network errors.
-      retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+      // Client errors (4xx) will not fix themselves: retry server and network errors, and a rate limit after its Retry-After.
+      retry: shouldRetry,
+      retryDelay,
     },
   },
 });
