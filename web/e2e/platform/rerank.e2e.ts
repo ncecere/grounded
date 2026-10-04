@@ -44,8 +44,8 @@ test("reranking: an admin sets it up on Admin → Models → Reranking, tests it
   await test.step("the guide leads to Add model with kind Rerank", async () => {
     await adminPage.goto("/admin");
     await a11y(adminPage, "overview");
-    const row = adminPage.locator("#features").getByText("Reranking", { exact: true }).locator("xpath=ancestor::*[contains(@class,'item')][1]");
-    await row.getByRole("link", { name: /Set up/ }).click();
+    // Features: "Reranking · Off" with Set up (the only row with that link).
+    await adminPage.locator("#features").getByRole("link", { name: "Set up", exact: true }).click();
     await expect(adminPage).toHaveURL(/\/admin\/reranking$/);
     const guide = adminPage.getByRole("region", { name: "Set up reranking" });
     await expect(guide.getByText("1 of 3 done")).toBeVisible();
