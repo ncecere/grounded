@@ -28,6 +28,7 @@ import {
 } from "./lib/tabs";
 import { InstanceSync, SignInPage, useCurrentUser, useMe } from "./session";
 import { useSessionUnavailable } from "./components/layout/session-unavailable";
+import { ColorModeSync } from "./components/layout/theme";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Toaster } from "@/components/ui/toast/toast";
 import styles from "./router.module.css";
@@ -120,6 +121,7 @@ function Root() {
   return (
     <>
       <InstanceSync />
+      <ColorModeSync />
       <Outlet />
       {!embedded && <Toaster position="bottom-left" />}
     </>

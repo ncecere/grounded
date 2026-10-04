@@ -16,6 +16,7 @@ import { type ActiveTeam } from "./active-team";
 import { useCapabilities } from "./location";
 import { AdminHeader, ModeSwitch, type Mode } from "./mode-switch";
 import { TeamSwitcher } from "./team-switcher";
+import { ThemeMenuGroup } from "./theme";
 import { activeAdminGroup, adminSections, icon, teamNavFor } from "./nav";
 import { useAdminGroups } from "./admin-groups";
 
@@ -50,6 +51,9 @@ export function AppSidebar({ me, mode, active }: { me: Me; mode: Mode; active: A
           <MenuLinkItem icon={<Plug aria-hidden />} render={<Link to="/settings/connected-apps" />}>
             Connected apps
           </MenuLinkItem>
+          <MenuSeparator />
+          <ThemeMenuGroup />
+          <MenuSeparator />
           {instance.supportUrl && (
             <MenuLinkItem href={instance.supportUrl} target="_blank" rel="noreferrer" icon={<LifeBuoy aria-hidden />}>
               Help

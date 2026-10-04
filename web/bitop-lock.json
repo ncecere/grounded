@@ -98,6 +98,11 @@
         "src/components/ui/color-field/color-field.tsx": "a7dc3a5480c30669f8b261e855eba5ffa1fd9f117790f815f927ce7629f0c73c"
       }
     },
+    "color-mode": {
+      "files": {
+        "src/components/ui/color-mode/color-mode.tsx": "53b42149c0a4a7fa0900531a599dd1a6f971b3905f30f95ecf5c976554db22c7"
+      }
+    },
     "combobox": {
       "files": {
         "src/components/ui/combobox/combobox.module.css": "66dad9c4dee551fd322f47735a16a4a44b75efb52102ae34e8b9869e5ef0e215",
