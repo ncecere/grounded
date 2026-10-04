@@ -5,8 +5,9 @@
  * automatic retry of a rate limit (Retry-After), and offers "Try again now".
  * Once the session has loaded, a later failure never replaces the app.
  */
+import { type UseQueryResult, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError, errorMessage } from "../../api/client";
 import { isRateLimited, MAX_RETRY_AFTER_S } from "../../lib/retry";
 import { useInstance } from "../../session";
@@ -76,4 +77,17 @@ export function SessionUnavailable({ error, retrying, onRetry }: Props) {
       </Card>
     </main>
   );
+}
+
+/**
+ * The page for a session that hasn't loaded yet and failed (retrying after a
+ * rate limit, or given up), or null while it's simply loading.
+ */
+export function useSessionUnavailable(me: Pick<UseQueryResult<unknown>, "error" | "failureCount" | "failureReason">) {
+  const qc = useQueryClient();
+  // Starts over (a refetch would wait for the retry already scheduled): the countdown restarts if it's still refused.
+  const retry = useCallback(() => void qc.resetQueries({ queryKey: ["me"], exact: true }), [qc]);
+  const failure = me.error ?? (me.failureCount > 0 ? me.failureReason : null);
+  // Keyed by the failure count: each new failure restarts the countdown to the next try.
+  return failure ? <SessionUnavailable key={me.failureCount} error={failure} retrying={!me.error} onRetry={retry} /> : null;
 }
