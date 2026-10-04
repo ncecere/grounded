@@ -1,18 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Globe, Plus } from "lucide-react";
+import { Globe, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
-import { api, unwrap, type Schemas } from "@/api/client";
+import { ApiError, api, unwrap, type Schemas } from "@/api/client";
 import { useIntent } from "@/lib/intents";
-import { RelativeTime } from "@/components/templates/list-page";
+import { ListPage, RelativeTime } from "@/components/templates/list-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { AlertDialog, Dialog, DialogClose } from "@/components/ui/dialog/dialog";
-import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { Field, Form } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
-import { Loading } from "@/components/ui/spinner/spinner";
-import { Table, TableActions, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
 import { validateHostPattern } from "../../team/domains";
@@ -21,11 +19,28 @@ type AllowlistEntry = Schemas["AllowlistEntry"];
 
 const allowlistKey = ["admin", "crawl-allowlist"];
 
+export const allowlistQuery = () => ({ queryKey: allowlistKey, queryFn: async () => unwrap(await api.GET("/v1/admin/crawl-allowlist")) });
+
 /* ---------------- allowlist ---------------- */
 
+const columns: DataTableColumn<AllowlistEntry>[] = [
+  {
+    id: "pattern",
+    header: "Host pattern",
+    accessor: "pattern",
+    sortable: true,
+    rowHeader: true,
+    hideable: false,
+    cell: (e) => <CellText primary={<code className={s.mono}>{e.pattern}</code>} secondary={e.pattern === "*" ? "Every public host" : undefined} />,
+  },
+  { id: "note", header: "Note", accessor: (e) => e.note ?? "", muted: true, cell: (e) => e.note || "—" },
+  { id: "added", header: "Added", accessor: "createdAt", sortable: true, muted: true, cell: (e) => <RelativeTime value={e.createdAt} /> },
+];
+
+/* The allowlist as a list like the others (VI-22): search, Columns, a row count and a row menu. */
 export function AllowlistCard({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
-  const entries = useQuery({ queryKey: allowlistKey, queryFn: async () => unwrap(await api.GET("/v1/admin/crawl-allowlist")) });
+  const entries = useQuery(allowlistQuery());
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<AllowlistEntry | null>(null);
   useIntent("add-allowlist", () => isAdmin && setAdding(true));
@@ -38,8 +53,6 @@ export function AllowlistCard({ isAdmin }: { isAdmin: boolean }) {
     },
     onSettled: () => qc.invalidateQueries({ queryKey: allowlistKey }),
   });
-  const list = entries.data ?? [];
-
   return (
     <Card
       title="Crawl allowlist"
@@ -51,41 +64,21 @@ export function AllowlistCard({ isAdmin }: { isAdmin: boolean }) {
           </Button>
         )
       }
-      flush
     >
-      {entries.isLoading ? (
-        <Loading label="Loading the allowlist…" />
-      ) : entries.error ? (
-        <div className={s.pad}>
-          <ErrorAlert error={entries.error} />
-        </div>
-      ) : list.length === 0 ? (
-        <EmptyState size="compact" icon={<Globe />} title="The allowlist is empty." description="Teams can only crawl domains approved for them." />
-      ) : (
-        <Table caption="Crawl allowlist" columns={["Host pattern", "Note", "Added", ""]}>
-          {list.map((e) => (
-            <Tr key={e.id}>
-              <Td>
-                <code className={`${s.mono} ${s.primary}`}>{e.pattern}</code>
-                {e.pattern === "*" && <span className={s.secondary}>Every public host</span>}
-              </Td>
-              <Td muted>{e.note || "—"}</Td>
-              <Td muted nowrap>
-                <RelativeTime value={e.createdAt} />
-              </Td>
-              <Td>
-                <TableActions>
-                  {isAdmin && (
-                    <Button size="sm" variant="ghost" aria-label={`Remove ${e.pattern}`} onClick={() => setRemoving(e)}>
-                      Remove
-                    </Button>
-                  )}
-                </TableActions>
-              </Td>
-            </Tr>
-          ))}
-        </Table>
-      )}
+      <ListPage<AllowlistEntry>
+        id="admin-crawl-allowlist"
+        caption="Crawl allowlist"
+        columns={columns}
+        data={entries.data ?? []}
+        getRowId={(e) => e.id}
+        rowLabel={(e) => e.pattern}
+        search={{ label: "Search the allowlist", placeholder: "Host or note" }}
+        loading={entries.isLoading}
+        error={entries.error}
+        onRetry={() => void entries.refetch()}
+        rowActions={(e) => [{ label: "Remove…", icon: <Trash2 aria-hidden />, danger: true, hidden: !isAdmin, onSelect: () => setRemoving(e) }]}
+        empty={{ icon: <Globe />, title: "The allowlist is empty.", description: "Teams can only crawl domains approved for them." }}
+      />
       {adding && <AddAllowlistDialog onClose={() => setAdding(false)} />}
       <AlertDialog
         open={removing !== null}
@@ -111,7 +104,9 @@ function AddAllowlistDialog({ onClose }: { onClose: () => void }) {
   const formId = useId();
   const [form, setForm] = useState({ pattern: "", note: "" });
   const [submitted, setSubmitted] = useState(false);
-  const patternError = validateHostPattern(form.pattern, { allowStar: true });
+  // "*" opens crawling of the whole internet to every team: it's confirmed first (AD-08).
+  const [confirmStar, setConfirmStar] = useState(false);
+  const star = form.pattern.trim() === "*";
   const add = useMutation({
     mutationFn: async () =>
       unwrap(await api.POST("/v1/admin/crawl-allowlist", { body: { pattern: form.pattern.trim().toLowerCase(), note: form.note.trim() || undefined } })),
@@ -121,6 +116,9 @@ function AddAllowlistDialog({ onClose }: { onClose: () => void }) {
       onClose();
     },
   });
+  // The server refuses addresses the crawler never fetches (blocked_address) and bad patterns: on the field.
+  const fieldError = add.error instanceof ApiError && (add.error.code === "blocked_address" || add.error.code === "invalid_pattern") ? add.error.message : undefined;
+  const patternError = validateHostPattern(form.pattern, { allowStar: true });
   return (
     <Dialog
       open
@@ -142,13 +140,15 @@ function AddAllowlistDialog({ onClose }: { onClose: () => void }) {
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitted(true);
-          if (!patternError) add.mutate();
+          if (patternError) return;
+          if (star) setConfirmStar(true);
+          else add.mutate();
         }}
       >
         <Field
           label="Host pattern"
           description="*.example.edu allows example.edu and every subdomain. example.org allows only that host. * allows every public host."
-          error={submitted ? patternError : undefined}
+          error={(submitted ? patternError : undefined) ?? fieldError}
         >
           <Input
             aria-required
@@ -156,19 +156,30 @@ function AddAllowlistDialog({ onClose }: { onClose: () => void }) {
             spellCheck={false}
             placeholder="*.example.edu"
             value={form.pattern}
-            onChange={(e) => setForm({ ...form, pattern: e.target.value })}
+            onChange={(e) => (setForm({ ...form, pattern: e.target.value }), add.reset())}
           />
         </Field>
-        {form.pattern.trim() === "*" && (
+        {star && (
           <Alert tone="warning" title="This allows every public host">
-            Teams could crawl any site on the internet. Internal and private addresses stay blocked.
+            Every team could crawl any site on the internet. Private, loopback, link-local and cloud metadata addresses stay blocked.
           </Alert>
         )}
         <Field label="Note" labelHint="Optional" description="Why this pattern is allowed. Up to 500 characters.">
           <Textarea maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </Field>
-        <ErrorAlert error={add.error} />
+        {!fieldError && <ErrorAlert error={add.error} />}
       </Form>
+      <AlertDialog
+        open={confirmStar}
+        onOpenChange={(o) => !o && setConfirmStar(false)}
+        title="Allow every public host?"
+        description="Every team's web sources could crawl any site on the internet, with no domain request. Private, loopback, link-local and cloud metadata addresses stay blocked."
+        confirmLabel="Allow every public host"
+        busy={add.isPending}
+        error={add.error}
+        onConfirm={() => add.mutate(undefined, { onSettled: () => setConfirmStar(false) })}
+      />
     </Dialog>
   );
 }
+

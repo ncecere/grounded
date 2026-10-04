@@ -28,6 +28,7 @@ func TestNormalizePattern(t *testing.T) {
 		{"exa mple.edu", "", false, false},
 		{"", "", true, false},
 		{"127.0.0.1", "127.0.0.1", false, true},
+		{"*.10.0.0.1", "", true, false},
 	}
 	for _, tc := range cases {
 		got, err := NormalizePattern(tc.in, tc.allowStar)

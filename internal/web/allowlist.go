@@ -31,6 +31,11 @@ func NormalizePattern(p string, allowStar bool) (string, error) {
 	return out, nil
 }
 
+// errBlockedAddress: the crawler's SSRF guard refuses this address, so an
+// allowlist entry or domain request for it would do nothing (AD-08).
+var errBlockedAddress = apperr.Invalid("blocked_address",
+	"The crawler never fetches private, loopback, link-local or cloud metadata addresses, so this entry would do nothing")
+
 // MatchHost reports whether host (lower-case IDNA ASCII, as produced by
 // crawl.Normalize) matches pattern.
 func MatchHost(pattern, host string) bool {
