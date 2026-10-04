@@ -304,7 +304,7 @@ describe("Build", () => {
     });
     mockApi(routes(agent({ audience: "public", draft: { ...config, audience: "public" } }), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("public"), "GET /v1/teams/registrar/agents/ag1/publishable-keys": () => [] }));
     const v = renderApp("/teams/registrar/agents/ag1?tab=share");
-    expect(await screen.findByText("All three work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("Both work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Embed code" })).toBeInTheDocument();
     v.unmount();
     mockApi(routes(agent(), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("team") }));
