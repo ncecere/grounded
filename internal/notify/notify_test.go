@@ -255,3 +255,20 @@ func TestDocumentsAttentionEvent(t *testing.T) {
 		t.Fatalf("one damaged = %+v", one)
 	}
 }
+
+// AD-17: break-glass times in the platform's zone, and a switch back tells platform admins too.
+func TestBreakGlassTimesAndSwitchBack(t *testing.T) {
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("no tz database")
+	}
+	b := BreakGlassInfo{Admin: "Morgan", Scopes: "conversations", ExpiresAt: time.Date(2026, 10, 4, 15, 21, 0, 0, time.UTC), Location: ny}
+	ev := BreakGlassStartedEvent(TeamRef{Name: "Beta"}, b, "")
+	if !strings.Contains(ev.Body, "until 4 October 2026, 11:21 (EDT).") || strings.Contains(ev.Body, "UTC") {
+		t.Errorf("body = %q", ev.Body)
+	}
+	back := ProfileSwitchedEvent(nil, TeamRef{Name: "Beta"}, uuid.New(), "Beta KB", "New", "Old", time.Now(), true)
+	if !strings.HasPrefix(back.Title, "Profile migration switched back: Beta KB") || !strings.Contains(back.DedupeKey, "switched_back") {
+		t.Errorf("switch back = %+v", back)
+	}
+}

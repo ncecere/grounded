@@ -17,8 +17,18 @@ func migrationLink(id uuid.UUID) string {
 	return "/admin/embedding-profiles?tab=migrations&record=" + id.String()
 }
 
-// ProfileSwitchedEvent: a migration switched its knowledge base.
-func ProfileSwitchedEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, kbName, from, to string, until time.Time) Event {
+// ProfileSwitchedEvent: a migration switched its knowledge base (back:
+// switched back to the old profile, AD-17).
+func ProfileSwitchedEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, kbName, from, to string, until time.Time, back bool) Event {
+	if back {
+		return Event{
+			Type: ProfileMigration, TeamID: t.ID, Users: admins, Link: migrationLink(migrationID),
+			DedupeKey: "profile_switched_back:" + migrationID.String(),
+			Title:     fmt.Sprintf("Profile migration switched back: %s (%s)", kbName, t.Name),
+			Body:      fmt.Sprintf("The knowledge base %s (%s) searches the embedding profile %s again instead of %s.", kbName, t.Name, to, from),
+			Data:      map[string]any{"team": t.Slug, "migrationId": migrationID, "result": "switched_back"},
+		}
+	}
 	body := fmt.Sprintf("The knowledge base %s (%s) now searches the embedding profile %s instead of %s.", kbName, t.Name, to, from)
 	if until.After(time.Now()) {
 		body += fmt.Sprintf(" The old vectors are kept until %s, so you can switch back until then.", day(until))

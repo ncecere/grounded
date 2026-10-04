@@ -18,6 +18,17 @@ type BreakGlassInfo struct {
 	// Scopes in words, e.g. "conversations and documents".
 	Scopes    string
 	ExpiresAt time.Time
+	// Location is the platform's time zone for the times in the text (nil: UTC).
+	Location *time.Location
+}
+
+// at is a time in the platform's zone with its abbreviation: "4 October 2026, 11:21 (EDT)" (AD-17).
+func (b BreakGlassInfo) at(t time.Time) string {
+	loc := b.Location
+	if loc == nil {
+		loc = time.UTC
+	}
+	return t.In(loc).Format("2 January 2006, 15:04 (MST)")
 }
 
 func (b BreakGlassInfo) data(t TeamRef) map[string]any {
@@ -32,8 +43,8 @@ func (b BreakGlassInfo) adminLink() string {
 // second admin approved it). It reaches the team's owners and can't be
 // turned off.
 func BreakGlassStartedEvent(t TeamRef, b BreakGlassInfo, approvedBy string) Event {
-	body := fmt.Sprintf("%s, a platform admin, can read the %s of %s until %s (UTC). Every read is recorded in the team's audit log, and you'll get a summary when the session ends.\n\nReason given: %s",
-		b.Admin, b.Scopes, t.Name, b.ExpiresAt.UTC().Format("2 January 2006, 15:04"), b.Reason)
+	body := fmt.Sprintf("%s, a platform admin, can read the %s of %s until %s. Every read is recorded in the team's audit log, and you'll get a summary when the session ends.\n\nReason given: %s",
+		b.Admin, b.Scopes, t.Name, b.at(b.ExpiresAt), b.Reason)
 	if approvedBy != "" {
 		body += "\n\nApproved by: " + approvedBy
 	}
@@ -71,8 +82,8 @@ func BreakGlassRequestedEvent(t TeamRef, b BreakGlassInfo, admins []uuid.UUID, d
 		Type: BreakGlassRequested, TeamID: t.ID, Users: admins, Link: b.adminLink(),
 		DedupeKey: "breakglass_requested:" + b.SessionID.String(),
 		Title:     fmt.Sprintf("Break-glass approval needed: %s", t.Name),
-		Body: fmt.Sprintf("%s asked to read the %s of %s. The request lapses at %s (UTC) unless another platform admin approves it.\n\nReason given: %s\n\nApprove or deny it under Admin, Break-glass.",
-			b.Admin, b.Scopes, t.Name, deadline.UTC().Format("2 January 2006, 15:04"), b.Reason),
+		Body: fmt.Sprintf("%s asked to read the %s of %s. The request lapses at %s unless another platform admin approves it.\n\nReason given: %s\n\nApprove or deny it under Admin, Break-glass.",
+			b.Admin, b.Scopes, t.Name, b.at(deadline), b.Reason),
 		Data: b.data(t),
 	}
 }
@@ -87,7 +98,7 @@ func BreakGlassDecidedEvent(t TeamRef, b BreakGlassInfo, requester uuid.UUID, de
 	}
 	body += "."
 	if decision == "approved" {
-		body += fmt.Sprintf(" You can read its %s until %s (UTC).", b.Scopes, b.ExpiresAt.UTC().Format("2 January 2006, 15:04"))
+		body += fmt.Sprintf(" You can read its %s until %s.", b.Scopes, b.at(b.ExpiresAt))
 	}
 	if note = strings.TrimSpace(note); note != "" {
 		body += "\n\nReason given: " + note
