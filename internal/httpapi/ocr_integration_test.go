@@ -96,6 +96,11 @@ func TestParsingSettings(t *testing.T) {
 	}
 	code, e = auditor.call("PUT", "/v1/admin/parsing", on, nil, ifMatch(1))
 	mustCode(t, "auditor write", code, e, 403, "")
+	// AD-07: a language the sidecar doesn't have is refused on save, with what it has.
+	code, raw := admin.raw("PUT", "/v1/admin/parsing", map[string]any{"ocrEnabled": true, "backend": "tesseract", "visionModelId": nil, "languages": "eng+zzz"}, ifMatch(1))
+	if code != 400 || !strings.Contains(string(raw), "language_not_installed") || !strings.Contains(string(raw), "zzz isn't installed") || !strings.Contains(string(raw), "eng, spa") {
+		t.Errorf("uninstalled language = %d %s", code, raw)
+	}
 
 	st = putParsing(t, admin, on)
 	if !st.OcrEnabled || st.Languages != "eng+spa" || st.Revision != 2 || st.UpdatedAt == nil {

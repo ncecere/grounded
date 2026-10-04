@@ -5,7 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { ocrNote, pageRanges, parsingChanges, parsingForm, parsingInput, parsingProblems } from "../lib/parsing";
 import { SourceDetail } from "../pages/sources/detail";
-import { mockApi as mockShell, renderApp, shellRoutes } from "./harness";
+import { Reply, mockApi as mockShell, renderApp, shellRoutes } from "./harness";
 import { common, mockApi, renderWith, webSource } from "./web-harness";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -100,6 +100,25 @@ describe("Admin → Parsing & OCR", () => {
     expect(await screen.findByText("Vision model failed after 30 ms")).toBeInTheDocument();
     expect(screen.getByText("the proxy is unavailable")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("puts the sidecar's refusal of an uninstalled language on the Languages field (AD-07), and offers Vision only with a vision model (AD-24)", async () => {
+    mockShell({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/models": () => [],
+      "GET /v1/admin/parsing": () => settings({ needsOcr: [] }),
+      "GET /v1/admin/parsing/document-problems": () => ({ items: [] }),
+      "PUT /v1/admin/parsing": () => Reply.error(400, "language_not_installed", "zzz isn't installed in the Tesseract sidecar. Installed: eng, spa."),
+    });
+    renderApp("/admin/parsing");
+    await screen.findByRole("switch", { name: /Read scanned pages/ });
+    expect(screen.getByRole("radio", { name: /Vision model/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("No vision models yet: add a model of kind Vision in Admin → Models.")).toBeInTheDocument();
+    const langs = screen.getByRole("textbox", { name: "Languages" });
+    await userEvent.type(langs, "+zzz");
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(langs).toHaveAccessibleDescription(/zzz isn't installed in the Tesseract sidecar/));
+    expect(screen.getByText("Not saved: fix the languages.")).toBeInTheDocument();
   });
 
   it("is read-only for auditors", async () => {
