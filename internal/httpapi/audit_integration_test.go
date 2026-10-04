@@ -60,6 +60,18 @@ func TestAuditActorsAndTargetLabels(t *testing.T) {
 	mustCode(t, "key", code, e, 201, "")
 	code, _, e = owner.uploadFiles(base+"/sources/"+src.Id.String()+"/documents", []upload{{"faq.md", []byte("# FAQ\n\nHello.")}}, key.Secret)
 	mustCode(t, "key upload", code, e, 200, "")
+	code, _, e = owner.uploadFiles(base+"/sources/"+src.Id.String()+"/documents", []upload{{"old.md", []byte("# Old notes\n\nBye.")}}, key.Secret)
+	mustCode(t, "upload", code, e, 200, "")
+	var docs apitypes.DocumentPage
+	owner.get(base+"/sources/"+src.Id.String()+"/documents", &docs)
+	var old string
+	for _, d := range docs.Items {
+		if d.Filename == "old.md" {
+			old = d.Id.String()
+		}
+	}
+	code, e = owner.call("DELETE", base+"/sources/"+src.Id.String()+"/documents/"+old, nil, nil, nil)
+	mustCode(t, "delete document", code, e, 200, "")
 
 	page := auditPage(t, owner, base+"/audit", nil)
 	created := findAudit(t, page, "kb.create", kb.Id.String())
@@ -83,6 +95,10 @@ func TestAuditActorsAndTargetLabels(t *testing.T) {
 	byKey := findAudit(t, page, "document.upload", "")
 	if byKey.Actor.Kind != "api_key" || byKey.Actor.ApiKeyName == nil || *byKey.Actor.ApiKeyName != "loader" {
 		t.Errorf("api key actor = %+v", byKey.Actor)
+	}
+	// A deleted document keeps its name in the log, not its ID (BU2-10).
+	if gone := findAudit(t, page, "document.delete", old); gone.TargetLabel == nil || (!strings.Contains(*gone.TargetLabel, "Old notes") && *gone.TargetLabel != "old.md") {
+		t.Errorf("deleted document label = %v", gone.TargetLabel)
 	}
 	keyEntry := findAudit(t, page, "apikey.create", key.Key.Id.String())
 	if keyEntry.TargetLabel == nil || *keyEntry.TargetLabel != "loader" {

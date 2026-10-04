@@ -342,6 +342,17 @@ func (u *Uploader) Finish(ctx context.Context, results []UploadResult) error {
 	})
 }
 
+// documentLabel is a document's name as lists show it: its title, else its
+// file name, else its address.
+func documentLabel(d dbgen.Document) string {
+	for _, v := range []string{d.Title, d.Filename, d.URL} {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return d.ID.String()
+}
+
 func documentSnapshot(d dbgen.Document) map[string]any {
 	return map[string]any{
 		"sourceId": d.SourceID.String(), "filename": d.Filename, "url": d.URL, "title": d.Title,
@@ -512,7 +523,9 @@ func (s *Service) DeleteDocument(ctx context.Context, a authz.Actor, o Owner, so
 		}
 		e := a.Audit("document.delete", "document", docID.String())
 		e.TeamID, e.Before = sc.auditTeam(), documentSnapshot(doc)
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"sourceId": src.ID.String(), "sourceName": src.Name, "shared": !src.TeamID.Valid})
+		// Its name stays with the entry: the log names a deleted document by it, not by its ID (v0.4.2 BU2-10).
+		e.Metadata = mergeMeta(e.Metadata, map[string]any{"sourceId": src.ID.String(), "sourceName": src.Name, "shared": !src.TeamID.Valid,
+			"name": documentLabel(doc)})
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
