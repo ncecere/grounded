@@ -133,6 +133,11 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	if ans.Text != "" {
 		blocks = append(blocks, llm.Text{Text: ans.Text})
 	}
+	if ctx.Err() != nil && ans.StopReason == string(llm.StopReasonStop) && timing != checkAfter {
+		// The reader pressed Stop (or left) after the model finished but before the answer reached them (checks,
+		// moderation): it's stored as stopped, as they saw it, not as a complete answer (v0.4.2 US-05).
+		ans.StopReason = string(llm.StopReasonAborted)
+	}
 	stored := llm.AssistantMessage{Content: blocks, Model: ru.model.ID, Usage: ans.Usage, StopReason: llm.StopReason(ans.StopReason)}
 	ans.toolCalls = st.toolCalls
 	ru.record(ctx, &ans, &stored, results)

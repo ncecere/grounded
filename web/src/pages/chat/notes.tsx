@@ -87,7 +87,7 @@ const refusalNote = (item: AssistantItem) =>
 
 type NotesProps = {
   item: AssistantItem;
-  /** Ask again after the connection was lost mid-answer (the last answer only). */
+  /** Ask again after the connection was lost mid-answer or after Stop (the last answer only). */
   onRetry?: () => void;
   /** The agent's starter questions, offered under a refusal (the last answer only). */
   starters?: string[];
@@ -120,7 +120,8 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
     );
   }
   const notes: { icon: typeof Ban; text: string; tone: "info" | "warning" }[] = [];
-  if (item.status === "aborted") notes.push({ icon: CircleStop, text: "Stopped. This is a partial answer.", tone: "info" });
+  // Stopped: said again after a reload (the stored answer is marked stopped too, US-05), with a way to ask again.
+  if (item.status === "aborted") notes.push({ icon: CircleStop, text: "Stopped. The answer may be incomplete.", tone: "info" });
   const refusal = item.refused ? refusalNote(item) : undefined;
   if (refusal) notes.push({ icon: Ban, text: refusal, tone: "info" });
   else if (!item.refused && item.noContext && item.status === "done" && item.noContextReason !== "small_talk")
@@ -136,6 +137,11 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
             <li key={n.text} className={c.statusNote} data-tone={n.tone}>
               <n.icon aria-hidden className={c.noteIcon} />
               {n.text}
+              {n.icon === CircleStop && onRetry && (
+                <Button size="sm" variant="ghost" onClick={onRetry}>
+                  <RotateCcw aria-hidden /> Ask again
+                </Button>
+              )}
             </li>
           ))}
         </ul>

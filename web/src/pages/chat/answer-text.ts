@@ -101,11 +101,12 @@ export function copyText(item: AssistantItem, title: (s: Citation) => string): s
  * citations, other numbers are dropped with the space before them.
  */
 export function settlePartial(item: AssistantItem): AssistantItem {
-  if (item.citations.length > 0 || item.moderation) return { ...item, text: normalizePunctuation(item.text) };
+  // A marker cut off by Stop ("…request [1") isn't kept (US-05).
+  if (item.citations.length > 0 || item.moderation) return { ...item, text: normalizePunctuation(item.text).replace(OPEN_MARKER, "") };
   const byN = new Map(item.sources.map((s) => [s.n, s]));
   const cited = new Set<number>();
   let lastEnd = -1; // the end of the last marker, so [1][2] is two markers but m[i][2] none
-  const text = normalizeMarkers(normalizePunctuation(item.text)).replace(MARKER, (m, lead: string, nums: string, at: number, all: string) => {
+  const text = normalizeMarkers(normalizePunctuation(item.text)).replace(OPEN_MARKER, "").replace(MARKER, (m, lead: string, nums: string, at: number, all: string) => {
     const before = at > 0 && lead === "" ? all[at - 1]! : "";
     if (/\w/.test(before) || (before === "]" && lastEnd !== at)) return m; // a[3], m[i][2]: not a marker
     lastEnd = at + m.length;
