@@ -1,5 +1,6 @@
 /* The Appearance tab: the look and welcome (accent colour, welcome message, starter questions) and a live preview. Name, address and description are in Settings (C13). */
 import { Plus, X } from "lucide-react";
+import { useState } from "react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button, IconButton } from "@/components/ui/button/button";
@@ -25,7 +26,7 @@ export function AppearanceTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
   const starters = p.starterQuestions;
   const setStarter = (i: number, v: string) => set({ starterQuestions: starters.map((q, j) => (j === i ? v : q)) });
   // No accent: the theme's primary, as in the preview and the chat (G17).
-  const defaultAccent = themeAccent();
+  const [defaultAccent] = useState(themeAccent);
 
   return (
     <div className={ap.appearance}>

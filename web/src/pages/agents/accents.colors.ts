@@ -17,9 +17,18 @@ export const ACCENT_TEXT = "#ffffff";
  */
 export const DEFAULT_ACCENT = "#4b4fd6";
 
-/** The theme's --color-primary as "#rrggbb" (a brand theme may change it), or DEFAULT_ACCENT. */
+/**
+ * The theme's light --color-primary as "#rrggbb" (a brand theme may change it), or DEFAULT_ACCENT. Read from a
+ * data-theme="light" probe, so a person in dark mode is told the same colour as one in light (VI-38).
+ */
 export function themeAccent(): string {
-  const v = typeof document === "undefined" ? "" : getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim().toLowerCase();
+  if (typeof document === "undefined" || !document.body) return DEFAULT_ACCENT;
+  const probe = document.createElement("span");
+  probe.dataset.theme = "light";
+  probe.hidden = true;
+  document.body.appendChild(probe);
+  const v = getComputedStyle(probe).getPropertyValue("--color-primary").trim().toLowerCase();
+  probe.remove();
   return /^#[0-9a-f]{6}$/.test(v) ? v : DEFAULT_ACCENT;
 }
 

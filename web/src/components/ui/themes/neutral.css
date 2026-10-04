@@ -213,7 +213,7 @@
 
   --color-text: #eceef2; /* 15.98:1 */
   --color-text-muted: #9ba3b0; /* 7.30:1; 6.85:1 on raised */
-  --color-text-subtle: #8a92a0; /* 5.55:1 on raised, 6.2:1 on bg */
+  --color-text-subtle: #9098a6; /* 5.99:1 on raised, 6.69:1 on bg, 4.80:1 on a highlighted menu item (raised + surface-active) */
   --color-text-inverse: #0b0d12;
 
   --color-border: rgba(255, 255, 255, 0.08);

@@ -280,8 +280,9 @@
   inset-inline-end: var(--space-2);
   display: inline-flex;
 
+  /* Not --color-primary: in dark that's under 3:1 on a highlighted option. */
   & svg {
-    color: var(--color-primary);
+    color: var(--color-primary-subtle-text);
   }
 }
 
