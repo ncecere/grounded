@@ -182,7 +182,7 @@ func resolveScope(ctx context.Context, q *dbgen.Queries, typ, scope string) (uui
 		found, label = r.ID, r.Label
 	case ScopeConversation:
 		if idErr != nil {
-			return uuid.Nil, "", apperr.Invalid("scope_not_found", "Give the conversation's ID")
+			return uuid.Nil, "", apperr.Invalid("scope_not_found", "That isn't a conversation ID. Paste the conversation's link or ID.")
 		}
 		var r dbgen.LegalHoldConversationRow
 		r, err = q.LegalHoldConversation(ctx, id)

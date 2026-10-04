@@ -90,12 +90,24 @@ export const scopeTypeLabels: Record<Schemas["LegalHoldScopeType"], string> = {
   conversation: "Conversation",
 };
 
-export const scopeHelp: Record<Schemas["LegalHoldScopeType"], { label: string; placeholder: string }> = {
+export const scopeHelp: Record<Schemas["LegalHoldScopeType"], { label: string; placeholder: string; description?: string }> = {
   user: { label: "Email or user ID", placeholder: "sam@example.edu" },
   team: { label: "Team", placeholder: "Search teams" },
   agent: { label: "Team slug/agent slug, or agent ID", placeholder: "registrar/advisor" },
-  conversation: { label: "Conversation ID", placeholder: "3f2b…" },
+  conversation: {
+    label: "Conversation link or ID",
+    placeholder: "https://grounded.example.edu/conversations/…",
+    description:
+      "Ask its user for the link in their address bar, or copy the ID from a break-glass transcript. To keep every conversation of a person, hold the user instead.",
+  },
 };
+
+const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** The conversation ID in a pasted link or ID (".../conversations/<id>", "?c=<id>", or the ID itself), or null (AD-31). */
+export function conversationIdOf(text: string): string | null {
+  return uuidPattern.exec(text.trim())?.[0].toLowerCase() ?? null;
+}
 
 /** "From 1 Jan 2026", "1 Jan – 31 Mar 2026", "All dates". */
 export function rangeText(from: string | null, to: string | null, fmt: (d: string) => string) {

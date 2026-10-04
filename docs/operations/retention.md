@@ -79,7 +79,7 @@ A hold can be limited to a **date range** of the data (first and last day, UTC):
 ### Procedure
 
 1. Get the request in writing from your legal counsel or records officer: what to preserve (people, teams, agents, conversations) and the dates.
-2. In **Admin → Retention → Legal holds**, choose **Place a hold** for each scope: a user's email or ID, a team (picked from the list), an agent as `team-slug/agent-slug` or its ID, or a conversation ID. Give the reason (the matter or request reference) and, if the request names dates, the date range. The hold is audited as `legal_hold.create` with who placed it and when.
+2. In **Admin → Retention → Legal holds**, choose **Place a hold** for each scope: a user's email or ID, a team (picked from the list), an agent as `team-slug/agent-slug` or its ID, or a conversation by its link or ID (ask its user for the link in their address bar, or copy the ID from a break-glass transcript; to keep all of a person's conversations, hold the user). Give the reason (the matter or request reference) and, if the request names dates, the date range. The hold is audited as `legal_hold.create` with who placed it and when.
 3. Check **Retention → Dry run**: what the hold keeps shows under "Kept by legal holds".
 4. If the request needs data to be produced, export it through the normal channels (users export their own conversations). Holds preserve; they don't grant access.
 5. When counsel confirms the matter is closed, **Release hold** with the reason. It's audited as `legal_hold.release`. What the hold kept is deleted at the next run if its period has passed, so check the dry run first if that matters.
