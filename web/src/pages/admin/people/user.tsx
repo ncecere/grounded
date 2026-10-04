@@ -107,7 +107,7 @@ export function AdminUserPage() {
       <div className={p.sections}>
         <UserAccessCard user={user} isAdmin={isAdmin} update={update} self={self} otherDialogOpen={confirmSuspend} />
         <UserTeamsCard teams={teams} />
-        <ConnectedApps owner={{ self: false, userId, name }} canDisconnect={isAdmin} />
+        <ConnectedApps owner={{ self: false, userId, name, viewer: self }} canDisconnect={isAdmin} />
         <Card title="Activity" description={`Changes ${name} made, newest first, from the audit log.`}>
           <UserActivity user={user} />
         </Card>

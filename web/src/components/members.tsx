@@ -128,9 +128,11 @@ export function InviteList({ team, myRole }: { team: string; myRole?: TeamRole }
   const list = invites.data ?? [];
   // Nothing to show: the section collapses (W6).
   if (list.length === 0) return null;
+  // No actions column for someone who can't revoke any of them (an auditor): it was an empty column (AD2-24).
+  const actions = list.some((inv) => canManage(myRole, inv.role));
   return (
     <Card title="Open invites" description="People who were added but haven't signed in yet." flush>
-      <Table caption="Open invites" columns={["Email", "Role", "Expires", ""]}>
+      <Table caption="Open invites" columns={actions ? ["Email", "Role", "Expires", ""] : ["Email", "Role", "Expires"]}>
         {list.map((inv) => (
           <Tr key={inv.id}>
             <Td className={s.primary}>{inv.email}</Td>
@@ -140,15 +142,17 @@ export function InviteList({ team, myRole }: { team: string; myRole?: TeamRole }
             <Td muted nowrap>
               <RelativeTime value={inv.expiresAt} />
             </Td>
-            <Td>
-              <TableActions>
-                {canManage(myRole, inv.role) && (
-                  <Button size="sm" variant="ghost" onClick={() => setRevoking(inv)}>
-                    Revoke
-                  </Button>
-                )}
-              </TableActions>
-            </Td>
+            {actions && (
+              <Td>
+                <TableActions>
+                  {canManage(myRole, inv.role) && (
+                    <Button size="sm" variant="ghost" onClick={() => setRevoking(inv)}>
+                      Revoke
+                    </Button>
+                  )}
+                </TableActions>
+              </Td>
+            )}
           </Tr>
         ))}
       </Table>

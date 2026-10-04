@@ -53,7 +53,7 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
   return (
     <div className={t.overview}>
       <div className={t.stats}>
-        <StatCard label="Members" value={summary.memberCount.toLocaleString()} icon={<UsersRound />} hint={`${summary.ownerCount} ${summary.ownerCount === 1 ? "owner" : "owners"}`} />
+        <StatCard label="Members" value={summary.memberCount.toLocaleString()} icon={<UsersRound />} hint={ownersHint(summary)} />
         <StatCard label="Agents" value={summary.agentCount.toLocaleString()} icon={<Bot />} render={<Link to="/admin/agents" search={{ team: slug }} />} />
         <StatCard label="Data sources" value={summary.sourceCount.toLocaleString()} icon={<Database />} />
         <StatCard label="Knowledge bases" value={summary.kbCount.toLocaleString()} icon={<Library />} />
@@ -131,4 +131,10 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
       </Card>
     </div>
   );
+}
+
+/** "1 owner", or "Owner invited" when none has signed in yet but one is invited, as the teams list says (AD2-24). */
+export function ownersHint(s: Pick<Schemas["TeamSummary"], "ownerCount" | "ownerInvites">) {
+  if (s.ownerCount === 0 && (s.ownerInvites ?? 0) > 0) return s.ownerInvites === 1 ? "Owner invited" : `${s.ownerInvites} owners invited`;
+  return `${s.ownerCount} ${s.ownerCount === 1 ? "owner" : "owners"}`;
 }

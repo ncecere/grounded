@@ -30,7 +30,8 @@ import styles from "./connected-apps.module.css";
 type Grant = Schemas["OAuthGrant"];
 
 /** Whose apps: the signed-in person's, or (admin pages) another person's. */
-export type ConnectedAppsOwner = { self: true } | { self: false; userId: string; name: string };
+/** Whose apps: the signed-in person's (Connected apps), or a user's on their admin page (`viewer`: the admin's own record). */
+export type ConnectedAppsOwner = { self: true } | { self: false; userId: string; name: string; viewer?: boolean };
 
 const grantsKey = (owner: ConnectedAppsOwner) => (owner.self ? ["me", "oauth-grants"] : ["admin", "users", owner.userId, "oauth-grants"]);
 
@@ -60,8 +61,10 @@ function useDisconnect(owner: ConnectedAppsOwner, onDone: () => void) {
 }
 
 function intro(owner: ConnectedAppsOwner, canDisconnect: boolean) {
-  const who = owner.self ? "you" : owner.name;
-  const them = owner.self ? "you" : "them";
+  // An admin's own record says "you", not their name (AD2-24).
+  const you = owner.self || owner.viewer;
+  const who = you ? "you" : owner.name;
+  const them = you ? "you" : "them";
   const lead = `AI tools ${who} allowed to search knowledge bases and ask agents as ${them}, with OAuth sign-in.`;
   return canDisconnect ? `${lead} Disconnecting one stops it at once.` : lead;
 }
