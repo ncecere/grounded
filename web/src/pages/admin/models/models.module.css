@@ -87,3 +87,11 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/* Why a record's Delete is disabled, beside the button (AD2-23). */
+.blockedReason {
+  max-inline-size: 22rem;
+  align-self: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

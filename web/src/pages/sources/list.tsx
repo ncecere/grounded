@@ -107,7 +107,8 @@ export function SourcesTable({ sources, levels, profiles, caption = "Data source
               {src.name}
             </TextLink>
           }
-          secondary={src.description ? <span className={w.oneLine}>{src.description}</span> : undefined}
+          // Cut to one line: the full description on hover (VI2-13).
+          secondary={src.description ? <span className={w.oneLine} title={src.description}>{src.description}</span> : undefined}
         />
       ),
     },

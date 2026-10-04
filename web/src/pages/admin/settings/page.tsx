@@ -41,7 +41,8 @@ function EnvironmentCard() {
   const rows: [string, string | null, string][] = [
     ["Instance name", i.name, "INSTANCE_NAME"],
     ["Organisation name", i.orgName || null, "ORG_NAME"],
-    ["Theme", i.theme, "UI_THEME"],
+    // The colours; light or dark is each person's own choice (VI2-09).
+    ["Colour theme", `${i.theme} (light or dark is each person's choice, in their account menu)`, "UI_THEME"],
     ["Logo", i.logoUrl, "UI_LOGO_URL"],
     ["Help link", i.supportUrl, "SUPPORT_URL"],
   ];

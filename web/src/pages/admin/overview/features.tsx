@@ -39,6 +39,8 @@ export type Row = {
   action?: string;
   /** An icon for the link's button (default: an arrow after the text). */
   actionIcon?: ReactNode;
+  /** The link's accessible name when its text alone repeats on other rows ("Settings for Evaluations"; AD2-12). */
+  actionLabel?: string;
   control?: ReactNode;
   /** A mark after the state, such as Experimental. */
   badge?: ReactNode;
@@ -55,8 +57,8 @@ export function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description"
 
 type Features = Schemas["AdminFeatures"];
 
-/** Where the switches are (AD-39). */
-const settingsLink = { action: "Settings", link: <Link to="/admin/settings" hash="features" /> };
+/** Where the switches are (AD-39), named after the row: four links named "Settings" said nothing apart (AD2-12). */
+const settingsLink = (title: string) => ({ title, action: "Settings", actionLabel: `Settings for ${title}`, link: <Link to="/admin/settings" hash="features" /> });
 
 /** The switch features' rows: their state, with a link to Admin → Settings. */
 function useSwitchRows(): Row[] {
@@ -64,13 +66,13 @@ function useSwitchRows(): Row[] {
   const mcp = useQuery(mcpSettingsQuery());
   const cache = useQuery(answerCacheSettingsQuery());
   return [
-    fromQuery(evaluations, { id: "evaluations", icon: <ClipboardCheck />, title: "Evaluations", ...settingsLink }, (d) => ({
+    fromQuery(evaluations, { id: "evaluations", icon: <ClipboardCheck />, ...settingsLink("Evaluations") }, (d) => ({
       state: d.enabled ? on : off,
       description: evaluationsText(d.enabled),
     })),
-    fromQuery(mcp, { id: "mcp", icon: <Cable />, title: "MCP server", ...settingsLink }, (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) })),
-    fromQuery(mcp, { id: "mcp-oauth", icon: <KeyRound />, title: "OAuth sign-in for MCP clients", badge: experimental, ...settingsLink }, oauthFeature),
-    fromQuery(cache, { id: "answer-cache", icon: <DatabaseZap />, title: "Saved answers", ...settingsLink }, (d) => ({
+    fromQuery(mcp, { id: "mcp", icon: <Cable />, ...settingsLink("MCP server") }, (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) })),
+    fromQuery(mcp, { id: "mcp-oauth", icon: <KeyRound />, badge: experimental, ...settingsLink("OAuth sign-in for MCP clients") }, oauthFeature),
+    fromQuery(cache, { id: "answer-cache", icon: <DatabaseZap />, ...settingsLink("Saved answers") }, (d) => ({
       state: d.enabled ? on : off,
       description: answerCacheText(d.enabled),
     })),
@@ -184,15 +186,16 @@ export function FeatureList({ rows }: { rows: Row[] }) {
             {/* The whole sentence: what a feature does, or what turning it off hides, matters here. */}
             <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
           </ItemContent>
+          {/* The link first and the switch last, so every row's switch sits at the same place (VI2-09). */}
           {(r.control || r.link) && (
             <ItemActions className={cx(o.rowActions, o.featureActions)}>
-              {r.control}
               {r.link && (
-                <Button size="sm" variant="secondary" render={r.link}>
+                <Button size="sm" variant="secondary" render={r.link} aria-label={r.actionLabel} className={o.featureLink}>
                   {r.actionIcon}
                   {r.action} {!r.actionIcon && <ArrowRight aria-hidden />}
                 </Button>
               )}
+              {r.control}
             </ItemActions>
           )}
         </Item>

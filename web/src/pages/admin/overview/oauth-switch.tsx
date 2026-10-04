@@ -49,7 +49,7 @@ export function oauthFeature(d: Settings): { state: FeatureState; description: s
   if (!d.enabled) return { state: { label: "On · MCP server off", tone: "neutral" }, description: "Takes effect when the MCP server is on." };
   return {
     state: { label: "On", tone: "success" },
-    description: "AI tools can also connect by signing in as the person using them, who approves each app. People disconnect apps from their API keys page.",
+    description: "AI tools can also connect by signing in as the person using them, who approves each app. People disconnect apps on Connected apps, in their account menu.",
   };
 }
 

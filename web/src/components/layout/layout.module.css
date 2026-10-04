@@ -126,3 +126,16 @@
 :global(html) {
   scroll-padding-block-start: calc(var(--topbar-height) + var(--space-4));
 }
+
+/* The account menu's Theme items: an icon before the label, like the items above them (VI2-14). */
+.themeItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  & svg {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+  }
+}

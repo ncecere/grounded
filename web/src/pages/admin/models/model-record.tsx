@@ -136,18 +136,11 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
               {
                 title: "Used by",
                 content: usedBy.length ? (
-                  <>
-                    <ul className={m.usedBy}>
-                      {usedBy.map((u) => (
-                        <li key={u}>{u}</li>
-                      ))}
-                    </ul>
-                    {blocked && (
-                      <p id={blockedId} className={s.muted}>
-                        {blocked}
-                      </p>
-                    )}
-                  </>
+                  <ul className={m.usedBy}>
+                    {usedBy.map((u) => (
+                      <li key={u}>{u}</li>
+                    ))}
+                  </ul>
                 ) : (
                   <p className={s.muted}>Nothing uses this model yet.</p>
                 ),
@@ -159,6 +152,12 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
         model &&
         isAdmin && (
           <>
+            {/* Why Delete is disabled, beside it (AD2-23), not at the end of the page. */}
+            {blocked && (
+              <span id={blockedId} className={m.blockedReason}>
+                {blocked}
+              </span>
+            )}
             <Button variant="danger" disabled={Boolean(blocked)} aria-describedby={blocked ? blockedId : undefined} onClick={() => onDelete(model)}>
               <Trash2 aria-hidden /> Delete
             </Button>

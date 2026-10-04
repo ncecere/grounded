@@ -96,8 +96,8 @@
   cursor: not-allowed;
 }
 
-/* The Features rows' link buttons share one width, so the switches beside them line up. */
-.featureActions > :last-child {
+/* The Features rows' link buttons share one width, so they line up too; the switches come after them, at the end. */
+.featureLink {
   min-inline-size: 10.5rem;
 }
 

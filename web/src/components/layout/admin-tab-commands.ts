@@ -16,7 +16,8 @@ const tabs = (to: AdminPath, page: string, list: [tab: string, label: string, ke
 export const adminPageTabCommands: AdminTabCommand[] = [
   ...tabs("/admin/costs", "Costs", [
     ["prices", "Prices", ["pricing", "price per token", "model prices"]],
-    ["settings", "Settings", ["currency", "time zone", "cost tracking", "default budget", "warning"]],
+    // The currency, time zone and default budget are on Admin → Settings (AD2-13): "time zone" finds that page.
+    ["settings", "Settings", ["cost tracking", "warning threshold", "enforce", "track only"]],
   ]),
   ...tabs("/admin/retention", "Retention", [
     ["dry-run", "Dry run", ["preview", "what would be deleted"]],

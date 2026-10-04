@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
+import { plainSnippet } from "@/lib/plain-text";
 import { rerankScore } from "@/lib/rerank";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
@@ -35,7 +36,11 @@ export function rerankOutcome(r?: Schemas["RetrieveRerank"]) {
 }
 
 const ordinal = (n: number) => `#${n}`;
-const snippet = (h: Hit) => (h.content.length > 180 ? `${h.content.slice(0, 180)}…` : h.content);
+/** The passage as plain text, without a heading that repeats its title (AD2-11: "### Slices Slices wrap…"). */
+export const snippet = (h: Pick<Hit, "content" | "title" | "headingPath">) => {
+  const text = plainSnippet(h.content, [h.title, ...(h.headingPath ?? [])]);
+  return text.length > 180 ? `${text.slice(0, 180)}…` : text;
+};
 const titleOf = (h: Hit) => h.title || h.filename || "Untitled document";
 
 function useCompare(team: string, kbId: string, query: string) {
@@ -111,7 +116,8 @@ export function RerankTestCard({ on }: { on: boolean }) {
           </NativeSelect>
         </Field>
         <Field label="Question" className={rr.query}>
-          <Input maxLength={4000} placeholder="When does the library open?" value={query} onChange={(e) => setQuery(e.target.value)} />
+          {/* Not an example from one knowledge base: the one chosen may be about anything (VI2-10). */}
+          <Input maxLength={4000} placeholder="A question someone might ask this knowledge base" value={query} onChange={(e) => setQuery(e.target.value)} />
         </Field>
         <div>
           <Button type="submit" variant="secondary" loading={compare.isPending} disabled={!kb || !query.trim()}>

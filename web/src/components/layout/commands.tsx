@@ -16,12 +16,14 @@ import { adminKeywords, adminNav, adminTabCommands, icon, teamNavFor, type Admin
 import { useSearchCommands } from "./search-commands";
 import { adminHealthCommands, adminPageTabCommands } from "./admin-tab-commands";
 import { teamPlacesGroup } from "./team-commands";
+import { themeCommands } from "./theme";
+import { type ColorMode, useColorMode } from "@/components/ui/color-mode/color-mode";
 
 type Navigate = ReturnType<typeof useNavigate>;
 type Membership = Me["teams"][number];
 type Item = CommandGroup["items"][number];
 
-function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: Membership | undefined): CommandGroup {
+function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: Membership | undefined, mode: ColorMode): CommandGroup {
   const pages: CommandGroup = {
     label: "Pages",
     items: [
@@ -52,6 +54,7 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         keywords: ["oauth", "ai tools", "mcp", "disconnect", "apps", "account"],
         onSelect: () => void navigate({ to: "/settings/connected-apps" }),
       },
+      ...themeCommands(mode),
     ],
   };
   if (slug) {
@@ -206,8 +209,9 @@ export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: st
   const spend = useQuery({ ...teamSpendQuery(slug ?? ""), enabled: open && Boolean(slug) && manager });
   const spendOn = manager && spend.data !== undefined;
 
+  const { mode } = useColorMode();
   const groups = useMemo(() => {
-    const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine)];
+    const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine, mode)];
     if (slug) groups.push(teamPlacesGroup(navigate, loc, me, { slug, name: teamName, spendOn }, mine));
     if (slug && mine) groups.push(teamActionGroup(navigate, slug, mine));
     groups.push(...found.groups);
@@ -215,6 +219,6 @@ export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: st
     if (canAdmin) groups.push(adminGroup(navigate, me.capabilities.platformAdmin));
     return groups;
     // `me` is only read for its teams and capabilities, which are dependencies.
-  }, [navigate, slug, mine, loc, teamName, spendOn, found.groups, me.teams, me.capabilities, canAdmin]);
+  }, [navigate, slug, mine, loc, teamName, spendOn, found.groups, me.teams, me.capabilities, canAdmin, mode]);
   return { groups, searching: found.searching };
 }
