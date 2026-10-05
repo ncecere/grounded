@@ -162,10 +162,10 @@ The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/
 | **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview:** re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
 | **v0.6.0** | **Service desk building blocks** ([`v0.6.0.md`](v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
 | **v0.7.0** | **Adoption by other installs** ([`v0.7.0.md`](v0.7.0.md)) | **Helm chart** (F5); **configuration as code** (D4); **bitop-ui docs site and registry** (F11); **accessibility statement and model cards** (E8) |
-| v0.8.0 (tentative) | Where people work, and identity | D1 Teams and Slack bots, E4 SCIM, E5 audit export and SIEM, E13 audience in usage |
+| v0.8.0 (being planned) | Identity and compliance | E4 SCIM, E5 audit export and SIEM, B7 PII scanning at ingest, E17 per-agent budgets, E13 audience in usage, E16 auditors see read-only facts |
 | v0.9.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
 
-Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner: no SDKs; a CLI may come back later); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
+After v1.0.0: **D1 Microsoft Teams and Slack bots** (owner, 2026-10-04). Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner: no SDKs; a CLI may come back later); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
 
 Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
 
@@ -232,7 +232,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
-| D1 ★ | **Microsoft Teams and Slack bots** | Chat with an agent where people work. | M each | High | — |
+| D1 **After v1.0.0** (owner, 2026-10-04) | **Microsoft Teams and Slack bots** | Chat with an agent where people work. | M each | High | — |
 | D2 **Changed** (owner, 2026-10-04: no SDKs; a CLI may come back later) | **Client SDKs and CLI** | TypeScript and Python clients generated from the OpenAPI spec, plus a CLI. | M | Medium | — |
 | D3 | **Email-to-agent** | An inbox address per agent. | M | Low–Medium | — |
 | D4 | **Configuration as code** | Export and import sources, KBs and agents as YAML; GitOps. | M | Medium | — |
