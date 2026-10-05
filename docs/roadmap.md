@@ -160,12 +160,12 @@ The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/
 |---|---|---|
 | **v0.4.3** | Beta fixes, during the beta | A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G22 ("Working on it…" while a model slot is busy), E18 (profile page, API keys in the account menu), and what beta testers report |
 | **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview:** re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
-| **v0.6.0** | **Service desk building blocks** | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
-| v0.7.0 (tentative) | Adoption by other installs | F5 Helm chart, D2 SDKs and CLI, D4 configuration as code, F11 bitop-ui docs site |
+| **v0.6.0** | **Service desk building blocks** ([`v0.6.0.md`](v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
+| **v0.7.0** | **Adoption by other installs** ([`v0.7.0.md`](v0.7.0.md)) | **Helm chart** (F5); **configuration as code** (D4); **bitop-ui docs site and registry** (F11); **accessibility statement and model cards** (E8) |
 | v0.8.0 (tentative) | Where people work, and identity | D1 Teams and Slack bots, E4 SCIM, E5 audit export and SIEM, E13 audience in usage |
 | v0.9.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
 
-Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
+Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner removed it from v0.7.0); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
 
 Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
 
