@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-04. **v0.4.2 is released** (2026-10-04) and running on the reference install: ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then a v0.5.0 theme (§ L).
+Status: refreshed 2026-10-04. **v0.4.2 is released** (2026-10-04) and running on the reference install: ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then v0.5.0 "better knowledge in" (§ L, the release plan).
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -154,17 +154,20 @@ The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/
 
 ---
 
-## L. v0.5.0: to be chosen (after the beta)
+## L. Release plan (owner, 2026-10-04)
 
-Measure v0.4 with real use first: reranking on and off in evaluation runs, and latency per step from traces (the reference install's answers spend most of their time in the model's reasoning and, before v0.4.2's settings, SystemOne judging). Then pick one theme:
-
-| Theme | Items | Why |
+| Version | Theme | Items |
 |---|---|---|
-| **A. Better knowledge in** (recommended) | A4 contextual chunks, A5 parent/child retrieval, B8 content health report, A11 near-duplicate boilerplate, C15 mixed procedures | The gap report finds what's missing; this improves what goes in; evaluations show the result. |
-| **B. Service desk** | F3 webhooks, C3 handoff and ticketing, C4 agent templates, C5 router agent | The use case the demo shows. |
-| **C. Adoption by other installs** | F5 Helm chart, D2 SDKs and CLI, D4 configuration as code, F11 bitop-ui docs and npm | Easier to install and integrate. |
+| **v0.4.3** | Beta fixes, during the beta | A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G22 ("Working on it…" while a model slot is busy), E18 (profile page, API keys in the account menu), and what beta testers report |
+| **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview:** re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
+| **v0.6.0** | **Service desk building blocks** | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
+| v0.7.0 (tentative) | Adoption by other installs | F5 Helm chart, D2 SDKs and CLI, D4 configuration as code, F11 bitop-ui docs site |
+| v0.8.0 (tentative) | Where people work, and identity | D1 Teams and Slack bots, E4 SCIM, E5 audit export and SIEM, E13 audience in usage |
+| v0.9.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
 
-Also open from the beta preparation: A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G21, G22, E18, and the MCP threat-model update (§ K housekeeping).
+Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
+
+Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
 
 ---
 
@@ -211,7 +214,7 @@ Also open from the beta preparation: A16 (models that ignore thinking off, [issu
 |---|---|---|---|---|---|
 | C1 ★ **Done** (v0.3.0 M1, M3) | **MCP support** | (a) Expose each KB or agent as an MCP server: **done** as `POST /mcp` with the `search` and `ask` tools, API keys with the `mcp` scope ([`mcp.md`](mcp.md)), and experimental OAuth sign-in behind a platform setting (M5). (b) Let agents call admin-approved external MCP tools: **done** (M3, [`mcp-client.md`](mcp-client.md)): Admin → Models → MCP servers with per-tool approval and a classification ceiling, Build → Tools, results cited as sources and verified, `mcp_calls` metering, MCP servers in stored health. | M | High | a tool approval policy |
 | C2 **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | **Unanswered-questions and gap report** | Cluster questions that got no context, refusals or thumbs-down, without showing content (ADR-0010). Tells teams what to add. | M | High | privacy review |
-| C3 | **Human handoff and ticketing** | Create a ticket (webhook, or ServiceNow/Jira/TeamDynamix adapters) with the transcript, with the user's consent. | M | High for service desks | F3 |
+| C3 **Not planned** (owner, 2026-10-04: no ticketing integration for now) | **Human handoff and ticketing** | Create a ticket (webhook, or ServiceNow/Jira/TeamDynamix adapters) with the transcript, with the user's consent. | M | High for service desks | F3 |
 | C4 | **Agent templates** | "Service desk FAQ", "Policy explainer" and others, with good defaults. | S | Medium | — |
 | C5 | **Router agent** | One front-door agent routes each question to the best specialised agent. It could use SystemOne's scope check. | M | Medium–High | — |
 | C6 | **Voice** | Speech to text and text to speech in the chat and the widget, through models the gateway serves. | M | Medium (accessibility) | — |
