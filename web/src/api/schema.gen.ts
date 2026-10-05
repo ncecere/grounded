@@ -9247,7 +9247,7 @@ export interface components {
             kept: number;
             dropped: number;
         };
-        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). When the answer's thinking isn't streamed (buffered and checked answers), thinking says the model is reasoning, and answering follows once it starts writing (v0.4.0). Clients should ignore steps they don't know. */
+        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). thinking: the model is reasoning (v0.4.0; since v0.4.2 whenever it reasons, including after a tool call, as readers don't see the reasoning itself); answering follows once it starts writing. Clients should ignore steps they don't know. */
         ChatEventStatus: {
             /** @enum {string} */
             step: "rewriting" | "searching" | "checking" | "thinking" | "answering";
