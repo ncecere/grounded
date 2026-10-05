@@ -165,7 +165,7 @@ The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/
 | v0.8.0 (tentative) | Where people work, and identity | D1 Teams and Slack bots, E4 SCIM, E5 audit export and SIEM, E13 audience in usage |
 | v0.9.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
 
-Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner removed it from v0.7.0); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
+Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner: no SDKs; a CLI may come back later); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
 
 Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
 
@@ -233,7 +233,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
 | D1 ★ | **Microsoft Teams and Slack bots** | Chat with an agent where people work. | M each | High | — |
-| D2 | **Client SDKs and CLI** | TypeScript and Python clients generated from the OpenAPI spec, plus a CLI. | M | Medium | — |
+| D2 **Changed** (owner, 2026-10-04: no SDKs; a CLI may come back later) | **Client SDKs and CLI** | TypeScript and Python clients generated from the OpenAPI spec, plus a CLI. | M | Medium | — |
 | D3 | **Email-to-agent** | An inbox address per agent. | M | Low–Medium | — |
 | D4 | **Configuration as code** | Export and import sources, KBs and agents as YAML; GitOps. | M | Medium | — |
 
