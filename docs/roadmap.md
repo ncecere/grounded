@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-04. **v0.4.2 is released** (2026-10-04: ready for a wider beta — a pre-beta bug hunt's findings fixed, a Reranking page, an Admin Settings page, dark mode; [`releases/v0.4.2.md`](releases/v0.4.2.md)), after **v0.4.1** (2026-10-02: follow-up suggestions, evaluation questions that need attention, OCR follow-ups, SystemOne capacity, reasoning in order; [`releases/v0.4.1.md`](releases/v0.4.1.md)), after **v0.4.0** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). Grounded stays **one project, fully open source under MIT, named Grounded** (owner, 2026-10-02; the editions in ADR-0025 were rejected). **Next:** v0.4.x small wins, then a v0.5.0 theme to be chosen; Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
+Status: refreshed 2026-10-04. **v0.4.2 is released** (2026-10-04) and running on the reference install: ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then a v0.5.0 theme (§ L).
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -122,9 +122,49 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | 4 **Done** (v0.4.0 M5) | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole ([`moderation-streaming.md`](moderation-streaming.md)) | Visitors see text in seconds while moderation still fails closed. |
 | 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
 | — | C8, A14, B12, A12 | **Small wins**: **Done** (v0.4.1, [`releases/v0.4.1.md`](releases/v0.4.1.md)) | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
-| — | — | **Housekeeping** | ~~The product name decision (ADR-0025)~~ decided 2026-10-02: the name stays Grounded and the project stays fully open source (ADR-0025 rejected); a screenshot refresh (**done** in v0.4.0) (logo, v0.3 UI), the MCP threat-model update. |
+| — | — | **Housekeeping** | **Done:** the product name (ADR-0025 rejected 2026-10-02: the name stays Grounded and the project stays fully open source); the screenshot refresh (v0.4.0, again in v0.4.2 with dark mode). **Open:** the MCP threat-model update ([`security/threat-model.md`](security/threat-model.md) predates the MCP server and client). |
 
 Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector with B6 document ACLs; E4 SCIM and E5 SIEM export.
+
+---
+
+## Done in v0.4.1 (released 2026-10-02)
+
+| ID | What shipped | Docs |
+|---|---|---|
+| C8 | **Follow-up suggestions** under answers with citations, moderated and saved with saved answers. | [`follow-ups.md`](follow-ups.md) |
+| A14 | **Evaluation questions that need attention**: expectations the knowledge base can't meet, and expected pages out of reach after 3 runs. | [`operations/evaluations.md`](operations/evaluations.md) |
+| B12 | **OCR follow-ups:** every page of a TIFF; partly scanned PDFs join the OCR retry; the sidecar in the smoke test. | [`ocr.md`](ocr.md) |
+| A12 | **SystemOne capacity:** answers first, background work capped at half the slots; the wait metric; the editor shows each check's added time. | [`systemone.md`](systemone.md) §8 |
+| — | **Reasoning and tool steps in order** in Try it and stored conversations; today's date in the platform's time zone. | [`v0.4.1.md`](v0.4.1.md) |
+
+---
+
+## Done in v0.4.2 (released 2026-10-04)
+
+The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/v0.4.2.md)): four testers used v0.4.1 by role and filed 119 findings, a re-test found 63 more, and all are fixed.
+
+| ID | What shipped | Docs |
+|---|---|---|
+| — | **Admin → Models → Reranking:** status, a setup guide, settings, a before-and-after test, and "Reranking: off · Set up" on the Overview. | [`operations/rerank.md`](operations/rerank.md) |
+| — | **Admin → Settings:** time zone, currency, default budget, feature switches, and the values the environment sets. | [`operations/settings.md`](operations/settings.md) |
+| VI-38 | **Dark mode:** follows the device, with System / Light / Dark in the account menu; the public page and widget follow the visitor's device. | [`personal-settings.md`](personal-settings.md) |
+| — | **Answers with tools:** the answer is the model's final turn; tool results aren't judged out; a follow-up's rewritten query is checked before use; reasoning written into the answer is treated as reasoning; low-confidence "contradicts" shows as "not supported". | [`phase3-agents.md`](phase3-agents.md) |
+| — | **Kept work and fewer dead ends:** save conflicts keep your edits on every settings form; a rate limit shows a countdown and Try again now; a link to a deleted conversation says so; the Build tab no longer scrolls past its content; phones, tablets and keyboard use throughout. | [`v0.4.2.md`](v0.4.2.md) "As built" |
+
+---
+
+## L. v0.5.0: to be chosen (after the beta)
+
+Measure v0.4 with real use first: reranking on and off in evaluation runs, and latency per step from traces (the reference install's answers spend most of their time in the model's reasoning and, before v0.4.2's settings, SystemOne judging). Then pick one theme:
+
+| Theme | Items | Why |
+|---|---|---|
+| **A. Better knowledge in** (recommended) | A4 contextual chunks, A5 parent/child retrieval, B8 content health report, A11 near-duplicate boilerplate, C15 mixed procedures | The gap report finds what's missing; this improves what goes in; evaluations show the result. |
+| **B. Service desk** | F3 webhooks, C3 handoff and ticketing, C4 agent templates, C5 router agent | The use case the demo shows. |
+| **C. Adoption by other installs** | F5 Helm chart, D2 SDKs and CLI, D4 configuration as code, F11 bitop-ui docs and npm | Easier to install and integrate. |
+
+Also open from the beta preparation: A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G21, G22, E18, and the MCP threat-model update (§ K housekeeping).
 
 ---
 
@@ -145,7 +185,8 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | A12 **Done** (v0.4.1) | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. Built as interactive and background priorities on each connection's slots, a wait metric and the editor's "Adds about 0.4 s" ([`systemone.md` §8](systemone.md#8-capacity)). | S | Medium | — |
 | A13 ★ **Done** (v0.2.1 I9, v0.4.0 M3) | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
 | A14 **Done** (v0.4.1) | **Warn about expectations the KB can't meet** | An evaluation question can expect a phrase or document that isn't in the knowledge base (v0.2.0 warns while typing); add a set-level check that lists them, and flag questions whose expected document keeps ranking beyond the top 50. | S | Medium | A2 |
-| A15 **New** | **Share a failed question on a thumbs-down** | Let the person rating an answer opt in to sharing just the question with the team's editors, for evaluations. Changes ADR-0010, so it needs an ADR update, retention and a per-agent switch (deferred by the owner, 2026-09-28). | M | Medium–High | A2, an ADR |
+| A16 **New** | **Reasoning models that ignore "How to turn thinking off"** ([issue #7](https://github.com/ncecere/grounded/issues/7)) | Some models reason whatever is sent, so the rewrite stays slow, Reasoning effort Off does nothing, and follow-up suggestions run out of tokens. The model Test checks thinking off; suggestions retry with a larger budget when the model reasons anyway. | S | High (latency) | — |
+| A15 **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | **Share a failed question on a thumbs-down** | Let the person rating an answer opt in to sharing just the question with the team's editors, for evaluations. Changes ADR-0010, so it needs an ADR update, retention and a per-agent switch (deferred by the owner, 2026-09-28). | M | Medium–High | A2, an ADR |
 
 ## B. Content and sources
 
@@ -169,14 +210,14 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
 | C1 ★ **Done** (v0.3.0 M1, M3) | **MCP support** | (a) Expose each KB or agent as an MCP server: **done** as `POST /mcp` with the `search` and `ask` tools, API keys with the `mcp` scope ([`mcp.md`](mcp.md)), and experimental OAuth sign-in behind a platform setting (M5). (b) Let agents call admin-approved external MCP tools: **done** (M3, [`mcp-client.md`](mcp-client.md)): Admin → Models → MCP servers with per-tool approval and a classification ceiling, Build → Tools, results cited as sources and verified, `mcp_calls` metering, MCP servers in stored health. | M | High | a tool approval policy |
-| C2 ★ | **Unanswered-questions and gap report** | Cluster questions that got no context, refusals or thumbs-down, without showing content (ADR-0010). Tells teams what to add. | M | High | privacy review |
+| C2 **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | **Unanswered-questions and gap report** | Cluster questions that got no context, refusals or thumbs-down, without showing content (ADR-0010). Tells teams what to add. | M | High | privacy review |
 | C3 | **Human handoff and ticketing** | Create a ticket (webhook, or ServiceNow/Jira/TeamDynamix adapters) with the transcript, with the user's consent. | M | High for service desks | F3 |
 | C4 | **Agent templates** | "Service desk FAQ", "Policy explainer" and others, with good defaults. | S | Medium | — |
 | C5 | **Router agent** | One front-door agent routes each question to the best specialised agent. It could use SystemOne's scope check. | M | Medium–High | — |
 | C6 | **Voice** | Speech to text and text to speech in the chat and the widget, through models the gateway serves. | M | Medium (accessibility) | — |
 | C7 | **Image input** | Users attach a screenshot for vision-capable models. | M | Medium | a vision model |
 | C8 **Done** (v0.4.1) | **Follow-up suggestions** | 2–3 grounded follow-up questions after each answer: **done** (v0.4.1 M1, [`follow-ups.md`](follow-ups.md)): up to 3 chips under an answer with citations, from a separate small call after it, moderated, saved with saved answers, on by default (Build → Advanced). | S | Medium | — |
-| C9 | **Reasoning display and answer-length presets** | Per-agent control. | S | Medium | — |
+| C9 **Partly done** | **Reasoning display and answer-length presets** | Per-agent control. **Done:** reasoning effort per agent (v0.3.0) and per audience, with Off (v0.4.0); "Thinking…" for readers and the reasoning panel for editors in Try it, in order with tool steps (v0.4.1); a maximum answer length in tokens (Build → Advanced). **Open:** answer-length presets (short / normal / detailed) instead of a token number. | S | Medium | — |
 | C10 | **Structured outputs and forms** | Agents return checklists, forms or JSON. | M | Medium | — |
 | C11 | **Version A/B tests** | Split traffic between two published versions. | M | Medium | — |
 | C12 | **Conversation sharing** | A read-only, revocable snapshot of your own conversation. | S | Medium | — |
@@ -212,7 +253,8 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | E14 | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
 | E15 **Done** (v0.2.0) | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
 | E16 | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
-| E17 **New** | **Budget follow-ups** | Per-agent budgets (not in v0.2.0); re-embedding during a profile migration checked against the budget; documents already queued when a budget runs out (they finish today); a shorter cache than 30 s for teams close to 100%. | S–M | Medium | E2 |
+| E18 **New** | **A profile page, and API keys in the account menu** | People have no page for their own profile, and personal API keys are found only under team settings (v0.4.2 bug hunt). | S | Medium | — |
+| E17 **Partly done** | **Budget follow-ups** | Granted extensions can be revoked (v0.4.2, AD-35). Still open: Per-agent budgets (not in v0.2.0); re-embedding during a profile migration checked against the budget; documents already queued when a budget runs out (they finish today); a shorter cache than 30 s for teams close to 100%. | S–M | Medium | E2 |
 
 ## F. Platform and operations
 
@@ -228,13 +270,13 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | F8 **Done** (v0.2.0) | **Faster authorization matrix** | About 3,300 calls under `-race` take over 7 minutes on a 2-vCPU CI runner. Run the calls in parallel per team fixture, or give the matrix its own CI job. | S | Medium (CI time) | — |
 | F9 **Done** (v0.2.0) | **Release assets** | Attach an SBOM file and a checksums file to each GitHub Release; today they exist only as attestations on the image. | S | Medium (adoption, compliance) | — |
 | F10 **Done** (v0.2.0) | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
-| F11 | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
+| F11 **Partly done** | **bitop-ui docs site and npm** | The CLI is on npm (`@bitop-dev/cli`); the docs site is still unpublished. bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
 | F12 **Done** (v0.2.0) | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
 | F13 **Done** (v0.2.2, J6) | **Local dev resilience** | The dev fake model proxy and the OCR sidecar don't come back after Docker restarts; `make deps-up` should start (or `make dev` should supervise) everything a local build expects. | S | Low (developers) | — |
 
 ## G. Small fixes and polish
 
-All of G1–G18 are **Done** in v0.2.0; G21 is open.
+All of G1–G18 are **Done** in v0.2.0; G21 and G22 are open.
 
 | ID | Item | Size |
 |---|---|---|
@@ -256,6 +298,7 @@ All of G1–G18 are **Done** in v0.2.0; G21 is open.
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
 | G19 **Done** | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Done in v0.2.2 (J5):** Combobox no longer submits a form or dialog on Enter (Grounded's wrapper is gone); `TooltipText`, an accessible tooltip on plain text (the evaluation Score cell); LineChart `ticks` (0%, 50%, 100% on the score chart); DataTable `columnsMenuMin` and `showFilterLabel` (the evaluation lists); no FilterBar chip for single-choice toggles (Legal holds' duplicated "Status: Active ×"); Menu popups portalled into their trigger's landmark (axe `region`; Popover popups are dialogs, which axe already accepts); InlineCitation `sourceAction` (the chat citation card); column hiding on the team spend tables (DataTable with `defaultHiddenNarrow`). **Noticed, not scheduled:** Select, Combobox, Tooltip and ContextMenu popups still open at the end of `<body>` (axe `region`, a best-practice rule outside the WCAG A/AA set the tests enforce); they can use the same `useLandmarkContainer`. | S |
 | G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
+| G22 **New** | **"Working on it…" while a model slot is busy:** the status shows nothing while an answer waits for the gateway's or SystemOne's capacity; a status step for the wait (re-test US-09). | S |
 | G21 **New** | A document's passages list cuts a long passage off after about 6 lines with no way to expand it (a multi-page TIFF's single passage hides its later pages; v0.4.1 walkthrough). Let a passage expand, or open it in the source viewer. | S |
 
 ## H. Next release housekeeping
