@@ -192,11 +192,11 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 "quick brown fox". This is a port of the repository's `kind-smoke-ocr.sh` using the same endpoints.
 
 **Acceptance criteria:**
-- [ ] `grounded_accept.py --ref v0.4.2 ocr-demo` exits 0 within a few minutes; the document status is `ready`, read with OCR, and the text matches.
-- [ ] A failed document reports its `errorCode` and `errorMessage` and the OCR pod's log tail; the environment is removed either way.
+- [x] `grounded_accept.py --ref v0.4.2 ocr-demo` exits 0 within a few minutes; the document status is `ready`, read with OCR, and the text matches.
+- [x] A failed document reports its `errorCode` and `errorMessage` and the OCR pod's log tail; the environment is removed either way.
 
 **Verification:**
-- [ ] Run twice; hygiene check; break it on purpose by omitting `--ocr` and confirm the failure names OCR being off.
+- [x] Run twice; hygiene check; break it on purpose by omitting `--ocr` and confirm the failure names OCR being off.
 
 **Dependencies:** Task 3, Task 5, Task 7
 
@@ -205,8 +205,8 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 **Estimated scope:** Small (1 file)
 
 ### Checkpoint 3: after Tasks 6-8
-- [ ] Unit tests pass; all acceptance variants (`demo`, `demo-nocrawl`, `ocr`, `ocr-demo`) pass; `plain` still passes
-- [ ] Spec criteria 2-5 met with the evidence recorded below
+- [x] Unit tests pass; all acceptance variants (`demo`, `demo-nocrawl`, `ocr`, `ocr-demo`) pass; `plain` still passes
+- [x] Spec criteria 2-5 met with the evidence recorded below
 - [ ] Review with the owner before the docs hand-off
 
 ---
@@ -257,3 +257,4 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 - **Task 5** (homelab repo `fce7c8c`): `grounded_accept.py --ref v0.4.2 demo-nocrawl` passed twice (78 s and 67 s, against about 130-160 s with the crawl): team, agents and connections as with `--demo`, and the Demo source points at `https://docs.example.edu/doc/`, not go.dev. `plain` still passes. 92 unit tests.
 - **Task 6** (homelab repo `f478e82`): `grounded_accept.py --ref v0.4.2 ocr` passed twice (60-63 s): 7 pods ready with 0 restarts; the config's `OCR_TESSERACT_URL` is the environment's own sidecar (`http://ga-ocr-grounded-ocr:8080`, not the component's unprefixed literal: mutation-checked); the sidecar runs `grounded-ocr:v0.4.2` at the registry's digest `sha256:87a46039...`. `--ocr` on v0.1.0 (no component) is refused with 0 records. `plain` still passes. 109 unit tests.
 - **Task 7** (homelab repo `cff264b`): the in-cluster development sign-in worked on the first try (the plan's highest-risk item). `grounded_accept.py --ref v0.4.2 ocr` passes in 56 s with `GET /v1/admin/parsing` reporting OCR on with Tesseract. Re-running the Job reports "already on"; with the API scaled to 0, `up` fails with the Job's own log (`failed: <urlopen error ... Host is unreachable>`), no traceback; the reaper removed the Job, its ConfigMap, pods and volumes at expiry. 126 unit tests.
+- **Task 8** (homelab repo `8c73199`): `grounded_accept.py --ref v0.4.2 ocr-demo` passed 3 times (63-76 s, 8 pods, 0 restarts): the repository's `sample.png` uploaded to a new source reaches `ready` and its passages say "quick brown fox" (read by Tesseract). The negative control `ocr-off-control` (same environment without `--ocr`) fails in 54 s with the API's own reason, `sample.png was rejected: ocr_off: Images need OCR, which is off for this source`; its first version waited 180 s and said nothing useful because the upload reply was ignored, fixed. 140 unit tests.
