@@ -150,13 +150,13 @@ Demo team and agents exist but nothing fetches go.dev.
 `ghcr.io/ncecere/grounded-ocr` to the same tag as the app (the image check covers it; releases and `dev-` builds both have it), and drops its limits and its 500m CPU request.
 
 **Acceptance criteria:**
-- [ ] `up grounded x --ocr --ref v0.4.2`: `x-grounded-ocr` ready, 0 restarts, running the `v0.4.2` OCR image (digest compared with the registry).
-- [ ] API and worker configuration contain `OCR_TESSERACT_URL=http://x-grounded-ocr:8080`.
-- [ ] No component NetworkPolicies, no `limits`, small requests (render test); no-flag output unchanged; `down` leaves nothing.
-- [ ] A ref without the component fails with a clear message.
+- [x] `up grounded x --ocr --ref v0.4.2`: `x-grounded-ocr` ready, 0 restarts, running the `v0.4.2` OCR image (digest compared with the registry).
+- [x] API and worker configuration contain `OCR_TESSERACT_URL=http://x-grounded-ocr:8080`.
+- [x] No component NetworkPolicies, no `limits`, small requests (render test); no-flag output unchanged; `down` leaves nothing.
+- [x] A ref without the component fails with a clear message.
 
 **Verification:**
-- [ ] Render test; live `up`/inspect/`down`; hygiene check.
+- [x] Render test; live `up`/inspect/`down`; hygiene check.
 
 **Dependencies:** Task 2
 
@@ -255,3 +255,4 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 - **Task 4** (homelab repo `93a731d`, fixes `ff0ab9e`): `grounded_accept.py --ref v0.4.2 demo` waits for the Demo source (12-14 documents ready) and asks the Go docs assistant; the answer comes from the demo model with 3 citations. Passed 3 of 3 runs in a
   row after a race was fixed: the first doctor after `up` could fail with "no route to host" for 1-2 s (reproduced in 2 of 3 probes), so `up` now waits until the API reaches the models. `--index-timeout 1` fails, names the crawl, shows the worker log and still cleans up. 84 unit tests.
 - **Task 5** (homelab repo `fce7c8c`): `grounded_accept.py --ref v0.4.2 demo-nocrawl` passed twice (78 s and 67 s, against about 130-160 s with the crawl): team, agents and connections as with `--demo`, and the Demo source points at `https://docs.example.edu/doc/`, not go.dev. `plain` still passes. 92 unit tests.
+- **Task 6** (homelab repo `f478e82`): `grounded_accept.py --ref v0.4.2 ocr` passed twice (60-63 s): 7 pods ready with 0 restarts; the config's `OCR_TESSERACT_URL` is the environment's own sidecar (`http://ga-ocr-grounded-ocr:8080`, not the component's unprefixed literal: mutation-checked); the sidecar runs `grounded-ocr:v0.4.2` at the registry's digest `sha256:87a46039...`. `--ocr` on v0.1.0 (no component) is refused with 0 records. `plain` still passes. 109 unit tests.
