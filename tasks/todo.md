@@ -103,13 +103,13 @@ Variant `demo`: bring up `--demo`, open a port-forward, wait for the Demo source
 environment's logs on failure.
 
 **Acceptance criteria:**
-- [ ] `grounded_accept.py --ref v0.4.2 demo` exits 0: an answer beginning "Demo model:" with at least one citation marker.
-- [ ] On timeout or failure it says which step failed (crawl, embedding, answer) and shows the relevant pod log tail; the environment is still removed.
-- [ ] Running it twice in a row passes both times (idempotent seed, nothing left behind).
+- [x] `grounded_accept.py --ref v0.4.2 demo` exits 0: an answer beginning "Demo model:" with at least one citation marker.
+- [x] On timeout or failure it says which step failed (crawl, embedding, answer) and shows the relevant pod log tail; the environment is still removed.
+- [x] Running it twice in a row passes both times (idempotent seed, nothing left behind).
 
 **Verification:**
-- [ ] Run twice as above; hygiene check after each.
-- [ ] Break it on purpose (a non-resolving crawl site) and confirm the failure message names the crawl.
+- [x] Run twice as above; hygiene check after each.
+- [x] Break it on purpose (a non-resolving crawl site) and confirm the failure message names the crawl.
 
 **Dependencies:** Task 1, Task 3
 
@@ -252,3 +252,5 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 - **Task 3** (homelab repo `faf9530`): `grounded_accept.py --ref v0.4.2 demo` passed in 127 s: 7 pods ready with 0 restarts (the gateway applied after the API and worker), `doctor` reaches
   `http://ga-demo-grounded-fake-models:8090/v1` (2 models), the Demo team and agents `go-docs` and `go-docs-signed-in` exist, a model connection points at the prefixed gateway, `down` left nothing.
   `plain` still passes. `--demo` on v0.4.0 (no fixture) is refused before anything is created. 68 unit tests; the NetworkPolicy and URL-override render tests were mutation-checked.
+- **Task 4** (homelab repo `93a731d`, fixes `ff0ab9e`): `grounded_accept.py --ref v0.4.2 demo` waits for the Demo source (12-14 documents ready) and asks the Go docs assistant; the answer comes from the demo model with 3 citations. Passed 3 of 3 runs in a
+  row after a race was fixed: the first doctor after `up` could fail with "no route to host" for 1-2 s (reproduced in 2 of 3 probes), so `up` now waits until the API reaches the models. `--index-timeout 1` fails, names the crawl, shows the worker log and still cleans up. 84 unit tests.
