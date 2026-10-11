@@ -123,11 +123,11 @@ environment's logs on failure.
 Demo team and agents exist but nothing fetches go.dev.
 
 **Acceptance criteria:**
-- [ ] `up grounded x --demo --no-crawl`: team and both agents exist; the source's URL is the placeholder, not go.dev; ready as fast as `--demo` or faster.
-- [ ] `--no-crawl` without `--demo` is still rejected (Task 2).
+- [x] `up grounded x --demo --no-crawl`: team and both agents exist; the source's URL is the placeholder, not go.dev; ready as fast as `--demo` or faster.
+- [x] `--no-crawl` without `--demo` is still rejected (Task 2).
 
 **Verification:**
-- [ ] Render test asserts the variable; `grounded_accept.py --ref v0.4.2 demo-nocrawl` (a new variant checking team, agents and the source URL) exits 0.
+- [x] Render test asserts the variable; `grounded_accept.py --ref v0.4.2 demo-nocrawl` (a new variant checking team, agents and the source URL) exits 0.
 
 **Dependencies:** Task 3 (and the client from Task 4 for the variant)
 
@@ -254,3 +254,4 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
   `plain` still passes. `--demo` on v0.4.0 (no fixture) is refused before anything is created. 68 unit tests; the NetworkPolicy and URL-override render tests were mutation-checked.
 - **Task 4** (homelab repo `93a731d`, fixes `ff0ab9e`): `grounded_accept.py --ref v0.4.2 demo` waits for the Demo source (12-14 documents ready) and asks the Go docs assistant; the answer comes from the demo model with 3 citations. Passed 3 of 3 runs in a
   row after a race was fixed: the first doctor after `up` could fail with "no route to host" for 1-2 s (reproduced in 2 of 3 probes), so `up` now waits until the API reaches the models. `--index-timeout 1` fails, names the crawl, shows the worker log and still cleans up. 84 unit tests.
+- **Task 5** (homelab repo `fce7c8c`): `grounded_accept.py --ref v0.4.2 demo-nocrawl` passed twice (78 s and 67 s, against about 130-160 s with the crawl): team, agents and connections as with `--demo`, and the Demo source points at `https://docs.example.edu/doc/`, not go.dev. `plain` still passes. 92 unit tests.
