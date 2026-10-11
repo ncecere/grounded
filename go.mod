@@ -2,7 +2,7 @@ module github.com/ncecere/grounded
 
 go 1.26.0
 
-toolchain go1.26.7
+toolchain go1.26.9
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
@@ -40,7 +40,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
