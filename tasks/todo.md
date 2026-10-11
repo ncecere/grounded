@@ -172,12 +172,12 @@ development admin from inside the cluster (`Host` and `Origin` = `APP_URL`) and 
 refused, fall back to doing the call from the laptop through a temporary port-forward and say so in the task notes.
 
 **Acceptance criteria:**
-- [ ] After `up grounded x --ocr`, `GET /v1/admin/parsing` reports `ocrEnabled: true` and `backend: tesseract`.
-- [ ] The Job completes, is removed by `down` and by the reaper, and re-running it is harmless.
-- [ ] The Job's failure (for example the API not answering) fails `up` with its log, not a silent timeout.
+- [x] After `up grounded x --ocr`, `GET /v1/admin/parsing` reports `ocrEnabled: true` and `backend: tesseract`.
+- [x] The Job completes, is removed by `down` and by the reaper, and re-running it is harmless.
+- [x] The Job's failure (for example the API not answering) fails `up` with its log, not a silent timeout.
 
 **Verification:**
-- [ ] `grounded_accept.py --ref v0.4.2 ocr` (new variant: reads the parsing settings through the port-forward) exits 0; hygiene check; reaper path checked once with `renew --ttl 1m`.
+- [x] `grounded_accept.py --ref v0.4.2 ocr` (new variant: reads the parsing settings through the port-forward) exits 0; hygiene check; reaper path checked once with `renew --ttl 1m`.
 
 **Dependencies:** Task 6, Task 4 (the client)
 
@@ -256,3 +256,4 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
   row after a race was fixed: the first doctor after `up` could fail with "no route to host" for 1-2 s (reproduced in 2 of 3 probes), so `up` now waits until the API reaches the models. `--index-timeout 1` fails, names the crawl, shows the worker log and still cleans up. 84 unit tests.
 - **Task 5** (homelab repo `fce7c8c`): `grounded_accept.py --ref v0.4.2 demo-nocrawl` passed twice (78 s and 67 s, against about 130-160 s with the crawl): team, agents and connections as with `--demo`, and the Demo source points at `https://docs.example.edu/doc/`, not go.dev. `plain` still passes. 92 unit tests.
 - **Task 6** (homelab repo `f478e82`): `grounded_accept.py --ref v0.4.2 ocr` passed twice (60-63 s): 7 pods ready with 0 restarts; the config's `OCR_TESSERACT_URL` is the environment's own sidecar (`http://ga-ocr-grounded-ocr:8080`, not the component's unprefixed literal: mutation-checked); the sidecar runs `grounded-ocr:v0.4.2` at the registry's digest `sha256:87a46039...`. `--ocr` on v0.1.0 (no component) is refused with 0 records. `plain` still passes. 109 unit tests.
+- **Task 7** (homelab repo `cff264b`): the in-cluster development sign-in worked on the first try (the plan's highest-risk item). `grounded_accept.py --ref v0.4.2 ocr` passes in 56 s with `GET /v1/admin/parsing` reporting OCR on with Tesseract. Re-running the Job reports "already on"; with the API scaled to 0, `up` fails with the Job's own log (`failed: <urlopen error ... Host is unreachable>`), no traceback; the reaper removed the Job, its ConfigMap, pods and volumes at expiry. 126 unit tests.
