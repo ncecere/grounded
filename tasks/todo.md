@@ -27,13 +27,13 @@ failure, refuses to start if its own environment name already exists) and the st
 variant, `plain`, checks today's no-flag Grounded environment, so every later change has a baseline to be compared with (spec success criterion 1). Grounded only.
 
 **Acceptance criteria:**
-- [ ] `grounded_accept.py --ref v0.4.2 plain` exits 0: every pod Running and ready with 0 restarts, `grounded doctor` reports no failed check, development sign-in as admin returns 200, `down` leaves nothing.
-- [ ] A ref that does not exist exits non-zero and still removes whatever was created.
-- [ ] If its environment name already exists it refuses and touches nothing.
+- [x] `grounded_accept.py --ref v0.4.2 plain` exits 0: every pod Running and ready with 0 restarts, `grounded doctor` reports no failed check, development sign-in as admin returns 200, `down` leaves nothing.
+- [x] A ref that does not exist exits non-zero and still removes whatever was created.
+- [x] If its environment name already exists it refuses and touches nothing.
 
 **Verification:**
-- [ ] Run `plain` on `v0.4.2`: PASS lines per check; hygiene check afterwards (`dev-env list` empty; `dev-grounded` has no `ga-*` objects, pods or PVs).
-- [ ] Run it with `--ref nonexistent`: non-zero exit, no leftovers.
+- [x] Run `plain` on `v0.4.2`: PASS lines per check; hygiene check afterwards (`dev-env list` empty; `dev-grounded` has no `ga-*` objects, pods or PVs).
+- [x] Run it with `--ref nonexistent`: non-zero exit, no leftovers.
 
 **Dependencies:** None
 
@@ -242,4 +242,6 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 
 ## Evidence (filled in as tasks complete)
 
-Nothing yet.
+- **Task 1** (homelab repo `a054c86`): `grounded_accept.py --ref v0.4.2 plain` passed in 62 s: 6 pods ready with 0 restarts, `doctor` 10 checks 0 failed,
+  development sign-in as admin 200 with a CSRF token, `down` left 0 objects, 0 pods, 0 volumes. A missing ref exited 1 and still cleaned up; a taken name exited 2 and
+  left the existing environment alone. 26 unit tests pass; the one for `me()` was mutation-checked (it fails when the check is removed).
