@@ -48,14 +48,14 @@ variant, `plain`, checks today's no-flag Grounded environment, so every later ch
 on `env.options`; they do nothing yet except appear in the dry-run summary.
 
 **Acceptance criteria:**
-- [ ] The flag check runs first, before the cluster or any project code is contacted: `up oci x --ocr` and `up omg x --demo` would exit non-zero with a message naming the project and the unsupported flag (proved by unit tests; **not** by running them).
-- [ ] `up grounded x --no-crawl` exits non-zero ("--no-crawl needs --demo"); `up grounded x --ocr --demo --no-crawl --dry-run` prints the options and creates nothing.
-- [ ] Without flags, `up grounded` and `up oci` behave exactly as before.
+- [x] The flag check runs first, before the cluster or any project code is contacted: `up oci x --ocr` and `up omg x --demo` would exit non-zero with a message naming the project and the unsupported flag (proved by unit tests; **not** by running them).
+- [x] `up grounded x --no-crawl` exits non-zero ("--no-crawl needs --demo"); `up grounded x --ocr --demo --no-crawl --dry-run` prints the options and creates nothing.
+- [x] Without flags, `up grounded` and `up oci` behave exactly as before.
 
 **Verification:**
-- [ ] Unit tests of the flag rules (pure Python, no cluster; project modules are only imported, never run): `python3 -m unittest discover -s tools/dev-env/tests -v`
-- [ ] `git diff --stat -- tools/dev-env/devenv/oci.py tools/dev-env/devenv/omg.py tools/dev-env/devenv/common.py` is empty.
-- [ ] Manual: the two Grounded dry runs above, and `grounded_accept.py --ref v0.4.2 plain` still passes (the shared CLI changed).
+- [x] Unit tests of the flag rules (pure Python, no cluster; project modules are only imported, never run): `python3 -m unittest discover -s tools/dev-env/tests -v`
+- [x] `git diff --stat -- tools/dev-env/devenv/oci.py tools/dev-env/devenv/omg.py tools/dev-env/devenv/common.py` is empty.
+- [x] Manual: the two Grounded dry runs above, and `grounded_accept.py --ref v0.4.2 plain` still passes (the shared CLI changed).
 
 **Dependencies:** Task 1
 
@@ -64,8 +64,8 @@ on `env.options`; they do nothing yet except appear in the dry-run summary.
 **Estimated scope:** Small (3 files)
 
 ### Checkpoint 1: after Tasks 1-2
-- [ ] Unit tests pass and `grounded_accept.py plain` passes
-- [ ] The diff shows no edits to `oci.py`, `omg.py`, `common.py` or the shared templates
+- [x] Unit tests pass and `grounded_accept.py plain` passes
+- [x] The diff shows no edits to `oci.py`, `omg.py`, `common.py` or the shared templates
 - [ ] Review with the owner; confirm decisions D1-D3 and the crawl default before Phase 2
 
 ---
@@ -245,3 +245,7 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 - **Task 1** (homelab repo `a054c86`): `grounded_accept.py --ref v0.4.2 plain` passed in 62 s: 6 pods ready with 0 restarts, `doctor` 10 checks 0 failed,
   development sign-in as admin 200 with a CSRF token, `down` left 0 objects, 0 pods, 0 volumes. A missing ref exited 1 and still cleaned up; a taken name exited 2 and
   left the existing environment alone. 26 unit tests pass; the one for `me()` was mutation-checked (it fails when the check is removed).
+- **Task 2** (homelab repo `d625214`): 45 unit tests pass (19 new). `up grounded x --no-crawl` is refused ("--no-crawl needs --demo") before any cluster call; the real oci, omg and
+  grounded modules were only imported (oci and omg declare no flags and would reject all three). The dry run with all three flags prints the options and "not implemented yet, ignored"
+  and creates nothing; the no-flag dry run is unchanged. `grounded_accept.py plain` passed again (65 s, 6 pods, 0 restarts, doctor 0 failed, clean teardown). `git diff` of `oci.py`,
+  `omg.py`, `common.py` and `kubernetes/` is empty.
