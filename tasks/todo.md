@@ -136,8 +136,8 @@ Demo team and agents exist but nothing fetches go.dev.
 **Estimated scope:** XS (2 files, a few lines)
 
 ### Checkpoint 2: after Tasks 3-5
-- [ ] Unit tests pass; `grounded_accept.py demo` and `demo-nocrawl` pass twice; `plain` still passes
-- [ ] Spec criteria 3-4 (merged) demonstrably met
+- [x] Unit tests pass; `grounded_accept.py demo` and `demo-nocrawl` pass twice; `plain` still passes
+- [x] Spec criteria 3-4 (merged) demonstrably met
 - [ ] Review with the owner before Phase 3
 
 ---
