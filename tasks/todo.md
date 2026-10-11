@@ -79,15 +79,15 @@ limits, and the tool applies its Deployment and Service only after the API and w
 `resolve` refuses a ref whose tree lacks the fixture. The environment then has the Demo team, its source and two agents, and real (fake-backed) model connections.
 
 **Acceptance criteria:**
-- [ ] `up grounded x --demo --ref v0.4.2`: `x-grounded-fake-models` ready with **0 restarts**; team `demo` and agents `go-docs` and `go-docs-signed-in` exist (checked through the API).
-- [ ] The registered model connections use `http://x-grounded-fake-models:8090/v1`; `grounded doctor`'s models line is no longer skipped.
-- [ ] No fixture NetworkPolicies, no `limits`, selectors carry the env label (render test); the no-flag object list is unchanged.
-- [ ] A ref without the fixture fails with a clear message; `down` leaves nothing.
+- [x] `up grounded x --demo --ref v0.4.2`: `x-grounded-fake-models` ready with **0 restarts**; team `demo` and agents `go-docs` and `go-docs-signed-in` exist (checked through the API).
+- [x] The registered model connections use `http://x-grounded-fake-models:8090/v1`; `grounded doctor`'s models line is no longer skipped.
+- [x] No fixture NetworkPolicies, no `limits`, selectors carry the env label (render test); the no-flag object list is unchanged.
+- [x] A ref without the fixture fails with a clear message; `down` leaves nothing.
 
 **Verification:**
-- [ ] Render test: `python3 -m unittest discover -s tools/dev-env/tests -v` (prefixed URL, no limits, no NetworkPolicy, unchanged no-flag output)
-- [ ] Live: `up grounded x --demo --ref v0.4.2`; `kubectl -n dev-grounded get pods`; `exec ... /grounded doctor`; `down`; hygiene check
-- [ ] `grounded_accept.py plain` still passes at the end of the task (the no-flag path is unchanged).
+- [x] Render test: `python3 -m unittest discover -s tools/dev-env/tests -v` (prefixed URL, no limits, no NetworkPolicy, unchanged no-flag output)
+- [x] Live: `up grounded x --demo --ref v0.4.2`; `kubectl -n dev-grounded get pods`; `exec ... /grounded doctor`; `down`; hygiene check
+- [x] `grounded_accept.py plain` still passes at the end of the task (the no-flag path is unchanged).
 
 **Dependencies:** Task 2
 
@@ -249,3 +249,6 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
   grounded modules were only imported (oci and omg declare no flags and would reject all three). The dry run with all three flags prints the options and "not implemented yet, ignored"
   and creates nothing; the no-flag dry run is unchanged. `grounded_accept.py plain` passed again (65 s, 6 pods, 0 restarts, doctor 0 failed, clean teardown). `git diff` of `oci.py`,
   `omg.py`, `common.py` and `kubernetes/` is empty.
+- **Task 3** (homelab repo `faf9530`): `grounded_accept.py --ref v0.4.2 demo` passed in 127 s: 7 pods ready with 0 restarts (the gateway applied after the API and worker), `doctor` reaches
+  `http://ga-demo-grounded-fake-models:8090/v1` (2 models), the Demo team and agents `go-docs` and `go-docs-signed-in` exist, a model connection points at the prefixed gateway, `down` left nothing.
+  `plain` still passes. `--demo` on v0.4.0 (no fixture) is refused before anything is created. 68 unit tests; the NetworkPolicy and URL-override render tests were mutation-checked.
