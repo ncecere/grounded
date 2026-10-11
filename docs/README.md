@@ -124,4 +124,5 @@ People who deploy, upgrade and monitor an install:
 | [`../web/README.md`](../web/README.md) | The web UI: layout, bitop-ui components, end-to-end tests, styling policy |
 | [`phase2-web-sources.md`](phase2-web-sources.md), [`phase3-agents.md`](phase3-agents.md), [`phase4-publishing.md`](phase4-publishing.md), [`phase5-deploy.md`](phase5-deploy.md) | Phase specifications, with what was built and any deviations |
 | [`ui-review/README.md`](ui-review/README.md) | The UI and information-architecture review, with its [workspace](ui-review/workspace-findings.md), [admin](ui-review/admin-findings.md) and [functional](ui-review/functional-findings.md) findings and [verification](ui-review/verification.md) |
+| [`specs/cluster-testing/SPEC.md`](specs/cluster-testing/SPEC.md) | Spec and plan for developing and testing Grounded on the homelab cluster instead of a laptop: the capability map and the first module's spec (the plan and tasks are in [`../tasks/`](../tasks/)) |
 | [`benchmarks/README.md`](benchmarks/README.md) | How the benchmarks were run, the tools, and the evaluation data formats |
