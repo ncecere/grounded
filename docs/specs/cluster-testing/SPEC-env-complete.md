@@ -1,6 +1,6 @@
 # Spec: `env-complete`: OCR, fake models and the Demo seed in Grounded environments
 
-Status: **APPROVED with amendments** (2026-10-11): the three plan findings D1-D3 and the crawl default were accepted (see `tasks/plan.md`).
+Status: **IMPLEMENTED** (2026-10-11), as amended: the three plan findings D1-D3 and the crawl default were accepted (see `tasks/plan.md`). Verification below.
 Part of [`SPEC.md`](SPEC.md) (module 1 of 4, no dependencies).
 
 > Where the code lives: the implementation is in the homelab repo (`ncecere/homelab`, private). Paths such as `tools/dev-env/...` and
@@ -127,3 +127,23 @@ Real runs on the cluster, as for the existing modules; there is no mock of Kuber
    whose tree lacks them, `up` fails with a clear message.
 5. How the app finds the fake gateway: the fixture sets `DEMO_FAKE_ADDR=0.0.0.0:8090` and `DEMO_FAKE_URL`; the overlay
    overrides the URL with the prefixed Service (a literal, not renamed by the name prefix; confirmed by a render).
+
+## Verification (2026-10-11)
+
+All on v0.4.2 on the bitop-talos cluster, with `tools/dev-env/tests/grounded_accept.py <variant>` (homelab repo). Final sweep on the
+last code: `plain` 59 s, `demo` 158 s, `demo-nocrawl` 54 s, `ocr` 61 s, `ocr-demo` 80 s, all passing, with nothing left in the cluster.
+
+| # | Criterion | Evidence |
+|---|---|---|
+| 1 | No flag: unchanged | `plain` passes after every task: 6 pods ready with 0 restarts, `doctor` 0 failed, sign-in 200, clean `down` (about 30-60 s) |
+| 2 | `--ocr` | `ocr` passes: 7 pods, 0 restarts; `OCR_TESSERACT_URL` names the environment's own sidecar; it runs the registry's `grounded-ocr:v0.4.2` digest (`sha256:87a46039...`); `GET /v1/admin/parsing` reports OCR on with Tesseract (set by a setup Job; a re-run reports "already on") |
+| 3 | `--demo` | `demo` passes: the gateway ready with 0 restarts and "Serving the fake model gateway" logged; the Demo team and both agents exist; `doctor` reaches the models at the prefixed Service; after indexing (12-14 documents) the Go docs assistant answers with 3 citations, from the demo model. 5 runs in a row after a first-contact routing race was fixed |
+| 4 | `--demo --no-crawl` | `demo-nocrawl` passes twice: the team, agents and connections exist, the source points at `https://docs.example.edu/doc/` |
+| 5 | A scanned page read end to end | `ocr-demo` passes: `sample.png` reaches `ready` and its passages say "quick brown fox". The negative control `ocr-off-control` fails in 54 s with the API's own reason, `ocr_off: Images need OCR, which is off for this source` |
+| 6 | Clean teardown; shared parser unchanged for OCI and OMG | every variant's `down` left 0 objects, 0 pods, 0 volumes; the reaper removed an `--ocr` environment (Job and ConfigMap included) at expiry; `common.py`, `oci.py`, `omg.py` and the shared templates have no diff, and no OCI or OMG environment was brought up; 143 unit tests |
+| 7 | Documented | `tools/dev-env/README.md` (homelab repo); Grounded's `AGENTS.md` in PR #14 |
+
+Found while verifying, and fixed: a 1-2 second window right after `up` in which the API cannot yet reach a new gateway pod ("no route to host"), so
+`up` now waits until the API's own `doctor` reaches the models; and an acceptance negative control that waited 180 s and said nothing useful, because
+it ignored the upload reply, which says `rejected` at once.
+

@@ -220,12 +220,12 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 `ncecere/grounded`, merged when its checks are clean); mark the spec's success criteria with the evidence.
 
 **Acceptance criteria:**
-- [ ] README and `creds` output describe `--demo`, `--no-crawl`, `--ocr` accurately (checked by running them).
-- [ ] Grounded `AGENTS.md` on `main` lists the flags and the acceptance command; the PR's checks are green.
-- [ ] Each of the spec's 7 success criteria has a one-line evidence note in this file or the spec.
+- [x] README and `creds` output describe `--demo`, `--no-crawl`, `--ocr` accurately (checked by running them).
+- [x] Grounded `AGENTS.md` on `main` lists the flags and the acceptance command; the PR's checks are green.
+- [x] Each of the spec's 7 success criteria has a one-line evidence note in this file or the spec.
 
 **Verification:**
-- [ ] Read-through against the actual flags; `dev-env up grounded x --help`-level check that flags are listed; Grounded PR merged on a clean state.
+- [x] Read-through against the actual flags; `dev-env up grounded x --help`-level check that flags are listed; Grounded PR merged on a clean state.
 
 **Dependencies:** Tasks 1-8
 
@@ -234,11 +234,11 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 **Estimated scope:** Small (4 files across two repos)
 
 ### Checkpoint: Complete
-- [ ] All spec success criteria met, with evidence
-- [ ] All acceptance variants (`plain`, `demo`, `demo-nocrawl`, `ocr`, `ocr-demo`) pass on the final `main`
-- [ ] `dev-grounded` holds no environment records, objects or PVs (the other areas were never touched)
-- [ ] Homelab `main` pushed and the owner's checkout fast-forwarded (its uncommitted files unchanged); scratch worktrees removed
-- [ ] Ready for the next module's spec (`cluster-tests`)
+- [x] All spec success criteria met, with evidence (SPEC-env-complete.md, Verification)
+- [x] All acceptance variants (`plain`, `demo`, `demo-nocrawl`, `ocr`, `ocr-demo`) pass on the final `main`
+- [x] `dev-grounded` holds no environment records, objects or PVs (the other areas were never touched)
+- [x] Homelab `main` pushed and the owner's checkout fast-forwarded (its uncommitted files unchanged); [ ] scratch worktrees removed (after the PRs are merged)
+- [x] Ready for the next module's spec (`cluster-tests`)
 
 ## Evidence (filled in as tasks complete)
 
@@ -258,3 +258,5 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 - **Task 6** (homelab repo `f478e82`): `grounded_accept.py --ref v0.4.2 ocr` passed twice (60-63 s): 7 pods ready with 0 restarts; the config's `OCR_TESSERACT_URL` is the environment's own sidecar (`http://ga-ocr-grounded-ocr:8080`, not the component's unprefixed literal: mutation-checked); the sidecar runs `grounded-ocr:v0.4.2` at the registry's digest `sha256:87a46039...`. `--ocr` on v0.1.0 (no component) is refused with 0 records. `plain` still passes. 109 unit tests.
 - **Task 7** (homelab repo `cff264b`): the in-cluster development sign-in worked on the first try (the plan's highest-risk item). `grounded_accept.py --ref v0.4.2 ocr` passes in 56 s with `GET /v1/admin/parsing` reporting OCR on with Tesseract. Re-running the Job reports "already on"; with the API scaled to 0, `up` fails with the Job's own log (`failed: <urlopen error ... Host is unreachable>`), no traceback; the reaper removed the Job, its ConfigMap, pods and volumes at expiry. 126 unit tests.
 - **Task 8** (homelab repo `8c73199`): `grounded_accept.py --ref v0.4.2 ocr-demo` passed 3 times (63-76 s, 8 pods, 0 restarts): the repository's `sample.png` uploaded to a new source reaches `ready` and its passages say "quick brown fox" (read by Tesseract). The negative control `ocr-off-control` (same environment without `--ocr`) fails in 54 s with the API's own reason, `sample.png was rejected: ocr_off: Images need OCR, which is off for this source`; its first version waited 180 s and said nothing useful because the upload reply was ignored, fixed. 140 unit tests.
+- **Task 9**: `tools/dev-env/README.md` (homelab `28871c7`) documents the three flags, how they are built, the refs that have them, the unit tests and the five acceptance variants including the negative control; `dev-env creds grounded` says where the Demo agents are, that their answers are canned and that `--ocr` leaves OCR on (3 new tests). Grounded's `AGENTS.md` update is **PR #14** (open, not merged). The spec's seven criteria each have an evidence line in `SPEC-env-complete.md` (Verification).
+- **Final sweep** (all five variants on the last code, v0.4.2): `plain` 59 s, `demo` 158 s, `demo-nocrawl` 54 s, `ocr` 61 s, `ocr-demo` 80 s, all PASS; 143 unit tests; nothing left in `dev-grounded`; `dev-oci` and `dev-omg` have 0 environment records (never touched).

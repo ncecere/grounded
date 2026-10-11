@@ -1,7 +1,7 @@
 # Capability map: Grounded development and testing on the cluster
 
-Status: **capability map approved** (2026-10-11). Module specs are approved one at a time: `env-complete` is approved
-with amendments; the other three are not written yet.
+Status: **capability map approved** (2026-10-11). Module specs are approved one at a time: `env-complete` is **implemented**
+(2026-10-11); the other three are not written yet.
 
 > Where the code lives: the implementation is in the homelab repo (`ncecere/homelab`, private). Paths such as `tools/dev-env/...` and
 > `kubernetes/platform/dev-areas/...` are relative to that repo; only the Grounded `AGENTS.md` change (T9) lands here.
@@ -32,7 +32,7 @@ in-cluster image builds (both rejected earlier).
 
 Build order: `env-complete` -> `cluster-tests` and `cluster-walks` (independent, either order) -> `laptop-retire`.
 
-Specs: [`SPEC-env-complete.md`](SPEC-env-complete.md) (approved with amendments). The other three are written one at a time,
+Specs: [`SPEC-env-complete.md`](SPEC-env-complete.md) (implemented). The other three are written one at a time,
 in this order, after the previous one is approved. This file is the index of what exists.
 
 ## What the research found (so it is not lost)
