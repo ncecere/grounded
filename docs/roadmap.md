@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-04. **v0.4.2 is released** (2026-10-04) and running on the reference install: ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then v0.5.0 "better knowledge in" (§ L, the release plan).
+Status: refreshed 2026-10-11. **v0.4.3 is released** (2026-10-11: a security patch, Go 1.26.9 and golang.org/x/net v0.60.0), on top of **v0.4.2** (2026-10-04), which is running on the reference install and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then v0.5.0 "better knowledge in" (§ L, the release plan).
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -154,11 +154,16 @@ The pre-beta release ([`v0.4.2.md`](v0.4.2.md), [`releases/v0.4.2.md`](releases/
 
 ---
 
+## Done in v0.4.3 (released 2026-10-11)
+
+A security patch ([`releases/v0.4.3.md`](releases/v0.4.3.md)): Go 1.26.9 and golang.org/x/net v0.60.0 fix 13 advisories that `govulncheck` flagged against the build. No product change, no migration, no new setting.
+
 ## L. Release plan (owner, 2026-10-04)
 
 | Version | Theme | Items |
 |---|---|---|
-| **v0.4.3** | Beta fixes, during the beta | A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G22 ("Working on it…" while a model slot is busy), E18 (profile page, API keys in the account menu), and what beta testers report |
+| **v0.4.3** | Security patch (released 2026-10-11) | Go 1.26.9 and golang.org/x/net v0.60.0: 13 advisories that `govulncheck` flagged ([`releases/v0.4.3.md`](releases/v0.4.3.md)) |
+| **v0.4.4** | Beta fixes, during the beta | A16 (models that ignore thinking off, [issue #7](https://github.com/ncecere/grounded/issues/7)), G22 ("Working on it…" while a model slot is busy), E18 (profile page, API keys in the account menu), and what beta testers report |
 | **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview:** re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
 | **v0.6.0** | **Service desk building blocks** ([`v0.6.0.md`](v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
 | **v0.7.0** | **Adoption by other installs** ([`v0.7.0.md`](v0.7.0.md)) | **Helm chart** (F5); **configuration as code** (D4); **bitop-ui docs site and registry** (F11); **accessibility statement and model cards** (E8) |

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-11
+
+A security patch. Grounded is now built with Go 1.26.9 and golang.org/x/net v0.60.0, which fix 13 advisories that `govulncheck` reported against Go 1.26.7 and x/net v0.59.0, mostly HTTP/2 and HTTP/1 flaws in `net/http`. Nothing else changes: no migrations and no new settings. The release notes are in [`docs/releases/v0.4.3.md`](docs/releases/v0.4.3.md).
+
+### Security
+
+- **Go 1.26.9 and `golang.org/x/net` v0.60.0.** `govulncheck`, which gates every push, flagged 13 advisories that Go published on 2026-10-08 (GO-2026-6599, 6600, 6603, 6604, 6605, 6607 to 6613 and 6617): HTTP/2 server memory and CPU exhaustion and a crash, HTTP/1 connection desynchronisation after a `CONNECT`, unbounded `Range` and MIME header parsing, `html/template` context tracking and `crypto/tls`. All are fixed in Go 1.26.9. Five of them (6603, 6610, 6611, 6612 and 6617) also affect `golang.org/x/net` and are fixed in v0.60.0. GO-2026-6604 affects Windows only. With both updates `govulncheck` reports no vulnerabilities.
+
+### Changed
+
+- The API reference's description of the `thinking` chat status event now says it applies whenever the model reasons, including after a tool call (wording only; no behaviour changed).
+
 ## [0.4.2] - 2026-10-04
 
 Ready for a wider beta: every finding of a pre-beta bug hunt and its re-test fixed, a Reranking page, an Admin Settings page and dark mode. The release notes are [`docs/releases/v0.4.2.md`](docs/releases/v0.4.2.md).
@@ -487,7 +499,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/ncecere/grounded/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/ncecere/grounded/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
