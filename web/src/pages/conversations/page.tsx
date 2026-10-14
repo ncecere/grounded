@@ -3,7 +3,7 @@
  * agent and last activity (all in the URL), grouped by day. Rename, export
  * and delete are in each row's "…" menu. Only the user sees these.
  */
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MessagesSquare, SearchX } from "lucide-react";
 import { api, unwrap } from "../../api/client";
@@ -56,6 +56,9 @@ export function ConversationsPage() {
       ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    // A changed search or filter keeps the rows on screen until the new list arrives, instead of replacing them with a skeleton (which
+    // also closed a row's open menu): the same as the documents table.
+    placeholderData: keepPreviousData,
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const filtered = Boolean(q) || Object.values(filters.values).some(isFacetActive);
