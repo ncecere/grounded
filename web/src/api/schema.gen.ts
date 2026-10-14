@@ -6562,8 +6562,22 @@ export interface components {
             moderation?: components["schemas"]["ModerationModelTest"];
             systemOne?: components["schemas"]["SystemOneModelTest"];
             rerank?: components["schemas"]["RerankModelTest"];
+            thinkingOff?: components["schemas"]["ThinkingOffModelTest"];
             error?: components["schemas"]["ProxyError"];
             timings?: components["schemas"]["RequestTimings"];
+        };
+        /** @description Chat models with a way to turn thinking off (Compatibility): a second request, made the way an agent's Reasoning effort Off makes it, and whether the model still reasoned (v0.4.4, issue #7). Some models ignore every switch. */
+        ThinkingOffModelTest: {
+            /** @description The configured way, for example reasoning_effort: none */
+            setting: string;
+            /** @description True when the reply had no reasoning; false when it still reasoned or the check could not run (see error) */
+            honoured: boolean;
+            /** @description Reasoning tokens the gateway reported (absent when it reported none) */
+            reasoningTokens?: number;
+            /** @description Set when the check itself could not run; the model's ordinary test is not affected */
+            error?: string;
+            /** @description The result in a sentence */
+            message: string;
         };
         /** @description Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher) */
         RerankModelTest: {

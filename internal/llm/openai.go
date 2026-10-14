@@ -68,7 +68,17 @@ func endStreamSpan(span trace.Span, a *assembler, start time.Time) {
 	if m.StopReason == StopReasonError || m.StopReason == StopReasonAborted {
 		err = &gateway.Error{Kind: cmp.Or(m.ErrorKind, string(m.StopReason))}
 	}
+	span.SetAttributes(reasoningAttributes(m.Usage)...)
 	gateway.EndModelSpan(span, m.Usage.Input, m.Usage.Output, err)
+}
+
+// reasoningAttributes is the call's reasoning tokens, when the gateway reported any: zero means "not reported" as often
+// as "none", so it is left out rather than claim a model never reasoned.
+func reasoningAttributes(u Usage) []attribute.KeyValue {
+	if u.Reasoning <= 0 {
+		return nil
+	}
+	return []attribute.KeyValue{attribute.Int("gen_ai.usage.reasoning_tokens", u.Reasoning)}
 }
 
 func (p *OpenAI) run(ctx context.Context, a *assembler, model Model, c Context, opts Options) {

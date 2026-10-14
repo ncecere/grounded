@@ -14,6 +14,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { RerankSample } from "./rerank-sample";
+import { ThinkingOffNote } from "./thinking-off-note";
 import { CompatSection, compatFacts } from "./compat-facts";
 import { deleteBlockedReason, EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
@@ -44,16 +45,19 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
     );
   }
   return (
-    <Alert tone="success" title={`Answered in ${test.data.latencyMs.toLocaleString()} ms`}>
-      {test.data.dimensions != null && `Returned ${test.data.dimensions.toLocaleString()} dimensions`}
-      {test.data.dimensionsMatch === false && " (this does not match the configured dimensions; edit the model)"}
-      {test.data.reply != null && `Reply: “${test.data.reply}”`}
-      {test.data.moderation && <ModerationSamples test={test.data.moderation} />}
-      {test.data.systemOne && <SystemOneSample test={test.data.systemOne} />}
-      {test.data.rerank && <RerankSample test={test.data.rerank} />}
-      {test.data.dimensions == null && test.data.reply == null && !test.data.moderation && !test.data.systemOne && !test.data.rerank && "The model responded."}
-      <TimingsText timings={test.data.timings} />
-    </Alert>
+    <>
+      <Alert tone="success" title={`Answered in ${test.data.latencyMs.toLocaleString()} ms`}>
+        {test.data.dimensions != null && `Returned ${test.data.dimensions.toLocaleString()} dimensions`}
+        {test.data.dimensionsMatch === false && " (this does not match the configured dimensions; edit the model)"}
+        {test.data.reply != null && `Reply: “${test.data.reply}”`}
+        {test.data.moderation && <ModerationSamples test={test.data.moderation} />}
+        {test.data.systemOne && <SystemOneSample test={test.data.systemOne} />}
+        {test.data.rerank && <RerankSample test={test.data.rerank} />}
+        {test.data.dimensions == null && test.data.reply == null && !test.data.moderation && !test.data.systemOne && !test.data.rerank && "The model responded."}
+        <TimingsText timings={test.data.timings} />
+      </Alert>
+      {test.data.thinkingOff && <ThinkingOffNote test={test.data.thinkingOff} />}
+    </>
   );
 }
 

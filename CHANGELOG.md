@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Follow-up suggestions with models that can't stop thinking** ([#7](https://github.com/ncecere/grounded/issues/7)). Some reasoning models ignore every way of turning thinking off, spent the suggestion call's whole 1,024-token budget reasoning and wrote nothing, so no chips appeared. The call is now retried once when it ends at the token limit with no text: with a larger budget (what the model reasoned plus 1,024 tokens when the gateway reports reasoning tokens, otherwise 4,096; never more) and a 20-second limit, so the chips appear, just later. Both calls' tokens are recorded.
+
+### Added
+
+- **The model Test checks "How to turn thinking off"** (#7). For a chat model with a way to turn thinking off, Test sends a second request the way an agent's Reasoning effort Off does and says whether the model still reasoned: "Thinking off isn't honoured by this model", with what that means, or that it works. `thinkingOff` on `ModelTestResult` in the API (additive).
+- The model call's trace span carries `gen_ai.usage.reasoning_tokens` when the gateway reports them.
+
 ## [0.4.3] - 2026-10-11
 
 A security patch. Grounded is now built with Go 1.26.9 and golang.org/x/net v0.60.0, which fix 13 advisories that `govulncheck` reported against Go 1.26.7 and x/net v0.59.0, mostly HTTP/2 and HTTP/1 flaws in `net/http`. Nothing else changes: no migrations and no new settings. The release notes are in [`docs/releases/v0.4.3.md`](docs/releases/v0.4.3.md).

@@ -447,7 +447,9 @@ type ModelTest struct {
 	Usage gateway.Usage
 	// Rerank models: the scores of the fixed test passages.
 	Rerank *RerankTest
-	Error  *ProbeError
+	// Chat models with a way to turn thinking off: whether the model honoured it (thinkingoff.go).
+	ThinkingOff *ThinkingOffTest
+	Error       *ProbeError
 }
 
 // TestModel sends a small request so admins can confirm the model works
@@ -497,6 +499,12 @@ func (s *Service) TestModel(ctx context.Context, a authz.Actor, id uuid.UUID) (M
 			reply = reply[:200]
 		}
 		res.Reply, res.Usage, res.OK = reply, out.Usage, true
+		// the ordinary test is done (and timed); thinking off is a second request, made the way the chat path makes it
+		if model := llm.ModelFromRow(m); model.Compat.ThinkingOff != "" {
+			pctx, cancel := context.WithTimeout(ctx, thinkingOffProbeTimeout)
+			defer cancel()
+			res.ThinkingOff = checkThinkingOff(pctx, llm.NewOpenAI(cl), model, user)
+		}
 	case KindRerank:
 		return testRerank(ctx, cl, m, user), nil
 	default:

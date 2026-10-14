@@ -23,7 +23,10 @@ import (
 // POST /v1/chat/completions answers deterministically, streamed as
 // chat.completion.chunk SSE when "stream" is true and as one
 // chat.completion otherwise. Every reply starts with three reasoning deltas
-// (FakeReasoning, sent as reasoning_content). The reply is chosen by the first
+// (FakeReasoning, sent as reasoning_content), except from a model whose ID
+// starts with FakeNoThinkPrefix when it is asked to turn thinking off
+// (reasoning_effort "none", or chat_template_kwargs enable_thinking false).
+// The reply is chosen by the first
 // matching rule, looking only at the last user message and the messages after
 // it ("the current question"):
 //

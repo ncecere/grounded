@@ -338,6 +338,7 @@ func (a *api) adminTestModel(w http.ResponseWriter, r *http.Request) {
 	out := apitypes.ModelTestResult{
 		Ok: res.OK, LatencyMs: res.Latency.Milliseconds(), Error: toAPIProxyError(res.Error),
 		Dimensions: res.Dimensions, DimensionsMatch: res.DimensionsMatch, Timings: probeTimings(r), Rerank: toAPIRerankTest(res.Rerank),
+		ThinkingOff: toAPIThinkingOff(res.ThinkingOff),
 	}
 	if res.OK {
 		out.Usage = toAPIUsage(res.Usage)
@@ -410,4 +411,19 @@ func (a *api) adminDeleteEmbeddingProfile(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeOK(w, r, a.Catalog.DeleteProfile(r.Context(), a.actor(r), id))
+}
+
+// toAPIThinkingOff is the thinking-off check of a chat model's Test (nil when it has no way to turn thinking off).
+func toAPIThinkingOff(t *catalog.ThinkingOffTest) *apitypes.ThinkingOffModelTest {
+	if t == nil {
+		return nil
+	}
+	out := &apitypes.ThinkingOffModelTest{Setting: t.Setting, Honoured: t.Honoured, Message: t.Message}
+	if t.ReasoningTokens > 0 {
+		out.ReasoningTokens = &t.ReasoningTokens
+	}
+	if t.Error != "" {
+		out.Error = &t.Error
+	}
+	return out
 }
