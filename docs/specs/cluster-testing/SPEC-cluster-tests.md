@@ -1,6 +1,6 @@
 # Spec: `cluster-tests`: Grounded's pre-push checks as Jobs on the cluster
 
-Status: **DRAFT** (2026-10-14). Decisions D1 settled by the owner; D2-D6 are recommendations, applied unless overruled.
+Status: **DRAFT** (2026-10-14). D1 settled by the owner; D2-D6 are recommendations, applied unless overruled (D2 amended the same day, see below).
 Part of [`SPEC.md`](SPEC.md) (module 2 of 4; needs `env-complete`, which is implemented). Tracks [#46](https://github.com/ncecere/grounded/issues/46).
 
 > Where the code lives: the tool is in the homelab repo (`ncecere/homelab`, private): `tools/dev-env/...` and
@@ -32,8 +32,12 @@ Not run: `k8s-smoke` (needs Docker and kind; see D3) and `image`, `upgrade`, `re
 
 - **D1 (owner, 2026-10-14): no resource limits**, like environments ("dev yields"). Each Job's wall time is recorded
   and printed so it can still be compared with GitHub's.
-- **D2: PostgreSQL 17 by default** (what CI and production run), `--postgres 18` to try the environments' version. The
-  suites already pass on 18 (run against a cluster environment during v0.4.4), so the choice costs nothing later.
+- **D2: PostgreSQL 18, as environments.** *Amended 2026-10-14, while planning:* the recommendation was 17 (what CI and
+  production run), but CloudNativePG publishes its pgvector extension image only for 18 (the dev areas' image catalog
+  says so; `pgvector:0.8.7-17-trixie` does not exist), so 17 would need a separate, hand-written Postgres template. The
+  suites already pass on 18 (run against cluster environments during v0.4.4) and GitHub CI stays the Postgres 17 gate.
+  A `--postgres 17` option (the `pgvector/pgvector:pg17` image CI uses, as a plain StatefulSet) is left until a failure
+  that only 17 shows justifies it.
 - **D3: `k8s-smoke` stays on GitHub only.** On the cluster, `dev-env up grounded <name>` + `grounded doctor` + the
   acceptance script (`tests/grounded_accept.py`) already prove a real deployment comes up, on real Kubernetes.
 - **D4: artifacts go to the run's own RustFS bucket** (`artifacts/<suite>/`), fetched with `dev-env test fetch`; logs
@@ -57,7 +61,7 @@ Not run: `k8s-smoke` (needs Docker and kind; see D3) and `image`, `upgrade`, `re
 ## Commands
 
 ```
-dev-env test grounded <name> --ref <ref> [--suite test,authz,e2e,ocr,k8s] [--postgres 17|18] [--keep]
+dev-env test grounded <name> --ref <ref> [--suite test,authz,e2e,ocr,k8s] [--keep]
 dev-env test fetch grounded <name> [--dest DIR]      # artifacts of the last run
 dev-env down grounded <name>                         # removes infrastructure, Jobs and artifacts
 ```
