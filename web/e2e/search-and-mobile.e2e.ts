@@ -10,6 +10,9 @@ import { expect, test } from "./support/fixtures";
  * page header keeps only its primary action.
  */
 
+// SEARCH_DEBOUNCE_MS in src/components/layout/search-commands.tsx (the specs do not import app code)
+const SEARCH_DEBOUNCE_MS = 180;
+
 test("⌘K stays responsive through quick open, type and close cycles with slow searches", async ({ as, admin, a11y }) => {
   const alex = await Api.signIn("alex");
   const team = await createTeam(admin, alex, { prefix: "palette" });
@@ -30,18 +33,23 @@ test("⌘K stays responsive through quick open, type and close cycles with slow 
   await a11y(page);
 
   const palette = page.getByRole("dialog", { name: "Command palette" });
+  let mayHaveSearched = 0;
   for (let i = 0; i < 15; i++) {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(palette.getByRole("combobox")).toBeFocused();
+    const typed = Date.now(); // before the word's input event, so the gap below is never under-counted
     // One input event per word: typed key by key, a slow runner can pause past the debounce mid-word and search.
     await page.keyboard.insertText(["transcript", "members", "audit log"][i % 3]!);
     // Every fifth cycle waits past the debounce, so a search is on its way when Escape comes.
     if (i % 5 === 4) await page.waitForTimeout(300);
     await page.keyboard.press("Escape");
+    // A search starts only if the debounce ran out before Escape. On a slow runner a cycle that was not meant to wait can still take that
+    // long to reach Escape, so the cycles that could search are measured, not assumed to be the three that wait on purpose.
+    if (Date.now() - typed >= SEARCH_DEBOUNCE_MS) mayHaveSearched++;
   }
   await expect(palette).toBeHidden();
-  // Only the cycles that waited searched, and closing cancelled them.
-  expect(searches).toBeLessThanOrEqual(3);
+  // Only the cycles that took longer than the debounce searched (without it, every one of the 15 would), and closing cancelled them.
+  expect(searches).toBeLessThanOrEqual(mayHaveSearched);
   await expect.poll(() => cancelled).toBe(searches);
   const started = Date.now();
   await page.evaluate(() => document.title);
