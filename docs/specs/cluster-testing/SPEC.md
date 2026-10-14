@@ -26,7 +26,7 @@ in-cluster image builds (both rejected earlier).
 | Module id | Responsibility | Depends on |
 |---|---|---|
 | `env-complete` | `dev-env up grounded` can add the OCR sidecar, the fake model server and the Demo seed, so ingestion, retrieval and chat work in an environment without external services | existing `dev-env` |
-| `cluster-tests` | The CI suites (Go tests, authorization matrix, Playwright e2e, OCR tests, manifest and dashboard validation) run as Jobs on the cluster against a branch, with logs and artifacts retrievable | `env-complete` (e2e) |
+| `cluster-tests` ([spec](SPEC-cluster-tests.md), draft) | The CI suites (Go tests, authorization matrix, Playwright e2e, OCR tests, manifest and dashboard validation) run as Jobs on the cluster against a branch, with logs and artifacts retrievable | `env-complete` (e2e) |
 | `cluster-walks` | QA walks and screenshot capture run against a cluster environment (headless browser through the port-forward), replacing the laptop capture stack | `env-complete` |
 | `laptop-retire` | The Grounded stack on the laptop is removed; AGENTS.md, CONTRIBUTING and the dev docs say what to do instead | `cluster-tests`, `cluster-walks` |
 
@@ -64,6 +64,8 @@ in this order, after the previous one is approved. This file is the index of wha
   sign-in (`POST /auth/dev`) and the fake models replace most of it.
 
 ## Decisions needed before the module specs can be final
+
+(Answered for `cluster-tests`: see [`SPEC-cluster-tests.md`](SPEC-cluster-tests.md), decisions D1 to D6.)
 
 1. Do the test Jobs run **without limits** like environments (consistent with "dev yields"), or with a fixed
    4 CPU / 16 GB so timings are comparable with GitHub runners? (`cluster-tests`)
