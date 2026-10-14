@@ -86,9 +86,7 @@ KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig python3 $DEVENV down grounded t1
 | `ocr` | the OCR sidecar tests against real Tesseract |
 | `k8s` | `make k8s-validate`, `make obs-validate` |
 
-The suites run in parallel against fresh Postgres 18, Valkey and S3, and the command prints each suite's result and wall time (a
-failed suite shows the step that failed and the end of its output) and exits non-zero if any failed. **GitHub CI is still the gate**:
-it runs Postgres 17 (production's version) and the `k8s-smoke`, `image`, `upgrade` and `release` jobs, which are not run here.
+The suites run in parallel. Each one's Job carries its own **Postgres 17 (production's pgvector image) and Valkey as sidecars** on localhost, as GitHub's `services:` do, and the run has one S3 server for the artifacts. The command prints each suite's result and wall time (a failed suite shows the step that failed and the end of its output) and exits non-zero if any failed. **GitHub CI is still the gate**: it also runs the `k8s-smoke`, `image`, `upgrade` and `release` jobs, which are not run here. (Environments, below, run Postgres 18; use one to check a change against 18.)
 The runner image comes from `Dockerfile.ci` (built by the `ci-image` workflow): a branch that changes it is tested with its own image
 once that workflow has finished. Like environments, a run has no limits, yields to production, expires (4 h by default) and goes
 with `down`; never leave one running.
