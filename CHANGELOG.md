@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deleting something that is in use now says so on PostgreSQL 18.** A delete that `ON DELETE RESTRICT` blocks (a model used by an embedding profile, a connection with models, an MCP server with tools, and the like) answers 409 `model_in_use` (or the matching code), as on PostgreSQL 17. PostgreSQL 18 reports that case as `restrict_violation` (SQLSTATE 23001) instead of `foreign_key_violation` (23503), and Grounded only recognised the second, so on 18 it answered 500. Production installs documented on PostgreSQL 17 were not affected.
+
 ## [0.4.4] - 2026-10-14
 
 Beta fixes: the chat says when an answer is waiting for the model, models that ignore "turn thinking off" are found and marked, everyone gets a Profile page with their API keys, and the OCR image moves to Debian 13. One migration (the schema moves from version 44 to 45); see [`docs/releases/v0.4.4.md`](docs/releases/v0.4.4.md) for upgrading.

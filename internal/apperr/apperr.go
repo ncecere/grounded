@@ -53,6 +53,9 @@ func As(err error) (*Error, bool) {
 const (
 	pgUniqueViolation     = "23505"
 	pgForeignKeyViolation = "23503"
+	// pgRestrictViolation is what PostgreSQL 18 reports for a delete that ON DELETE RESTRICT blocks; up to 17 it was
+	// 23503 as for any other foreign key.
+	pgRestrictViolation = "23001"
 )
 
 // IsUniqueViolation reports whether err is a unique violation on constraint
@@ -61,9 +64,10 @@ func IsUniqueViolation(err error, constraint string) bool {
 	return isPG(err, pgUniqueViolation, constraint)
 }
 
-// IsForeignKeyViolation reports whether err is a foreign-key violation.
+// IsForeignKeyViolation reports whether err is a foreign-key violation: a row refers to what was deleted (or what was
+// inserted refers to nothing), including PostgreSQL 18's restrict_violation for ON DELETE RESTRICT.
 func IsForeignKeyViolation(err error, constraint string) bool {
-	return isPG(err, pgForeignKeyViolation, constraint)
+	return isPG(err, pgForeignKeyViolation, constraint) || isPG(err, pgRestrictViolation, constraint)
 }
 
 func isPG(err error, code, constraint string) bool {
