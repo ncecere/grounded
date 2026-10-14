@@ -1,6 +1,7 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { baseURL, outputDir } from "./e2e/support/env";
+import { scaled } from "./test-scale";
 
 /*
  * End-to-end suite (web/e2e, README "End-to-end tests"). Playwright starts
@@ -30,8 +31,9 @@ export default defineConfig({
   forbidOnly: ci,
   retries: 0,
   workers: ci ? 4 : undefined,
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // every limit is multiplied by TEST_TIME_SCALE (1 unless set, test-scale.ts) for slower or shared machines
+  timeout: scaled(60_000),
+  expect: { timeout: scaled(10_000) },
   reporter: ci
     ? [["list"], ["github"], ["html", { outputFolder: path.join(outputDir, "report"), open: "never" }]]
     : [["list"], ["html", { outputFolder: path.join(outputDir, "report"), open: "never" }]],
@@ -40,7 +42,7 @@ export default defineConfig({
     trace: ci ? "retain-on-failure" : "on-first-retry",
     screenshot: "only-on-failure",
     reducedMotion: "reduce",
-    actionTimeout: 15_000,
+    actionTimeout: scaled(15_000),
     locale: "en-US",
     timezoneId: "UTC",
   },
@@ -55,7 +57,7 @@ export default defineConfig({
     cwd: root,
     url: `${baseURL}/readyz`,
     reuseExistingServer: !ci,
-    timeout: 180_000,
+    timeout: scaled(180_000),
     gracefulShutdown: { signal: "SIGTERM", timeout: 30_000 },
     stdout: "pipe",
     stderr: "pipe",

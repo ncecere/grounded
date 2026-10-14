@@ -1,5 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { scaled } from "./test-scale";
 
 // In development the Go server runs on :8080 and Vite proxies API and auth
 // routes to it, so the browser sees a single origin.
@@ -42,6 +43,7 @@ export default defineConfig({
     css: false,
     // Headroom for loaded CI runners (2 vCPUs, jsdom): heavy admin pages
     // took over the 5 s default there. A limit, not a delay.
-    testTimeout: 20_000,
+    // times TEST_TIME_SCALE (1 unless set, test-scale.ts) for slower or shared machines
+    testTimeout: scaled(20_000),
   },
 });
