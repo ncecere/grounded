@@ -6,13 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Changed
+## [0.4.4] - 2026-10-14
 
-- **The OCR image is built on Debian 13 (trixie) instead of Debian 12.** Tesseract is 5.5.0 instead of 5.3.0, and the image scan finds 327 unfixed Debian findings instead of 415 (1 critical instead of 3, 76 high instead of 88; none has a fix available in either). The language packs are the same. Recognised text can differ slightly from the older engine's; a derived image (`FROM ghcr.io/ncecere/grounded-ocr`) keeps working, but check any `apt-get install` of extra languages against Debian 13's package names (#56).
-
-### Fixed
-
-- **Follow-up suggestions with models that can't stop thinking** ([#7](https://github.com/ncecere/grounded/issues/7)). Some reasoning models ignore every way of turning thinking off, spent the suggestion call's whole 1,024-token budget reasoning and wrote nothing, so no chips appeared. The call is now retried once when it ends at the token limit with no text: with a larger budget (what the model reasoned plus 1,024 tokens when the gateway reports reasoning tokens, otherwise 4,096; never more) and a 20-second limit, so the chips appear, just later. Both calls' tokens are recorded.
+Beta fixes: the chat says when an answer is waiting for the model, models that ignore "turn thinking off" are found and marked, everyone gets a Profile page with their API keys, and the OCR image moves to Debian 13. One migration (the schema moves from version 44 to 45); see [`docs/releases/v0.4.4.md`](docs/releases/v0.4.4.md) for upgrading.
 
 ### Added
 
@@ -21,6 +17,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The model call's trace span carries `gen_ai.usage.reasoning_tokens` when the gateway reports them.
 - **"Working on it…" while an answer waits for capacity.** When a request to the model's connection queues behind its requests-per-minute limit, or a SystemOne request queues for a busy slot, for about a second or more, the chat shows "Working on it…" under the agent's avatar (and says it once to screen readers) instead of a status that stands still. The step the reader was on comes back when the wait is over, and nothing is shown once the model starts writing. The API's `status` event has a new step, `waiting` (additive: clients ignore steps they don't know). Roadmap G22.
 - **A Profile page and your API keys in the account menu** (roadmap E18). **Profile** (`/settings/profile`) shows your name, email, when you joined and last signed in, and your teams with your role in each, with links to Notification settings, Connected apps and API keys. **API keys** (`/settings/api-keys`) lists your personal keys in every team you belong to, with a link to each key's page in the team's settings and to **Create a key** there. A team that fails to load shows its own error and does not hide the others. Both are in the command palette. No API change.
+
+### Changed
+
+- **The OCR image is built on Debian 13 (trixie) instead of Debian 12.** Tesseract is 5.5.0 instead of 5.3.0, and the image scan finds 327 unfixed Debian findings instead of 415 (1 critical instead of 3, 76 high instead of 88; none has a fix available in either). The language packs are the same. Recognised text can differ slightly from the older engine's; a derived image (`FROM ghcr.io/ncecere/grounded-ocr`) keeps working, but check any `apt-get install` of extra languages against Debian 13's package names (#56).
+- **Dependencies:** 24 Go modules (including River 0.47 to 0.49, whose own schema moves to version 8 at startup with a no-op migration; OpenTelemetry 1.47; the AWS SDK), the web group's minor and patch updates, and the GitHub Actions used by CI. The development-only `source-map-js` advisory (GHSA-68fv-2mgg-jv7q) is fixed.
+
+### Fixed
+
+- **Follow-up suggestions with models that can't stop thinking** ([#7](https://github.com/ncecere/grounded/issues/7)). Some reasoning models ignore every way of turning thinking off, spent the suggestion call's whole 1,024-token budget reasoning and wrote nothing, so no chips appeared. The call is now retried once when it ends at the token limit with no text: with a larger budget (what the model reasoned plus 1,024 tokens when the gateway reports reasoning tokens, otherwise 4,096; never more) and a 20-second limit, so the chips appear, just later. Both calls' tokens are recorded.
 
 ## [0.4.3] - 2026-10-11
 
