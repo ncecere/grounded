@@ -237,4 +237,39 @@ describe("Conversations page", () => {
     const items = await screen.findAllByRole("menuitem");
     expect(items.map((i) => i.textContent)).toEqual(["Rename…", "Export as Markdown", "Export as JSON", "Delete…"]);
   });
+
+  it("keeps the list, and a row's open menu, while a changed search is loading", async () => {
+    const user = userEvent.setup();
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const calls = mockApi({
+      ...shellRoutes(),
+      "GET /v1/agents": () => [card()],
+      "GET /v1/conversations": async (_b, call) => {
+        if (call.search.get("limit") === "5") return { items: [], nextCursor: null };
+        if (call.search.has("q")) return { items: [conversation("c1", "Transcript request", new Date().toISOString())], nextCursor: "more" };
+        await held; // the cleared search's list is slow
+        return {
+          items: [conversation("c1", "Transcript request", new Date().toISOString()), conversation("c2", "Weekly standup", new Date().toISOString())],
+          nextCursor: null,
+        };
+      },
+    });
+    renderApp("/conversations?q=transcript");
+    await screen.findByRole("link", { name: /Transcript request/ });
+    await user.clear(screen.getByRole("searchbox", { name: "Search conversations" }));
+    await user.click(screen.getByRole("button", { name: "Actions for Transcript request" }));
+    expect(await screen.findAllByRole("menuitem")).toHaveLength(4);
+
+    // The debounced text changes and its list is requested: until it answers, the old rows stay (no skeleton in their place) and the menu stays open.
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/conversations" && c.search.get("limit") === "50" && !c.search.has("q"))).toBe(true));
+    expect(screen.queryByRole("status", { name: "Loading conversations…" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Transcript request/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    // The old list's next page is not the new list's: no Load more until it arrives (TanStack derives hasNextPage from the new query's own data).
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+
+    release();
+    expect(await screen.findByRole("link", { name: /Weekly standup/ })).toBeInTheDocument();
+  });
 });
