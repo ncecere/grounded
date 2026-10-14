@@ -1,0 +1,91 @@
+# The runner image of the cluster test Jobs: ghcr.io/ncecere/grounded-ci:<first 12 characters of the hash of
+# Dockerfile.ci> (docs/specs/cluster-testing/SPEC-cluster-tests.md, D6). Built when Dockerfile.ci changes, on any branch
+# (a branch that changes it tests with its own image), and skipped when that tag is already published.
+#
+# A development tool: linux/amd64, no provenance or SBOM, never shipped or scanned.
+name: ci-image
+
+on:
+  push:
+    branches: ['**']
+    paths: ['Dockerfile.ci', '.github/workflows/ci-image.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build grounded-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Name the image
+        id: name
+        run: |
+          set -euo pipefail
+          hash="$(sha256sum Dockerfile.ci | cut -c1-12)"
+          {
+            echo "tag=$hash"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grounded-ci"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Already published?
+        id: exists
+        env:
+          REF: ${{ steps.name.outputs.image }}:${{ steps.name.outputs.tag }}
+        run: |
+          if docker buildx imagetools inspect "$REF" >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "\`$REF\` is already published; nothing to build." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        id: build
+        if: steps.exists.outputs.published != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile.ci
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.name.outputs.image }}:${{ steps.name.outputs.tag }}
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=grounded-ci
+          cache-to: type=gha,scope=grounded-ci,mode=max
+
+      - name: Summary
+        if: steps.exists.outputs.published != 'true'
+        env:
+          REF: ${{ steps.name.outputs.image }}:${{ steps.name.outputs.tag }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "\`$REF\`"
+            echo ""
+            echo "digest \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"

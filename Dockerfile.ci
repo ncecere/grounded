@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+#
+# grounded-ci: the runner image of the cluster test Jobs (dev-env test grounded <name> --ref <ref>, in the homelab repo;
+# docs/specs/cluster-testing/SPEC-cluster-tests.md, decision D6). Everything the `ci` workflow's suites need except the
+# services (Postgres, Valkey and S3 are the environment's): Go, Node 22, the system libraries of Playwright's Chromium,
+# Tesseract, sqlc, make, git, jq, and mc to upload artifacts. The code is cloned by the Job, not baked in; Go modules,
+# npm packages and the Chromium download live on the shared cache volume.
+#
+# The image is tagged with the hash of this file (see ci-image.yml), so changing it publishes a new image that a ref
+# containing the change selects by itself. Not scanned or signed: a development tool, never shipped.
+
+FROM golang:1.26-bookworm
+
+# Go fetches the exact toolchain go.mod asks for (GOTOOLCHAIN=auto) into the module cache on first use.
+ENV GOTOOLCHAIN=auto \
+    GOBIN=/usr/local/bin \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      jq make git curl ca-certificates unzip tesseract-ocr tesseract-ocr-eng \
+ && rm -rf /var/lib/apt/lists/*
+
+# Node 22, as CI's setup-node installs it.
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# The system libraries of Chromium (the browser itself is downloaded into PLAYWRIGHT_BROWSERS_PATH, on the cache volume,
+# at the version the repository's lockfile asks for, so this file does not change with Playwright).
+RUN npx --yes playwright@1.63.0 install-deps chromium \
+ && rm -rf /var/lib/apt/lists/* /root/.npm
+
+# sqlc at the version CI installs (make generate and check-generated).
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 && rm -rf /go/pkg /root/.cache
+
+# The object-store client CI already uses, to upload artifacts to the run's bucket.
+COPY --from=pgsty/mc:RELEASE.2026-09-16T00-00-00Z /usr/bin/mc /usr/local/bin/mc
+
+ENV GOMODCACHE=/cache/go/mod \
+    GOCACHE=/tmp/go-build \
+    npm_config_cache=/cache/npm \
+    PLAYWRIGHT_BROWSERS_PATH=/cache/ms-playwright \
+    HOME=/tmp/home
+WORKDIR /work

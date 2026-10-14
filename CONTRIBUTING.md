@@ -50,6 +50,8 @@ Never commit `.env`, `ai.env` (credentials for a real model gateway) or anything
 
 CI's `test` job runs, in order: `make check-generated`, `make lint`, `npm run check:styling` (in `web/`), `make web-test`, `make test SKIP_AUTHZ=1` and `make web build`; the `authz` job runs `make test-authz` alongside it. Run the same (or plain `make test`, which includes the matrix) before opening a pull request. The required checks on `main` are `test`, `authz`, `e2e`, `k8s` and `k8s-smoke`.
 
+The same suites can run on the homelab cluster instead of the laptop (`dev-env test grounded <name> --ref <branch>`; see [`AGENTS.md`](AGENTS.md)). GitHub CI stays the gate.
+
 ## Code style
 
 - **Go:** `gofmt` (`make fmt`). `make lint` runs gofmt, `go vet`, staticcheck, govulncheck and the size and complexity guards below, and must pass.
