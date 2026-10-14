@@ -1,0 +1,199 @@
+{
+ "widths": [
+  1440,
+  1280,
+  390
+ ],
+ "pages": [
+  {
+   "persona": "admin",
+   "path": "/"
+  },
+  {
+   "persona": "admin",
+   "path": "/agents"
+  },
+  {
+   "persona": "admin",
+   "path": "/conversations"
+  },
+  {
+   "persona": "admin",
+   "path": "/notifications"
+  },
+  {
+   "persona": "admin",
+   "path": "/settings/profile"
+  },
+  {
+   "persona": "admin",
+   "path": "/settings/api-keys"
+  },
+  {
+   "persona": "admin",
+   "path": "/settings/notifications"
+  },
+  {
+   "persona": "admin",
+   "path": "/settings/connected-apps"
+  },
+  {
+   "persona": "admin",
+   "path": "/a/demo/go-docs"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/sources"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/kbs"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/agents"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/evaluations"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/gaps"
+  },
+  {
+   "persona": "admin",
+   "path": "/teams/demo/settings"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/agents"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/users"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/teams"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/connections"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/models"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/classifications"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/systemone"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/reranking"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/parsing"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/public-access"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/maintenance"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/settings"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/analytics"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/costs"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/moderation"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/logs"
+  },
+  {
+   "persona": "auditor",
+   "path": "/"
+  },
+  {
+   "persona": "auditor",
+   "path": "/admin"
+  },
+  {
+   "persona": "auditor",
+   "path": "/admin/users"
+  },
+  {
+   "persona": "auditor",
+   "path": "/admin/models"
+  },
+  {
+   "persona": "auditor",
+   "path": "/admin/analytics"
+  },
+  {
+   "persona": "auditor",
+   "path": "/admin/logs"
+  },
+  {
+   "persona": "user",
+   "path": "/"
+  },
+  {
+   "persona": "user",
+   "path": "/agents"
+  },
+  {
+   "persona": "user",
+   "path": "/conversations"
+  },
+  {
+   "persona": "user",
+   "path": "/settings/profile"
+  },
+  {
+   "persona": "user",
+   "path": "/settings/api-keys"
+  },
+  {
+   "persona": "user",
+   "path": "/settings/notifications"
+  },
+  {
+   "persona": "user",
+   "path": "/settings/connected-apps"
+  }
+ ],
+ "allow": [
+  {
+   "match": "404 GET /v1/teams/[^/]+/spend",
+   "reason": "costs_off: the team's cost mode is off (the Demo team's), so the spend endpoint answers 404 as documented; the UI treats it as 'off' but the browser logs it. See the issue about asking only when cost mode is on."
+  }
+ ]
+}
