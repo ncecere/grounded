@@ -27,7 +27,7 @@ in-cluster image builds (both rejected earlier).
 |---|---|---|
 | `env-complete` | `dev-env up grounded` can add the OCR sidecar, the fake model server and the Demo seed, so ingestion, retrieval and chat work in an environment without external services | existing `dev-env` |
 | `cluster-tests` ([spec](SPEC-cluster-tests.md), draft) | The CI suites (Go tests, authorization matrix, Playwright e2e, OCR tests, manifest and dashboard validation) run as Jobs on the cluster against a branch, with logs and artifacts retrievable | `env-complete` (e2e) |
-| `cluster-walks` | QA walks and screenshot capture run against a cluster environment (headless browser through the port-forward), replacing the laptop capture stack | `env-complete` |
+| `cluster-walks` ([spec](SPEC-cluster-walks.md), draft) | QA walks and screenshot capture run against a cluster environment (headless browser through the port-forward), replacing the laptop capture stack | `env-complete` |
 | `laptop-retire` | The Grounded stack on the laptop is removed; AGENTS.md, CONTRIBUTING and the dev docs say what to do instead | `cluster-tests`, `cluster-walks` |
 
 Build order: `env-complete` -> `cluster-tests` and `cluster-walks` (independent, either order) -> `laptop-retire`.
