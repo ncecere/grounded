@@ -299,9 +299,14 @@ describe("Add to evaluations", () => {
     await userEvent.keyboard("{Escape}");
     await userEvent.type(within(dialog).getByRole("textbox", { name: /URLs and filenames/ }), "https://example.edu/bursar*{Enter}");
     expect(await axe(dialog)).toHaveNoViolations();
+    // The form checks the expected documents as it is filled in (a debounced POST to evaluation-question-check), which on a slow
+    // machine lands before the click: wait for it, so the test always sees it, and pick the two requests it means by their address.
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith("/evaluation-question-check"))).toBe(true));
     await userEvent.click(within(dialog).getByRole("button", { name: "Add question" }));
-    await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(2));
-    const [created, added] = calls.filter((c) => c.method === "POST");
+    const mine = (suffix: string) => calls.filter((c) => c.method === "POST" && c.url.endsWith(suffix));
+    await waitFor(() => expect(mine("/evaluation-sets/set7/questions")).toHaveLength(1));
+    const created = mine("/evaluation-sets")[0];
+    const added = mine("/evaluation-sets/set7/questions")[0];
     expect(created!.body).toEqual({ agentId: "ag1", name: "Helper questions" });
     expect(added!.body).toEqual({ question: "Where is the bursar?", expected: { documentIds: [], urls: ["https://example.edu/bursar*"], filenames: [] }, mustMention: [], note: "" });
   });
