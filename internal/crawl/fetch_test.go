@@ -233,6 +233,16 @@ func TestContextHostPolicy(t *testing.T) {
 	}))
 	defer srv.Close()
 	f := privateFetcher(FetcherConfig{RespectRobots: true})
+	// The redirect names the host "localhost", which must resolve to this machine. The fetcher asks for the absolute name
+	// "localhost." (so a worker's DNS search list never expands it), and whether that is answered depends on the machine's
+	// DNS: a runner's resolver does, a cluster's CoreDNS says no such host. The test supplies the answer itself.
+	dns := f.lookup
+	f.lookup = func(ctx context.Context, host string) ([]netip.Addr, error) {
+		if strings.TrimSuffix(host, ".") == "localhost" {
+			return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
+		}
+		return dns(ctx, host)
+	}
 	onlyLoopbackIP := WithHostPolicy(context.Background(), hostPolicyFunc(func(h string) bool { return h == "127.0.0.1" }))
 	if _, err := f.Fetch(onlyLoopbackIP, srv.URL+"/page"); err != nil {
 		t.Fatalf("allowed host: %v", err)
