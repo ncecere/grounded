@@ -1,6 +1,6 @@
 # Spec: `cluster-walks`: QA walks and screenshot capture against a cluster environment
 
-Status: **DRAFT** (2026-10-14). The decisions below are recommendations, applied unless overruled.
+Status: **IMPLEMENTED** (2026-10-14) as written, with the changes noted under *As built*.
 Part of [`SPEC.md`](SPEC.md) (module 3 of 4; needs `env-complete` and, for the runner image, `cluster-tests`). Tracks [#47](https://github.com/ncecere/grounded/issues/47).
 
 > Where the code lives: the capture script and its manifest are here (`web/walk/`), because they change with the UI. The command
@@ -44,10 +44,22 @@ screenshots.
 - **W5: screenshots are not committed.** They are artifacts of a run, compared by eye or by the report. Screenshots for the docs and
   the website stay a separate, deliberate step.
 
+## As built
+
+- **The loopback forwarder is a 30-line Node module** (`web/walk/forward.mjs`, started by `capture.mjs` when `WALK_TARGET` is set), not `socat`,
+  so `Dockerfile.ci` and the runner image did not change.
+- **`--manifest FILE` does not exist**: a ref carries its own manifest (`web/walk/walks.json`), so `--ref` chooses it. The flags are
+  `--ref` (default `main`), `--persona` and `--width`.
+- **An allow-list with a reason for each entry** (`allow` in the manifest) names console messages that are expected, matched on the whole
+  message; the report counts what was allowed, so nothing is hidden. One entry today: `404 GET /v1/teams/<team>/spend`, which the API answers
+  as documented while a team's cost mode is off, and which the browser logs as an error.
+- A failed request is recorded with its status and path rather than the browser's anonymous "Failed to load resource" line.
+- The Job is the environment's `walk` suite (label `dev.bitop.dev/suite=walk`), so waiting, logs, failure details, `fetch` and `down` are the
+  ones `cluster-tests` has. `dev-env walk fetch` is `dev-env test fetch`.
+
 ## Assumptions (correct me)
 
-1. The runner image needs one addition for W1, a loopback forwarder (`socat`), which changes `Dockerfile.ci` and so its tag; the
-   `ci-image` workflow publishes the new image and the command picks it up from the ref's file, as `cluster-tests` does.
+1. ~~The runner image needs a loopback forwarder (`socat`).~~ Not needed; see *As built*.
 2. The manifest covers the pages of the six personas that the Demo seed gives content to; pages that need other data (a failed
    document, a spend report) are reached by a named flow, later.
 3. A walk of the full manifest (about 60 pages at three widths) takes a few minutes on the cluster.
@@ -55,7 +67,7 @@ screenshots.
 ## Commands
 
 ```
-dev-env walk grounded <name> [--persona admin,alex,...] [--widths 1440,1280,390] [--manifest FILE]   # default: the ref's web/walk/walks.json
+dev-env walk grounded <name> [--ref main] [--persona admin,alex,...] [--width 1440,1280,390]   # the manifest of the ref's web/walk/walks.json
 dev-env walk fetch grounded <name> [--dest DIR]       # screenshots, report.json, the page and console logs
 ```
 
