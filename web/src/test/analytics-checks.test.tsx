@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -88,7 +89,7 @@ describe("an agent's Analytics › Checks", () => {
   it("shows the SystemOne cards in Checks, not in Quality", async () => {
     mockApi(agentRoutes(true));
     const { container, router } = renderApp("/teams/registrar/agents/ag1?tab=analytics&view=quality");
-    expect(await screen.findByRole("region", { name: "Answers" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Answers" }, { timeout: scaled(5000) })).toBeInTheDocument();
     for (const name of systemOneRegions) expect(screen.queryByRole("region", { name })).toBeNull();
     const views = screen.getByRole("group", { name: "Analytics section" });
     await userEvent.click(within(views).getByRole("button", { name: "Checks" }));
@@ -100,7 +101,7 @@ describe("an agent's Analytics › Checks", () => {
   it("has no Checks view without a SystemOne model", async () => {
     mockApi(agentRoutes(false));
     renderApp("/teams/registrar/agents/ag1?tab=analytics&view=checks");
-    expect(await screen.findByRole("region", { name: "Key figures" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Key figures" }, { timeout: scaled(5000) })).toBeInTheDocument();
     const views = screen.getByRole("group", { name: "Analytics section" });
     expect(within(views).queryByRole("button", { name: "Checks" })).toBeNull();
     expect(within(views).getByRole("button", { name: "Usage" })).toHaveAttribute("aria-pressed", "true");
@@ -111,7 +112,7 @@ describe("an agent's Analytics › Gaps", () => {
   it("has no date range: gap topics aren't by period (own-10)", async () => {
     mockApi({ ...agentRoutes(false), "GET /v1/teams/registrar/gap-topics": () => ({ topics: [], pending: 0, ungrouped: 0, minAskers: 3 }) });
     renderApp("/teams/registrar/agents/ag1?tab=analytics&view=quality");
-    expect(await screen.findByLabelText("Analytics period", undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Analytics period", undefined, { timeout: scaled(5000) })).toBeInTheDocument();
     const views = screen.getByRole("group", { name: "Analytics section" });
     await userEvent.click(within(views).getByRole("button", { name: "Gaps" }));
     expect(await screen.findByText("No open topics.")).toBeInTheDocument();

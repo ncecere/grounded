@@ -7,6 +7,7 @@ import { initialProfileForm, missingPrefixes, prefillPrefixes, profileBody, prof
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { KBSettings } from "../pages/team/kbs/settings";
 import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
+import { scaled } from "../../test-scale";
 
 /* Self-hosted model compatibility (DESIGN.md §6, §10): chat compat fields (tool choice, extra request fields), embedding output dimensions, profile fusion defaults and where a knowledge base's weights come from. */
 
@@ -35,7 +36,7 @@ describe("admin model compatibility fields", () => {
       "PATCH /v1/admin/models/m1": (body) => ({ ...chat, ...(body as object) }),
     });
     renderApp("/admin/models");
-    await userEvent.click(await screen.findByRole("button", { name: "Actions for Qwen" }, { timeout: 4000 }));
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for Qwen" }, { timeout: scaled(4000) }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
     const dialog = await screen.findByRole("region", { name: /^Edit Qwen/ });
     // A bitop-ui Disclosure (G8): a button that says whether it's expanded.
@@ -74,7 +75,7 @@ describe("admin model compatibility fields", () => {
     const qwen = { ...chat, compat: { thinkingOff: "enable_thinking_false", supportsReasoningEffort: false, extraBody: { top_k: 20 } } };
     mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/connections": () => [connection], "GET /v1/admin/models": () => [qwen] });
     const { container } = renderApp("/admin/models?record=m1");
-    const sheet = await screen.findByRole("region", { name: "Qwen" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Qwen" }, { timeout: scaled(4000) });
     expect(within(sheet).getByRole("heading", { name: "Compatibility" })).toBeInTheDocument();
     expect(within(sheet).getByText('chat_template_kwargs: {"enable_thinking": false}')).toBeInTheDocument();
     expect(within(sheet).getByText('{"top_k":20}')).toBeInTheDocument();
@@ -90,7 +91,7 @@ describe("admin model compatibility fields", () => {
       "PATCH /v1/admin/connections/c1": (body) => ({ ...connection, ...(body as object) }),
     });
     renderApp("/admin/connections?record=c1");
-    const sheet = await screen.findByRole("region", { name: "Self-hosted" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Self-hosted" }, { timeout: scaled(4000) });
     expect(within(sheet).getByText("Unlimited")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: /Delete/ })).toHaveAccessibleDescription("Remove or move this connection's models to delete it.");
     await userEvent.click(within(sheet).getByRole("button", { name: /Edit/ }));

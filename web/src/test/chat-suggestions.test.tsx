@@ -10,6 +10,7 @@ import { ShowSuggestions, suggestionsArrived } from "../pages/chat/show-suggesti
 import { type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { type Handler, findParagraph, mockApi, openSSE, renderApp, renderBare, shellRoutes, sse } from "./harness";
+import { scaled } from "../../test-scale";
 
 const card = {
   id: "ag1", teamSlug: "registrar", teamName: "Office of the Registrar", slug: "registrar-assistant", name: "Registrar assistant",
@@ -242,13 +243,13 @@ describe("the agent's setting", () => {
       "PATCH /v1/teams/registrar/agents/ag1": (b) => ag({ ...draft, ...(b as { config: object }).config }),
     });
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
     const sw = screen.getByRole("switch", { name: /Suggest follow-up questions/ });
     expect(sw).toBeChecked();
     expect(sw).toHaveAccessibleDescription(/up to 3 questions its sources can answer/);
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(sw);
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { followUpSuggestions: boolean } }).config.followUpSuggestions).toBe(false);
-  }, 15_000);
+  }, scaled(15_000));
 });

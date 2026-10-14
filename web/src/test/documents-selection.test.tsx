@@ -6,6 +6,7 @@ import { SourceDetail } from "../pages/sources/detail";
 import { decodeForDisplay } from "../pages/team/documents/status";
 import { urlPath } from "../pages/team/documents/table";
 import { common, counts, mockApi, renderWith, webSource } from "./web-harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -120,8 +121,8 @@ describe("a retried document that fails again (BU-11)", () => {
     expect(await screen.findByText(/match these filters/)).toBeInTheDocument();
     // The worker fails it again; the source's counts change on its next poll.
     state = "failed-again";
-    expect(await screen.findByRole("checkbox", { name: "Select Broken scan" }, { timeout: 8000 })).not.toBeChecked();
-  }, 12_000);
+    expect(await screen.findByRole("checkbox", { name: "Select Broken scan" }, { timeout: scaled(8000) })).not.toBeChecked();
+  }, scaled(12_000));
 });
 
 describe("web page titles (VI-10)", () => {

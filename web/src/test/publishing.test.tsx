@@ -6,6 +6,7 @@ import { type Schemas, setCsrfToken } from "../api/client";
 import { embedSnippet, originProblem } from "../pages/agents/share/snippet";
 import { publicRef } from "../pages/public/session";
 import { type Handler, Reply, findParagraph, mockApi, renderApp, shellRoutes, sse } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -377,7 +378,7 @@ describe("agent editor sharing", () => {
   it("Share starts with the audience options, each with why it isn't available", async () => {
     mockApi(editorRoutes());
     const { container } = renderApp("/teams/registrar/agents/ag1?tab=share");
-    const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: 5000 });
+    const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: scaled(5000) });
     // The selected option says why it can't be published, rather than "Not available".
     await waitFor(() => expect(within(group).getByText(/You can't publish to it: A platform admin must set a public moderation policy/)).toBeInTheDocument());
     expect(within(group).getByRole("radio", { name: /Public/ })).toBeChecked();
@@ -407,7 +408,7 @@ describe("agent editor sharing", () => {
       ...shellRoutes("none", "editor"),
     });
     renderApp("/teams/registrar/agents/ag1?tab=share");
-    const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: 5000 });
+    const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: scaled(5000) });
     const signedIn = within(group).getByRole("radio", { name: /Signed-in users/ });
     await waitFor(() => expect(signedIn).not.toHaveAttribute("data-disabled"));
     expect(within(group).getByText(/The live version uses it\. You can't publish to it/)).toBeInTheDocument();
@@ -426,7 +427,7 @@ describe("agent editor sharing", () => {
     );
     const { container, router } = renderApp("/teams/registrar/agents/ag1?tab=share");
     expect(await screen.findByRole("tab", { name: "Share", selected: true })).toBeInTheDocument();
-    expect(await screen.findByText("https://rag.example.edu/a/registrar-help", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("https://rag.example.edu/a/registrar-help", {}, { timeout: scaled(5000) })).toBeInTheDocument();
     // F-07: the short address comes first; the page says which work signed out.
     expect(screen.getByText("Not published yet: the links work once a version is published.")).toBeInTheDocument();
     const [short, id, team] = ["https://rag.example.edu/a/registrar-help", "https://rag.example.edu/a/id/ag1", "https://rag.example.edu/a/registrar/registrar-help"].map((t) => screen.getByText(t));

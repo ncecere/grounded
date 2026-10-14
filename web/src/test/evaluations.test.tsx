@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import { Reply, mockApi, renderApp } from "./harness";
 import { evalRoutes, meWithEvals, questions, result, set } from "./evaluations-fixtures";
 import { fitCrumbs } from "../components/layout/breadcrumbs";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -14,7 +15,7 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 describe("a knowledge base's Evaluations tab", () => {
   it("lists the sets for editors and creates one", async () => {

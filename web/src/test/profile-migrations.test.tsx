@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { durationText, graceText, percent } from "../pages/admin/profile-migrations/common";
 import { mockApi, Reply, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -103,7 +104,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("lists migrations with a meter, opens one with per-source progress and failures, and retries with If-Match", async () => {
     const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/m1/retry": () => ({ ...running, progress: { ...running.progress, failed: 0 }, failures: [], revision: 4 }) }));
     const { container } = renderApp("/admin/embedding-profiles?tab=migrations");
-    const table = await screen.findByRole("table", { name: "Profile migrations" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Profile migrations" }, { timeout: scaled(4000) });
     expect(await within(table).findByRole("meter", { name: "Progress of Student handbook" })).toHaveAttribute("aria-valuetext", "12 of 40 documents");
     expect(within(table).getByText(/Old vectors are kept for \d+ more days/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -122,7 +123,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("switches back after a confirmation", async () => {
     const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/m2/switch-back": () => ({ ...switched, status: "switched_back", canSwitchBack: false, revision: 6 }) }));
     renderApp("/admin/embedding-profiles?tab=migrations&record=m2");
-    const sheet = await screen.findByRole("region", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: scaled(4000) });
     expect(within(sheet).getByRole("button", { name: "Delete old vectors now" })).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Switch back" }));
     const confirm = await screen.findByRole("alertdialog", { name: "Switch Advising back to Nomic 768?" });
@@ -140,7 +141,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
       }),
     );
     const { container } = renderApp("/admin/embedding-profiles?tab=migrations&start=k1");
-    const dialog = await screen.findByRole("dialog", { name: "Migrate a knowledge base" }, { timeout: 4000 });
+    const dialog = await screen.findByRole("dialog", { name: "Migrate a knowledge base" }, { timeout: scaled(4000) });
     await waitFor(() => expect(within(dialog).getByRole("combobox", { name: "Knowledge base" })).toHaveValue("k1"));
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Target profile" }), "p2");
     expect(await within(dialog).findByText("The knowledge base holds data above Sensitive.")).toBeInTheDocument();
@@ -163,7 +164,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("redirects the old Profile migrations address to the tab, keeping ?record= and ?start=", async () => {
     mockApi(routes());
     const { router } = renderApp("/admin/profile-migrations?record=m2");
-    expect(await screen.findByRole("region", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/admin/embedding-profiles");
     expect(router.state.location.search).toEqual({ tab: "migrations", record: "m2" });
     await router.navigate({ href: "/admin/profile-migrations?start=k1" });
@@ -174,7 +175,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("puts the header's primary with the tab: Add profile on Profiles, Migrate a knowledge base on Migrations", async () => {
     mockApi(routes({ "GET /v1/admin/catalog-usage": () => ({ profiles: [], models: [] }) }));
     const { container } = renderApp("/admin/embedding-profiles");
-    expect(await screen.findByRole("heading", { level: 1, name: "Embedding profiles" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Embedding profiles" }, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(await screen.findByRole("table", { name: "Embedding profiles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add profile" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Migrate a knowledge base" })).toBeNull();
@@ -188,7 +189,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("keeps one primary on an empty Migrations tab: the empty state and filters don't repeat the header", async () => {
     mockApi(routes({ "GET /v1/admin/profile-migrations": () => [] }));
     const { container } = renderApp("/admin/embedding-profiles?tab=migrations");
-    expect(await screen.findByText("No profile migrations yet.", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("No profile migrations yet.", {}, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Migrate a knowledge base" })).toHaveLength(1);
     expect(screen.queryByRole("group", { name: "Status" })).toBeNull();
     // One description for both tabs, so the tab strip doesn't move.
@@ -199,7 +200,7 @@ describe("Admin → Embedding profiles › Migrations", () => {
   it("is read-only for auditors", async () => {
     mockApi({ ...routes(), ...shellRoutes("platform_auditor"), "GET /v1/admin/profile-migrations/m1": () => running, "GET /v1/admin/profile-migrations": () => [running] });
     renderApp("/admin/embedding-profiles?tab=migrations&record=m1");
-    const sheet = await screen.findByRole("region", { name: /Student handbook/ }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: /Student handbook/ }, { timeout: scaled(4000) });
     expect(within(sheet).queryByRole("button", { name: "Cancel migration" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Migrate a knowledge base" })).toBeNull();
   });
@@ -228,7 +229,7 @@ describe("the knowledge base's migration", () => {
       "GET /v1/teams/registrar/agents": () => [],
     });
     const { container } = renderApp("/teams/registrar/kbs/k1");
-    expect(await screen.findByText("Moving to the embedding profile Qwen3 768", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("Moving to the embedding profile Qwen3 768", {}, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "Documents re-embedded" })).toHaveAttribute("aria-valuetext", "12 of 40 documents");
     expect(screen.queryByRole("button", { name: "Manage migration" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
@@ -242,7 +243,7 @@ describe("the knowledge base's migration", () => {
       "GET /v1/teams/registrar/sources": () => new Reply(200, { data: [] }),
     });
     renderApp("/teams/registrar/kbs/k1");
-    expect(await screen.findByRole("heading", { level: 1, name: "Student handbook" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Student handbook" }, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.queryByText(/Moving to the embedding profile/)).toBeNull();
   });
 });

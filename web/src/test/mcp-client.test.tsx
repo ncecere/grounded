@@ -10,6 +10,7 @@ import { sectionSummary } from "../pages/agents/build/summaries";
 import { type AssistantItem, type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { type Handler, meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -75,7 +76,7 @@ describe("Admin → MCP servers", () => {
   it("lists servers with approved tools, the ceiling and health", async () => {
     mockApi(adminRoutes("platform_admin"));
     const { container } = renderApp("/admin/mcp-servers");
-    const table = await screen.findByRole("table", { name: "MCP servers" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "MCP servers" }, { timeout: scaled(4000) });
     const row = (await within(table).findByRole("rowheader", { name: /Service status/ })).closest("tr")!;
     await waitFor(() => expect(row).toHaveTextContent("Healthy"));
     expect(row).toHaveTextContent("1 of 2");
@@ -92,7 +93,7 @@ describe("Admin → MCP servers", () => {
       }),
     );
     const { container } = renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     expect(within(sheet).getByText("Read before you approve.")).toBeInTheDocument();
     const list = await within(sheet).findByRole("list", { name: "Tools of Service status" });
     const reset = within(list).getByRole("listitem", { name: "reset_password" });
@@ -121,7 +122,7 @@ describe("Admin → MCP servers", () => {
       }),
     );
     renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     await userEvent.click(within(sheet).getByRole("button", { name: "Test server" }));
     expect(await within(sheet).findByText("The test failed.")).toBeInTheDocument();
     expect(within(sheet).getByText(/Credentials refused \(HTTP 401\)/)).toBeInTheDocument();
@@ -130,7 +131,7 @@ describe("Admin → MCP servers", () => {
   it("adds a server: the header value is sent once and the classification ceiling chosen", async () => {
     const calls = mockApi(adminRoutes("platform_admin", { "POST /v1/admin/mcp-servers": (b) => server(b as Partial<Schemas["MCPServer"]>) }));
     const { container } = renderApp("/admin/mcp-servers?form=new");
-    const form = await screen.findByRole("region", { name: "Add MCP server" }, { timeout: 4000 });
+    const form = await screen.findByRole("region", { name: "Add MCP server" }, { timeout: scaled(4000) });
     await userEvent.type(within(form).getByRole("textbox", { name: "Name" }), "Service status");
     await userEvent.type(within(form).getByRole("textbox", { name: /^URL/ }), "https://status.example.edu/mcp");
     await userEvent.type(within(form).getByLabelText(/^Header value/), "Bearer secret-token");
@@ -146,7 +147,7 @@ describe("Admin → MCP servers", () => {
   it("auditors read servers and tools but change nothing", async () => {
     mockApi(adminRoutes("platform_auditor"));
     renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     await within(sheet).findByRole("list", { name: "Tools of Service status" });
     expect(within(sheet).queryByRole("button", { name: /Approve|Withdraw|Test server|Read tools|Edit|Delete/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add MCP server" })).not.toBeInTheDocument();
@@ -193,7 +194,7 @@ describe("Build → Tools", () => {
       routes("sensitive", { "PATCH /v1/teams/registrar/agents/ag1": (b) => ({ ...agent({ ...config, ...(b as { config: object }).config }), revision: 3 }) }),
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: scaled(5000) }));
     expect(await screen.findByText("Reports whether a campus service is down.")).toBeInTheDocument();
     const check = screen.getByRole("checkbox", { name: /Check outage \(check_outage\)/ });
     // The open server is below the sensitive knowledge base: it can't be chosen.
@@ -203,9 +204,9 @@ describe("Build → Tools", () => {
     expect(screen.getByText(/Only tools a platform admin approved are listed\./)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(check);
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { tools: string[] } }).config.tools).toEqual(["t1"]);
-  }, 15_000);
+  }, scaled(15_000));
 
   it("names the server when two servers offer the same tool, and warns about a failing server (BU-07)", async () => {
     const twin: Schemas["MCPToolOption"] = {
@@ -213,34 +214,34 @@ describe("Build → Tools", () => {
     };
     mockApi(routes("open", { "GET /v1/mcp-tools": () => [...toolOptions, twin] }));
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: scaled(5000) }));
     expect(await screen.findByRole("checkbox", { name: "Check outage (check_outage), from Service status" })).toBeInTheDocument();
     const failing = screen.getByRole("checkbox", { name: "Check outage (check_outage), from Old status" });
     expect(failing).toHaveAccessibleDescription(/Old status started failing its health checks \S.+ ago: calls to this tool may fail\./);
     // A tool whose name is unique keeps its plain name.
     expect(screen.getByRole("checkbox", { name: "forecast" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-  }, 15_000);
+  }, scaled(15_000));
 
   const noToolModels = { "GET /v1/chat-models": () => [{ id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: false, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } }] };
 
   it("says why no tool can be used when no chat model can call tools, and who turns support on", async () => {
     mockApi(routes("open", noToolModels));
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: scaled(5000) }));
     const alert = (await screen.findByText("No chat model can call tools yet.")).closest("[role=alert], [role=status], div")!;
     expect(alert).toHaveTextContent("A platform admin turns on tool support for a model in Admin → Models. Ask one if this agent needs tools.");
     expect(screen.queryByRole("link", { name: "Admin → Models" })).toBeNull();
     expect(screen.getByRole("checkbox", { name: /Check outage/ })).toHaveAttribute("aria-disabled", "true");
     expect(await axe(container)).toHaveNoViolations();
-  }, 15_000);
+  }, scaled(15_000));
 
   it("links a platform admin to Admin → Models", async () => {
     mockApi(routes("open", { ...noToolModels, "GET /v1/me": () => meFor("platform_admin", "editor") }));
     renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: scaled(5000) }));
     expect(await screen.findByRole("link", { name: "Admin → Models" })).toHaveAttribute("href", "/admin/models");
-  }, 15_000);
+  }, scaled(15_000));
 
   it("summarises the section", () => {
     const input = { c: config, kbName: () => "IT help" };

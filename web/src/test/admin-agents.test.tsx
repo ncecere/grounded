@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { adminAgent } from "./admin-fixtures";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -55,7 +56,7 @@ describe("admin agents", () => {
   it("shows the server's refusal of a short name under the field", async () => {
     mockApi(adminRoutes("platform_admin", { "PUT /v1/admin/agents/ag1/short-name": () => Reply.error(400, "reserved_short_name", "That short name is reserved.") }));
     renderApp("/admin/agents?record=ag1");
-    const page = await screen.findByRole("region", { name: "Registrar assistant" }, { timeout: 4000 });
+    const page = await screen.findByRole("region", { name: "Registrar assistant" }, { timeout: scaled(4000) });
     const field = within(page).getByRole("textbox", { name: "Short name" });
     await userEvent.type(field, "admin");
     await userEvent.click(within(page).getByRole("button", { name: "Save short name" }));
@@ -66,7 +67,7 @@ describe("admin agents", () => {
   it("Back asks before leaving an unsaved short name, as other forms do (AD-23)", async () => {
     mockApi(adminRoutes("platform_admin"));
     renderApp("/admin/agents?record=ag1");
-    const page = await screen.findByRole("region", { name: "Registrar assistant" }, { timeout: 4000 });
+    const page = await screen.findByRole("region", { name: "Registrar assistant" }, { timeout: scaled(4000) });
     await userEvent.type(within(page).getByRole("textbox", { name: "Short name" }), "x!");
     await userEvent.click(screen.getByRole("link", { name: /^Back/ }));
     expect(await screen.findByRole("alertdialog", { name: "Leave without saving?" })).toBeInTheDocument();

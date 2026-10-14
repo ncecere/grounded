@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { failingCount } from "../pages/admin/models/health";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -88,7 +89,7 @@ describe("stored health", () => {
     const checks = [check("connection", "c1"), failing("connection", "c2")];
     mockApi(catalogRoutes(() => checks));
     const { container } = renderApp("/admin/connections");
-    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: scaled(4000) });
     await waitFor(() => expect(healthCell(table, "Campus gateway")).toHaveTextContent("Healthy3 minutes ago"));
     expect(healthCell(table, "Research gateway")).toHaveTextContent("Failingsince 2 hours ago");
     expect(healthCell(table, "New gateway")).toHaveTextContent("Not tested yet");
@@ -100,7 +101,7 @@ describe("stored health", () => {
   it("opens with ?health=failing (where Needs attention links) showing only failing connections", async () => {
     mockApi(catalogRoutes(() => [check("connection", "c1"), failing("connection", "c2")]));
     renderApp("/admin/connections?health=failing");
-    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: scaled(4000) });
     await waitFor(() => expect(within(table).queryByText("Campus gateway")).not.toBeInTheDocument());
     expect(within(table).getByText("Research gateway")).toBeInTheDocument();
     expect(within(table).queryByText("New gateway")).not.toBeInTheDocument();
@@ -109,7 +110,7 @@ describe("stored health", () => {
   it("shows a failing connection's record with the absolute time, the error class and the message", async () => {
     mockApi(catalogRoutes(() => [failing("connection", "c2", { trigger: "manual", triggeredByName: "Dev Admin" })]));
     const { container } = renderApp("/admin/connections?record=c2");
-    const sheet = await screen.findByRole("region", { name: "Research gateway" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Research gateway" }, { timeout: scaled(4000) });
     expect(await within(sheet).findByText("API key refused (HTTP 401)")).toBeInTheDocument();
     expect(within(sheet).getByText("Incorrect API key provided: [redacted]")).toBeInTheDocument();
     expect(within(sheet).getByText(/by Dev Admin/)).toBeInTheDocument();
@@ -131,7 +132,7 @@ describe("stored health", () => {
       }),
     );
     renderApp("/admin/models?record=m1");
-    const sheet = await screen.findByRole("region", { name: "Chat large" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Chat large" }, { timeout: scaled(4000) });
     expect(await within(sheet).findByText("Not tested yet")).toBeInTheDocument();
     const reads = () => calls.filter((c) => c.url === "/v1/admin/health-checks").length;
     const before = reads();
@@ -145,7 +146,7 @@ describe("stored health", () => {
   it("shows models' health on the list", async () => {
     mockApi(catalogRoutes(() => [failing("model", "m2", { errorClass: "not_found", httpStatus: undefined })]));
     renderApp("/admin/models");
-    const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
     await waitFor(() => expect(healthCell(table, "Chat small")).toHaveTextContent("Failingsince 2 hours ago"));
     expect(healthCell(table, "Chat large")).toHaveTextContent("Not tested yet");
   });

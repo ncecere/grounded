@@ -7,6 +7,7 @@ import { actionLabel } from "../components/audit/labels";
 import { toAuditFilters } from "../components/audit/filters";
 import { describeWeights, fusionErrors, fusionFormOf, fusionPatch } from "../pages/team/kbs/fusion-form";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -106,7 +107,7 @@ describe("team overview", () => {
     // Back returns to the overview.
     router.history.back();
     expect(await screen.findByRole("list", { name: "Recent changes" })).toBeInTheDocument();
-  }, 15000);
+  }, scaled(15000));
 
   it("lists what needs attention, and nothing when all is well", async () => {
     const limits = {

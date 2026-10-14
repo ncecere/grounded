@@ -13,6 +13,7 @@ import { rememberSuggestions, withRememberedSuggestions } from "../pages/chat/su
 import { ChatMessages, copySourceTitle } from "../pages/chat/thread";
 import { relevanceBars } from "../pages/team/retrieve";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -101,7 +102,7 @@ describe("a new signed-in chat (US2-04)", () => {
   it("starts in the message box, described by the welcome, and Skip to message box goes there", async () => {
     mockApi(routes);
     const { container } = renderApp("/a/registrar/helper");
-    const box = await screen.findByRole("textbox", { name: "Message Helper" }, { timeout: 5000 });
+    const box = await screen.findByRole("textbox", { name: "Message Helper" }, { timeout: scaled(5000) });
     await waitFor(() => expect(box).toHaveFocus());
     expect(box).toHaveAccessibleDescription(/Ask me about registration\./);
     const skip = screen.getByRole("link", { name: "Skip to message box" });
@@ -117,7 +118,7 @@ describe("a new signed-in chat (US2-04)", () => {
       "GET /v1/conversations/c1": () => ({ conversation: { id: "c1", agentId: "ag1", title: "Drop", createdAt: "", updatedAt: "" }, messages: [] }),
     });
     renderApp("/a/registrar/helper?c=c1");
-    const box = await screen.findByRole("textbox", { name: "Message Helper" }, { timeout: 5000 });
+    const box = await screen.findByRole("textbox", { name: "Message Helper" }, { timeout: scaled(5000) });
     expect(box).not.toHaveFocus();
   });
 });

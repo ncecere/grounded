@@ -9,6 +9,7 @@ import { offReason } from "../pages/admin/reranking/status";
 import { rerankOutcome } from "../pages/admin/reranking/test";
 import { rerankFeature } from "../pages/admin/overview/feature-text";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -36,7 +37,7 @@ describe("Admin → Models → Reranking", () => {
   it("guides the setup step by step, with a button for each step", async () => {
     mockApi(routes({ "GET /v1/admin/models": () => [] }));
     const { container } = renderApp("/admin/reranking");
-    const guide = (await screen.findByRole("heading", { name: "Set up reranking" }, { timeout: 4000 })).closest("section")!;
+    const guide = (await screen.findByRole("heading", { name: "Set up reranking" }, { timeout: scaled(4000) })).closest("section")!;
     expect(within(guide).getByText("1 of 3 done")).toBeInTheDocument();
     expect(within(guide).getByRole("link", { name: /How to deploy a reranker/ })).toHaveAttribute("href", expect.stringContaining("docs/operations/rerank.md"));
     expect(within(guide).getByRole("link", { name: "Add model" })).toHaveAttribute("href", "/admin/models?form=new&kind=rerank&from=reranking");
@@ -50,7 +51,7 @@ describe("Admin → Models → Reranking", () => {
   it("warns about a model that hasn't been tested, and asks before saving it (AD-06)", async () => {
     const calls = mockApi(routes({ "PUT /v1/admin/rerank": (body) => ({ ...off, ...(body as object), agents: 3, revision: 2 }) }));
     renderApp("/admin/reranking");
-    const select = await screen.findByRole("combobox", { name: /Rerank model/ }, { timeout: 4000 });
+    const select = await screen.findByRole("combobox", { name: /Rerank model/ }, { timeout: scaled(4000) });
     expect(within(select).getByRole("option", { name: "BGE reranker (bge-reranker-v2-m3) · Not tested" })).toBeInTheDocument();
     // Until a model is chosen the guide stays, its third step current (AD2-06).
     const guide = screen.getByRole("heading", { name: "Set up reranking" }).closest("section")!;
@@ -70,7 +71,7 @@ describe("Admin → Models → Reranking", () => {
   it("saves a healthy model without asking, and checks every field first", async () => {
     const calls = mockApi(routes({ "GET /v1/admin/health-checks": () => [healthy], "PUT /v1/admin/rerank": (body) => ({ ...off, ...(body as object), revision: 2 }) }));
     renderApp("/admin/reranking");
-    const select = await screen.findByRole("combobox", { name: /Rerank model/ }, { timeout: 4000 });
+    const select = await screen.findByRole("combobox", { name: /Rerank model/ }, { timeout: scaled(4000) });
     await waitFor(() => expect(within(select).getByRole("option", { name: /· Healthy$/ })).toBeInTheDocument());
     await userEvent.selectOptions(select, "r1");
     const candidates = screen.getByRole("textbox", { name: /Candidates/ });
@@ -101,7 +102,7 @@ describe("Admin → Models → Reranking", () => {
       }),
     );
     const { container } = renderApp("/admin/reranking");
-    const status = (await screen.findByRole("heading", { name: "Status" }, { timeout: 4000 })).closest("section")!;
+    const status = (await screen.findByRole("heading", { name: "Status" }, { timeout: scaled(4000) })).closest("section")!;
     expect(within(status).getByText("On")).toBeInTheDocument();
     expect(within(status).getByRole("link", { name: "BGE reranker" })).toHaveAttribute("href", "/admin/models?record=r1");
     expect(await within(status).findByText("Healthy")).toBeInTheDocument();
@@ -124,7 +125,7 @@ describe("Admin → Models → Reranking", () => {
   it("shows auditors everything read-only, with the reason", async () => {
     mockApi(routes({ "GET /v1/admin/models": () => [] }, "platform_auditor"));
     const { container } = renderApp("/admin/reranking");
-    expect(await screen.findByText(/Only platform admins can change reranking/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText(/Only platform admins can change reranking/, undefined, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Rerank model/ })).toBeDisabled();
     const guide = screen.getByRole("heading", { name: "Set up reranking" }).closest("section")!;
     expect(within(guide).queryByRole("link", { name: "Add model" })).toBeNull();
@@ -134,7 +135,7 @@ describe("Admin → Models → Reranking", () => {
   it("is in the sidebar's Models group, and the Models page opens Add model with kind Rerank", async () => {
     mockApi(routes({ "GET /v1/admin/catalog-usage": () => ({ models: [], profiles: [] }) }));
     renderApp("/admin/models?form=new&kind=rerank");
-    expect(await screen.findByRole("link", { name: "Reranking" }, { timeout: 4000 })).toHaveAttribute("href", "/admin/reranking");
+    expect(await screen.findByRole("link", { name: "Reranking" }, { timeout: scaled(4000) })).toHaveAttribute("href", "/admin/reranking");
     expect(await screen.findByRole("combobox", { name: "Kind" })).toHaveValue("rerank");
   });
 

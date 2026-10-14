@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { csvField, toCSV } from "../pages/admin/logs/common";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -42,7 +43,7 @@ describe("admin logs", () => {
       "GET /v1/admin/users": () => users,
     });
     renderApp("/admin/logs?record=100");
-    const page = await screen.findByRole("region", { name: "Added model" }, { timeout: 4000 });
+    const page = await screen.findByRole("region", { name: "Added model" }, { timeout: scaled(4000) });
     expect(within(page).getByText("platform.model_create")).toBeInTheDocument();
   });
 
@@ -61,7 +62,7 @@ describe("admin logs", () => {
       "GET /v1/admin/users": () => users,
     });
     const { container } = renderApp("/admin/logs?record=101");
-    const page = await screen.findByRole("region", { name: "Searched over MCP" }, { timeout: 4000 });
+    const page = await screen.findByRole("region", { name: "Searched over MCP" }, { timeout: scaled(4000) });
     expect(within(page).getByText("Connected app: Example Assistant")).toBeInTheDocument();
     expect(within(page).getByText("203.0.113.9")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -74,7 +75,7 @@ describe("admin logs", () => {
       "GET /v1/admin/users": () => users,
     });
     renderApp("/admin/logs?action=platform.");
-    expect(await screen.findByText("No entries match these filters.", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("No entries match these filters.", undefined, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.queryByText("No rows match these filters.")).toBeNull();
   });
 
@@ -85,7 +86,7 @@ describe("admin logs", () => {
       "GET /v1/admin/users": () => users,
     });
     renderApp("/admin/logs?record=999");
-    expect(await screen.findByText(/This audit entry doesn't exist/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText(/This audit entry doesn't exist/, undefined, { timeout: scaled(4000) })).toBeInTheDocument();
   });
 
   it("hides sign-ins by default, filters in the URL and opens an entry with its diff", async () => {
@@ -151,7 +152,7 @@ describe("admin logs", () => {
       "GET /v1/admin/audit": () => ({ items: [sso, settingsEntry, evals, budget], nextCursor: null }),
     });
     const { container } = renderApp("/admin/logs");
-    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: scaled(4000) });
     const row = (await within(table).findByText("Changed member role")).closest("tr")!;
     expect(row).toHaveTextContent("System (group mapping: advising-staff → Academic Advising)");
     expect(within(row).getByRole("link", { name: "Academic Advising" })).toHaveAttribute("href", "/admin/teams/advising");
@@ -198,7 +199,7 @@ describe("admin logs", () => {
       "GET /v1/admin/audit": () => ({ items: [budget], nextCursor: null }),
     });
     const { container } = renderApp("/admin/logs");
-    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: scaled(4000) });
     const row = (await within(table).findByText("Changed a team budget")).closest("tr")!;
     await waitFor(() => expect(row).toHaveTextContent(/Monthly budget \$5\.00 → none/));
     const audit = () => calls.filter((c) => c.url === "/v1/admin/audit");

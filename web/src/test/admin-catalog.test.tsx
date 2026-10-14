@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import { slugKey } from "../pages/admin/models/model-dialog";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { webSource } from "./web-harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -57,7 +58,7 @@ describe("admin catalog", () => {
       "POST /v1/admin/models/m1/test": () => ({ ok: true, latencyMs: 120, reply: "OK", timings: { dnsMs: 4012.4, connectMs: 3.2, tlsMs: 21, firstByteMs: 95, reused: false } }),
     });
     const { container } = renderApp("/admin/models");
-    const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
     expect(await within(table).findByText("2 published agents")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByRole("button", { name: "GPT-OSS 120B" }));
@@ -78,7 +79,7 @@ describe("admin catalog", () => {
       "POST /v1/admin/connections/c1/test": () => ({ ok: true, latencyMs: 80, probe: "models", models: ["gpt-oss-120b", "openai/qwen3-32b"], timings: { dnsMs: 2, connectMs: 1, tlsMs: 12, firstByteMs: 60, reused: false } }),
     });
     renderApp("/admin/connections?record=c1");
-    const sheet = await screen.findByRole("region", { name: "Campus gateway" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Campus gateway" }, { timeout: scaled(4000) });
     expect(within(sheet).getByText("GPT-OSS 120B")).toBeInTheDocument(); // on this connection
     await userEvent.click(within(sheet).getByRole("button", { name: "Test connection" }));
     const offered = await within(sheet).findByRole("list", { name: "Models offered by the proxy" });
@@ -116,7 +117,7 @@ describe("admin catalog", () => {
       "POST /v1/admin/connections/c1/test": () => answer,
     });
     const { container } = renderApp("/admin/connections?record=c1");
-    const sheet = await screen.findByRole("region", { name: "Judge service" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Judge service" }, { timeout: scaled(4000) });
     await userEvent.click(within(sheet).getByRole("button", { name: "Test connection" }));
     expect(await within(sheet).findByText(/add its SystemOne model to this connection, then test again/)).toBeInTheDocument();
     answer = { ok: true, latencyMs: 42, probe: "systemone", systemOneModel: "judge-latest", models: [] };
@@ -140,7 +141,7 @@ describe("admin catalog", () => {
       ],
     });
     const { container } = renderApp("/admin/shared-sources");
-    const table = await screen.findByRole("table", { name: "Shared sources" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Shared sources" }, { timeout: scaled(4000) });
     expect(await within(table).findByText("2 teams · 3 knowledge bases")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for Academic calendar" }));
@@ -165,7 +166,7 @@ describe("admin catalog", () => {
       ],
     });
     const { container } = renderApp("/admin/shared-sources/sh1?tab=used-by");
-    const tab = await screen.findByRole("tab", { name: "Used by", selected: true }, { timeout: 4000 });
+    const tab = await screen.findByRole("tab", { name: "Used by", selected: true }, { timeout: scaled(4000) });
     expect(tab).toBeInTheDocument();
     expect(await screen.findByText("1 team · 1 knowledge base")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar");

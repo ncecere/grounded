@@ -6,6 +6,7 @@ import type { Schemas } from "../api/client";
 import { uploadFiles } from "../pages/team/documents/upload";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes, sse } from "./harness";
 import { boilerplate } from "./web-harness";
+import { scaled } from "../../test-scale";
 
 const config: Schemas["AgentConfig"] = {
   instructions: "Help students.",
@@ -128,7 +129,7 @@ describe("team agents list", () => {
     const draftOnly = agent({ id: "ag2", name: "Draft helper", slug: "draft-helper", published: null, hasUnpublishedChanges: true, draft: { ...config, chatModelId: "mod2", audience: "public" } });
     mockApi(agentRoutes({ "GET /v1/teams/registrar/agents": () => [agent({ hasUnpublishedChanges: true, audience: "all_authenticated" }), draftOnly] }));
     const { container, router } = renderApp("/teams/registrar/agents");
-    const table = await screen.findByRole("table", { name: "Agents" }, { timeout: 5000 });
+    const table = await screen.findByRole("table", { name: "Agents" }, { timeout: scaled(5000) });
     const live = await within(table).findByRole("row", { name: /Registrar assistant/ });
     const draft = within(table).getByRole("row", { name: /Draft helper/ });
     expect(within(live).getByRole("link", { name: "Registrar assistant" })).toBeInTheDocument();
@@ -181,13 +182,13 @@ describe("agent editor", () => {
       }),
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    const instructions = await screen.findByRole("textbox", { name: "Instructions" }, { timeout: 5000 });
+    const instructions = await screen.findByRole("textbox", { name: "Instructions" }, { timeout: scaled(5000) });
     expect(await axe(container)).toHaveNoViolations();
     // Opening the editor saves nothing, so it doesn't say "Draft saved".
     expect(screen.queryByText("Draft saved")).toBeNull();
     await userEvent.type(instructions, " Be brief.");
     expect(screen.getByText(/Unsaved changes|Saving…/)).toBeInTheDocument();
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     const patches = calls.filter((c) => c.method === "PATCH");
     expect(patches).toHaveLength(1);
     expect(patches[0]!.headers.get("If-Match")).toBe('"2"');
@@ -215,7 +216,7 @@ describe("agent editor", () => {
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
     await userEvent.type(await screen.findByRole("textbox", { name: "Instructions" }), "!");
-    expect(await screen.findByText("This agent was changed somewhere else", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("This agent was changed somewhere else", {}, { timeout: scaled(3000) })).toBeInTheDocument();
     // The user's text stays in the form; the latest is shown beside it.
     expect(screen.getByRole("textbox", { name: "Instructions" })).toHaveValue("Help students.!");
     const diff = screen.getByRole("table", { name: /Instructions: the latest version and yours/ });
@@ -247,7 +248,7 @@ describe("agent editor", () => {
     );
     renderApp("/teams/registrar/agents/ag1");
     await userEvent.type(await screen.findByRole("textbox", { name: "Instructions" }), "!");
-    await userEvent.click(await screen.findByRole("button", { name: "Use theirs" }, { timeout: 3000 }));
+    await userEvent.click(await screen.findByRole("button", { name: "Use theirs" }, { timeout: scaled(3000) }));
     expect(screen.getByRole("textbox", { name: "Instructions" })).toHaveValue("Changed elsewhere.");
     expect(screen.getByText("Draft saved")).toBeInTheDocument();
   });
@@ -277,7 +278,7 @@ describe("agent editor", () => {
       }),
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^SystemOne checks/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^SystemOne checks/ }, { timeout: scaled(5000) }));
     const checks = await screen.findByRole("group", { name: "SystemOne checks" });
     const judging = within(checks).getByRole("combobox", { name: "Passage judging" });
     expect(judging).toHaveValue("");
@@ -294,7 +295,7 @@ describe("agent editor", () => {
     await userEvent.selectOptions(within(checks).getByRole("combobox", { name: "Citation mode" }), "enforce");
     await userEvent.selectOptions(within(checks).getByRole("combobox", { name: "Scope check" }), "on");
     const lastPatch = () => calls.filter((c) => c.method === "PATCH").at(-1)?.body as { config: Schemas["AgentConfigInput"] } | undefined;
-    await waitFor(() => expect(lastPatch()?.config.systemOne).toEqual({ judging: "on", citationMode: "enforce", scope: "on" }), { timeout: 4000 });
+    await waitFor(() => expect(lastPatch()?.config.systemOne).toEqual({ judging: "on", citationMode: "enforce", scope: "on" }), { timeout: scaled(4000) });
   });
 
   it("hides SystemOne checks without a SystemOne model and sends no override", async () => {
@@ -305,10 +306,10 @@ describe("agent editor", () => {
       }),
     );
     renderApp("/teams/registrar/agents/ag1");
-    await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 });
+    await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) });
     expect(screen.queryByRole("button", { name: /^SystemOne checks/ })).toBeNull();
     await userEvent.type(screen.getByRole("textbox", { name: "Instructions" }), "!");
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     expect("systemOne" in (calls.find((c) => c.method === "PATCH")!.body as { config: object }).config).toBe(false);
   });
 
@@ -351,7 +352,7 @@ describe("agent editor", () => {
     expect(calls.filter((c) => c.method === "PATCH").every((c) => !("accentColor" in (c.body as object)))).toBe(true);
     expect(screen.getByRole("complementary", { name: "Preview" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-  }, 10_000);
+  }, scaled(10_000));
 
   it("warns beside the moderation rules when the audience has no provider (F-18)", async () => {
     const problem = "No moderation provider is set for the team audience, so these stricter rules have no effect and the agent can't be published with them. A platform admin can set one under Admin → Moderation.";
@@ -403,7 +404,7 @@ describe("agent editor", () => {
 
     const a = renderApp("/teams/registrar/agents/ag1?tab=analytics");
     // Five KPIs; satisfaction says how many ratings it rests on.
-    const kpis = await screen.findByRole("region", { name: "Key figures" }, { timeout: 5000 });
+    const kpis = await screen.findByRole("region", { name: "Key figures" }, { timeout: scaled(5000) });
     expect(kpis).toHaveTextContent(/Satisfaction\s*80%\s*From 10 ratings/);
     expect(within(kpis).getAllByRole("term")).toHaveLength(5);
     expect(screen.getByText("2.4 s")).toBeInTheDocument();
@@ -431,7 +432,7 @@ describe("agent editor", () => {
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
     // Closed, the Safety section sums up the override.
-    const safety = await screen.findByRole("button", { name: /^Safety/ }, { timeout: 5000 });
+    const safety = await screen.findByRole("button", { name: /^Safety/ }, { timeout: scaled(5000) });
     expect(safety).toHaveTextContent("Platform policy only");
     await userEvent.click(safety);
     const modes = screen.getByRole("radiogroup", { name: /Check answers before showing them/ });
@@ -444,7 +445,7 @@ describe("agent editor", () => {
     await userEvent.type(threshold, "30");
     expect(screen.getByText("1 category tightened")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     const last = calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: Schemas["AgentConfig"] };
     await waitFor(() => {
       const body = calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: Schemas["AgentConfig"] };
@@ -452,7 +453,7 @@ describe("agent editor", () => {
         outputMode: "stream_checked",
         categories: { self_harm: { input: { action: "block", threshold: 0.3 }, output: { action: "off", threshold: 0.5 } } },
       });
-    }, { timeout: 3000 });
+    }, { timeout: scaled(3000) });
     expect(last.config.instructions).toBe("Help students.");
   });
 
@@ -473,7 +474,7 @@ describe("agent editor", () => {
     );
     // The old Test tab opens Build, whose Test chat sits beside the sections.
     const { container, router } = renderApp("/teams/registrar/agents/ag1?tab=test");
-    const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" }, { timeout: 5000 });
+    const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" }, { timeout: scaled(5000) });
     expect(router.state.location.search).toEqual({ test: "open" });
     expect(screen.getByRole("tab", { name: "Build", selected: true })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Try it" })).toBeInTheDocument();

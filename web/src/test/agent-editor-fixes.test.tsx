@@ -8,6 +8,7 @@ import { defaultChatModel } from "../pages/agents/common";
 import { same } from "../pages/agents/conflict";
 import { liveProfileLocked, saveView } from "../pages/agents/publish-state";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 const config: Schemas["AgentConfig"] = {
   instructions: "Help students with registration.", chatModelId: "mod1", kbs: [{ kbId: "kb1", topK: 6 }], retrievalMode: "always", maxTurns: 4,
@@ -91,7 +92,7 @@ describe("agent editor", () => {
       "GET /v1/chat-models": () => [model("m1", "Alpha (broken)", "failing"), model("m2", "Campus chat", "healthy")],
     });
     const { container } = renderApp("/teams/registrar/agents");
-    await userEvent.click((await screen.findAllByRole("button", { name: "New agent" }, { timeout: 5000 }))[0]!);
+    await userEvent.click((await screen.findAllByRole("button", { name: "New agent" }, { timeout: scaled(5000) }))[0]!);
     const dialog = await screen.findByRole("dialog", { name: "New agent" });
     expect(await within(dialog).findByRole("combobox", { name: /Chat model/ })).toHaveTextContent("Campus chat");
     expect(await axe(container)).toHaveNoViolations();
@@ -101,7 +102,7 @@ describe("agent editor", () => {
     const pub = agent({ audience: "public", draft: { ...config, audience: "public" } });
     mockApi(routes(pub, {}, "editor"));
     const { container } = renderApp("/teams/registrar/agents/ag1?tab=settings");
-    expect(await screen.findByRole("textbox", { name: "Name" }, { timeout: 5000 })).toBeDisabled();
+    expect(await screen.findByRole("textbox", { name: "Name" }, { timeout: scaled(5000) })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "Address" })).toBeDisabled();
     expect(screen.getByText(/This agent is live for Public/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -114,7 +115,7 @@ describe("agent editor", () => {
   it("an invalid accent colour is said once and doesn't block Publish: Appearance isn't versioned (BU-13)", async () => {
     mockApi(routes(agent(), { "PATCH /v1/teams/registrar/agents/ag1": () => agent() }));
     renderApp("/teams/registrar/agents/ag1?tab=appearance");
-    const accent = await screen.findByRole("textbox", { name: "Accent colour" }, { timeout: 5000 });
+    const accent = await screen.findByRole("textbox", { name: "Accent colour" }, { timeout: scaled(5000) });
     await userEvent.type(accent, "#12");
     expect(await screen.findAllByText("Enter a hex colour such as #4b4fd6.", { exact: false })).toHaveLength(1);
     expect(accent).toHaveAttribute("aria-invalid", "true");
@@ -131,7 +132,7 @@ describe("agent editor", () => {
       }),
     );
     renderApp("/teams/registrar/agents/ag1?tab=evaluations");
-    expect(await screen.findByText("No evaluation sets yet.", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("No evaluation sets yet.", {}, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /New set/ })).toHaveLength(1);
     expect(screen.getByText(/Create one with New set above\./)).toBeInTheDocument();
   });

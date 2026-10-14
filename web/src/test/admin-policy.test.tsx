@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { hoursText, levelCounts } from "../pages/admin/policy";
 import { Reply, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -44,7 +45,7 @@ describe("admin classifications", () => {
       "PATCH /v1/admin/classifications/restricted": (body) => ({ ...levels[2], ...(body as object) }),
     });
     const { container } = renderApp("/admin/classifications");
-    const table = await screen.findByRole("table", { name: "Classifications" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Classifications" }, { timeout: scaled(4000) });
     const row = (await within(table).findByText("Restricted")).closest("tr")!;
     expect(row).toHaveTextContent("Uploads");
     expect(row).toHaveTextContent("Agents only");
@@ -78,7 +79,7 @@ describe("admin classifications", () => {
       "DELETE /v1/admin/classifications/restricted": () => ({ ok: true }),
     });
     renderApp("/admin/classifications");
-    const table = await screen.findByRole("table", { name: "Classifications" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Classifications" }, { timeout: scaled(4000) });
     await userEvent.click(await within(table).findByRole("button", { name: "Actions for Sensitive" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete…" }));
     let dialog = await screen.findByRole("alertdialog", { name: "Delete Sensitive?" });
@@ -95,7 +96,7 @@ describe("admin classifications", () => {
   it("says what adding a level does before it's added (AD-05)", async () => {
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/classifications": () => levels, "GET /v1/admin/models": () => [], "GET /v1/admin/teams": () => ({ items: [] }) });
     const { container } = renderApp("/admin/classifications?form=new");
-    expect(await screen.findByText("A new level applies to every team at once", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("A new level applies to every team at once", undefined, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.getByText(/You can delete it again while nothing uses it/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

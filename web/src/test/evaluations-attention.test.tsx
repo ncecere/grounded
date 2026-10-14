@@ -6,6 +6,7 @@ import type { Schemas } from "../api/client";
 import { cantPassText, problemTexts } from "../pages/team/evaluations/attention";
 import { mockApi, renderApp } from "./harness";
 import { evalRoutes, questions, result, run } from "./evaluations-fixtures";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -15,7 +16,7 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 type Problem = Schemas["EvaluationQuestionProblem"];
 const problem = (questionId: string, extra: Partial<Problem> = {}): Problem => ({
