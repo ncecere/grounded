@@ -32,12 +32,14 @@ Not run: `k8s-smoke` (needs Docker and kind; see D3) and `image`, `upgrade`, `re
 
 - **D1 (owner, 2026-10-14): no resource limits**, like environments ("dev yields"). Each Job's wall time is recorded
   and printed so it can still be compared with GitHub's.
-- **D2: PostgreSQL 18, as environments.** *Amended 2026-10-14, while planning:* the recommendation was 17 (what CI and
-  production run), but CloudNativePG publishes its pgvector extension image only for 18 (the dev areas' image catalog
-  says so; `pgvector:0.8.7-17-trixie` does not exist), so 17 would need a separate, hand-written Postgres template. The
-  suites already pass on 18 (run against cluster environments during v0.4.4) and GitHub CI stays the Postgres 17 gate.
-  A `--postgres 17` option (the `pgvector/pgvector:pg17` image CI uses, as a plain StatefulSet) is left until a failure
-  that only 17 shows justifies it.
+- **D2: PostgreSQL 17, as sidecars of each Job's pod.** *Amended twice on 2026-10-14.* First recommended 17; then moved to 18 because
+  CloudNativePG publishes its pgvector image only for 18 and I wrote that "the suites already pass on 18". **That claim was not
+  verified, and it was false:** `TestEmbeddingProfiles` failed on 18 (PostgreSQL 18 reports `ON DELETE RESTRICT` as SQLSTATE 23001,
+  Grounded mapped only 23503; fixed in #68). A shared CNPG database also made the Go integration tests more than twice as slow
+  (`httpapi` alone passed 25 minutes; GitHub's whole Go suite takes 17), one network hop per query. So each Job gets **Postgres 17
+  (production's own pgvector image, by digest) and Valkey as native sidecars on localhost, in memory, with CI's own credentials and
+  database numbers**, as GitHub's `services:` give its job. Nothing is shared between suites and nothing crosses the network. A
+  PostgreSQL 18 run stays possible through a `dev-env up` environment (`--demo`), which is how #68 was found.
 - **D3: `k8s-smoke` stays on GitHub only.** On the cluster, `dev-env up grounded <name>` + `grounded doctor` + the
   acceptance script (`tests/grounded_accept.py`) already prove a real deployment comes up, on real Kubernetes.
 - **D4: artifacts go to the run's own RustFS bucket** (`artifacts/<suite>/`), fetched with `dev-env test fetch`; logs
@@ -53,9 +55,10 @@ Not run: `k8s-smoke` (needs Docker and kind; see D3) and `image`, `upgrade`, `re
 ## Assumptions (correct me)
 
 1. The cluster has room for five suites at once without limits (a 4-CPU/16 GB environment's worth is the working size).
-2. The suites that share a Postgres and a Valkey cannot collide: Go integration tests create a database per test; the
-   suites get distinct Valkey database numbers (`test` 1, `authz` 2, `e2e` 0, as CI uses 1 and 0).
-3. The S3 the `test` suite needs is the environment template's, scoped by dev-only keys.
+2. Each suite has its own Postgres and Valkey (sidecars), so suites cannot collide and CI's own Valkey database numbers
+   (`test` 1, `authz` 1, `e2e` 0) are used unchanged.
+3. The S3 the `test` suite needs is the environment template's, scoped by dev-only keys; it is also where every suite's
+   artifacts go, so it is the one service that outlives the Jobs' pods.
 4. Outbound HTTPS from the area is open (the Makefile downloads tools; npm and Go modules are fetched).
 
 ## Commands
