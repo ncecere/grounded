@@ -66,6 +66,33 @@ refused before anything is created):
 Open the Go docs assistant at `http://localhost:<port>/a/demo/go-docs` after `forward` and sign in as
 `admin@localhost`. The fake model is not a language model: it cannot tell you whether an answer is good.
 
+## Running the CI suites on the cluster
+
+Before pushing, run the repository's checks as Jobs instead of on the laptop. The branch must be pushed (the Jobs clone it):
+
+```sh
+DEVENV=~/homelab/bitop-talos/tools/dev-env/dev-env
+KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig python3 $DEVENV test grounded t1 --ref my-branch            # all five suites
+KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig python3 $DEVENV test grounded t1 --ref my-branch --suite authz,ocr
+KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig python3 $DEVENV test fetch grounded t1                      # logs, coverage, Playwright output
+KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig python3 $DEVENV down grounded t1
+```
+
+| Suite | What it runs (the `ci` workflow's job of that name) |
+|---|---|
+| `test` | `make check-generated`, `make lint`, the web styling and size checks, `make web-test`, `make test COVER=1 SKIP_AUTHZ=1`, `make web build` |
+| `authz` | `make test-authz` |
+| `e2e` | `make web build`, then Playwright (Chromium) |
+| `ocr` | the OCR sidecar tests against real Tesseract |
+| `k8s` | `make k8s-validate`, `make obs-validate` |
+
+The suites run in parallel against fresh Postgres 18, Valkey and S3, and the command prints each suite's result and wall time (a
+failed suite shows the step that failed and the end of its output) and exits non-zero if any failed. **GitHub CI is still the gate**:
+it runs Postgres 17 (production's version) and the `k8s-smoke`, `image`, `upgrade` and `release` jobs, which are not run here.
+The runner image comes from `Dockerfile.ci` (built by the `ci-image` workflow): a branch that changes it is tested with its own image
+once that workflow has finished. Like environments, a run has no limits, yields to production, expires (4 h by default) and goes
+with `down`; never leave one running.
+
 ## Testing the tool itself
 
 The homelab repo has an acceptance script that brings up one environment, checks it and always removes it:
@@ -106,6 +133,6 @@ use the port that `up` printed: the host must match `APP_URL`.
 
 ## Not available yet
 
-Only environments exist. The Go tests, the end-to-end suites, the Kubernetes smoke test, the load
-tests and the screenshot capture still run locally or on GitHub (see CONTRIBUTING.md). Running them
-as Jobs on the cluster is planned.
+The Kubernetes smoke test (`k8s-smoke`, which needs Docker and kind), the load tests and the screenshot capture still run locally
+or on GitHub (see CONTRIBUTING.md); on the cluster, `dev-env up grounded` plus `grounded doctor` covers what the smoke test proves.
+Running the QA walks and the screenshot capture against an environment is planned.
