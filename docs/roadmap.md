@@ -261,7 +261,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 | E14 | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
 | E15 **Done** (v0.2.0) | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
 | E16 | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
-| E18 **New** | **A profile page, and API keys in the account menu** | People have no page for their own profile, and personal API keys are found only under team settings (v0.4.2 bug hunt). | S | Medium | — |
+| E18 **Done** (v0.4.4) | **A profile page, and API keys in the account menu** | People have no page for their own profile, and personal API keys are found only under team settings (v0.4.2 bug hunt). | S | Medium | — |
 | E17 **Partly done** | **Budget follow-ups** | Granted extensions can be revoked (v0.4.2, AD-35). Still open: Per-agent budgets (not in v0.2.0); re-embedding during a profile migration checked against the budget; documents already queued when a budget runs out (they finish today); a shorter cache than 30 s for teams close to 100%. | S–M | Medium | E2 |
 
 ## F. Platform and operations

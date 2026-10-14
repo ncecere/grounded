@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Home, MessageSquare, MessagesSquare, Plug, Shield } from "lucide-react";
+import { Bell, Boxes, Compass, Home, KeyRound, MessageSquare, MessagesSquare, Plug, Shield, User } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
@@ -92,6 +92,9 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];
   // From the account menu, like Notification settings: the page itself, not "Home" (VI-18).
   if (routeId === "/app/settings/connected-apps") return [{ label: "Connected apps", icon: icon(Plug) }];
+  if (routeId === "/app/settings/profile") return [{ label: "Profile", icon: icon(User) }];
+  if (routeId === "/app/settings/api-keys")
+    return [{ label: "Profile", icon: icon(User), render: <Link to="/settings/profile" /> }, { label: "API keys", icon: icon(KeyRound) }];
   if (chatRef)
     return [
       chatParent(profile.data, cameFrom === "/agents", myTeams),
