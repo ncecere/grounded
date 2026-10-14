@@ -27,7 +27,9 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     -ldflags "-s -w -X github.com/ncecere/grounded/internal/buildinfo.Version=${VERSION} -X github.com/ncecere/grounded/internal/buildinfo.Commit=${COMMIT}" \
     -o /out/grounded-ocr ./cmd/grounded-ocr
 
-FROM debian:bookworm-slim
+# Debian 13 rather than 12: the same packages carry about a fifth fewer unfixed findings in the image scan (#56), and
+# Tesseract is 5.5 instead of 5.3.
+FROM debian:trixie-slim
 ARG VERSION=dev
 ARG COMMIT=unknown
 LABEL org.opencontainers.image.title="grounded-ocr" \
