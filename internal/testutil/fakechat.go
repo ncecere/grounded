@@ -28,9 +28,33 @@ type fakeChatRequest struct {
 		} `json:"function"`
 	} `json:"tools"`
 	ToolChoice json.RawMessage `json:"tool_choice"`
+	// ReasoningEffort is the OpenAI field a "none" asks thinking off with (FakeNoThinkPrefix).
+	ReasoningEffort string `json:"reasoning_effort"`
 	// Moderation requests (fakemoderation.go).
 	Logprobs           bool           `json:"logprobs"`
 	ChatTemplateKwargs map[string]any `json:"chat_template_kwargs"`
+}
+
+// FakeNoThinkPrefix starts the ID of a fake model that can turn thinking off: asked with reasoning_effort "none" or
+// chat_template_kwargs {"enable_thinking": false} it sends no reasoning. Every other fake model reasons on every reply,
+// whatever it is asked, like the models that ignore every switch (issue #7).
+const FakeNoThinkPrefix = "fake-nothink"
+
+// thinks reports whether the reply carries reasoning (FakeReasoning, and its tokens in the usage).
+func (in *fakeChatRequest) thinks() bool {
+	if !strings.HasPrefix(in.Model, FakeNoThinkPrefix) {
+		return true
+	}
+	off := in.ReasoningEffort == "none" || in.ChatTemplateKwargs["enable_thinking"] == false
+	return !off
+}
+
+// reasoning is the reasoning the reply carries.
+func (in *fakeChatRequest) reasoning() []string {
+	if in.thinks() {
+		return FakeReasoning
+	}
+	return nil
 }
 
 // fakeText extracts text from a message content (a string or text parts).
@@ -343,11 +367,11 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	if isFakeRewrite(&in) && rewrite != "" {
 		reply.text = rewrite
 	}
-	completion := len(strings.Fields(reply.text)) + len(strings.Fields(reply.toolArgs)) + len(FakeReasoning)
+	completion := len(strings.Fields(reply.text)) + len(strings.Fields(reply.toolArgs)) + len(in.reasoning())
 	usage := map[string]any{
 		"prompt_tokens": reply.promptTokens, "completion_tokens": completion,
 		"total_tokens":              reply.promptTokens + completion,
-		"completion_tokens_details": map[string]int{"reasoning_tokens": len(FakeReasoning)},
+		"completion_tokens_details": map[string]int{"reasoning_tokens": len(in.reasoning())},
 	}
 	if !in.Stream {
 		writeFakeCompletion(w, &in, reply, usage)
@@ -367,7 +391,10 @@ func (r fakeReply) finishReason() string {
 
 // writeFakeCompletion answers with one chat.completion.
 func writeFakeCompletion(w http.ResponseWriter, in *fakeChatRequest, reply fakeReply, usage map[string]any) {
-	msg := map[string]any{"role": "assistant", "content": nil, "reasoning_content": strings.Join(FakeReasoning, "")}
+	msg := map[string]any{"role": "assistant", "content": nil}
+	if r := in.reasoning(); len(r) > 0 {
+		msg["reasoning_content"] = strings.Join(r, "")
+	}
 	if reply.toolName != "" {
 		msg["tool_calls"] = []map[string]any{{"id": fakeCallID, "type": "function",
 			"function": map[string]string{"name": reply.toolName, "arguments": reply.toolArgs}}}
@@ -394,7 +421,7 @@ func fakeChunks(in *fakeChatRequest, reply fakeReply, usage map[string]any) []ma
 		}
 	}
 	chunks := []map[string]any{chunk(map[string]any{"role": "assistant", "content": ""}, nil)}
-	for _, t := range FakeReasoning {
+	for _, t := range in.reasoning() {
 		chunks = append(chunks, chunk(map[string]any{"reasoning_content": t}, nil))
 	}
 	if reply.toolName == "" || reply.text != "" { // a scripted call's text comes first

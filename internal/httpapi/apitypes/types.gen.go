@@ -8679,6 +8679,9 @@ type ModelTestResult struct {
 	// SystemOne SystemOne models - one fixed noul (yes/no) and one fixed score question
 	SystemOne *SystemOneModelTest `json:"systemOne,omitempty"`
 
+	// ThinkingOff Chat models with a way to turn thinking off (Compatibility): a second request, made the way an agent's Reasoning effort Off makes it, and whether the model still reasoned (v0.4.4, issue #7). Some models ignore every switch.
+	ThinkingOff *ThinkingOffModelTest `json:"thinkingOff,omitempty"`
+
 	// Timings Phases of the test's first request, which opens a new connection. A slow dns points at name resolution (for example search domains or ndots in a cluster), connect at the network path, tls at the handshake, and firstByte at the proxy and model themselves.
 	Timings *RequestTimings `json:"timings,omitempty"`
 	Usage   *TokenUsage     `json:"usage,omitempty"`
@@ -10811,6 +10814,24 @@ type TestChatRequest struct {
 	History *[]ChatHistoryMessage `json:"history,omitempty"`
 	Message string                `json:"message"`
 	Stream  *bool                 `json:"stream,omitempty"`
+}
+
+// ThinkingOffModelTest Chat models with a way to turn thinking off (Compatibility): a second request, made the way an agent's Reasoning effort Off makes it, and whether the model still reasoned (v0.4.4, issue #7). Some models ignore every switch.
+type ThinkingOffModelTest struct {
+	// Error Set when the check itself could not run; the model's ordinary test is not affected
+	Error *string `json:"error,omitempty"`
+
+	// Honoured True when the reply had no reasoning; false when it still reasoned or the check could not run (see error)
+	Honoured bool `json:"honoured"`
+
+	// Message The result in a sentence
+	Message string `json:"message"`
+
+	// ReasoningTokens Reasoning tokens the gateway reported (absent when it reported none)
+	ReasoningTokens *int `json:"reasoningTokens,omitempty"`
+
+	// Setting The configured way, for example reasoning_effort: none
+	Setting string `json:"setting"`
 }
 
 // TokenUsage defines model for TokenUsage.

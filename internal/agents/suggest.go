@@ -127,14 +127,11 @@ func (ru *run) replaySuggestions(ans *Answer, saved []string) {
 	ru.out.send(Event{"suggestions", SuggestionsEvent{MessageID: ans.MessageID, Suggestions: saved}})
 }
 
-// writeSuggestions is the model call, bounded in tokens and time, with
-// thinking off whenever the model can turn it off (suggestEffort).
+// writeSuggestions is the model call, bounded in tokens and time, with thinking off whenever the model can turn it off
+// (suggestEffort) and one retry with a larger budget for a model that can't (completeSuggestions).
 func (ru *run) writeSuggestions(ctx context.Context, answer string, passages []string) ([]string, llm.Usage, error) {
-	sctx, cancel := context.WithTimeout(ctx, suggestTimeout)
-	defer cancel()
-	msg, err := llm.Complete(sctx, ru.s.NewProvider(ru.target.Client), ru.model,
-		llm.Context{SystemPrompt: suggestPrompt, Messages: []llm.Message{llm.UserMessage{Content: suggestionInput(ru.question, answer, passages)}}},
-		llm.Options{MaxTokens: suggestMaxTokens, ReasoningEffort: suggestEffort(ru.model.Compat.ThinkingOff), User: ru.userTag()})
+	msg, err := completeSuggestions(ctx, ru.s.NewProvider(ru.target.Client), ru.model,
+		suggestionInput(ru.question, answer, passages), suggestEffort(ru.model.Compat.ThinkingOff), ru.userTag())
 	if err != nil {
 		if ctx.Err() == nil {
 			ru.s.Log.Warn("follow-up suggestions failed; none are shown", "err", err, "agent", ru.agent.ID)
