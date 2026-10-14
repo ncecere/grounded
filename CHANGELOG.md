@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **The model Test checks "How to turn thinking off"** (#7). For a chat model with a way to turn thinking off, Test sends a second request the way an agent's Reasoning effort Off does and says whether the model still reasoned: "Thinking off isn't honoured by this model", with what that means, or that it works. `thinkingOff` on `ModelTestResult` in the API (additive).
 - The model call's trace span carries `gen_ai.usage.reasoning_tokens` when the gateway reports them.
+- **"Working on it…" while an answer waits for capacity.** When a request to the model's connection queues behind its requests-per-minute limit, or a SystemOne request queues for a busy slot, for about a second or more, the chat shows "Working on it…" under the agent's avatar (and says it once to screen readers) instead of a status that stands still. The step the reader was on comes back when the wait is over, and nothing is shown once the model starts writing. The API's `status` event has a new step, `waiting` (additive: clients ignore steps they don't know). Roadmap G22.
 
 ## [0.4.3] - 2026-10-11
 

@@ -284,7 +284,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 
 ## G. Small fixes and polish
 
-All of G1–G18 are **Done** in v0.2.0; G21 and G22 are open.
+All of G1–G18 are **Done** in v0.2.0; G21 is open, and G22 is done in v0.4.4.
 
 | ID | Item | Size |
 |---|---|---|
@@ -306,7 +306,7 @@ All of G1–G18 are **Done** in v0.2.0; G21 and G22 are open.
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
 | G19 **Done** | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Done in v0.2.2 (J5):** Combobox no longer submits a form or dialog on Enter (Grounded's wrapper is gone); `TooltipText`, an accessible tooltip on plain text (the evaluation Score cell); LineChart `ticks` (0%, 50%, 100% on the score chart); DataTable `columnsMenuMin` and `showFilterLabel` (the evaluation lists); no FilterBar chip for single-choice toggles (Legal holds' duplicated "Status: Active ×"); Menu popups portalled into their trigger's landmark (axe `region`; Popover popups are dialogs, which axe already accepts); InlineCitation `sourceAction` (the chat citation card); column hiding on the team spend tables (DataTable with `defaultHiddenNarrow`). **Noticed, not scheduled:** Select, Combobox, Tooltip and ContextMenu popups still open at the end of `<body>` (axe `region`, a best-practice rule outside the WCAG A/AA set the tests enforce); they can use the same `useLandmarkContainer`. | S |
 | G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
-| G22 **New** | **"Working on it…" while a model slot is busy:** the status shows nothing while an answer waits for the gateway's or SystemOne's capacity; a status step for the wait (re-test US-09). | S |
+| G22 **Done** (v0.4.4) | **"Working on it…" while a model slot is busy:** the status shows nothing while an answer waits for the gateway's or SystemOne's capacity; a status step for the wait (re-test US-09). | S |
 | G21 **New** | A document's passages list cuts a long passage off after about 6 lines with no way to expand it (a multi-page TIFF's single passage hides its later pages; v0.4.1 walkthrough). Let a passage expand, or open it in the source viewer. | S |
 
 ## H. Next release housekeeping

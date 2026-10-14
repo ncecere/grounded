@@ -34,17 +34,36 @@ const (
 	// StepAnswering: the model is writing: its first words arrived (held
 	// back in buffered and checked answers).
 	StepAnswering = "answering"
+	// StepWaiting: a request waits for capacity (the connection's rate limit
+	// or SystemOne's busy slots): "Working on it…". It overlays the step in
+	// progress, which comes back when the wait is over (waitstatus.go).
+	StepWaiting = "waiting"
 )
 
 // status sends a step's status event, once. It starts the stream, so a
 // failure after it is an error event rather than an HTTP error.
 func (ru *run) status(step string) {
+	ru.stepMu.Lock()
 	if ru.step == step {
+		ru.stepMu.Unlock()
 		return
 	}
 	ru.step = step
+	ru.stepMu.Unlock()
+	ru.sendStep(step)
+}
+
+// sendStep sends a status event, starting the stream.
+func (ru *run) sendStep(step string) {
 	ru.out.start()
 	ru.out.send(Event{"status", StatusEvent{Step: step}})
+}
+
+// currentStep is the step in progress ("" before the first).
+func (ru *run) currentStep() string {
+	ru.stepMu.Lock()
+	defer ru.stepMu.Unlock()
+	return ru.step
 }
 
 // earlySearch is always mode's search, started before the input and scope

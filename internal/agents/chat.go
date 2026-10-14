@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/costs"
+	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/store"
@@ -158,8 +159,7 @@ type run struct {
 	// stored with the answer so a reload shows its step.
 	early       *earlySearch
 	firstSearch *RetrievalView
-	// step is the last status event's step.
-	step string
+	stepState   // the status step, and the waits that overlay it
 
 	mod *moderation.Plan // nil: nothing is moderated
 	// audienceEffort is the audience's reasoning effort (its moderation
@@ -389,6 +389,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	ru.out = &streamer{emit: emit, gone: func() bool { return ctx.Err() != nil }}
 	ru.meter = &systemone.Meter{}
 	ctx = systemone.WithMeter(ctx, ru.meter)
+	ctx = gateway.WithWaitNotice(ctx, ru.waitNotice) // "Working on it…" while a request waits for capacity (G22)
 	target, err := s.Catalog.ChatTarget(ctx, ru.chatModelID())
 	if err != nil {
 		return Answer{}, err

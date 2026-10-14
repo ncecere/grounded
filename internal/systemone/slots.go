@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+
+	"github.com/ncecere/grounded/internal/gateway"
 )
 
 // Priority is a SystemOne call's claim on its connection's slots
@@ -131,10 +133,17 @@ func (s *slots) acquire(ctx context.Context, p Priority) (func(), error) {
 	w := &waiter{ready: make(chan struct{})}
 	el := s.waiting[p].PushBack(w)
 	s.mu.Unlock()
+	// A reader waits behind the connection's other requests: tell them once it lasts (G22).
+	end := func() {}
+	if p == Interactive {
+		end = gateway.BeginWait(ctx, 0)
+	}
 	select {
 	case <-w.ready:
+		end()
 		return release, nil
 	case <-ctx.Done():
+		end()
 	}
 	s.mu.Lock()
 	granted := w.granted

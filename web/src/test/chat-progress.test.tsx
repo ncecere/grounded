@@ -67,6 +67,54 @@ describe("progress labels", () => {
   });
 });
 
+describe("waiting for capacity (G22)", () => {
+  it("shows Working on it… for the waiting step, even in a buffered or checked answer, and goes back to the real step", () => {
+    expect(stepLabel("waiting", "Fees")).toBe("Working on it…");
+    let item = applyChatEvent(pendingAssistant(), "status", { step: "searching" });
+    item = applyChatEvent(item, "status", { step: "waiting" });
+    expect(item.step).toBe("waiting"); // a step this client knows, not dropped as unknown
+    expect(waitingText(item, false, "Fees")).toBe("Working on it…");
+    expect(waitingText({ ...item, buffered: true }, false, "Fees")).toBe("Working on it…"); // not "Writing and checking the answer…"
+    expect(waitingText({ ...item, checked: true }, false, "Fees")).toBe("Working on it…");
+    expect(progressAnnouncement([item], "Fees")).toBe("Working on it…");
+    // the server sends the step it interrupted again once the wait is over
+    item = applyChatEvent(item, "status", { step: "searching" });
+    expect(waitingText(item, false, "Fees")).toBe("Searching Fees' knowledge…");
+    expect(progressAnnouncement([item], "Fees")).toBe("Searching Fees' knowledge…");
+  });
+
+  it("is said once under the avatar and by the status region, then gives way to the step and the words", async () => {
+    const stream = liveStream();
+    mockApi({
+      ...shellRoutes(),
+      "GET /v1/agents/registrar/registrar-assistant": () => card,
+      "GET /v1/agents": () => [card],
+      "POST /v1/agents/registrar/registrar-assistant/chat": () => stream.response(),
+    });
+    const { container } = renderApp("/a/registrar/registrar-assistant");
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "And the fee?{Enter}");
+    const announced = (text: string) => screen.getAllByRole("status").some((el) => el.textContent?.trim() === text);
+
+    stream.send("conversation", { conversationId: "c1", userMessageId: "u1", agentVersion: 1 });
+    stream.send("status", { step: "searching" });
+    await waitFor(() => expect(announced("Searching Registrar assistant's knowledge…")).toBe(true));
+    stream.send("status", { step: "waiting" });
+    await waitFor(() => expect(announced("Working on it…")).toBe(true));
+    expect(screen.getAllByText("Working on it…")).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
+    stream.send("status", { step: "searching" });
+    await waitFor(() => expect(announced("Searching Registrar assistant's knowledge…")).toBe(true));
+    expect(screen.queryByText("Working on it…")).toBeNull();
+    stream.send("status", { step: "answering" });
+    stream.send("message_start", { messageId: "m1" });
+    stream.send("text_delta", { delta: "Ten dollars." });
+    stream.send("message_end", { messageId: "m1", stopReason: "stop", text: "Ten dollars.", citations: [], usage, refused: false, noContext: false });
+    stream.send("done", {});
+    stream.close();
+    await waitFor(() => expect(announced("Answer ready")).toBe(true));
+  });
+});
+
 describe("chat progress", () => {
   it("shows and politely announces each step until the first words", async () => {
     const stream = liveStream();
