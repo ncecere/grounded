@@ -221,12 +221,12 @@ embedding profile, upload `internal/ocr/sample.png` taken from the tested ref's 
 
 **Acceptance criteria:**
 - [x] README and `creds` output describe `--demo`, `--no-crawl`, `--ocr` accurately (checked by running them).
-- [ ] Grounded `AGENTS.md` on `main` lists the flags and the acceptance command; the PR's checks are green. **Open: PR #14 is waiting for the owner's merge** (the change is written and pushed).
+- [x] Grounded `AGENTS.md` on `main` lists the flags and the acceptance command; the PR's checks were green. PR #14 was merged on 2026-10-12.
 - [x] Each of the spec's 7 success criteria has a one-line evidence note in this file or the spec.
 
 **Verification:**
 - [x] Read-through against the actual flags and refs.
-- [ ] Grounded PR merged on a clean state (**open: #14**).
+- [x] Grounded PR merged on a clean state (#14, 2026-10-12).
 
 **Dependencies:** Tasks 1-8
 
