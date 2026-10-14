@@ -10,6 +10,7 @@ import { ApiError } from "../api/client";
 import { fitCrumbs } from "../components/layout/breadcrumbs";
 import { isRateLimited, retryDelay, shouldRetry, shouldRetrySession } from "../lib/retry";
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -49,7 +50,7 @@ describe("the session page (VI-03)", () => {
       "GET /v1/agents": () => [],
     });
     const { container } = renderApp("/");
-    expect(await screen.findByRole("heading", { name: "Too many requests" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Too many requests" }, { timeout: scaled(3000) })).toBeInTheDocument();
     expect(screen.getByText(/Trying again in \d+ s\./)).toBeInTheDocument();
     expect(screen.queryByText("Couldn't load your session")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();

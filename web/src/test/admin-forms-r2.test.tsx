@@ -10,6 +10,7 @@ import type { Schemas } from "../api/client";
 import { chosenConnection } from "../pages/admin/models/model-dialog";
 import { connectionProblems } from "../pages/admin/models/connection-record";
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -30,7 +31,7 @@ describe("Add model opened by its address (AD2-03)", () => {
       "POST /v1/admin/models": (b) => ({ id: "m1", ...(b as object) }),
     });
     renderApp("/admin/models?form=new&kind=rerank");
-    const select = await screen.findByRole("combobox", { name: "Connection" }, { timeout: 4000 });
+    const select = await screen.findByRole("combobox", { name: "Connection" }, { timeout: scaled(4000) });
     await waitFor(() => expect(select).toHaveValue("c1"));
     await user.type(screen.getByRole("combobox", { name: "Upstream model ID" }), "bge-reranker-v2-m3");
     await user.type(screen.getByRole("textbox", { name: "Display name" }), "Campus reranker");
@@ -60,7 +61,7 @@ describe("Add connection after a server error (AD2-04, AD2-21)", () => {
         (b as { baseUrl: string }).baseUrl.startsWith("ftp:") ? Reply.error(400, "invalid_base_url", "Base URL must be an http(s) URL") : { ...conn, ...(b as object), id: "c9" },
     });
     const { container } = renderApp("/admin/connections?form=new");
-    await user.type(await screen.findByRole("textbox", { name: "Name" }, { timeout: 4000 }), "Beta bad");
+    await user.type(await screen.findByRole("textbox", { name: "Name" }, { timeout: scaled(4000) }), "Beta bad");
     const url = screen.getByRole("textbox", { name: /Base URL/ });
     await user.type(url, "ftp://example.org");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
@@ -100,11 +101,11 @@ describe("the Reranking guide's Add connection (AD2-06)", () => {
       "POST /v1/admin/connections/c9/test": () => ({ ok: true, latencyMs: 12, probe: "models", models: ["bge-reranker-v2-m3"] }),
     });
     const { router } = renderApp("/admin/connections?form=new&from=reranking");
-    await user.type(await screen.findByRole("textbox", { name: "Name" }, { timeout: 4000 }), "Rerank server");
+    await user.type(await screen.findByRole("textbox", { name: "Name" }, { timeout: scaled(4000) }), "Rerank server");
     await user.type(screen.getByRole("textbox", { name: /Base URL/ }), "http://rerank.example.edu/v1");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/reranking"));
-    const guide = (await screen.findByRole("heading", { name: "Set up reranking" }, { timeout: 4000 })).closest("section")!;
+    const guide = (await screen.findByRole("heading", { name: "Set up reranking" }, { timeout: scaled(4000) })).closest("section")!;
     expect(await within(guide).findByText(/Rerank server was added\./)).toBeInTheDocument();
     await user.click(within(guide).getByRole("button", { name: "Test Rerank server" }));
     expect(await within(guide).findByText("Connected in 12 ms. It offers 1 model: bge-reranker-v2-m3.")).toBeInTheDocument();
@@ -127,7 +128,7 @@ describe("Add level (AD2-14)", () => {
       "POST /v1/admin/classifications": () => created,
     });
     renderApp("/admin/classifications?form=new");
-    await user.type(await screen.findByRole("textbox", { name: /^Key/ }, { timeout: 4000 }), "beta");
+    await user.type(await screen.findByRole("textbox", { name: /^Key/ }, { timeout: scaled(4000) }), "beta");
     await user.type(screen.getByRole("textbox", { name: /^Name/ }), "Beta");
     const submit = screen.getAllByRole("button", { name: /^Add level/ }).find((b) => b.getAttribute("type") === "submit")!;
     await user.click(submit);

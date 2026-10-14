@@ -15,6 +15,7 @@ import { useFormState } from "../lib/use-form-state";
 import { Field } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -61,7 +62,7 @@ describe("accessible names (AD-22)", () => {
   it("names a connection's model count after the connection", async () => {
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/connections": () => [connection], "GET /v1/admin/models": () => [] });
     renderApp("/admin/connections");
-    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Connections" }, { timeout: scaled(4000) });
     expect(await within(table).findByRole("link", { name: "2 models on Campus gateway" })).toHaveAttribute("href", expect.stringContaining("connection=c1"));
   });
 });
@@ -70,7 +71,7 @@ describe("Add connection (VI-36)", () => {
   it("gives Name the same width as the other endpoint fields", async () => {
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/connections": () => [connection], "GET /v1/admin/models": () => [] });
     renderApp("/admin/connections?form=new");
-    const name = await screen.findByRole("textbox", { name: "Name" }, { timeout: 4000 });
+    const name = await screen.findByRole("textbox", { name: "Name" }, { timeout: scaled(4000) });
     const base = screen.getByRole("textbox", { name: /Base URL/ });
     expect(name.closest("div[class*='wide']")).not.toBeNull();
     expect(base.closest("div[class*='wide']")).not.toBeNull();

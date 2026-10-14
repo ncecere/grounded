@@ -10,6 +10,7 @@ import { configChanges } from "../pages/team/evaluations/labels";
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { RetrievePlayground } from "../pages/team/retrieve";
 import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -38,7 +39,7 @@ describe("Admin → Models: rerank models", () => {
       }),
     });
     renderApp("/admin/models?record=r1");
-    const sheet = await screen.findByRole("region", { name: "BGE reranker" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "BGE reranker" }, { timeout: scaled(4000) });
     expect(within(sheet).getByText("Reranking")).toBeInTheDocument();
     // Delete says why it's off, in words reachable without hovering, and what to do instead (adm-8).
     const del = within(sheet).getByRole("button", { name: "Delete" });

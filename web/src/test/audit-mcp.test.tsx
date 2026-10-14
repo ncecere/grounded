@@ -4,6 +4,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { actedHow, actedVia, areaOf, areaOptions } from "../components/audit/labels";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -49,7 +50,7 @@ describe("audit areas for MCP", () => {
       "GET /v1/admin/users": () => ({ items: [], nextCursor: null }),
     });
     const { container } = renderApp("/admin/logs?record=42");
-    const page = await screen.findByRole("region", { name: "Asked an agent over MCP" }, { timeout: 4000 });
+    const page = await screen.findByRole("region", { name: "Asked an agent over MCP" }, { timeout: scaled(4000) });
     const how = within(page).getByText("How").closest("div")!;
     expect(how).toHaveTextContent("Connected app: Research Assistant");
     expect(await axe(container)).toHaveNoViolations();

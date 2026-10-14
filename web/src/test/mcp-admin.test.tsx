@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { type Handler, mockApi, Reply, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -40,7 +41,7 @@ describe("Admin → MCP servers: guarded changes", () => {
   it("names the agents that use a tool, and asks before withdrawing its approval", async () => {
     const calls = mockApi(routes("platform_admin", { "PUT /v1/admin/mcp-servers/s1/tools/t1/approval": () => tool("t1", "check_outage", { approved: false }) }));
     const { container } = renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     const item = within(await within(sheet).findByRole("list", { name: "Tools of Service status" })).getByRole("listitem", { name: "check_outage" });
     expect(within(item).getByRole("link", { name: "Help Desk Assistant" })).toHaveAttribute("href", "/admin/agents?record=ag1");
     expect(item).toHaveTextContent("(IT Help Desk), version 3");
@@ -58,7 +59,7 @@ describe("Admin → MCP servers: guarded changes", () => {
   it("withdraws the approval of an unused tool at once", async () => {
     const calls = mockApi(routes("platform_admin", { "PUT /v1/admin/mcp-servers/s1/tools/t2/approval": () => tool("t2", "room_lookup", { approved: false }) }));
     renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     await userEvent.click(await within(sheet).findByRole("button", { name: "Withdraw approval of room_lookup" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ approved: false }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -67,7 +68,7 @@ describe("Admin → MCP servers: guarded changes", () => {
   it("names the agents that block a delete instead of offering Delete", async () => {
     const calls = mockApi(routes("platform_admin"));
     const { container } = renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     await within(sheet).findByRole("list", { name: "Tools of Service status" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
     const dialog = await screen.findByRole("dialog", { name: "Service status can't be deleted" });
@@ -93,7 +94,7 @@ describe("Admin → MCP servers: guarded changes", () => {
       }),
     );
     renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(4000) });
     await within(sheet).findByRole("list", { name: "Tools of Service status" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
     const confirm = await screen.findByRole("alertdialog", { name: "Delete Service status?" });
@@ -111,7 +112,7 @@ describe("Admin → MCP servers: guarded changes", () => {
       }),
     );
     const { container } = renderApp("/admin/mcp-servers?form=new");
-    const url = await screen.findByRole("textbox", { name: "URL" }, { timeout: 4000 });
+    const url = await screen.findByRole("textbox", { name: "URL" }, { timeout: scaled(4000) });
     // The harness signs in with DEV_AUTH on, where http on a loopback address is accepted too: the help says so.
     expect(url).toHaveAccessibleDescription(/In development \(DEV_AUTH\) http on a loopback address and private addresses work too\./);
     await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "Status again");
@@ -126,7 +127,7 @@ describe("Admin → MCP servers: guarded changes", () => {
   it("tells auditors the pages are read-only", async () => {
     mockApi(routes("platform_auditor"));
     renderApp("/admin/mcp-servers");
-    expect(await screen.findByText("You can view the servers and their tools. Only platform admins can change them.", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("You can view the servers and their tools. Only platform admins can change them.", {}, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.queryByText(/Add a server, read its tools/)).not.toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import { configChanges, expectedList, importFormat, missingText, pct, scoreSerie
 import { answerEstimate } from "../pages/team/evaluations/run-dialog";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { evalRoutes, meWithEvals, questions, result, run, runs, set } from "./evaluations-fixtures";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -18,7 +19,7 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 describe("pure helpers", () => {
   it("formats scores and says what changed between runs", () => {

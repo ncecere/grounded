@@ -6,6 +6,7 @@ import type { Schemas } from "../api/client";
 import { sectionSummary } from "../pages/agents/build/summaries";
 import { publishBlocked, saveView } from "../pages/agents/publish-state";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 const config: Schemas["AgentConfig"] = {
   instructions: "Help students with registration.",
@@ -117,7 +118,7 @@ describe("Build", () => {
   it("shows the sections beside the Test chat, with summaries, and Publish off when nothing changed (Q5)", async () => {
     mockApi(routes(agent()));
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: scaled(5000) })).toBeInTheDocument();
     // Versions is in the header's version menu (I6); Evaluations shows while evaluations are on (not here).
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Analytics", "Settings"]);
     expect(await screen.findByRole("region", { name: "Try it" })).toBeInTheDocument();
@@ -133,7 +134,7 @@ describe("Build", () => {
   it("an invalid value holds the status at 'Not saved' and marks its section (F-26)", async () => {
     mockApi(routes(agent({ hasUnpublishedChanges: true })));
     renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
     const temperature = screen.getByRole("textbox", { name: /Temperature/ });
     await userEvent.type(temperature, "5");
     expect(await screen.findByText("Enter a number from 0 to 2.")).toBeInTheDocument();
@@ -142,12 +143,12 @@ describe("Build", () => {
     await new Promise((r) => setTimeout(r, 1000));
     expect(screen.queryByText("Draft saved")).toBeNull();
     expect(screen.getAllByText("Not saved: fix the highlighted field").length).toBeGreaterThan(1);
-  }, 10_000);
+  }, scaled(10_000));
 
   it("Reasoning effort says why it can't be chosen until the model accepts it", async () => {
     mockApi(routes(agent()));
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
     const effort = screen.getByRole("combobox", { name: /Reasoning effort/ });
     expect(effort).toBeDisabled();
     expect(effort).toHaveAccessibleDescription(/Low, Medium and High need "Accepts reasoning effort" turned on for .* in Admin → Models/);
@@ -159,7 +160,7 @@ describe("Build", () => {
     const ready = { ...models[0]!, supportsThinkingOff: true };
     mockApi(routes(agent(), { "GET /v1/chat-models": () => [ready] }));
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
     const effort = screen.getByRole("combobox", { name: /Reasoning effort/ });
     expect(effort).toBeEnabled();
     expect(within(effort).getAllByRole("option").map((o) => [o.textContent, (o as HTMLOptionElement).disabled])).toEqual([
@@ -180,7 +181,7 @@ describe("Build", () => {
     const model = { ...models[0]!, supportsThinkingOff: true, ...(check ? { thinkingOffCheck: check } : {}) };
     mockApi(routes(agent(), { "GET /v1/chat-models": () => [model] }));
     const view = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
     return { ...view, effort: screen.getByRole("combobox", { name: /Reasoning effort/ }) };
   }
 
@@ -212,7 +213,7 @@ describe("Build", () => {
   it("editors can't start a publish to Public and are told why (P-03)", async () => {
     mockApi(routes(agent({ audience: "public", hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1");
-    const publish = await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 });
+    const publish = await screen.findByRole("button", { name: "Publish" }, { timeout: scaled(5000) });
     expect(publish).toBeDisabled();
     expect(publish).toHaveAccessibleDescription(/Only team admins and owners can publish to Public/);
     // Said once: no second notice about the audience under the header.
@@ -222,7 +223,7 @@ describe("Build", () => {
   it("the publish dialog names the audience (F-15)", async () => {
     mockApi(routes(agent({ hasUnpublishedChanges: true, draft: { ...config, audience: "public" } })));
     renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: "Publish" }, { timeout: scaled(5000) }));
     const dialog = await screen.findByRole("dialog", { name: /Publish version 4/ });
     expect(dialog).toHaveTextContent("Anyone, without signing in, will chat with this configuration");
   });
@@ -231,7 +232,7 @@ describe("Build", () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} }));
     mockApi(routes(agent()));
     const { router } = renderApp("/teams/registrar/agents/ag1");
-    await screen.findByRole("button", { name: /^Instructions/ }, { timeout: 5000 });
+    await screen.findByRole("button", { name: /^Instructions/ }, { timeout: scaled(5000) });
     expect(screen.queryByRole("region", { name: "Try it" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Try it" }));
     await waitFor(() => expect(router.state.location.search).toEqual({ test: "open" }));
@@ -247,7 +248,7 @@ describe("Build", () => {
       }),
     );
     const { container } = renderApp("/teams/registrar/agents/ag1");
-    await userEvent.click(await screen.findByRole("button", { name: /^Knowledge/ }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Knowledge/ }, { timeout: scaled(5000) }));
     expect(await screen.findByText(/Inherited from the knowledge base \(8\)/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getByRole("button", { name: "Override results per search from Registrar help" }));
@@ -255,7 +256,7 @@ describe("Build", () => {
     expect(input).toHaveValue(8);
     expect(input).toHaveFocus();
     expect(screen.getByText(/Overridden/)).toBeInTheDocument();
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: 8 }]);
     // Out of range: the field says why (aria-describedby), and the button's name starts with its visible text (WCAG 2.5.3).
     await userEvent.clear(input);
@@ -266,30 +267,30 @@ describe("Build", () => {
     await userEvent.click(screen.getByRole("button", { name: "Inherit (8) from Registrar help" }));
     expect(screen.getByRole("button", { name: "Override results per search from Registrar help" })).toHaveFocus();
     await waitFor(() => expect((calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: null }]), {
-      timeout: 3000,
+      timeout: scaled(3000),
     });
-  }, 15_000);
+  }, scaled(15_000));
 
   it("Settings has the name, address and description, saved like the rest, and a Danger zone (C13)", async () => {
     const calls = mockApi(routes(agent(), { "PATCH /v1/teams/registrar/agents/ag1": (b) => agent({ revision: 3, ...(b as object) }) }));
     const { container } = renderApp("/teams/registrar/agents/ag1?tab=settings");
-    const name = await screen.findByRole("textbox", { name: "Name" }, { timeout: 5000 });
+    const name = await screen.findByRole("textbox", { name: "Name" }, { timeout: scaled(5000) });
     expect(name).toHaveValue("Helper");
     expect(screen.getByRole("textbox", { name: /^Address/ })).toHaveValue("helper");
     expect(screen.getByRole("textbox", { name: /^Description/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.type(name, " desk");
-    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: scaled(3000) });
     expect(calls.find((c) => c.method === "PATCH")!.body).toEqual({ name: "Helper desk" });
     await userEvent.click(screen.getByRole("button", { name: "Disable agent" }));
     expect(await screen.findByRole("dialog", { name: "Disable Helper desk?" })).toBeInTheDocument();
-  }, 10_000);
+  }, scaled(10_000));
 
   it("Settings says Live only for a published agent, and a tab change drops what was open on the last tab (C13)", async () => {
     mockApi(routes(agent({ published: null, hasUnpublishedChanges: true }), {}));
     const { router } = renderApp("/teams/registrar/agents/ag1?tab=appearance&record=x&form=new");
-    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }, { timeout: 5000 }));
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }, { timeout: scaled(5000) }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: "settings" }));
     expect(await screen.findByText(/Nobody can chat with this agent until it's published/)).toBeInTheDocument();
     expect(screen.queryByText("Live")).toBeNull();
@@ -298,7 +299,7 @@ describe("Build", () => {
   it("Appearance keeps the look and welcome only; editors see why they can't disable or delete (C13)", async () => {
     mockApi(routes(agent(), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1?tab=appearance");
-    expect(await screen.findByRole("textbox", { name: "Accent colour" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: "Accent colour" }, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
     expect(await screen.findByRole("button", { name: "Delete agent" })).toBeDisabled();
@@ -309,7 +310,7 @@ describe("Build", () => {
   it("old Configure links open Build", async () => {
     mockApi(routes(agent()));
     const { router } = renderApp("/teams/registrar/agents/ag1?tab=configure");
-    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(router.state.location.search).toEqual({});
   });
 
@@ -321,7 +322,7 @@ describe("Build", () => {
       }),
     );
     const { container } = renderApp("/teams/registrar/agents/ag1?history=versions");
-    await screen.findByRole("table", { name: "Published versions" }, { timeout: 5000 });
+    await screen.findByRole("table", { name: "Published versions" }, { timeout: scaled(5000) });
     // A record page over the editor: Publish stays the editor's, not repeated here.
     expect(screen.queryAllByRole("button", { name: /Publish/ })).toHaveLength(0);
     const text = await screen.findByRole("table", { name: "Instructions: version 3 and the draft" });
@@ -347,12 +348,12 @@ describe("Build", () => {
     });
     mockApi(routes(agent({ audience: "public", draft: { ...config, audience: "public" } }), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("public"), "GET /v1/teams/registrar/agents/ag1/publishable-keys": () => [] }));
     const v = renderApp("/teams/registrar/agents/ag1?tab=share");
-    expect(await screen.findByText("Both work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("Both work without signing in.", {}, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Embed code" })).toBeInTheDocument();
     v.unmount();
     mockApi(routes(agent(), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("team") }));
     renderApp("/teams/registrar/agents/ag1?tab=share");
-    expect(await screen.findByText(/People sign in first, and only team members can chat/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/People sign in first, and only team members can chat/, {}, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Embed code" })).toBeNull();
   });
 });

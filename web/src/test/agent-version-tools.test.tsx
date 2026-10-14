@@ -8,6 +8,7 @@ import type { Schemas } from "../api/client";
 import { ProblemList, asSentence } from "../pages/agents/common";
 import { changedRows, configRows } from "../pages/agents/config-rows";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -50,7 +51,7 @@ const routes = (role: "owner" | "member", extra: Record<string, Handler> = {}): 
   ...extra,
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 describe("an agent's tools in its versions", () => {
   it("a version's page lists its tools by name", async () => {

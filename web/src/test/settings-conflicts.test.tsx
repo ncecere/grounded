@@ -9,6 +9,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { choiceFormat, serverChanges } from "../components/templates/revision-form";
 import { type Handler, meFor, mockApi, renderApp, Reply, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -113,7 +114,7 @@ describe("Reranking settings save conflict (AD2-02)", () => {
       "PUT /v1/admin/rerank": (b, call) => r.put(b, call),
     });
     const { container } = renderApp("/admin/reranking");
-    const candidates = await screen.findByRole("textbox", { name: /Candidates/ }, { timeout: 4000 });
+    const candidates = await screen.findByRole("textbox", { name: /Candidates/ }, { timeout: scaled(4000) });
     await user.clear(candidates);
     await user.type(candidates, "30");
     r.elsewhere({ modelId: "r2" });

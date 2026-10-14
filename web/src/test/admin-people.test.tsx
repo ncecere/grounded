@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { usageRows } from "../pages/admin/people/team-overview";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -196,7 +197,7 @@ describe("admin users and teams", () => {
       }),
     );
     renderApp("/admin/teams/registrar?tab=limits");
-    const table = await screen.findByRole("table", { name: "Team resources limits for Office of the Registrar" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Team resources limits for Office of the Registrar" }, { timeout: scaled(4000) });
     await waitFor(() => expect(document.title).toMatch(/^Limits \u00b7 Office of the Registrar/));
     await userEvent.selectOptions(within(table).getByRole("combobox", { name: "Knowledge bases: team setting" }), "blocked");
     await userEvent.click(screen.getByRole("tab", { name: "Settings" }));

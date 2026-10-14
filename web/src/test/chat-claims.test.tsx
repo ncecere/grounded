@@ -6,6 +6,7 @@ import { breakdownText, claimLabel, claimSummaryText, sourceBreakdown } from "..
 import { type AssistantItem, type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
+import { scaled } from "../../test-scale";
 
 /* Per-claim verification (docs/systemone.md §3, v0.2.1 I9): chips show their claim's verdict, the card the claim, the summary counts claims. */
 
@@ -97,7 +98,7 @@ describe("claims", () => {
     const { container } = renderBare(<ChatMessages items={thread(checkedAnswer(claims))} agent={{ name: "Helper" }} />);
     const twos = await screen.findAllByRole("button", { name: /^Source 2: Page 2/ });
     await userEvent.hover(twos[1]!);
-    const card = await screen.findByRole("dialog", {}, { timeout: 2000 });
+    const card = await screen.findByRole("dialog", {}, { timeout: scaled(2000) });
     expect(within(card).getByText("Claim not supported. This source contradicts it (92% confidence)")).toBeInTheDocument();
     expect(within(card).getByText("Rush orders arrive the same day.")).toBeInTheDocument();
     expect(within(card).getByText("Claim:", { exact: false })).toBeInTheDocument();

@@ -6,6 +6,7 @@ import type { Schemas } from "../api/client";
 import { type Handler, meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { meWithEvals } from "./evaluations-fixtures";
 import { GapsView } from "../pages/agents/analytics/gaps";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -15,7 +16,7 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 const topic: Schemas["GapTopic"] = {
   id: "gt1",

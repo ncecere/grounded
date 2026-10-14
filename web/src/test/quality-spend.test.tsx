@@ -9,6 +9,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { type Handler, Reply, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 import { set as baseSet } from "./evaluations-fixtures";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -65,7 +66,7 @@ function routes(opts: { teamRole?: string; evaluations?: boolean; sets?: EvalSet
   };
 }
 
-const T = { timeout: 3000 };
+const T = { timeout: scaled(3000) };
 
 describe("the team's Evaluations page (I3)", () => {
   it("lists every set with its target, questions, latest score and trend, and filters regressions", async () => {

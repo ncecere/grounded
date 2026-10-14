@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -61,7 +62,7 @@ describe("MCP tool calls in Costs", () => {
   it("says models or MCP servers lack a price, and the spend copy names MCP tools", async () => {
     mockApi(routes());
     renderApp("/admin/costs");
-    expect(await screen.findByText("Some models or MCP servers have no price. See Prices.", undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("Some models or MCP servers have no price. See Prices.", undefined, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(screen.getByText("SystemOne, moderation, rerank and MCP tool calls, priced per request.")).toBeInTheDocument();
     expect(screen.getByText(/Chat, embedding, SystemOne, rerank, moderation, OCR and MCP tool spend each day\./)).toBeInTheDocument();
   });
@@ -69,7 +70,7 @@ describe("MCP tool calls in Costs", () => {
   it("opens an MCP server's record from Top spenders → Models", async () => {
     mockApi(routes());
     renderApp("/admin/costs?top=models");
-    const table = await screen.findByRole("table", { name: "Top models" }, { timeout: 5000 });
+    const table = await screen.findByRole("table", { name: "Top models" }, { timeout: scaled(5000) });
     expect(within(table).getByRole("link", { name: "Service status" })).toHaveAttribute("href", "/admin/mcp-servers?record=s1");
     expect(within(table).getByRole("link", { name: "Chat large" }).getAttribute("href")).toMatch(/^\/admin\/models\?/);
   });
@@ -77,7 +78,7 @@ describe("MCP tool calls in Costs", () => {
   it("lists MCP servers on Prices, unpriced ones counted, each opening its record", async () => {
     mockApi(routes());
     const { container } = renderApp("/admin/costs?tab=prices");
-    const table = await screen.findByRole("table", { name: "Prices" }, { timeout: 5000 });
+    const table = await screen.findByRole("table", { name: "Prices" }, { timeout: scaled(5000) });
     const unpriced = (await within(table).findByRole("rowheader", { name: /Service status/ })).closest("tr")!;
     expect(unpriced).toHaveTextContent("MCP server");
     expect(unpriced).toHaveTextContent("Tool calls:");
@@ -92,7 +93,7 @@ describe("an MCP server's price per call", () => {
   it("reads as money on the record", async () => {
     mockApi(routes());
     renderApp("/admin/mcp-servers?record=s1");
-    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: 5000 });
+    const sheet = await screen.findByRole("region", { name: "Service status" }, { timeout: scaled(5000) });
     expect(await within(sheet).findByText("$0.0001 per call")).toBeInTheDocument();
     expect(within(sheet).queryByText("0.000100")).toBeNull();
   });
@@ -100,7 +101,7 @@ describe("an MCP server's price per call", () => {
   it("is removed by emptying the field, and left alone when unchanged", async () => {
     const calls = mockApi(routes({ "PATCH /v1/admin/mcp-servers/s1": () => server({ pricePerCall: undefined, revision: 4 }) }));
     const { container } = renderApp("/admin/mcp-servers?form=s1");
-    const form = await screen.findByRole("region", { name: "Edit Service status" }, { timeout: 5000 });
+    const form = await screen.findByRole("region", { name: "Edit Service status" }, { timeout: scaled(5000) });
     const price = await within(form).findByRole("textbox", { name: /Price per call \(USD\)/ });
     expect(within(form).getByText(/Empty the field to remove the price/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -112,7 +113,7 @@ describe("an MCP server's price per call", () => {
   it("isn't sent when the price didn't change", async () => {
     const calls = mockApi(routes({ "PATCH /v1/admin/mcp-servers/s1": () => server({ revision: 4 }) }));
     renderApp("/admin/mcp-servers?form=s1");
-    const form = await screen.findByRole("region", { name: "Edit Service status" }, { timeout: 5000 });
+    const form = await screen.findByRole("region", { name: "Edit Service status" }, { timeout: scaled(5000) });
     await userEvent.click(await within(form).findByRole("button", { name: "Save MCP server" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     expect(calls.find((c) => c.method === "PATCH")!.body).not.toHaveProperty("pricePerCall");

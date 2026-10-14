@@ -16,6 +16,7 @@ import { answerToAdd, usedNote } from "../pages/team/evaluations/answer-to-add";
 import { outcomeText, resultLabel } from "../pages/team/evaluations/labels";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { checkReply, evalRoutes, meWithEvals, questions, result, run, runs, set } from "./evaluations-fixtures";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -26,7 +27,7 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 const agentSet: Schemas["EvaluationSet"] = { ...set, target: { type: "agent", id: "ag1", name: "Helper" } };
 const item = (kind: "document" | "url" | "filename", value: string, extra: Partial<Schemas["EvaluationExpectedItem"]> = {}) => ({ kind, value, state: "indexed" as const, ...extra });
 
@@ -254,7 +255,7 @@ describe("a running run", () => {
     renderApp("/teams/registrar/evaluations/set1?tab=runs&record=r3");
     const page = await screen.findByRole("region", { name: "Run" }, T);
     expect(await within(page).findByText("Running")).toBeInTheDocument();
-    expect(await within(page).findByText("Completed", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(await within(page).findByText("Completed", {}, { timeout: scaled(4000) })).toBeInTheDocument();
   });
 });
 

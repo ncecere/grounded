@@ -1,5 +1,7 @@
 /* TEST_TIME_SCALE (test-scale.ts): one setting that stretches every test timeout on a slower or shared machine, 1 (nothing changes) by default. */
 import { getConfig } from "@testing-library/react";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseTimeScale, scaled } from "../../test-scale";
 
@@ -38,5 +40,21 @@ describe("the limits this run is actually using", () => {
 
   it("a test may take 20 s times the scale", ({ task }) => {
     expect(task.timeout).toBe(20_000 * scale);
+  });
+});
+
+describe("no test sets a limit of its own that the scale would not reach", () => {
+  const dir = path.dirname(new URL(import.meta.url).pathname);
+  const files = fs.readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((f) => /\.tsx?$/.test(f) && !f.endsWith("time-scale.test.ts"));
+
+  it("every explicit timeout and per-test limit goes through scaled()", () => {
+    const bare: string[] = [];
+    for (const f of files) {
+      fs.readFileSync(path.join(dir, f), "utf8").split("\n").forEach((line, i) => {
+        // `{ timeout: 4000 }` for a findBy/waitFor, and `}, 15_000);` closing an it(...): both would ignore TEST_TIME_SCALE
+        if (/\btimeout: ?\d/.test(line) || /^\s*\}, ?[1-9][\d_]*\);/.test(line)) bare.push(`${f}:${i + 1}: ${line.trim().slice(0, 80)}`);
+      });
+    }
+    expect(bare, "wrap these limits in scaled(...) from test-scale.ts").toEqual([]);
   });
 });

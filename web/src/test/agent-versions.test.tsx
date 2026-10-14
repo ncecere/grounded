@@ -10,6 +10,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { configInput } from "../pages/agents/common";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 beforeAll(() => {
   window.scrollTo = () => {};
@@ -86,7 +87,7 @@ function routes(current = agent(), extra: Record<string, Handler> = {}): Record<
   };
 }
 
-const T = { timeout: 5000 };
+const T = { timeout: scaled(5000) };
 
 describe("the agent editor's tabs and version menu (I6)", () => {
   it("has 6 tabs, and the version badge is a menu that opens the history as a record page", async () => {

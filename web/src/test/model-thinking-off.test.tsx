@@ -3,6 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -55,7 +56,7 @@ async function testModel(result: object) {
     "POST /v1/admin/models/m1/test": () => result,
   });
   const { container } = renderApp("/admin/models");
-  const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
+  const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
   await userEvent.click(await within(table).findByRole("button", { name: "GPT-OSS 120B" }));
   const sheet = await screen.findByRole("region", { name: "GPT-OSS 120B" });
   await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
@@ -113,7 +114,7 @@ describe("model page: what the last Test found about thinking off", () => {
       ...extra,
     });
     renderApp("/admin/models");
-    const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
+    const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
     await userEvent.click(await within(table).findByRole("button", { name: "GPT-OSS 120B" }));
     return screen.findByRole("region", { name: "GPT-OSS 120B" });
   }

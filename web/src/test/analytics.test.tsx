@@ -4,6 +4,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { dailySummary, moderationByCategory } from "../components/analytics/format";
 import { mockApi, renderApp, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 /** A local calendar day n days ago (the date-range presets use local days). */
 const daysAgoLocal = (n: number) => {
@@ -129,7 +130,7 @@ describe("admin analytics page", () => {
     expect(within(agents).getByText("Deleted agent")).toBeInTheDocument();
     expect(within(agents).getAllByRole("row")[1]).toHaveTextContent(/91%$/); // citation support rate
     expect(within(screen.getByRole("table", { name: "Teams with the most answers" })).getByRole("link", { name: "Registrar" })).toBeInTheDocument();
-  }, 15_000);
+  }, scaled(15_000));
 
   it("drills into moderation decisions: category, score and lowered blocks (F-02)", async () => {
     mockApi({

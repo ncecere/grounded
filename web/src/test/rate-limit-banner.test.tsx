@@ -9,6 +9,7 @@ import { ApiError } from "../api/client";
 import { SessionUnavailable } from "../components/layout/session-unavailable";
 import { appRetryDelay, clearRateLimit, noteRateLimit, rateLimitedUntil } from "../lib/retry";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
+import { scaled } from "../../test-scale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -35,7 +36,7 @@ describe("the rate-limit banner (AD2-09)", () => {
     const user = userEvent.setup();
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/teams": () => ({ items: [] }) });
     const { container } = renderApp("/admin/teams");
-    await screen.findByRole("heading", { level: 1, name: "Teams" }, { timeout: 4000 });
+    await screen.findByRole("heading", { level: 1, name: "Teams" }, { timeout: scaled(4000) });
     expect(screen.queryByText(/Too many requests/)).toBeNull();
     act(() => noteRateLimit(30_000));
     expect(await screen.findByText("Too many requests: waiting before trying again")).toBeInTheDocument();
