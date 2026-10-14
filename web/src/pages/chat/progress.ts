@@ -21,6 +21,10 @@ export function stepLabel(step: ChatStep, agentName: string) {
     case "thinking":
       // Buffered and checked answers don't show the model's reasoning: only that it's happening.
       return "Thinking about your question…";
+    case "waiting":
+      // A request is queued for capacity (the connection's request limit, or SystemOne's busy slots): the step in
+      // progress comes back when the wait is over.
+      return "Working on it…";
     case "answering":
       return "Writing the answer…";
   }

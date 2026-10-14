@@ -4755,7 +4755,7 @@ paths:
         default) the reply is Server-Sent Events: named events whose data is JSON
         (see ChatEvent* schemas), in this order: conversation, status (what the
         agent is doing before the answer's first words: rewriting, searching,
-        checking, answering; one event per step, and clients should ignore
+        checking, thinking, waiting, answering; one event per step, and clients should ignore
         steps they don't know), retrieval (always mode), message_start, then
         thinking_delta / text_delta / text_reset / tool_call /
         retrieval / tool_result as they happen, moderation (only when
@@ -12319,10 +12319,14 @@ components:
         thinking: the model is reasoning (v0.4.0; since v0.4.2 whenever it
         reasons, including after a tool call, as readers don't see the
         reasoning itself); answering follows once it starts writing.
+        waiting: a request waits for capacity (the connection's request limit
+        or SystemOne's busy slots) for about a second or more; it overlays
+        the step in progress, which is sent again when the wait is over, and
+        none is sent once the model has started to write (v0.4.4).
         Clients should ignore steps they don't know.
       required: [step]
       properties:
-        step: { type: string, enum: [rewriting, searching, checking, thinking, answering] }
+        step: { type: string, enum: [rewriting, searching, checking, thinking, waiting, answering] }
     ChatEventMessageStart:
       type: object
       description: "SSE event message_start"

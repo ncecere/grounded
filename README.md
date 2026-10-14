@@ -92,7 +92,7 @@ Each install sets its own name, logo, support links and crawl allowlist through 
 - **Strict grounding** (on by default): the agent answers only from its sources and gives the team's refusal message when they have nothing relevant.
 - Numbered **citations** link to the passages and pages that were used. An optional SystemOne model checks each cited claim against its source (verified, unsupported or contradicted), re-ranks passages, drops prompt injections, and spots questions outside the agent's scope.
 - **Tools from MCP servers:** a platform admin registers a remote MCP server and approves its tools; editors enable them on an agent, and each result is cited as a numbered source and checked like a passage. Calls are audited, metered and bounded.
-- Answers show what the agent is doing before the first words (searching, checking the passages, writing), a follow-up is rewritten only when it depends on the conversation, and a reasoning model's effort can be set per agent.
+- Answers show what the agent is doing before the first words (searching, checking the passages, writing, and when it is waiting for the model to be free), a follow-up is rewritten only when it depends on the conversation, and a reasoning model's effort can be set per agent.
 - **Evaluations:** sets of questions per knowledge base or agent, scored for retrieval and for full answers, with trends between runs.
 - Conversations are private to their user, who can export or delete them. Users can give feedback on answers.
 - Three audiences: the team, everyone who signs in (listed in a directory), or the public.

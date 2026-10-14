@@ -82,13 +82,20 @@ func (l *connLimiter) Wait(ctx context.Context) error {
 			waited += delay
 		}
 		if delay > 0 {
+			// An interactive request queued for its reserved slot: tell the reader it is waiting (G22).
+			end := func() {}
+			if !background {
+				end = gateway.BeginWait(ctx, delay)
+			}
 			t := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
 				t.Stop()
+				end()
 				return ctx.Err()
 			case <-t.C:
 			}
+			end()
 		}
 		if ok {
 			return nil

@@ -302,7 +302,8 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 		}
 		st.newText = false
 		st.textSoFar.WriteString(le.Delta)
-		if ru.step == StepThinking {
+		ru.writing()
+		if ru.currentStep() == StepThinking {
 			ru.status(StepAnswering) // writing now (the text is held until checked)
 		}
 		ru.sendDelta("text_delta", le.Delta)

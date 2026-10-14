@@ -781,6 +781,7 @@ const (
 	ChatEventStatusStepRewriting ChatEventStatusStep = "rewriting"
 	ChatEventStatusStepSearching ChatEventStatusStep = "searching"
 	ChatEventStatusStepThinking  ChatEventStatusStep = "thinking"
+	ChatEventStatusStepWaiting   ChatEventStatusStep = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventStatusStep enum.
@@ -795,6 +796,8 @@ func (e ChatEventStatusStep) Valid() bool {
 	case ChatEventStatusStepSearching:
 		return true
 	case ChatEventStatusStepThinking:
+		return true
+	case ChatEventStatusStepWaiting:
 		return true
 	default:
 		return false
@@ -5758,7 +5761,7 @@ type ChatEventRetrieval struct {
 	Query string `json:"query"`
 }
 
-// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). thinking: the model is reasoning (v0.4.0; since v0.4.2 whenever it reasons, including after a tool call, as readers don't see the reasoning itself); answering follows once it starts writing. Clients should ignore steps they don't know.
+// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). thinking: the model is reasoning (v0.4.0; since v0.4.2 whenever it reasons, including after a tool call, as readers don't see the reasoning itself); answering follows once it starts writing. waiting: a request waits for capacity (the connection's request limit or SystemOne's busy slots) for about a second or more; it overlays the step in progress, which is sent again when the wait is over, and none is sent once the model has started to write (v0.4.4). Clients should ignore steps they don't know.
 type ChatEventStatus struct {
 	Step ChatEventStatusStep `json:"step"`
 }
