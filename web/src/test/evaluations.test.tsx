@@ -91,9 +91,12 @@ describe("a set's page", () => {
     await userEvent.type(urls, "https://example.edu/fees*{Enter}fees.pdf{Enter}");
     expect(within(dialog).queryByRole("textbox", { name: /Must mention/ })).toBeNull();
     expect(await axe(dialog)).toHaveNoViolations();
+    // The form checks the expected documents as it is filled in (a debounced POST to evaluation-question-check), which on a slow
+    // machine lands before the click: wait for it, so the test always sees both requests, and pick the create by its address.
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith("/evaluation-question-check"))).toBe(true));
     await userEvent.click(within(dialog).getByRole("button", { name: "Create question" }));
-    await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
-    expect(calls.find((c) => c.method === "POST")!.body).toEqual({
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/evaluation-sets/set1/questions"))).toBe(true));
+    expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/evaluation-sets/set1/questions"))!.body).toEqual({
       question: "Where is the fee schedule?",
       expected: { documentIds: [], urls: ["https://example.edu/fees*"], filenames: ["fees.pdf"] },
       mustMention: [],
