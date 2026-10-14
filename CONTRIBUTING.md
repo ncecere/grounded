@@ -10,6 +10,8 @@ Thanks for helping. This file covers how to set up, test and submit changes. Eve
 
 ## Development setup
 
+**On the maintainer's homelab cluster nothing in this section is needed**, and it is not how AI agents work on Grounded: a branch runs as a throwaway environment (`dev-env up grounded <name> --ref <branch> --demo`), the CI suites run as Jobs (`dev-env test grounded`), and QA walks run against an environment (`dev-env walk grounded`); [`AGENTS.md`](AGENTS.md) has the commands. **Everywhere else, the rest of this section is how to run Grounded on your own machine**, it keeps working, and it is what CI itself does.
+
 Requires Go 1.26+, Node 22+ and Docker. `make generate` also needs [sqlc](https://sqlc.dev) (CI uses 1.31.1) on your `PATH` or in `~/go/bin`.
 
 ```sh
