@@ -138,7 +138,7 @@ Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) opens one groupe
 - **If one package in a group breaks the build,** fix it on the pull request if that's quick. Otherwise add an `ignore` entry for that package, with a comment and an issue, and merge the rest of the group so it doesn't hold everything up.
 - **Major versions** (and Go or Node toolchain bumps) need their changelogs read. If they change behaviour or need code changes, move them to their own pull request.
 - **Pinned actions:** Dependabot updates the commit SHA and the version comment together. Check that they still match.
-- **Before a release,** regenerate the dependency and licence tables with `make deps-inventory` ([`docs/security/dependencies.md`](docs/security/dependencies.md)).
+- **Before a release,** regenerate the dependency and licence tables with `make deps-inventory`, and re-run the scans and record their results (`govulncheck`, `npm audit`, Trivy on both images and on the repository; commands in [`docs/security/dependencies.md`](docs/security/dependencies.md)).
 
 ## Commits and pull requests
 

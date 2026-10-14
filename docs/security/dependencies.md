@@ -136,16 +136,21 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
-Run before v0.1.0 on 2026-09-27, on commit `431020a` of the `phase5-m5-authz-security` branch.
+Run on 2026-10-14 on commit `fc849659` (`main` after v0.4.3), with Go 1.26.9, npm 10.9.8 and Trivy 0.75.0. The images scanned are the v0.4.3 release digests (`grounded@sha256:93c371fcfc51…`, `grounded-ocr@sha256:cb61f343921c…`). Earlier runs: before v0.1.0 (2026-09-27, `431020a`), and `govulncheck` alone on 2026-10-11.
 
 | Scan | Command | Result |
 |---|---|---|
 | Go vulnerabilities (reachable code) | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` (also in `make lint`) | No vulnerabilities found |
 | npm, shipped packages | `cd web && npm audit --omit=dev` | 0 vulnerabilities |
-| npm, including development tools | `cd web && npm audit` | 0 vulnerabilities |
-| Container image | `make docker`, then Trivy 0.69.3 (`trivy image --input image.tar --scanners vuln`) | Go binary: 0. Debian 12.15 base: 1, `tzdata` 2026b → 2026c (DLA-4792-1, severity unknown: a time zone data update, not a vulnerability). Picked up by the next rebuild of the base image; nothing to fix in Grounded |
-| Secrets in the repository | `trivy fs --scanners secret` (excluding `web/node_modules`) | None |
-| Kubernetes and Dockerfile misconfiguration | `trivy fs --scanners misconfig --severity MEDIUM,HIGH,CRITICAL` | See below |
+| npm, including development tools | `cd web && npm audit` | 0 vulnerabilities. The scan found 1 high first: `source-map-js` 1.2.1 ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), event-loop denial of service from crafted source maps), a development tool that is not in the image. Fixed by 1.2.2 (Dependabot, [#10](https://github.com/ncecere/grounded/pull/10)); re-run after the bump |
+| Container image `grounded` | `trivy image --scanners vuln ghcr.io/ncecere/grounded@sha256:…` | Go binary: 0. Debian 12.15 base: 1, `tzdata` 2026b → 2026c (DLA-4792-1, severity unknown: a time zone data update, not a vulnerability). Picked up by the next rebuild of the base image; nothing to fix in Grounded |
+| Container image `grounded-ocr` | the same, on `grounded-ocr@sha256:…` | Go binary: 0. Debian 12.15 base: **415** (3 critical, 88 high, 149 medium, 174 low, 1 unknown), **none with a fix available**: Debian marks 288 as affected (no fixed package yet), 104 as fix deferred and 23 as will not fix. See below |
+| Secrets in the repository | `trivy fs --scanners secret --skip-dirs web/node_modules .` | None |
+| Kubernetes and Dockerfile misconfiguration | `trivy fs --scanners misconfig --severity MEDIUM,HIGH,CRITICAL --skip-dirs web/node_modules .` | See below |
+
+### The OCR image's base
+
+`grounded-ocr` is `debian:bookworm-slim` with Tesseract and its libraries (`Dockerfile.ocr`); the `grounded` image is distroless and has one finding. The OCR image's 415 findings are all in Debian packages that Debian has not fixed, so the CI gate (Trivy on every published image, failing on fixable HIGH and CRITICAL findings) passes and an upgrade cannot remove them. The three critical findings are `libglib2.0-0` (CVE-2026-58016), `libxml2` (CVE-2026-6653) and `zlib1g` (CVE-2023-45853); the packages with the most high findings are `libglib2.0-0`, `libxml2`, the Tesseract libraries, the util-linux libraries (`bsdutils`, `libblkid1`, `libmount1`) and `libcurl4`. This run did not assess whether any of them is reachable from the OCR service, which only reads an image it is sent and returns text; that, and whether a smaller or newer base would remove most of them, is tracked in [#56](https://github.com/ncecere/grounded/issues/56). Until then, treat the OCR image as the one with open base-image findings. The shipped component limits what it can do: the pod runs as non-root with all capabilities dropped, a read-only root filesystem, a seccomp profile and no service account token, and its NetworkPolicy lets only the API and the worker reach it. That policy restricts ingress only; the sidecar needs no egress, so a cluster that does not deny egress by default should add that. Do not expose the OCR service outside the namespace.
 
 Misconfiguration findings, all reviewed:
 
@@ -156,4 +161,4 @@ Misconfiguration findings, all reviewed:
 | KSV-01010 ConfigMap with sensitive content | `components/backup-pgdump` | False positive: the key flagged is `PGPORT` |
 | KSV-0014 root filesystem not read-only | `test/kind/s3.yaml` | The S3 stand-in of the kind smoke test only; never deployed |
 
-CI repeats the vulnerability checks on every push (`govulncheck` in `make lint`; Trivy on every published image, failing on fixable HIGH and CRITICAL findings).
+Re-run all of these before each release (commands in the table; the image scans take the release digests) and replace this section. CI repeats the vulnerability checks on every push (`govulncheck` in `make lint`; Trivy on every published image, failing on fixable HIGH and CRITICAL findings).
