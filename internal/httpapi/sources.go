@@ -203,6 +203,10 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 			SupportsTools: m.SupportsTools, SupportsReasoningEffort: c.SupportsReasoningEffort != nil && *c.SupportsReasoningEffort,
 			SupportsThinkingOff: c.ThinkingOff != nil, Health: pickerHealth(health, m.ID),
 		}
+		if m.ThinkingOffResult != nil {
+			r := apitypes.ChatModelOptionThinkingOffCheck(*m.ThinkingOffResult)
+			out[i].ThinkingOffCheck = &r
+		}
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }

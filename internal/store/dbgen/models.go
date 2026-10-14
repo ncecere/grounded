@@ -737,6 +737,8 @@ type Model struct {
 	ModerationProvider       *string
 	ModerationFamily         *string
 	ModerationTimeoutSeconds *int32
+	ThinkingOffResult        *string
+	ThinkingOffCheckedAt     *time.Time
 }
 
 type ModelConnection struct {

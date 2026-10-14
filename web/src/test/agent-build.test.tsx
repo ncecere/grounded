@@ -175,6 +175,40 @@ describe("Build", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  // #52: what an admin's Test found about turning thinking off, beside Reasoning effort Off
+  async function openEffort(check: "ignored" | "honoured" | undefined) {
+    const model = { ...models[0]!, supportsThinkingOff: true, ...(check ? { thinkingOffCheck: check } : {}) };
+    mockApi(routes(agent(), { "GET /v1/chat-models": () => [model] }));
+    const view = renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    return { ...view, effort: screen.getByRole("combobox", { name: /Reasoning effort/ }) };
+  }
+
+  it("Reasoning effort says Off was ignored by the model's last Test, and warns once Off is chosen", async () => {
+    const { effort, container } = await openEffort("ignored");
+    const off = within(effort).getByRole("option", { name: /^Off/ }) as HTMLOptionElement;
+    expect(off.textContent).toBe("Off (ignored by this model)");
+    expect(off.disabled).toBe(false); // still choosable: an admin may know better, and the model can change
+    expect(effort).toHaveAccessibleDescription(/last Test found it still reasoning/);
+    expect(screen.queryByText(/Off did not stop this model/)).toBeNull(); // not until Off is chosen
+    await userEvent.selectOptions(effort, "off");
+    const warning = screen.getByText(/Off did not stop this model/).closest("[data-tone]");
+    expect(warning).toHaveAttribute("data-tone", "warning");
+    expect(warning).toHaveTextContent("slower");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("Reasoning effort says nothing extra when Off worked in the last Test, or was never tested", async () => {
+    for (const check of ["honoured", undefined] as const) {
+      const { effort, unmount } = await openEffort(check);
+      expect(within(effort).getByRole("option", { name: /^Off/ }).textContent).toBe("Off");
+      expect(effort).not.toHaveAccessibleDescription(/last Test/);
+      await userEvent.selectOptions(effort, "off");
+      expect(screen.queryByText(/Off did not stop this model/)).toBeNull();
+      unmount();
+    }
+  });
+
   it("editors can't start a publish to Public and are told why (P-03)", async () => {
     mockApi(routes(agent({ audience: "public", hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1");

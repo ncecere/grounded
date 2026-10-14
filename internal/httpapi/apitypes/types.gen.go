@@ -840,6 +840,24 @@ func (e ChatHistoryMessageRole) Valid() bool {
 	}
 }
 
+// Defines values for ChatModelOptionThinkingOffCheck.
+const (
+	ChatModelOptionThinkingOffCheckHonoured ChatModelOptionThinkingOffCheck = "honoured"
+	ChatModelOptionThinkingOffCheckIgnored  ChatModelOptionThinkingOffCheck = "ignored"
+)
+
+// Valid indicates whether the value is a known member of the ChatModelOptionThinkingOffCheck enum.
+func (e ChatModelOptionThinkingOffCheck) Valid() bool {
+	switch e {
+	case ChatModelOptionThinkingOffCheckHonoured:
+		return true
+	case ChatModelOptionThinkingOffCheckIgnored:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CitationKind.
 const (
 	CitationKindTool CitationKind = "tool"
@@ -3813,6 +3831,24 @@ func (e TeamStatus) Valid() bool {
 	}
 }
 
+// Defines values for ThinkingOffCheckResult.
+const (
+	ThinkingOffCheckResultHonoured ThinkingOffCheckResult = "honoured"
+	ThinkingOffCheckResultIgnored  ThinkingOffCheckResult = "ignored"
+)
+
+// Valid indicates whether the value is a known member of the ThinkingOffCheckResult enum.
+func (e ThinkingOffCheckResult) Valid() bool {
+	switch e {
+	case ThinkingOffCheckResultHonoured:
+		return true
+	case ThinkingOffCheckResultIgnored:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UploadResultStatus.
 const (
 	Created   UploadResultStatus = "created"
@@ -5839,7 +5875,13 @@ type ChatModelOption struct {
 
 	// SupportsTools Required for retrieval mode tool
 	SupportsTools bool `json:"supportsTools"`
+
+	// ThinkingOffCheck What an admin's Test found about turning thinking off for this model (null: not tested since it was configured). ignored means it reasoned anyway, so Reasoning effort Off may not stop it.
+	ThinkingOffCheck *ChatModelOptionThinkingOffCheck `json:"thinkingOffCheck,omitempty"`
 }
+
+// ChatModelOptionThinkingOffCheck What an admin's Test found about turning thinking off for this model (null: not tested since it was configured). ignored means it reasoned anyway, so Reasoning effort Off may not stop it.
+type ChatModelOptionThinkingOffCheck string
 
 // ChatRequest defines model for ChatRequest.
 type ChatRequest struct {
@@ -8513,10 +8555,13 @@ type Model struct {
 	ModerationTimeoutSeconds *int32 `json:"moderationTimeoutSeconds,omitempty"`
 
 	// Revision Increases on every change. Send it back in If-Match.
-	Revision       Revision  `json:"revision"`
-	SupportsTools  bool      `json:"supportsTools"`
-	SupportsVision bool      `json:"supportsVision"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	Revision       Revision `json:"revision"`
+	SupportsTools  bool     `json:"supportsTools"`
+	SupportsVision bool     `json:"supportsVision"`
+
+	// ThinkingOffCheck Chat models with a way to turn thinking off: what the last Test found (v0.4.4). Null when never tested, or after the model's compatibility settings or upstream model changed. A Test does not change the revision.
+	ThinkingOffCheck *ThinkingOffCheck `json:"thinkingOffCheck,omitempty"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
 
 	// UpstreamModel Example: nomic-embed-text-v1.5
 	UpstreamModel string `json:"upstreamModel"`
@@ -10818,6 +10863,17 @@ type TestChatRequest struct {
 	Message string                `json:"message"`
 	Stream  *bool                 `json:"stream,omitempty"`
 }
+
+// ThinkingOffCheck defines model for ThinkingOffCheck.
+type ThinkingOffCheck struct {
+	CheckedAt time.Time `json:"checkedAt"`
+
+	// Result honoured: a reply with thinking asked to be off had no reasoning; ignored: the model reasoned anyway
+	Result ThinkingOffCheckResult `json:"result"`
+}
+
+// ThinkingOffCheckResult honoured: a reply with thinking asked to be off had no reasoning; ignored: the model reasoned anyway
+type ThinkingOffCheckResult string
 
 // ThinkingOffModelTest Chat models with a way to turn thinking off (Compatibility): a second request, made the way an agent's Reasoning effort Off makes it, and whether the model still reasoned (v0.4.4, issue #7). Some models ignore every switch.
 type ThinkingOffModelTest struct {

@@ -5,7 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
 // Some reasoning models ignore every way of turning thinking off (issue #7): the setting is saved, an agent's Reasoning
@@ -77,4 +80,43 @@ func checkThinkingOff(ctx context.Context, p llm.Provider, model llm.Model, user
 		res.Message = "Thinking off isn't honoured by this model: it still reasoned with " + res.Setting + "."
 	}
 	return res
+}
+
+// thinkingOffAction is what a Test's thinking-off result does to the model's stored check (#52).
+type thinkingOffAction int
+
+const (
+	// keepThinkingOff: the check could not run, which says nothing about the model; what was found before stays.
+	keepThinkingOff thinkingOffAction = iota
+	// setThinkingOff: store honoured or ignored.
+	setThinkingOff
+	// clearThinkingOff: the model has no way to turn thinking off, so there is nothing to keep.
+	clearThinkingOff
+)
+
+// storedThinkingOff turns a Test's thinking-off result into what is stored: an action and, for setThinkingOff, the
+// result ("honoured" or "ignored").
+func storedThinkingOff(t *ThinkingOffTest) (thinkingOffAction, string) {
+	switch {
+	case t == nil:
+		return clearThinkingOff, ""
+	case t.Error != "":
+		return keepThinkingOff, ""
+	case t.Honoured:
+		return setThinkingOff, "honoured"
+	default:
+		return setThinkingOff, "ignored"
+	}
+}
+
+// keepThinkingOffResult stores what the Test found on the model (not a change of the model: its revision stays).
+func (s *Service) keepThinkingOffResult(ctx context.Context, id uuid.UUID, t *ThinkingOffTest) error {
+	action, result := storedThinkingOff(t)
+	switch action {
+	case setThinkingOff:
+		return s.q.SetModelThinkingOff(ctx, dbgen.SetModelThinkingOffParams{ID: id, Result: &result})
+	case clearThinkingOff:
+		return s.q.ClearModelThinkingOff(ctx, id)
+	}
+	return nil
 }

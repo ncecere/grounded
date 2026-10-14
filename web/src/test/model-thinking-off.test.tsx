@@ -101,3 +101,57 @@ describe("model test: thinking off", () => {
     expect(within(sheet).queryByText(/Thinking off/)).not.toBeInTheDocument();
   });
 });
+
+// #52: the result is kept on the model, so the admin sees it without testing again
+describe("model page: what the last Test found about thinking off", () => {
+  async function openRecord(model: object, extra: Record<string, () => unknown> = {}) {
+    mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [connection],
+      "GET /v1/admin/models": () => [model],
+      "GET /v1/admin/catalog-usage": () => usage,
+      ...extra,
+    });
+    renderApp("/admin/models");
+    const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
+    await userEvent.click(await within(table).findByRole("button", { name: "GPT-OSS 120B" }));
+    return screen.findByRole("region", { name: "GPT-OSS 120B" });
+  }
+
+  it("shows ignored, with when, and works, without a new Test", async () => {
+    const checkedAt = "2026-10-12T09:30:00Z";
+    const sheet = await openRecord({ ...chat, thinkingOffCheck: { result: "ignored", checkedAt } });
+    const fact = within(sheet).getByText("Thinking off").closest("div")!;
+    expect(fact).toHaveTextContent("Ignored");
+    expect(fact).toHaveTextContent("Oct 12, 2026");
+    expect(fact.querySelector("[data-tone]")).toHaveAttribute("data-tone", "warning");
+  });
+
+  it("shows works for a model that honoured it", async () => {
+    const sheet = await openRecord({ ...chat, thinkingOffCheck: { result: "honoured", checkedAt: "2026-10-12T09:30:00Z" } });
+    const fact = within(sheet).getByText("Thinking off").closest("div")!;
+    expect(fact).toHaveTextContent("Works");
+    expect(fact.querySelector("[data-tone=warning]")).toBeNull();
+  });
+
+  it("says nothing for a model that was never checked", async () => {
+    const sheet = await openRecord(chat);
+    expect(within(sheet).queryByText("Thinking off")).toBeNull();
+  });
+
+  it("follows a Test: the stored result appears when the model is reloaded", async () => {
+    let stored: object = chat;
+    const sheet = await openRecord(chat, {
+      "GET /v1/admin/models": () => [stored],
+      "POST /v1/admin/models/m1/test": () => {
+        stored = { ...chat, thinkingOffCheck: { result: "ignored", checkedAt: "2026-10-13T10:00:00Z" } };
+        return { ...base, thinkingOff: { setting: "reasoning_effort: none", honoured: false, reasoningTokens: 250, message: "Thinking off isn't honoured by this model." } };
+      },
+    });
+    expect(within(sheet).queryByText("Thinking off")).toBeNull();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
+    const fact = (await within(sheet).findByText("Thinking off")).closest("div")!;
+    expect(fact).toHaveTextContent("Ignored");
+  });
+});
+

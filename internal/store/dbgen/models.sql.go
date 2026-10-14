@@ -24,6 +24,15 @@ func (q *Queries) ClearDefaultEmbeddingProfile(ctx context.Context, exceptID uui
 	return err
 }
 
+const clearModelThinkingOff = `-- name: ClearModelThinkingOff :exec
+UPDATE models SET thinking_off_result = NULL, thinking_off_checked_at = NULL WHERE id = $1
+`
+
+func (q *Queries) ClearModelThinkingOff(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearModelThinkingOff, id)
+	return err
+}
+
 const countConnectionModels = `-- name: CountConnectionModels :one
 SELECT count(*) FROM models WHERE connection_id = $1
 `
@@ -125,7 +134,7 @@ func (q *Queries) GetConnection(ctx context.Context, id uuid.UUID) (ModelConnect
 }
 
 const getEmbeddingProfile = `-- name: GetEmbeddingProfile :one
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
 WHERE p.id = $1
@@ -184,12 +193,14 @@ func (q *Queries) GetEmbeddingProfile(ctx context.Context, id uuid.UUID) (GetEmb
 		&i.Model.ModerationProvider,
 		&i.Model.ModerationFamily,
 		&i.Model.ModerationTimeoutSeconds,
+		&i.Model.ThinkingOffResult,
+		&i.Model.ThinkingOffCheckedAt,
 	)
 	return i, err
 }
 
 const getModel = `-- name: GetModel :one
-SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds FROM models WHERE id = $1
+SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds, thinking_off_result, thinking_off_checked_at FROM models WHERE id = $1
 `
 
 func (q *Queries) GetModel(ctx context.Context, id uuid.UUID) (Model, error) {
@@ -219,6 +230,8 @@ func (q *Queries) GetModel(ctx context.Context, id uuid.UUID) (Model, error) {
 		&i.ModerationProvider,
 		&i.ModerationFamily,
 		&i.ModerationTimeoutSeconds,
+		&i.ThinkingOffResult,
+		&i.ThinkingOffCheckedAt,
 	)
 	return i, err
 }
@@ -359,7 +372,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12,
         $13, $14, $15, $16, $17,
         $18, $19)
-RETURNING id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds
+RETURNING id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds, thinking_off_result, thinking_off_checked_at
 `
 
 type InsertModelParams struct {
@@ -431,6 +444,8 @@ func (q *Queries) InsertModel(ctx context.Context, arg InsertModelParams) (Model
 		&i.ModerationProvider,
 		&i.ModerationFamily,
 		&i.ModerationTimeoutSeconds,
+		&i.ThinkingOffResult,
+		&i.ThinkingOffCheckedAt,
 	)
 	return i, err
 }
@@ -496,7 +511,7 @@ func (q *Queries) ListConnections(ctx context.Context) ([]ListConnectionsRow, er
 }
 
 const listEmbeddingProfiles = `-- name: ListEmbeddingProfiles :many
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
 ORDER BY p.is_default DESC, p.name, p.key
@@ -561,6 +576,8 @@ func (q *Queries) ListEmbeddingProfiles(ctx context.Context) ([]ListEmbeddingPro
 			&i.Model.ModerationProvider,
 			&i.Model.ModerationFamily,
 			&i.Model.ModerationTimeoutSeconds,
+			&i.Model.ThinkingOffResult,
+			&i.Model.ThinkingOffCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -573,7 +590,7 @@ func (q *Queries) ListEmbeddingProfiles(ctx context.Context) ([]ListEmbeddingPro
 }
 
 const listModels = `-- name: ListModels :many
-SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds FROM models
+SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds, thinking_off_result, thinking_off_checked_at FROM models
 WHERE ($1::text IS NULL OR kind = $1::text)
   AND ($2::uuid IS NULL OR connection_id = $2::uuid)
 ORDER BY kind, display_name, key
@@ -617,6 +634,8 @@ func (q *Queries) ListModels(ctx context.Context, arg ListModelsParams) ([]Model
 			&i.ModerationProvider,
 			&i.ModerationFamily,
 			&i.ModerationTimeoutSeconds,
+			&i.ThinkingOffResult,
+			&i.ThinkingOffCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -629,7 +648,7 @@ func (q *Queries) ListModels(ctx context.Context, arg ListModelsParams) ([]Model
 }
 
 const listUsableChatModels = `-- name: ListUsableChatModels :many
-SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds FROM models m
+SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at FROM models m
 JOIN model_connections c ON c.id = m.connection_id
 WHERE m.kind = 'chat' AND m.enabled AND c.enabled
 ORDER BY m.display_name, m.key
@@ -669,6 +688,8 @@ func (q *Queries) ListUsableChatModels(ctx context.Context) ([]Model, error) {
 			&i.ModerationProvider,
 			&i.ModerationFamily,
 			&i.ModerationTimeoutSeconds,
+			&i.ThinkingOffResult,
+			&i.ThinkingOffCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -681,7 +702,7 @@ func (q *Queries) ListUsableChatModels(ctx context.Context) ([]Model, error) {
 }
 
 const listUsableSystemOneModels = `-- name: ListUsableSystemOneModels :many
-SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds FROM models m
+SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at FROM models m
 JOIN model_connections c ON c.id = m.connection_id
 WHERE m.kind = 'systemone' AND m.enabled AND c.enabled
 ORDER BY m.display_name, m.key
@@ -722,6 +743,8 @@ func (q *Queries) ListUsableSystemOneModels(ctx context.Context) ([]Model, error
 			&i.ModerationProvider,
 			&i.ModerationFamily,
 			&i.ModerationTimeoutSeconds,
+			&i.ThinkingOffResult,
+			&i.ThinkingOffCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -734,7 +757,7 @@ func (q *Queries) ListUsableSystemOneModels(ctx context.Context) ([]Model, error
 }
 
 const listUsableVisionModels = `-- name: ListUsableVisionModels :many
-SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds FROM models m
+SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at FROM models m
 JOIN model_connections c ON c.id = m.connection_id
 WHERE m.kind = 'vision' AND m.enabled AND c.enabled
 ORDER BY m.display_name, m.key
@@ -773,6 +796,8 @@ func (q *Queries) ListUsableVisionModels(ctx context.Context) ([]Model, error) {
 			&i.ModerationProvider,
 			&i.ModerationFamily,
 			&i.ModerationTimeoutSeconds,
+			&i.ThinkingOffResult,
+			&i.ThinkingOffCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -844,7 +869,7 @@ func (q *Queries) LockEmbeddingProfile(ctx context.Context, id uuid.UUID) (Embed
 }
 
 const lockModel = `-- name: LockModel :one
-SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds FROM models WHERE id = $1 FOR UPDATE
+SELECT id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds, thinking_off_result, thinking_off_checked_at FROM models WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockModel(ctx context.Context, id uuid.UUID) (Model, error) {
@@ -874,6 +899,8 @@ func (q *Queries) LockModel(ctx context.Context, id uuid.UUID) (Model, error) {
 		&i.ModerationProvider,
 		&i.ModerationFamily,
 		&i.ModerationTimeoutSeconds,
+		&i.ThinkingOffResult,
+		&i.ThinkingOffCheckedAt,
 	)
 	return i, err
 }
@@ -884,6 +911,21 @@ SELECT pg_advisory_xact_lock(7378431002)
 
 func (q *Queries) LockModelConfig(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockModelConfig)
+	return err
+}
+
+const setModelThinkingOff = `-- name: SetModelThinkingOff :exec
+UPDATE models SET thinking_off_result = $1, thinking_off_checked_at = now() WHERE id = $2
+`
+
+type SetModelThinkingOffParams struct {
+	Result *string
+	ID     uuid.UUID
+}
+
+// What a Test found; not a change of the model, so its revision stays.
+func (q *Queries) SetModelThinkingOff(ctx context.Context, arg SetModelThinkingOffParams) error {
+	_, err := q.db.Exec(ctx, setModelThinkingOff, arg.Result, arg.ID)
 	return err
 }
 
@@ -1009,9 +1051,12 @@ SET upstream_model = $1, display_name = $2, description = $3,
     dimensions = $10, max_input_tokens = $11, compat = $12,
     moderation_provider = $13, moderation_family = $14,
     moderation_timeout_seconds = $15,
+    -- what a Test found about thinking off describes the settings it tested (#52)
+    thinking_off_result = CASE WHEN compat IS DISTINCT FROM $12 OR upstream_model <> $1 THEN NULL ELSE thinking_off_result END,
+    thinking_off_checked_at = CASE WHEN compat IS DISTINCT FROM $12 OR upstream_model <> $1 THEN NULL ELSE thinking_off_checked_at END,
     revision = revision + 1, updated_at = now()
 WHERE id = $16
-RETURNING id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds
+RETURNING id, connection_id, key, upstream_model, display_name, description, kind, max_classification, enabled, context_window, max_output_tokens, supports_tools, supports_vision, dimensions, max_input_tokens, compat, revision, created_by, created_at, updated_at, moderation_provider, moderation_family, moderation_timeout_seconds, thinking_off_result, thinking_off_checked_at
 `
 
 type UpdateModelParams struct {
@@ -1077,6 +1122,8 @@ func (q *Queries) UpdateModel(ctx context.Context, arg UpdateModelParams) (Model
 		&i.ModerationProvider,
 		&i.ModerationFamily,
 		&i.ModerationTimeoutSeconds,
+		&i.ThinkingOffResult,
+		&i.ThinkingOffCheckedAt,
 	)
 	return i, err
 }
