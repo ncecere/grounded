@@ -91,6 +91,33 @@ The runner image comes from `Dockerfile.ci` (built by the `ci-image` workflow): 
 once that workflow has finished. Like environments, a run has no limits, yields to production, expires (4 h by default) and goes
 with `down`; never leave one running.
 
+## Walking the product on the cluster (QA walks)
+
+To look at the product as each kind of person, and have the pages checked, walk a `--demo` environment:
+
+```sh
+DEVENV=~/homelab/bitop-talos/tools/dev-env/dev-env
+export KUBECONFIG_DEV=~/homelab/bitop-talos/kubeconfig
+python3 $DEVENV up grounded w1 --ref my-branch --demo --no-crawl          # the app, with the Demo team and agents
+python3 $DEVENV walk grounded w1 --ref my-branch                          # the walk script of that ref, as a Job
+python3 $DEVENV walk grounded w1 --ref my-branch --persona admin,user --width 1280,390
+python3 $DEVENV walk fetch grounded w1 --dest /tmp/w1                     # walk/pages/<persona>/<page>-<width>.png and report.json
+python3 $DEVENV down grounded w1
+```
+
+The walk (`web/walk/capture.mjs`, with the pages in `web/walk/walks.json`) signs in as each development persona through the
+development sign-in, opens each page at 1440, 1280 and 390 px, takes a screenshot, and checks the page for accessibility violations (the
+e2e suite's WCAG tags), console errors (a failed request shows with its status and path), uncaught errors, sideways overflow and a
+"Page not found" page. It prints the verdict and the pages that failed and exits non-zero if any did. `report.json` lists the captures in
+manifest order with the same keys each time, so two walks (two refs) can be compared. **It checks; it does not look**: open the
+screenshots.
+
+To add a page, add it to `web/walk/walks.json` (persona and path; only `admin` is in the Demo team, the other personas have no team, which
+is the no-team experience). A console message that is expected goes in `allow` with the reason; the report counts what was allowed. The
+walk runs in the same runner image as the CI suites, against the environment's own Service through a loopback forward (the development
+sign-in needs the host to be `http://localhost:<port>`), and needs the ref to have `web/walk`: use a branch that does, or `main`. Pictures
+for the documentation and the website stay a separate, deliberate step.
+
 ## Testing the tool itself
 
 The homelab repo has an acceptance script that brings up one environment, checks it and always removes it:
@@ -131,6 +158,6 @@ use the port that `up` printed: the host must match `APP_URL`.
 
 ## Not available yet
 
-The Kubernetes smoke test (`k8s-smoke`, which needs Docker and kind), the load tests and the screenshot capture still run locally
-or on GitHub (see CONTRIBUTING.md); on the cluster, `dev-env up grounded` plus `grounded doctor` covers what the smoke test proves.
-Running the QA walks and the screenshot capture against an environment is planned.
+The Kubernetes smoke test (`k8s-smoke`, which needs Docker and kind) and the load tests still run locally or on GitHub (see
+CONTRIBUTING.md); on the cluster, `dev-env up grounded` plus `grounded doctor` covers what the smoke test proves. Screenshots for the
+documentation and the website are made by hand (a walk's screenshots are for review, not for publishing).
