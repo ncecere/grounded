@@ -16,6 +16,14 @@ updates:
     groups:
       web:
         patterns: ["*"]
+    ignore:
+      # typescript 7 is a rewrite: openapi-typescript (a peer of typescript ^5) cannot install with it, so the whole
+      # group failed to build. Move it by hand, with the tools that depend on it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # The types follow the Node major that CI and the image run (22), not the latest one.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -30,3 +38,8 @@ updates:
     groups:
       images:
         patterns: ["*"]
+    ignore:
+      # The build images are the toolchain that CI tests with (go.mod's toolchain line, setup-node 22). Moving either is
+      # a deliberate change of all of them together, not a Dependabot bump of the Dockerfiles alone.
+      - dependency-name: golang
+      - dependency-name: node
