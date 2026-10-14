@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Compass, Home, LifeBuoy, LogOut, MessageSquare, MessagesSquare, Plug } from "lucide-react";
+import { Bell, Compass, Home, KeyRound, LifeBuoy, LogOut, MessageSquare, MessagesSquare, Plug, User } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { conversationsQuery } from "../../api/queries";
 import { liveGrant, useMyBreakGlass } from "../../lib/break-glass";
@@ -45,6 +45,14 @@ export function AppSidebar({ me, mode, active }: { me: Me; mode: Mode; active: A
             {me.user.email}
           </MenuHeader>
           <MenuSeparator />
+          <MenuLinkItem icon={<User aria-hidden />} render={<Link to="/settings/profile" />}>
+            Profile
+          </MenuLinkItem>
+          {me.teams.length > 0 && (
+            <MenuLinkItem icon={<KeyRound aria-hidden />} render={<Link to="/settings/api-keys" />}>
+              API keys
+            </MenuLinkItem>
+          )}
           <MenuLinkItem icon={<Bell aria-hidden />} render={<Link to="/settings/notifications" />}>
             Notification settings
           </MenuLinkItem>

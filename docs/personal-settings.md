@@ -4,6 +4,8 @@ Everything a person sets for themselves is in the **account menu**: select your 
 
 | Setting | What it does | Where it's kept |
 |---|---|---|
+| **Profile** | Your name, email, platform role (if you have one), when you joined and last signed in, and your teams with your role in each. Nothing is edited here: the name and email come from how you sign in. | Your account (`/settings/profile`) |
+| **API keys** | Your personal keys in every team you belong to, with each key's prefix, expiry and last use. Each links to its page in the team's settings, where it is revoked; **Create a key** opens the new-key form there. Shown to people who are in a team: keys belong to a team. | Your account (`/settings/api-keys`) |
 | **Notification settings** | Which events reach you in the app and by email. Some are required. | Your account (`/settings/notifications`) |
 | **Connected apps** | AI tools you connected with OAuth sign-in; disconnect one to stop it ([`mcp.md`](mcp.md)). | Your account (`/settings/connected-apps`) |
 | **Theme** | **System** (the default), **Light** or **Dark**. | This browser |
