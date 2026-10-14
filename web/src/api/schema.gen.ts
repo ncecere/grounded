@@ -6469,11 +6469,22 @@ export interface components {
              * @description Moderation models only: the timeout of one attempt of a check (a timed-out check is retried once). Null uses the platform default, MODERATION_TIMEOUT, or 30 seconds for chat_classifier models if that is longer.
              */
             moderationTimeoutSeconds?: number | null;
+            /** @description Chat models with a way to turn thinking off: what the last Test found (v0.4.4). Null when never tested, or after the model's compatibility settings or upstream model changed. A Test does not change the revision. */
+            thinkingOffCheck?: components["schemas"]["ThinkingOffCheck"] | null;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        ThinkingOffCheck: {
+            /**
+             * @description honoured: a reply with thinking asked to be off had no reasoning; ignored: the model reasoned anyway
+             * @enum {string}
+             */
+            result: "honoured" | "ignored";
+            /** Format: date-time */
+            checkedAt: string;
         };
         /**
          * @description How a moderation model is called (ADR-0019): an OpenAI-compatible /moderations endpoint, a guardrail model over /chat/completions, or any chat model as a JSON classifier. system_one is reported for SystemOne models (kind systemone), which moderation policies use directly; new moderation models cannot choose it (ADR-0020).
@@ -7094,6 +7105,11 @@ export interface components {
             supportsTools: boolean;
             /** @description Reasoning effort low, medium and high can be chosen */
             supportsReasoningEffort: boolean;
+            /**
+             * @description What an admin's Test found about turning thinking off for this model (null: not tested since it was configured). ignored means it reasoned anyway, so Reasoning effort Off may not stop it.
+             * @enum {string|null}
+             */
+            thinkingOffCheck?: "honoured" | "ignored" | null;
             /** @description Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off) */
             supportsThinkingOff: boolean;
             health: components["schemas"]["PickerHealth"];

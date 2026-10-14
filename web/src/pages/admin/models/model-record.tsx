@@ -14,7 +14,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { RerankSample } from "./rerank-sample";
-import { ThinkingOffNote } from "./thinking-off-note";
+import { ThinkingOffFact, ThinkingOffNote } from "./thinking-off-note";
 import { CompatSection, compatFacts } from "./compat-facts";
 import { deleteBlockedReason, EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
@@ -25,8 +25,9 @@ export function useModelTest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (model: Model) => unwrap(await api.POST("/v1/admin/models/{modelId}/test", { params: { path: { modelId: model.id } } })),
-    // The result is stored as the model's health.
-    onSettled: () => refreshHealth(qc),
+    // The result is stored as the model's health, and what it found about thinking off on the model (#52): reload both,
+    // and what agents are offered.
+    onSettled: () => Promise.all([refreshHealth(qc), qc.invalidateQueries({ queryKey: ["admin", "models"] }), qc.invalidateQueries({ queryKey: ["chat-models"] })]),
   });
 }
 type ModelTest = ReturnType<typeof useModelTest>;
@@ -108,6 +109,7 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
               { label: "Max classification", value: <ClassificationBadge levels={levels.data} value={model.maxClassification} /> },
               { label: "Status", value: <EnabledBadge enabled={model.enabled} /> },
               ...healthFacts(health),
+              { label: "Thinking off", value: model.thinkingOffCheck ? <ThinkingOffFact check={model.thinkingOffCheck} /> : undefined },
               { label: "Context window", value: model.contextWindow?.toLocaleString() },
               { label: "Max output tokens", value: model.maxOutputTokens?.toLocaleString() },
               { label: "Dimensions", value: model.dimensions?.toLocaleString() },

@@ -9551,9 +9551,26 @@ components:
             (a timed-out check is retried once). Null uses the platform
             default, MODERATION_TIMEOUT, or 30 seconds for chat_classifier
             models if that is longer.
+        thinkingOffCheck:
+          nullable: true
+          description: >-
+            Chat models with a way to turn thinking off: what the last Test
+            found (v0.4.4). Null when never tested, or after the model's
+            compatibility settings or upstream model changed. A Test does not
+            change the revision.
+          allOf: [{ $ref: "#/components/schemas/ThinkingOffCheck" }]
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ThinkingOffCheck:
+      type: object
+      required: [result, checkedAt]
+      properties:
+        result:
+          type: string
+          enum: [honoured, ignored]
+          description: "honoured: a reply with thinking asked to be off had no reasoning; ignored: the model reasoned anyway"
+        checkedAt: { type: string, format: date-time }
     ModerationProvider:
       type: string
       description: >-
@@ -10100,6 +10117,11 @@ components:
         maxOutputTokens: { type: integer, format: int32, nullable: true }
         supportsTools: { type: boolean, description: "Required for retrieval mode tool" }
         supportsReasoningEffort: { type: boolean, description: "Reasoning effort low, medium and high can be chosen" }
+        thinkingOffCheck:
+          type: string
+          enum: [honoured, ignored]
+          nullable: true
+          description: "What an admin's Test found about turning thinking off for this model (null: not tested since it was configured). ignored means it reasoned anyway, so Reasoning effort Off may not stop it."
         supportsThinkingOff: { type: boolean, description: "Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off)" }
         health: { $ref: "#/components/schemas/PickerHealth" }
     EmbeddingProfileOption:

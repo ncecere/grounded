@@ -64,9 +64,19 @@ SET upstream_model = @upstream_model, display_name = @display_name, description 
     dimensions = @dimensions, max_input_tokens = @max_input_tokens, compat = @compat,
     moderation_provider = @moderation_provider, moderation_family = @moderation_family,
     moderation_timeout_seconds = @moderation_timeout_seconds,
+    -- what a Test found about thinking off describes the settings it tested (#52)
+    thinking_off_result = CASE WHEN compat IS DISTINCT FROM @compat OR upstream_model <> @upstream_model THEN NULL ELSE thinking_off_result END,
+    thinking_off_checked_at = CASE WHEN compat IS DISTINCT FROM @compat OR upstream_model <> @upstream_model THEN NULL ELSE thinking_off_checked_at END,
     revision = revision + 1, updated_at = now()
 WHERE id = @id
 RETURNING *;
+
+-- name: SetModelThinkingOff :exec
+-- What a Test found; not a change of the model, so its revision stays.
+UPDATE models SET thinking_off_result = @result, thinking_off_checked_at = now() WHERE id = @id;
+
+-- name: ClearModelThinkingOff :exec
+UPDATE models SET thinking_off_result = NULL, thinking_off_checked_at = NULL WHERE id = @id;
 
 -- name: DeleteModel :exec
 DELETE FROM models WHERE id = $1;

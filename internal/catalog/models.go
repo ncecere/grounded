@@ -505,6 +505,11 @@ func (s *Service) TestModel(ctx context.Context, a authz.Actor, id uuid.UUID) (M
 			defer cancel()
 			res.ThinkingOff = checkThinkingOff(pctx, llm.NewOpenAI(cl), model, user)
 		}
+		// what it found stays on the model, for the admin pages and the agent builder (#52); the Test's own result is
+		// still what it says
+		if err := s.keepThinkingOffResult(ctx, m.ID, res.ThinkingOff); err != nil {
+			return ModelTest{}, err
+		}
 	case KindRerank:
 		return testRerank(ctx, cl, m, user), nil
 	default:

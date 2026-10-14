@@ -84,7 +84,7 @@ func fromAPIProfileWeights(w *apitypes.FusionWeights) *catalog.FusionWeights {
 }
 
 func toAPIModel(m dbgen.Model) apitypes.Model {
-	return apitypes.Model{
+	return withThinkingOffCheck(m, apitypes.Model{
 		Id: m.ID, ConnectionId: m.ConnectionID, Key: m.Key, UpstreamModel: m.UpstreamModel,
 		DisplayName: m.DisplayName, Description: m.Description, Kind: apitypes.ModelKind(m.Kind),
 		MaxClassification: m.MaxClassification, Enabled: m.Enabled,
@@ -96,7 +96,15 @@ func toAPIModel(m dbgen.Model) apitypes.Model {
 		ModerationProvider:       (*apitypes.ModerationProvider)(m.ModerationProvider),
 		ModerationFamily:         (*apitypes.GuardrailFamily)(m.ModerationFamily),
 		ModerationTimeoutSeconds: m.ModerationTimeoutSeconds,
+	})
+}
+
+// withThinkingOffCheck adds what the model's last Test found about turning thinking off (#52), when it found anything.
+func withThinkingOffCheck(m dbgen.Model, out apitypes.Model) apitypes.Model {
+	if m.ThinkingOffResult != nil && m.ThinkingOffCheckedAt != nil {
+		out.ThinkingOffCheck = &apitypes.ThinkingOffCheck{Result: apitypes.ThinkingOffCheckResult(*m.ThinkingOffResult), CheckedAt: *m.ThinkingOffCheckedAt}
 	}
+	return out
 }
 
 func toAPIProfile(p catalog.Profile) apitypes.EmbeddingProfile {

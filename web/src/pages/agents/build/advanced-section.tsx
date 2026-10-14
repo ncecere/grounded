@@ -1,4 +1,5 @@
 /* Build → Advanced: sampling, answer length, reasoning effort, retrieval budget, query rewriting, follow-up suggestions and reranking. */
+import { Alert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
@@ -124,8 +125,12 @@ function Reranking({ c, set, errorFor }: Pick<SectionProps, "c" | "set" | "error
 }
 
 /** Why an effort can't be chosen with this model ("" when it can), naming the Admin → Models setting it needs. */
-function effortReasons(model: { displayName: string; supportsReasoningEffort: boolean; supportsThinkingOff: boolean }) {
-  const off = model.supportsThinkingOff ? "" : `Off needs "How to turn thinking off" set for ${model.displayName} in Admin → Models.`;
+function effortReasons(model: { displayName: string; supportsReasoningEffort: boolean; supportsThinkingOff: boolean; thinkingOffCheck?: "honoured" | "ignored" | null }) {
+  const off = model.supportsThinkingOff
+    ? model.thinkingOffCheck === "ignored"
+      ? `${model.displayName}'s last Test found it still reasoning when thinking was turned off, so Off may not stop it.`
+      : ""
+    : `Off needs "How to turn thinking off" set for ${model.displayName} in Admin → Models.`;
   const levels = model.supportsReasoningEffort ? "" : `Low, Medium and High need "Accepts reasoning effort" turned on for ${model.displayName} in Admin → Models.`;
   return { off, levels };
 }
@@ -139,25 +144,34 @@ type EffortProps = Pick<SectionProps, "c" | "set" | "errorFor"> & { model: NonNu
 function ReasoningEffortField({ c, set, errorFor, model }: EffortProps) {
   const why = effortReasons(model);
   const none = !model.supportsReasoningEffort && !model.supportsThinkingOff;
+  // Off can be chosen, but the model's last Test found that it does nothing (#52): say so beside it, and again once it is chosen
+  const ignored = model.supportsThinkingOff && model.thinkingOffCheck === "ignored";
   const intro = "How long the model thinks before answering. Lower starts answering sooner. Default uses the audience's setting (Low for public agents unless a platform admin changed it), else the model's.";
   return (
-    <Field label="Reasoning effort" labelHint="Optional" description={[intro, why.off, why.levels].filter(Boolean).join(" ")} disabled={none} error={errorFor("reasoningEffort")}>
-      <NativeSelect
-        id="agent-field-reasoningEffort"
-        value={c.reasoningEffort ?? ""}
-        disabled={none}
-        onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}
-      >
-        <option value="">Default</option>
-        <option value="off" disabled={Boolean(why.off)}>
-          Off
-        </option>
-        {(["low", "medium", "high"] as const).map((v) => (
-          <option key={v} value={v} disabled={Boolean(why.levels)}>
-            {v[0]!.toUpperCase() + v.slice(1)}
+    <>
+      <Field label="Reasoning effort" labelHint="Optional" description={[intro, why.off, why.levels].filter(Boolean).join(" ")} disabled={none} error={errorFor("reasoningEffort")}>
+        <NativeSelect
+          id="agent-field-reasoningEffort"
+          value={c.reasoningEffort ?? ""}
+          disabled={none}
+          onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}
+        >
+          <option value="">Default</option>
+          <option value="off" disabled={Boolean(why.off) && !ignored}>
+            {ignored ? "Off (ignored by this model)" : "Off"}
           </option>
-        ))}
-      </NativeSelect>
-    </Field>
+          {(["low", "medium", "high"] as const).map((v) => (
+            <option key={v} value={v} disabled={Boolean(why.levels)}>
+              {v[0]!.toUpperCase() + v.slice(1)}
+            </option>
+          ))}
+        </NativeSelect>
+      </Field>
+      {ignored && c.reasoningEffort === "off" && (
+        <Alert tone="warning" title="Off did not stop this model from thinking in its last Test">
+          Answers may be slower and use more tokens. A platform admin can pick or set up a model whose thinking can be switched off (Admin → Models).
+        </Alert>
+      )}
+    </>
   );
 }

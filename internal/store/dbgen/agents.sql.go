@@ -1472,7 +1472,7 @@ func (q *Queries) LockConversation(ctx context.Context, id uuid.UUID) (Conversat
 }
 
 const modelWithRank = `-- name: ModelWithRank :one
-SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, cl.rank::int AS max_rank, c.enabled AS connection_enabled
+SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at, cl.rank::int AS max_rank, c.enabled AS connection_enabled
 FROM models m
 JOIN classification_levels cl ON cl.key = m.max_classification
 JOIN model_connections c ON c.id = m.connection_id
@@ -1503,6 +1503,8 @@ type ModelWithRankRow struct {
 	ModerationProvider       *string
 	ModerationFamily         *string
 	ModerationTimeoutSeconds *int32
+	ThinkingOffResult        *string
+	ThinkingOffCheckedAt     *time.Time
 	MaxRank                  int32
 	ConnectionEnabled        bool
 }
@@ -1534,6 +1536,8 @@ func (q *Queries) ModelWithRank(ctx context.Context, id uuid.UUID) (ModelWithRan
 		&i.ModerationProvider,
 		&i.ModerationFamily,
 		&i.ModerationTimeoutSeconds,
+		&i.ThinkingOffResult,
+		&i.ThinkingOffCheckedAt,
 		&i.MaxRank,
 		&i.ConnectionEnabled,
 	)
