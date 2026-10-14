@@ -25,6 +25,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"POST", "/v1/admin/profile-migrations/preflight", a.admin(a.adminPreflightProfileMigration)},
 		{"GET", "/v1/admin/profile-migrations/{migrationId}", a.admin(a.adminGetProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/cancel", a.admin(a.migrationAction(a.ProfileMigrations.Cancel))},
+		{"POST", "/v1/admin/profile-migrations/{migrationId}/switch", a.admin(a.migrationAction(a.ProfileMigrations.Switch))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/switch-back", a.admin(a.migrationAction(a.ProfileMigrations.SwitchBack))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/retry", a.admin(a.migrationAction(a.ProfileMigrations.Retry))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/finish", a.admin(a.migrationAction(a.ProfileMigrations.Finish))},
@@ -69,7 +70,7 @@ func (a *api) adminStartProfileMigration(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	m, err := a.ProfileMigrations.Start(r.Context(), a.actor(r), profilemig.StartInput{
-		KBID: in.KbId, TargetProfileID: in.TargetProfileId, GraceDays: in.GraceDays,
+		KBID: in.KbId, TargetProfileID: in.TargetProfileId, GraceDays: in.GraceDays, Hold: in.Hold != nil && *in.Hold,
 	})
 	if failed(w, r, err) {
 		return
@@ -181,7 +182,7 @@ func toAPIProfileMigration(m profilemig.Migration) apitypes.ProfileMigration {
 		GraceDays:   pm.GraceDays, Estimate: toAPIEstimate(m.Estimate),
 		StartedAt: pm.StartedAt, StartedBy: personRef(pm.StartedBy, m.StartedByName, m.StartedByEmail),
 		SwitchedAt: pm.SwitchedAt, OldVectorsUntil: pm.OldVectorsUntil, FinishedAt: pm.FinishedAt,
-		CanSwitchBack: m.CanSwitchBack(), Revision: pm.Revision,
+		CanSwitchBack: m.CanSwitchBack(), CanSwitch: m.CanSwitch(), Hold: pm.Hold, Revision: pm.Revision,
 	}
 	p := m.Progress
 	out.Progress.Sources, out.Progress.SourcesComplete, out.Progress.Documents = p.Sources, p.SourcesComplete, p.Documents

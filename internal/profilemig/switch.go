@@ -46,29 +46,87 @@ func (s *Service) Advance(ctx context.Context, id uuid.UUID) error {
 		if err != nil || !done {
 			return err
 		}
-		sources, err := s.flip(ctx, q, kb, m.ToProfileID)
+		if m.Hold {
+			return s.ready(ctx, q, tx, m, kb)
+		}
+		return s.doSwitch(ctx, q, tx, m, kb, nil)
+	})
+}
+
+// ready stops a held migration before its switch: the new index is built, the KB keeps its profile, and the platform
+// admins are told it waits for them. The migration still counts as the KB's active one and keeps its sets.
+func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase) error {
+	m, err := q.ReadyProfileMigration(ctx, m.ID)
+	if err != nil {
+		return err
+	}
+	e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "kb.profile_preview_ready",
+		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, nil)}
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	return s.notifyReady(ctx, q, tx, m, kb)
+}
+
+// doSwitch points the KB at the migration's profile: the automatic switch of a migration that is not held (by is nil,
+// the system acts) and an admin's switch of a held one are the same steps. The caller holds the migration lock and
+// has checked that every document has vectors for the target.
+func (s *Service) doSwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase, by *authz.Actor) error {
+	sources, err := s.flip(ctx, q, kb, m.ToProfileID)
+	if err != nil {
+		return err
+	}
+	if m, err = q.SwitchProfileMigration(ctx, m.ID); err != nil {
+		return err
+	}
+	extra := map[string]any{"sources": sources, "graceDays": m.GraceDays}
+	e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "kb.profile_switch",
+		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, extra)}
+	var who uuid.UUID
+	if by != nil {
+		who = by.UserID
+		e = by.Audit("kb.profile_switch", "knowledge_base", kb.ID.String())
+		e.TeamID, e.Metadata = kb.TeamID, mergeMeta(e.Metadata, s.meta(m, extra))
+	}
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	if err := s.notifySwitch(ctx, q, tx, m, kb, false, who); err != nil {
+		return err
+	}
+	if err := s.switched(ctx, tx, kb.ID); err != nil {
+		return err
+	}
+	if m.GraceDays == 0 {
+		return s.kickCleanup(ctx, tx)
+	}
+	return nil
+}
+
+// Switch is the admin's decision on a held migration that is ready: the same switch the automatic one makes. It
+// refuses while documents that changed since the migration became ready lack vectors for the new profile (the sweep
+// embeds them; try again in a minute), so a switch never loses documents.
+func (s *Service) Switch(ctx context.Context, a authz.Actor, id uuid.UUID, rev int64) (Migration, error) {
+	return s.change(ctx, a, id, rev, func(q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration) error {
+		if m.Status != StatusReady {
+			return apperr.Conflict("migration_not_ready", "This migration is not waiting to be switched")
+		}
+		kb, err := q.LockKB(ctx, m.KBID)
 		if err != nil {
 			return err
 		}
-		if m, err = q.SwitchProfileMigration(ctx, m.ID); err != nil {
+		if kb.EmbeddingProfileID != m.FromProfileID {
+			return apperr.Conflict("migration_not_ready", "The knowledge base no longer uses the profile this migration started from")
+		}
+		done, missing, err := complete(ctx, q, kb.ID, m.ToProfileID)
+		if err != nil {
 			return err
 		}
-		e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "kb.profile_switch",
-			TargetType: "knowledge_base", TargetID: kb.ID.String(),
-			Metadata: s.meta(m, map[string]any{"sources": sources, "graceDays": m.GraceDays})}
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
+		if !done {
+			return apperr.Conflict("migration_catching_up", fmt.Sprintf(
+				"%d documents don't have vectors for the new profile yet (they changed since it was built). Try again in a minute.", missing))
 		}
-		if err := s.notifySwitch(ctx, q, tx, m, kb, false); err != nil {
-			return err
-		}
-		if err := s.switched(ctx, tx, kb.ID); err != nil {
-			return err
-		}
-		if m.GraceDays == 0 {
-			return s.kickCleanup(ctx, tx)
-		}
-		return nil
+		return s.doSwitch(ctx, q, tx, m, kb, &a)
 	})
 }
 
@@ -146,7 +204,7 @@ func (s *Service) SwitchBack(ctx context.Context, a authz.Actor, id uuid.UUID, r
 		if err := s.record(ctx, q, a, "kb.profile_switch_back", m, map[string]any{"sources": sources}); err != nil {
 			return err
 		}
-		if err := s.notifySwitch(ctx, q, tx, m, kb, true); err != nil {
+		if err := s.notifySwitch(ctx, q, tx, m, kb, true, m.FinishedBy.UUID); err != nil {
 			return err
 		}
 		if err := s.switched(ctx, tx, kb.ID); err != nil {
@@ -164,9 +222,30 @@ func (s *Service) switched(ctx context.Context, tx pgx.Tx, kbID uuid.UUID) error
 	return s.OnSwitched(ctx, tx, kbID)
 }
 
+// notifyReady tells the platform admins that a held migration waits for them.
+func (s *Service) notifyReady(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase) error {
+	if s.Notify == nil {
+		return nil
+	}
+	team, err := q.GetTeamByID(ctx, kb.TeamID)
+	if err != nil {
+		return err
+	}
+	to, err := q.GetEmbeddingProfile(ctx, m.ToProfileID)
+	if err != nil {
+		return err
+	}
+	admins, err := q.ActivePlatformAdminIDs(ctx)
+	if err != nil || len(admins) == 0 {
+		return err
+	}
+	ref := notify.TeamRef{ID: team.ID, Slug: team.Slug, Name: team.Name}
+	return s.Notify.Emit(ctx, tx, notify.ProfilePreviewReadyEvent(admins, ref, m.ID, kb.Name, to.EmbeddingProfile.Name))
+}
+
 // notifySwitch tells the team's admins and owners, and (for a switch) the
 // platform admins.
-func (s *Service) notifySwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase, back bool) error {
+func (s *Service) notifySwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase, back bool, by uuid.UUID) error {
 	if s.Notify == nil {
 		return nil
 	}
@@ -187,7 +266,7 @@ func (s *Service) notifySwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx,
 	if back {
 		fromName, toName = toName, fromName
 	}
-	if err := s.Notify.Emit(ctx, tx, notify.KBProfileChangedEvent(ref, kb.ID, kb.Name, fromName, toName, back).By(m.FinishedBy.UUID)); err != nil {
+	if err := s.Notify.Emit(ctx, tx, notify.KBProfileChangedEvent(ref, kb.ID, kb.Name, fromName, toName, back).By(by)); err != nil {
 		return err
 	}
 	admins, err := q.ActivePlatformAdminIDs(ctx)

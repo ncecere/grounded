@@ -30,6 +30,8 @@ const base: Migration = {
   oldVectorsUntil: null,
   finishedAt: null,
   canSwitchBack: false,
+  canSwitch: false,
+  hold: false,
   progress: { sources: 2, sourcesComplete: 1, documents: 40, done: 12, failed: 1, waiting: 0 },
   revision: 3,
 };
@@ -118,6 +120,16 @@ describe("Admin → Embedding profiles › Migrations", () => {
     await userEvent.click(within(sheet).getByRole("button", { name: "Retry failed documents" }));
     await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/m1/retry")).toBe(true));
     expect(calls.find((c) => c.url.endsWith("/retry"))!.headers.get("If-Match")).toBe('"3"');
+  });
+
+  it("lists a held migration that is built as Ready to switch, not as re-embedding (index preview)", async () => {
+    const ready: Migration = { ...running, id: "m3", status: "ready", hold: true, canSwitch: true, kb: { id: "k3", name: "Housing" }, revision: 6 };
+    mockApi(routes({ "GET /v1/admin/profile-migrations": () => [ready] }));
+    renderApp("/admin/embedding-profiles?tab=migrations");
+    const table = await screen.findByRole("table", { name: "Profile migrations" }, { timeout: scaled(4000) });
+    const row = (await within(table).findByText("Housing", {}, { timeout: scaled(4000) })).closest("tr")!;
+    expect(within(row).getByText("Ready to switch")).toBeInTheDocument();
+    expect(within(row).queryByText("Re-embedding")).not.toBeInTheDocument();
   });
 
   it("switches back after a confirmation", async () => {

@@ -206,8 +206,11 @@ func (s *Service) blockers(ctx context.Context, pf *Preflight) error {
 	}
 	if len(active) > 0 {
 		msg := "Another migration of this knowledge base is running."
-		if active[0].ProfileMigration.Status == StatusSwitched {
+		switch active[0].ProfileMigration.Status {
+		case StatusSwitched:
 			msg = "The last migration of this knowledge base is in its grace period. Finish it (delete the old vectors) or switch back first."
+		case StatusReady:
+			msg = "A migration of this knowledge base is built and waiting to be switched. Switch it or discard it first."
 		}
 		add("migration_active", msg)
 	}

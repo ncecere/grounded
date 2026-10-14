@@ -920,6 +920,7 @@ type ProfileMigration struct {
 	AttentionAt     *time.Time
 	Revision        int64
 	UpdatedAt       time.Time
+	Hold            bool
 }
 
 type PublishableKey struct {

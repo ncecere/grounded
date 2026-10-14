@@ -13,12 +13,13 @@ export type MigrationSource = Schemas["ProfileMigrationSource"];
 
 export const statusLabels: Record<MigrationStatus, string> = {
   running: "Re-embedding",
+  ready: "Ready to switch",
   switched: "Switched",
   completed: "Completed",
   cancelled: "Cancelled",
   switched_back: "Switched back",
 };
-export const statusTone = { running: "info", switched: "success", completed: "success", cancelled: "neutral", switched_back: "neutral" } as const;
+export const statusTone = { running: "info", ready: "warning", switched: "success", completed: "success", cancelled: "neutral", switched_back: "neutral" } as const;
 
 export const sourceStateLabels: Record<MigrationSource["state"], string> = { in_progress: "Embedding", complete: "Complete", attention: "Needs attention" };
 export const sourceStateTone = { in_progress: "info", complete: "success", attention: "danger" } as const;

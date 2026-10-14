@@ -22,7 +22,7 @@ SELECT kb.id, kb.name, kb.embedding_profile_id, t.slug AS team_slug, t.name AS t
 FROM knowledge_bases kb
 JOIN teams t ON t.id = kb.team_id
 JOIN embedding_profiles p ON p.id = kb.embedding_profile_id
-LEFT JOIN profile_migrations m ON m.kb_id = kb.id AND m.status IN ('running', 'switched')
+LEFT JOIN profile_migrations m ON m.kb_id = kb.id AND m.status IN ('running', 'ready', 'switched')
 ORDER BY lower(t.name), lower(kb.name), kb.id
 LIMIT 1000
 `
@@ -70,6 +70,38 @@ func (q *Queries) AdminKBList(ctx context.Context) ([]AdminKBListRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const buildingMigrationForKB = `-- name: BuildingMigrationForKB :one
+SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold FROM profile_migrations WHERE kb_id = $1 AND status IN ('running', 'ready')
+`
+
+// The KB's migration that is still building or waiting to switch, if any (a source attached meanwhile
+// needs the target's vectors too).
+func (q *Queries) BuildingMigrationForKB(ctx context.Context, kbID uuid.UUID) (ProfileMigration, error) {
+	row := q.db.QueryRow(ctx, buildingMigrationForKB, kbID)
+	var i ProfileMigration
+	err := row.Scan(
+		&i.ID,
+		&i.KBID,
+		&i.TeamID,
+		&i.FromProfileID,
+		&i.ToProfileID,
+		&i.Status,
+		&i.GraceDays,
+		&i.Estimate,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.SwitchedAt,
+		&i.OldVectorsUntil,
+		&i.FinishedBy,
+		&i.FinishedAt,
+		&i.AttentionAt,
+		&i.Revision,
+		&i.UpdatedAt,
+		&i.Hold,
+	)
+	return i, err
 }
 
 const clearSetFailures = `-- name: ClearSetFailures :execrows
@@ -267,7 +299,7 @@ func (q *Queries) EndGraceNow(ctx context.Context, id uuid.UUID) error {
 }
 
 const expiredSwitchedMigrations = `-- name: ExpiredSwitchedMigrations :many
-SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at FROM profile_migrations WHERE status = 'switched' AND old_vectors_until <= now() ORDER BY old_vectors_until LIMIT 50
+SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold FROM profile_migrations WHERE status = 'switched' AND old_vectors_until <= now() ORDER BY old_vectors_until LIMIT 50
 `
 
 // Switched migrations whose grace period is over.
@@ -298,6 +330,7 @@ func (q *Queries) ExpiredSwitchedMigrations(ctx context.Context) ([]ProfileMigra
 			&i.AttentionAt,
 			&i.Revision,
 			&i.UpdatedAt,
+			&i.Hold,
 		); err != nil {
 			return nil, err
 		}
@@ -313,7 +346,7 @@ const finishProfileMigration = `-- name: FinishProfileMigration :one
 UPDATE profile_migrations SET status = $1, finished_by = $2, finished_at = now(),
     revision = revision + 1, updated_at = now()
 WHERE id = $3
-RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at
+RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold
 `
 
 type FinishProfileMigrationParams struct {
@@ -343,6 +376,7 @@ func (q *Queries) FinishProfileMigration(ctx context.Context, arg FinishProfileM
 		&i.AttentionAt,
 		&i.Revision,
 		&i.UpdatedAt,
+		&i.Hold,
 	)
 	return i, err
 }
@@ -422,9 +456,9 @@ func (q *Queries) InsertEmbeddingSet(ctx context.Context, arg InsertEmbeddingSet
 
 const insertProfileMigration = `-- name: InsertProfileMigration :one
 
-INSERT INTO profile_migrations (kb_id, team_id, from_profile_id, to_profile_id, grace_days, estimate, started_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at
+INSERT INTO profile_migrations (kb_id, team_id, from_profile_id, to_profile_id, grace_days, estimate, started_by, hold)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold
 `
 
 type InsertProfileMigrationParams struct {
@@ -435,6 +469,7 @@ type InsertProfileMigrationParams struct {
 	GraceDays     int32
 	Estimate      json.RawMessage
 	StartedBy     uuid.NullUUID
+	Hold          bool
 }
 
 // ---- migrations -----------------------------------------------------------------
@@ -447,6 +482,7 @@ func (q *Queries) InsertProfileMigration(ctx context.Context, arg InsertProfileM
 		arg.GraceDays,
 		arg.Estimate,
 		arg.StartedBy,
+		arg.Hold,
 	)
 	var i ProfileMigration
 	err := row.Scan(
@@ -467,6 +503,7 @@ func (q *Queries) InsertProfileMigration(ctx context.Context, arg InsertProfileM
 		&i.AttentionAt,
 		&i.Revision,
 		&i.UpdatedAt,
+		&i.Hold,
 	)
 	return i, err
 }
@@ -606,7 +643,7 @@ func (q *Queries) ListEmbeddingSets(ctx context.Context) ([]ListEmbeddingSetsRow
 }
 
 const listProfileMigrationViews = `-- name: ListProfileMigrationViews :many
-SELECT m.id, m.kb_id, m.team_id, m.from_profile_id, m.to_profile_id, m.status, m.grace_days, m.estimate, m.started_by, m.started_at, m.switched_at, m.old_vectors_until, m.finished_by, m.finished_at, m.attention_at, m.revision, m.updated_at, kb.name AS kb_name, t.slug AS team_slug, t.name AS team_name,
+SELECT m.id, m.kb_id, m.team_id, m.from_profile_id, m.to_profile_id, m.status, m.grace_days, m.estimate, m.started_by, m.started_at, m.switched_at, m.old_vectors_until, m.finished_by, m.finished_at, m.attention_at, m.revision, m.updated_at, m.hold, kb.name AS kb_name, t.slug AS team_slug, t.name AS team_name,
        fp.name AS from_profile_name, tp.name AS to_profile_name,
        coalesce(u.display_name, '') AS started_by_name, coalesce(u.email, '') AS started_by_email
 FROM profile_migrations m
@@ -617,7 +654,7 @@ JOIN embedding_profiles tp ON tp.id = m.to_profile_id
 LEFT JOIN users u ON u.id = m.started_by
 WHERE ($1::uuid IS NULL OR m.kb_id = $1)
   AND ($2::uuid IS NULL OR m.id = $2)
-  AND (NOT $3::bool OR m.status IN ('running', 'switched'))
+  AND (NOT $3::bool OR m.status IN ('running', 'ready', 'switched'))
 ORDER BY m.started_at DESC, m.id
 LIMIT $4
 `
@@ -673,6 +710,7 @@ func (q *Queries) ListProfileMigrationViews(ctx context.Context, arg ListProfile
 			&i.ProfileMigration.AttentionAt,
 			&i.ProfileMigration.Revision,
 			&i.ProfileMigration.UpdatedAt,
+			&i.ProfileMigration.Hold,
 			&i.KbName,
 			&i.TeamSlug,
 			&i.TeamName,
@@ -771,7 +809,7 @@ func (q *Queries) LockEmbeddingSetShared(ctx context.Context, arg LockEmbeddingS
 }
 
 const lockProfileMigration = `-- name: LockProfileMigration :one
-SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at FROM profile_migrations WHERE id = $1 FOR UPDATE
+SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold FROM profile_migrations WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockProfileMigration(ctx context.Context, id uuid.UUID) (ProfileMigration, error) {
@@ -795,6 +833,7 @@ func (q *Queries) LockProfileMigration(ctx context.Context, id uuid.UUID) (Profi
 		&i.AttentionAt,
 		&i.Revision,
 		&i.UpdatedAt,
+		&i.Hold,
 	)
 	return i, err
 }
@@ -959,31 +998,15 @@ func (q *Queries) ProfileDocumentChunks(ctx context.Context, arg ProfileDocument
 	return items, nil
 }
 
-const recountSourceChunks = `-- name: RecountSourceChunks :exec
-UPDATE documents d SET chunk_count = c.n, token_count = c.tokens
-FROM (SELECT ch.document_id, count(*)::int AS n, coalesce(sum(ch.token_count), 0)::int AS tokens
-      FROM chunks ch WHERE ch.source_id = $1 AND ch.profile_id = $2 GROUP BY ch.document_id) c
-WHERE d.id = c.document_id AND d.source_id = $1
+const readyProfileMigration = `-- name: ReadyProfileMigration :one
+UPDATE profile_migrations SET status = 'ready', revision = revision + 1, updated_at = now()
+WHERE id = $1 AND hold
+RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold
 `
 
-type RecountSourceChunksParams struct {
-	SourceID  uuid.UUID
-	ProfileID uuid.UUID
-}
-
-// Documents' passage counts follow the source's own profile.
-func (q *Queries) RecountSourceChunks(ctx context.Context, arg RecountSourceChunksParams) error {
-	_, err := q.db.Exec(ctx, recountSourceChunks, arg.SourceID, arg.ProfileID)
-	return err
-}
-
-const runningMigrationForKB = `-- name: RunningMigrationForKB :one
-SELECT id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at FROM profile_migrations WHERE kb_id = $1 AND status = 'running'
-`
-
-// The KB's running migration, if any (attaching a source during a migration).
-func (q *Queries) RunningMigrationForKB(ctx context.Context, kbID uuid.UUID) (ProfileMigration, error) {
-	row := q.db.QueryRow(ctx, runningMigrationForKB, kbID)
+// A held migration whose sources all have the target's vectors waits for an admin.
+func (q *Queries) ReadyProfileMigration(ctx context.Context, id uuid.UUID) (ProfileMigration, error) {
+	row := q.db.QueryRow(ctx, readyProfileMigration, id)
 	var i ProfileMigration
 	err := row.Scan(
 		&i.ID,
@@ -1003,8 +1026,27 @@ func (q *Queries) RunningMigrationForKB(ctx context.Context, kbID uuid.UUID) (Pr
 		&i.AttentionAt,
 		&i.Revision,
 		&i.UpdatedAt,
+		&i.Hold,
 	)
 	return i, err
+}
+
+const recountSourceChunks = `-- name: RecountSourceChunks :exec
+UPDATE documents d SET chunk_count = c.n, token_count = c.tokens
+FROM (SELECT ch.document_id, count(*)::int AS n, coalesce(sum(ch.token_count), 0)::int AS tokens
+      FROM chunks ch WHERE ch.source_id = $1 AND ch.profile_id = $2 GROUP BY ch.document_id) c
+WHERE d.id = c.document_id AND d.source_id = $1
+`
+
+type RecountSourceChunksParams struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+}
+
+// Documents' passage counts follow the source's own profile.
+func (q *Queries) RecountSourceChunks(ctx context.Context, arg RecountSourceChunksParams) error {
+	_, err := q.db.Exec(ctx, recountSourceChunks, arg.SourceID, arg.ProfileID)
+	return err
 }
 
 const runningMigrationIDs = `-- name: RunningMigrationIDs :many
@@ -1229,7 +1271,7 @@ const switchProfileMigration = `-- name: SwitchProfileMigration :one
 UPDATE profile_migrations SET status = 'switched', switched_at = now(),
     old_vectors_until = now() + make_interval(days => grace_days), revision = revision + 1, updated_at = now()
 WHERE id = $1
-RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at
+RETURNING id, kb_id, team_id, from_profile_id, to_profile_id, status, grace_days, estimate, started_by, started_at, switched_at, old_vectors_until, finished_by, finished_at, attention_at, revision, updated_at, hold
 `
 
 func (q *Queries) SwitchProfileMigration(ctx context.Context, id uuid.UUID) (ProfileMigration, error) {
@@ -1253,6 +1295,7 @@ func (q *Queries) SwitchProfileMigration(ctx context.Context, id uuid.UUID) (Pro
 		&i.AttentionAt,
 		&i.Revision,
 		&i.UpdatedAt,
+		&i.Hold,
 	)
 	return i, err
 }
@@ -1266,7 +1309,7 @@ WHERE es.profile_id <> s.embedding_profile_id
                   WHERE ks.source_id = es.source_id AND kb.embedding_profile_id = es.profile_id)
   AND NOT EXISTS (SELECT 1 FROM profile_migrations m JOIN kb_sources ks ON ks.kb_id = m.kb_id
                   WHERE ks.source_id = es.source_id
-                    AND ((m.status = 'running' AND m.to_profile_id = es.profile_id)
+                    AND ((m.status IN ('running', 'ready') AND m.to_profile_id = es.profile_id)
                       OR (m.status = 'switched' AND m.from_profile_id = es.profile_id)))
 ORDER BY es.created_at
 LIMIT 50
@@ -1279,8 +1322,8 @@ type UnneededEmbeddingSetsRow struct {
 
 // ---- cleanup ------------------------------------------------------------------
 // Sets nothing needs any more: no KB with the source uses the profile, no
-// running migration of such a KB targets it, and no switched one (in its
-// grace period) can switch back to it.
+// running or ready (held, being previewed) migration of such a KB targets it,
+// and no switched one (in its grace period) can switch back to it.
 func (q *Queries) UnneededEmbeddingSets(ctx context.Context) ([]UnneededEmbeddingSetsRow, error) {
 	rows, err := q.db.Query(ctx, unneededEmbeddingSets)
 	if err != nil {

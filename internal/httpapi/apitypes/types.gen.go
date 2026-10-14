@@ -3307,6 +3307,7 @@ func (e ProfileMigrationSourceState) Valid() bool {
 const (
 	ProfileMigrationStatusCancelled    ProfileMigrationStatus = "cancelled"
 	ProfileMigrationStatusCompleted    ProfileMigrationStatus = "completed"
+	ProfileMigrationStatusReady        ProfileMigrationStatus = "ready"
 	ProfileMigrationStatusRunning      ProfileMigrationStatus = "running"
 	ProfileMigrationStatusSwitched     ProfileMigrationStatus = "switched"
 	ProfileMigrationStatusSwitchedBack ProfileMigrationStatus = "switched_back"
@@ -3318,6 +3319,8 @@ func (e ProfileMigrationStatus) Valid() bool {
 	case ProfileMigrationStatusCancelled:
 		return true
 	case ProfileMigrationStatusCompleted:
+		return true
+	case ProfileMigrationStatusReady:
 		return true
 	case ProfileMigrationStatusRunning:
 		return true
@@ -4569,7 +4572,7 @@ type AdminKnowledgeBase struct {
 	Migration *struct {
 		Id openapi_types.UUID `json:"id"`
 
-		// Status running: re-embedding (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
+		// Status running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
 		Status ProfileMigrationStatus `json:"status"`
 	} `json:"migration"`
 	Name string `json:"name"`
@@ -9604,6 +9607,8 @@ type PriceUnit string
 
 // ProfileMigration defines model for ProfileMigration.
 type ProfileMigration struct {
+	// CanSwitch A held migration is ready for an admin to switch (the switch still checks that every document has vectors)
+	CanSwitch     bool                     `json:"canSwitch"`
 	CanSwitchBack bool                     `json:"canSwitchBack"`
 	Estimate      ProfileMigrationEstimate `json:"estimate"`
 
@@ -9612,8 +9617,11 @@ type ProfileMigration struct {
 	FinishedAt  *time.Time                 `json:"finishedAt"`
 	FromProfile ProfileRef                 `json:"fromProfile"`
 	GraceDays   int32                      `json:"graceDays"`
-	Id          openapi_types.UUID         `json:"id"`
-	Kb          ProfileRef                 `json:"kb"`
+
+	// Hold Started to stop before the switch (index preview)
+	Hold bool               `json:"hold"`
+	Id   openapi_types.UUID `json:"id"`
+	Kb   ProfileRef         `json:"kb"`
 
 	// OldVectorsUntil Until when the old vectors are kept (switch back possible)
 	OldVectorsUntil *time.Time `json:"oldVectorsUntil"`
@@ -9636,7 +9644,7 @@ type ProfileMigration struct {
 	StartedAt time.Time                 `json:"startedAt"`
 	StartedBy *PersonRef                `json:"startedBy"`
 
-	// Status running: re-embedding (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
+	// Status running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
 	Status     ProfileMigrationStatus `json:"status"`
 	SwitchedAt *time.Time             `json:"switchedAt"`
 	TeamName   string                 `json:"teamName"`
@@ -9769,12 +9777,15 @@ type ProfileMigrationSourceState string
 // ProfileMigrationStart defines model for ProfileMigrationStart.
 type ProfileMigrationStart struct {
 	// GraceDays Days the old vectors are kept after the switch, so the knowledge base can switch back (default PROFILE_MIGRATION_GRACE_DAYS, 7). 0 deletes them at the switch.
-	GraceDays       *int32             `json:"graceDays,omitempty"`
+	GraceDays *int32 `json:"graceDays,omitempty"`
+
+	// Hold Build the new index and stop before the switch (status ready); an admin then switches it (POST .../switch) or discards it (POST .../cancel). The knowledge base keeps its current profile meanwhile. Default false: the migration switches by itself.
+	Hold            *bool              `json:"hold,omitempty"`
 	KbId            openapi_types.UUID `json:"kbId"`
 	TargetProfileId openapi_types.UUID `json:"targetProfileId"`
 }
 
-// ProfileMigrationStatus running: re-embedding (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
+// ProfileMigrationStatus running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
 type ProfileMigrationStatus string
 
 // ProfileMigrationTarget defines model for ProfileMigrationTarget.
@@ -11546,6 +11557,12 @@ type AdminFinishProfileMigrationParams struct {
 
 // AdminRetryProfileMigrationParams defines parameters for AdminRetryProfileMigration.
 type AdminRetryProfileMigrationParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminSwitchProfileMigrationParams defines parameters for AdminSwitchProfileMigration.
+type AdminSwitchProfileMigrationParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
