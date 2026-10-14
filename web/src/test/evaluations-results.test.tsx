@@ -163,10 +163,13 @@ describe("the question form", () => {
     const dialog = await screen.findByRole("dialog", { name: "New question" });
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Question" }), "Where is grad housing?");
     await userEvent.type(within(dialog).getByRole("textbox", { name: /URLs and filenames/ }), "grad-housing.pdf{Enter}");
+    // Typing slower than the form's 400 ms debounce, as on a slow machine, makes the check run twice: first with the document alone, then with the
+    // phrase too. The fields are filled so that happens every time, and each warning is waited for: the first check's reply has no phrase in it.
+    await new Promise((r) => setTimeout(r, 700));
     await userEvent.type(within(dialog).getByRole("textbox", { name: /Must mention/ }), "Parchment{Enter}");
     const docs = await within(dialog).findByRole("list", { name: "Expected documents not in the knowledge base" }, T);
     expect(docs).toHaveTextContent("No document in Helper's knowledge bases matches “grad-housing.pdf” yet. It'll count once one is added.");
-    expect(within(dialog).getByRole("list", { name: "Phrases not in the knowledge base" })).toHaveTextContent(
+    expect(await within(dialog).findByRole("list", { name: "Phrases not in the knowledge base" }, T)).toHaveTextContent(
       "“Parchment” isn't in Helper's knowledge bases, so the answer can't contain it from the sources.",
     );
     expect(calls.find((c) => c.url.endsWith("/evaluation-question-check"))!.body).toMatchObject({ setId: "set1" });
