@@ -172,11 +172,35 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.clear(dims);
     await userEvent.type(dims, "768");
+    // The chunker is a choice of the profile (#19): the original unless another is picked.
+    const chunker = within(dialog).getByRole("combobox", { name: "Chunker" });
+    expect(chunker).toHaveValue("1");
+    expect(within(chunker).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Standard: a new passage at every heading",
+      "Merge short sections: joins short neighbouring sections",
+    ]);
+    await userEvent.selectOptions(chunker, "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({
-      modelId: "m2", outputDimensions: 768, queryPrefix: "Instruct: find\nQuery: ", defaultFusionWeights: { vector: 1, keyword: 0.02 },
+      modelId: "m2", outputDimensions: 768, queryPrefix: "Instruct: find\nQuery: ", defaultFusionWeights: { vector: 1, keyword: 0.02 }, chunkerVersion: 2,
     });
+  });
+
+  it("creates a profile with the original chunker unless another is chosen", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/models": () => [embed],
+      "GET /v1/admin/embedding-profiles": () => [profile],
+      "POST /v1/admin/embedding-profiles": () => profile,
+    });
+    renderApp("/admin/embedding-profiles");
+    await userEvent.click(await screen.findByRole("button", { name: "Add profile" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Plain");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+    expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ name: "Plain", chunkerVersion: 1 });
   });
 
   it("shows a profile's output dimensions and default fusion weights in its sheet (A5)", async () => {

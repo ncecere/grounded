@@ -7016,6 +7016,9 @@ type EmbeddingProfileCreate struct {
 	ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
 	ChunkSize    *int32 `json:"chunkSize,omitempty"`
 
+	// ChunkerVersion The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+	ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
+
 	// DefaultFusionWeights Omit to use the platform default
 	DefaultFusionWeights *FusionWeights `json:"defaultFusionWeights,omitempty"`
 	Description          *string        `json:"description,omitempty"`
@@ -9919,8 +9922,11 @@ type ProfileMigrationPreflightSource struct {
 type ProfileMigrationPreview struct {
 	// Changes The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
 	Changes struct {
-		ChunkOverlap   *int32              `json:"chunkOverlap,omitempty"`
-		ChunkSize      *int32              `json:"chunkSize,omitempty"`
+		ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
+		ChunkSize    *int32 `json:"chunkSize,omitempty"`
+
+		// ChunkerVersion The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+		ChunkerVersion *int32              `json:"chunkerVersion,omitempty"`
 		DocumentPrefix *string             `json:"documentPrefix,omitempty"`
 		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`
 

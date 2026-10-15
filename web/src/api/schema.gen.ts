@@ -6953,6 +6953,12 @@ export interface components {
              * @default 0
              */
             chunkOverlap: number;
+            /**
+             * Format: int32
+             * @description The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+             * @default 1
+             */
+            chunkerVersion: number;
             isDefault?: boolean;
         };
         EmbeddingProfileUpdate: {
@@ -7122,6 +7128,11 @@ export interface components {
                 chunkSize?: number;
                 /** Format: int32 */
                 chunkOverlap?: number;
+                /**
+                 * Format: int32
+                 * @description The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+                 */
+                chunkerVersion?: number;
             };
         };
         /**

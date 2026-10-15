@@ -330,10 +330,10 @@ func (q *Queries) InsertConnection(ctx context.Context, arg InsertConnectionPara
 const insertEmbeddingProfile = `-- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version)
 VALUES ($1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10, $11,
-        $12, $13, $14, $15)
+        $12, $13, $14, $15, $16)
 RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of
 `
 
@@ -353,6 +353,7 @@ type InsertEmbeddingProfileParams struct {
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
+	ChunkerVersion       int32
 }
 
 func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddingProfileParams) (EmbeddingProfile, error) {
@@ -372,6 +373,7 @@ func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddin
 		arg.DefaultVectorWeight,
 		arg.DefaultKeywordWeight,
 		arg.CandidateOf,
+		arg.ChunkerVersion,
 	)
 	var i EmbeddingProfile
 	err := row.Scan(

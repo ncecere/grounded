@@ -104,10 +104,10 @@ SELECT * FROM embedding_profiles WHERE id = $1 FOR UPDATE;
 -- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version)
 VALUES (@key, @name, @description, @model_id, @dimensions, @storage_type,
         @document_prefix, @query_prefix, @chunk_size, @chunk_overlap, @created_by,
-        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight), sqlc.narg(candidate_of))
+        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight), sqlc.narg(candidate_of), @chunker_version)
 RETURNING *;
 
 -- name: UpdateEmbeddingProfile :one

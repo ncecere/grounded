@@ -173,6 +173,16 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
       <Field label="Passage overlap (tokens)" error={fieldError(serverError, ["invalid_chunk_overlap"])}>
         <NumberInput maximumFractionDigits={0} value={String(form.chunkOverlap)} onValueChange={(v) => set("chunkOverlap", Number(v))} />
       </Field>
+      <Field
+        label="Chunker"
+        description="How a page is cut into passages. Fixed once the profile exists. To see what a different chunker does to a knowledge base before using it, preview it under Migrations."
+        error={fieldError(serverError, ["invalid_chunker_version"])}
+      >
+        <NativeSelect value={String(form.chunkerVersion)} onChange={(e) => set("chunkerVersion", Number(e.target.value))}>
+          <option value="1">Standard: a new passage at every heading</option>
+          <option value="2">Merge short sections: joins short neighbouring sections</option>
+        </NativeSelect>
+      </Field>
       <Field label="Description" labelHint="Optional" className={s.span2}>
         <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
       </Field>

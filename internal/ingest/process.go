@@ -354,7 +354,7 @@ func webPageName(rawURL string) string {
 // plan's boilerplate blocks and image-only chunks.
 func (p *Processor) split(md string, t catalog.EmbedTarget, plan bpPlan) ([]chunk.Chunk, error) {
 	c := ChunkingOf(t.Profile, t.MaxInputTokens)
-	opts := chunk.Options{MaxTokens: c.MaxTokens, OverlapTokens: c.Overlap, Counter: p.Counter, DropImageOnly: true}
+	opts := chunk.Options{MaxTokens: c.MaxTokens, OverlapTokens: c.Overlap, Counter: p.Counter, DropImageOnly: true, Version: c.Version}
 	if len(plan.drop) > 0 {
 		opts.DropBlock = func(text string) bool { return plan.drop[text] }
 	}

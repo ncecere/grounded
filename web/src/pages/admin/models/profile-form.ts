@@ -12,6 +12,8 @@ export const initialProfileForm = {
   queryPrefix: "",
   chunkSize: 512,
   chunkOverlap: 64,
+  /** The chunker: 1 is the original; 2 also merges short neighbouring sections and drops passages with no body. */
+  chunkerVersion: 1,
   isDefault: false,
   /** Empty = the model's dimensions. */
   outputDimensions: "",
