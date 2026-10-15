@@ -44,6 +44,10 @@ No model calls except embedding the question, so it's fast and nearly free.
 - **Compare two runs:** questions that got better, got worse, or stayed the same.
 - **Automatic runs** (opt-in per set; retrieval checks only): after the agent is **published** (its sets), after an embedding **profile migration** is switched (the KB's sets), and **nightly** when the KB's documents changed that day. A drop of more than 5 points in recall@k against the latest earlier run with a score, or any question that newly fails, notifies the team's editors (a new notification kind, can be turned off). Full-answer runs are always started by hand.
 
+### Index previews (v0.5.0)
+
+When a platform admin previews new settings for a knowledge base (see [`operations/profile-migration.md`](operations/profile-migration.md)), the platform runs **every set of that knowledge base twice**, retrieval only: once on the knowledge base's current index and once on the new one, at the same time. These runs are the platform admin's comparison, not the team's history: they are not in the set's **Runs** tab, its score over time, its regression checks, a question's history or the "out of reach" check, and they neither block a run you start nor wait for it. They count against the team's query usage like any run. The team's editors, admins and owners see the result on the **knowledge base's page**: the questions that got better or worse, with their rank on each index, worst first (`GET /v1/teams/{team}/kbs/{kbId}/index-preview`); the platform admin sees only the scores. Sets of agents are not part of a preview.
+
 ## 5. Where it lives
 
 - A knowledge base and an agent each get an **Evaluations** tab (icon `ClipboardCheck`), for editors and above, listing sets; a set opens as its own page with tabs **Questions**, **Runs** and **Settings**; a run opens as a record page.

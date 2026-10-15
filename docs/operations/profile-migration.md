@@ -16,7 +16,7 @@ Platform admins run migrations, under **Admin → Embedding profiles → Migrati
 - **New content during a migration.** Uploads, crawls and re-processing continue as usual for the current profile. Each change then queues the same document for the target profile (and for the old one after the switch, during the grace period), so the switch loses nothing and switching back loses nothing either.
 - **Shared sources** (a source used by several knowledge bases, including platform-shared sources) keep vectors for every profile a knowledge base using them needs. A source's own profile moves to the new one once every knowledge base using it has moved. A shared source is embedded only once: when a second knowledge base migrates to the same profile, its preflight shows the source as already embedded.
 - **Grace period.** After the switch the old vectors are kept, and kept current, for `PROFILE_MIGRATION_GRACE_DAYS` (default 7; each migration may set 0–90). Within it, **Switch back** returns the knowledge base to its previous profile at once. **Delete old vectors now** ends the grace period early. A cleanup job (every 10 minutes, and after each change) then deletes, in batches of 1,000 passages, every set nothing needs any more.
-- **Cancel** stops a running migration. The knowledge base never changed, and the passages made so far are deleted by the cleanup job.
+- **Cancel** stops a running migration (or discards an index preview, below). The knowledge base never changed, and the passages made so far are deleted by the cleanup job.
 - **Maintenance mode is optional.** It doesn't pause migrations. Turning it on during a large migration keeps new ingestion from competing for the embedding model's requests; chat and search keep working.
 - **Audit and notifications.** Starting, cancelling, retrying, switching, switching back, finishing and completing are audited on the knowledge base (`kb.profile_migration_start`, `_cancel`, `_retry`, `kb.profile_switch`, `kb.profile_switch_back`, `kb.profile_migration_finish`, `kb.profile_migration_complete`), with counts and IDs only. Platform admins are notified when a knowledge base switches or needs attention (`platform.profile_migration`), and the team's admins and owners when their knowledge base changes profile (`kb.profile_changed`).
 
@@ -42,6 +42,38 @@ Platform admins run migrations, under **Admin → Embedding profiles → Migrati
 
 Repeat for every knowledge base on the old profile. Once nothing uses it (Admin → Embedding profiles shows **Used by**), retire or delete the old profile.
 
+## Preview new settings before you switch (index preview)
+
+A migration to another profile switches by itself when its new index is ready. An **index preview** builds the new index **beside** the current one and waits: it runs the knowledge base's evaluation sets on both, shows what got better and what got worse, and you **switch** or **discard**. Search and agents use the current index the whole time. It is for changes you want evidence for: another passage size or overlap, a different embedding model, other prefixes.
+
+### How it works
+
+- **A hidden copy.** The preview copies the knowledge base's profile with the settings you change, as a *candidate* profile. It is in no list, picker or search result, is never the default, and nothing can select it, edit it or delete it: it is only the target of this preview. Its key is generated (`preview-…`); its name is the profile's name and "(new settings)" unless you give one.
+- **Built beside the live index.** This is the migration described above, held: the sources are re-embedded in the background for the candidate (copied when the passage settings match, cut again otherwise), and when every source is done the migration becomes **Ready to switch** instead of switching. It counts as the knowledge base's one active migration, so no other migration can start until you switch or discard it.
+- **Compared at the same moment.** When it is ready, every evaluation set of the knowledge base that has questions is run twice, retrieval only: on the current index and on the new one, with the same reranking. The current index is always run again (never an older run), so both are scored together. Sets of agents are not run: the preview compares the knowledge base's own retrieval. The runs count against the team's query usage like any evaluation run, and they take a few minutes for hundreds of questions.
+- **Numbers for you, questions for the team.** Evaluation sets belong to the team, and platform staff cannot read them. The comparison on the migration's page shows, per set and in all, **recall@k, MRR, questions ranked first, and how many questions got better, worse or stayed**, and no question text. The team's editors, admins and owners see each question that changed, with its rank on both indexes, on the knowledge base's own page.
+- **Not the team's history.** The preview's runs are not in the set's run list, its trend, its regression checks or a question's history, and they neither block a team's own run nor wait for one.
+- **Switch** makes the same switch the automatic one does: atomic, the old vectors kept for the grace period you chose (**Switch back** works), the team told, the knowledge base's automatic evaluation sets queued. The candidate becomes an ordinary profile, listed and selectable, and can be renamed.
+- **Discard** deletes the new index's passages and vectors, drops its vector table and retires the hidden profile. The knowledge base never changed. The migration's record stays, as *Cancelled*, because a profile with migration history is never deleted: each discarded preview leaves one small hidden profile row.
+- **Documents that change while it waits** are embedded for the new index too. **Switch** refuses while some lack vectors for it (*try again in a minute*); **Compare again** makes fresh numbers.
+- **Storage and time.** Until you switch or discard, the knowledge base holds two sets of passages and vectors. Nothing expires a forgotten preview: **Migrations** lists it as *Ready to switch* with the date it started.
+- **Audit.** Starting is audited as `kb.profile_migration_start` (with `hold`), becoming ready as `kb.profile_preview_ready`, asking again as `kb.profile_preview_evaluate`, then `kb.profile_switch` or `kb.profile_migration_cancel`, with counts only. Platform admins are told when a preview is ready.
+
+### Run a preview
+
+1. **Admin → Embedding profiles → Migrations → Preview new settings…**
+2. Pick the knowledge base and fill in **only the settings that change** (passage size and overlap, embedding model, prefixes, name, how long to keep the old vectors if you switch). Empty fields keep the current profile's. A preview with nothing filled in builds an identical index, which is a way to check that a comparison shows no change.
+3. **Build the new index.** The preview's page opens with the same progress as a migration.
+4. When it says **Ready to switch**, read **Compared with the current index**. Ask the team's editors to look at the questions that got worse: they see them on the knowledge base's page.
+5. **Switch to the new index**, or **Discard preview**. **Compare again** runs the sets once more (after documents changed, or if a run failed).
+
+### Reading a comparison
+
+- It measures **retrieval**: whether the page a question expects comes back, and where. It does not measure answer quality.
+- Differences of one or two questions are noise. Look at the totals and at questions that moved a lot. With few questions, or questions that are all easy, it cannot tell two indexes apart.
+- *Better* and *worse* count questions whose expected page ranked higher or lower, or that one index found and the other did not. The first place count is the most sensitive: recall at the top ranks saturates on a small knowledge base.
+- A knowledge base without evaluation sets has nothing to compare (*Nothing to compare*). You can still switch or discard, on the passages and the cost alone; asking the team to add questions first is better.
+
 ## The API
 
 Everything the page does is in the API (`api/openapi.yaml`, tag `admin`):
@@ -52,8 +84,13 @@ Everything the page does is in the API (`api/openapi.yaml`, tag `admin`):
 | `POST /v1/admin/profile-migrations/preflight` `{kbId, targetProfileId}` | The preflight; changes nothing |
 | `POST /v1/admin/profile-migrations` `{kbId, targetProfileId, graceDays?}` | Start; `409 migration_blocked` with `details.blockers` |
 | `GET /v1/admin/profile-migrations[?kbId=]`, `GET …/{id}` | List; one with per-source progress and failed documents |
-| `POST …/{id}/cancel`, `…/retry`, `…/switch-back`, `…/finish` | With `If-Match: "<revision>"` (428 without, 412 when stale) |
+| `POST /v1/admin/profile-migrations/preview` `{kbId, changes, graceDays?}` | Start an index preview (a hidden candidate profile and a held migration); `409 migration_blocked` with `details.blockers`, and no candidate is left behind |
+| `GET …/{id}/preview` | The comparison, numbers only (platform admins and auditors) |
+| `POST …/{id}/evaluate` | Compare again (`202`); `409 preview_running`, `409 migration_not_ready` |
+| `POST …/{id}/switch` | Switch a ready preview (the same steps as the automatic switch); `409 migration_catching_up` while documents lack vectors, `409 migration_not_ready` |
+| `POST …/{id}/cancel`, `…/retry`, `…/switch-back`, `…/finish` | With `If-Match: "<revision>"` (428 without, 412 when stale); cancel also discards a preview |
 | `GET /v1/teams/{team}/kbs/{kbId}/profile-migration` | The running or switched migration, for team members |
+| `GET /v1/teams/{team}/kbs/{kbId}/index-preview` | The preview's comparison with the questions, for the team's editors, admins and owners (404 for everyone else) |
 
 ## Troubleshooting
 
@@ -64,8 +101,15 @@ Everything the page does is in the API (`api/openapi.yaml`, tag `admin`):
 | Progress pauses now and then | The gateway is at its limit (429 or 503 with `Retry-After`) or the connection's request limit is reached. The job waits and continues; lower `requestsPerMinute` on the connection if other traffic suffers. |
 | **Switch back** says documents don't have vectors for the previous profile yet | Documents changed after the switch and are still being embedded for the old profile. Try again in a minute. |
 | Switch back is no longer offered | The grace period is over, or the old vectors were deleted early. Start a new migration back to the old profile instead. |
+| A preview is refused with a blocker | The same preflight as a migration. A knowledge base has one active migration (running, ready to switch, or in its grace period): switch, discard or finish it first. |
+| **Nothing to compare** | The knowledge base has no evaluation set with questions. Ask the team to add some (Evaluations), then **Compare again**. |
+| **Switch** says documents don't have vectors for the new profile yet | They changed after the preview was built and are being embedded for it. Try again in a minute, then **Compare again** for fresh numbers. |
+| **Comparing…** doesn't finish | The runs wait behind other evaluation runs, or the team's query limit or budget stopped them (the run says why). **Compare again** once it is resolved. |
+| A discarded preview left a profile you can't see | By design: the hidden profile is retired and kept because the migration record refers to it. It is in no list. |
 | Storage didn't shrink after the grace period | The cleanup job runs every 10 minutes and deletes in batches. A shared source keeps the old vectors while another knowledge base still uses the old profile. |
 
 ## Upgrading to this release
 
 Migration `00029_profile_migration.sql` adds `chunks.profile_id` and fills it in from each chunk's source, which rewrites the chunks table once (seconds for a few hundred thousand passages; plan a quiet moment for millions). Code of the previous release keeps working against the new schema during a rolling upgrade: a trigger fills in `profile_id` for chunks it writes.
+
+The index preview (v0.5.0) adds three small migrations, all additive: `00046` (`profile_migrations.hold` and the `ready` status), `00047` (`embedding_profiles.candidate_of`) and `00048` (an `index_preview` trigger for evaluation runs). The previous release keeps working against them during a rolling upgrade: it never creates a held migration or a candidate profile. **Before rolling back to a release without the index preview, switch or discard any preview:** that release does not know hidden profiles and would list one, and its migration page would show a `ready` migration it cannot act on.
