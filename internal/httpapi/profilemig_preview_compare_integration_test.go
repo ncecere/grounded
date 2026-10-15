@@ -11,7 +11,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/profilemig"
+	"github.com/ncecere/grounded/internal/ingest"
 )
 
 const (
@@ -39,36 +39,57 @@ func (env *migEnv) dropPassages(t *testing.T, profile, source uuid.UUID, filenam
 	}
 }
 
-// sweepAndSettle runs the migration sweep now and waits until it, and the embedding jobs it queued, are done: what a sweep tick at any moment
-// would do to the data. It waits for the job it inserted to be completed (not for a quiet queue, which is also true before the job has started).
+// sweepAndSettle does what a sweep tick does to the data, now, and waits until it is done: it queues an embedding job for every set (the same
+// sets the sweep lists) and waits for the jobs to finish. It does not insert the sweep job itself: that job is unique over 30 s and River cannot
+// bucket by less than a second, so a forced sweep in the same second as a periodic one, or as the previous forced one, is silently dropped (the
+// first version of this helper did that and failed one CI run in three).
+//
+// The queue is drained first. A job that is active after that was queued after the drop, so it repairs the hole too, and a duplicate of it is
+// fine; a job still running from before the drop could have missed the hole, and would hide the repair this is meant to exercise.
 func (env *migEnv) sweepAndSettle(t *testing.T) {
 	t.Helper()
+	const active = `SELECT count(*) FROM river_job WHERE kind = 'embedding_set.sync' AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled')`
+	drained := func() {
+		quiet := 0
+		eventually(t, "the embedding queue to drain", func() bool {
+			if env.scalar(t, active) == 0 {
+				quiet++
+			} else {
+				quiet = 0
+			}
+			time.Sleep(300 * time.Millisecond)
+			return quiet >= 2
+		})
+	}
+	drained()
+	rows, err := env.app.Pool.Query(t.Context(), `SELECT es.source_id, es.profile_id FROM source_embedding_sets es WHERE es.status <> 'deleting'
+		UNION SELECT s.id, s.embedding_profile_id FROM data_sources s WHERE EXISTS (SELECT 1 FROM source_embedding_sets es WHERE es.source_id = s.id)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var params []river.InsertManyParams
+	for rows.Next() {
+		var set ingest.SetArgs
+		if err := rows.Scan(&set.SourceID, &set.ProfileID); err != nil {
+			t.Fatal(err)
+		}
+		params = append(params, river.InsertManyParams{Args: set})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(params) == 0 {
+		t.Fatal("no embedding sets to sweep")
+	}
 	client, err := river.NewClient(riverpgxv5.New(env.app.Pool), &river.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The sweep is unique over 30 s (a periodic one just ran, or the previous forced one): a shorter period gives this job its own unique key.
-	res, err := client.Insert(t.Context(), profilemig.SweepArgs{}, &river.InsertOpts{UniqueOpts: river.UniqueOpts{ByPeriod: time.Second}})
-	if err != nil {
+	if _, err := client.InsertMany(t.Context(), params); err != nil {
 		t.Fatal(err)
 	}
-	if res.UniqueSkippedAsDuplicate {
-		t.Fatal("the sweep was dropped as a duplicate of one already queued")
-	}
-	eventually(t, "the sweep job", func() bool {
-		return env.scalar(t, `SELECT count(*) FROM river_job WHERE id = $1 AND state = 'completed'`, res.Job.ID) == 1
-	})
-	// Its embedding jobs are queued in the same transaction that completed it: wait until none is left, twice in a row.
-	quiet := 0
-	eventually(t, "the sweep's embedding jobs", func() bool {
-		if env.scalar(t, `SELECT count(*) FROM river_job WHERE kind = 'embedding_set.sync' AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled')`) == 0 {
-			quiet++
-		} else {
-			quiet = 0
-		}
-		time.Sleep(300 * time.Millisecond)
-		return quiet >= 2
-	})
+	drained()
 }
 
 func (env *migEnv) comparisonFor(t *testing.T, migration uuid.UUID) apitypes.ProfileMigrationComparison {
