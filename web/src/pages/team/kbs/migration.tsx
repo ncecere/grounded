@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button/button";
 import { Meter } from "@/components/ui/meter/meter";
 import { formatDate } from "@/lib/format";
 import { documentsText, pollMs } from "../../admin/profile-migrations/common";
+import { IndexPreviewDetail } from "./index-preview";
 
 export function useKBMigration(team: string, kbId: string) {
   return useQuery({
@@ -31,6 +32,30 @@ export function KBMigrationNotice({ team, kbId, isAdmin }: { team: string; kbId:
       Manage migration
     </Button>
   );
+  if (m.hold && (m.status === "running" || m.status === "ready")) {
+    return (
+      <Alert tone="info" title="A platform admin is trying new index settings on this knowledge base" actions={manage || undefined}>
+        <p>
+          {m.status === "running"
+            ? `The new index (${m.toProfile.name}) is being built. Search and agents keep using ${m.fromProfile.name}, and nothing changes for you unless the platform admin switches.`
+            : `The new index (${m.toProfile.name}) is built. Search and agents still use ${m.fromProfile.name} until the platform admin switches. Your evaluation sets were run on both; what changed is below.`}
+        </p>
+        {m.status === "running" && (
+          <Meter
+            label="Documents embedded"
+            size="sm"
+            value={m.progress.done}
+            max={Math.max(m.progress.documents, 1)}
+            valueText={documentsText(m.progress.done, m.progress.documents)}
+            warningAt={2}
+            criticalAt={2}
+            showStatus={false}
+          />
+        )}
+        {m.status === "ready" && <IndexPreviewDetail team={team} kbId={kbId} />}
+      </Alert>
+    );
+  }
   if (m.status === "switched") {
     return (
       <Alert tone="success" title={`Now on the embedding profile ${m.toProfile.name}`} actions={manage || undefined}>

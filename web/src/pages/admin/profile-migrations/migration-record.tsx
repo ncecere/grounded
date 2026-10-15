@@ -1,11 +1,13 @@
 /*
  * One migration in a RecordPage (?record=<id>): facts, a meter per source
  * while it runs, the documents that failed, and its actions (Retry failed,
- * Cancel, Switch back, Delete old vectors now), each confirmed.
+ * Cancel, Switch back, Delete old vectors now), each confirmed. An index
+ * preview (a held migration) adds its comparison with the current index and,
+ * once ready, Switch and Discard.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { RotateCcw, Undo2, X, Trash2 } from "lucide-react";
+import { ArrowRightLeft, RotateCcw, Undo2, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
@@ -20,11 +22,13 @@ import { toast } from "@/components/ui/toast/toast";
 import { formatDate } from "@/lib/format";
 import s from "../../shared.module.css";
 import { documentsText, estimateItems, graceText, type Migration, migrationQuery, migrationsKey, sourceStateLabels, sourceStateTone, statusLabels, statusTone } from "./common";
+import { PreviewComparison } from "./preview-comparison";
 import p from "./profile-migrations.module.css";
 
-type Action = "cancel" | "retry" | "switch-back" | "finish";
+type Action = "cancel" | "retry" | "switch" | "switch-back" | "finish";
 const done: Record<Action, (m: Migration) => string> = {
-  cancel: (m) => `Migration of ${m.kb.name} cancelled`,
+  cancel: (m) => (m.hold ? `Preview of ${m.kb.name} discarded` : `Migration of ${m.kb.name} cancelled`),
+  switch: (m) => `${m.kb.name} now searches ${m.toProfile.name}`,
   retry: (m) => `Retrying the failed documents of ${m.kb.name}`,
   "switch-back": (m) => `${m.kb.name} is back on ${m.fromProfile.name}`,
   finish: (m) => `Old vectors of ${m.kb.name} are being deleted`,
@@ -33,6 +37,7 @@ const done: Record<Action, (m: Migration) => string> = {
 const actionPaths = {
   cancel: "/v1/admin/profile-migrations/{migrationId}/cancel",
   retry: "/v1/admin/profile-migrations/{migrationId}/retry",
+  switch: "/v1/admin/profile-migrations/{migrationId}/switch",
   "switch-back": "/v1/admin/profile-migrations/{migrationId}/switch-back",
   finish: "/v1/admin/profile-migrations/{migrationId}/finish",
 } as const;
@@ -62,11 +67,11 @@ export function MigrationPage({ id, onClose, isAdmin }: { id?: string; onClose: 
         open={Boolean(id)}
         onClose={onClose}
         title={m ? `${m.kb.name}: ${m.fromProfile.name} → ${m.toProfile.name}` : "Profile migration"}
-        description="Moving a knowledge base to another embedding profile."
+        description={m?.hold ? "An index preview: a new index built beside the current one, which waits for a platform admin to switch or discard it." : "Moving a knowledge base to another embedding profile."}
         loading={q.isLoading}
         error={q.error}
         facts={m ? facts(m) : []}
-        sections={m ? sections(m, act.error) : []}
+        sections={m ? sections(m, act.error, isAdmin) : []}
         actions={m && isAdmin && <Actions m={m} onAction={setConfirm} busy={act.isPending} onRetry={() => act.mutate({ m, action: "retry" })} />}
       />
       {m && (
@@ -75,7 +80,7 @@ export function MigrationPage({ id, onClose, isAdmin }: { id?: string; onClose: 
           onClose={() => setConfirm(null)}
           mutation={act}
           onConfirm={(action) => act.mutate({ m, action }, { onSuccess: () => setConfirm(null) })}
-          tone={confirm === "switch-back" ? "primary" : "danger"}
+          tone={confirm === "switch-back" || confirm === "switch" ? "primary" : "danger"}
           {...confirmText(m, confirm)}
         />
       )}
@@ -85,7 +90,20 @@ export function MigrationPage({ id, onClose, isAdmin }: { id?: string; onClose: 
 
 function confirmText(m: Migration, action: Action | null) {
   switch (action) {
+    case "switch":
+      return {
+        title: `Switch ${m.kb.name} to the new index?`,
+        description: `Search and agents use ${m.toProfile.name} at once. The ${m.fromProfile.name} vectors are kept for ${m.graceDays} ${m.graceDays === 1 ? "day" : "days"}, so you can switch back until then. The team is told.`,
+        confirmLabel: "Switch",
+      };
     case "cancel":
+      if (m.hold) {
+        return {
+          title: `Discard the preview of ${m.kb.name}?`,
+          description: `${m.kb.name} keeps searching ${m.fromProfile.name}. The new index is deleted. The record of this preview stays.`,
+          confirmLabel: "Discard preview",
+        };
+      }
       return {
         title: `Cancel moving ${m.kb.name}?`,
         description: `It keeps searching ${m.fromProfile.name}. The vectors made for ${m.toProfile.name} so far are deleted (a shared source keeps them while another knowledge base needs them).`,
@@ -107,11 +125,23 @@ function confirmText(m: Migration, action: Action | null) {
 }
 
 function Actions({ m, onAction, onRetry, busy }: { m: Migration; onAction: (a: Action) => void; onRetry: () => void; busy: boolean }) {
+  if (m.status === "ready") {
+    return (
+      <>
+        <Button variant="danger" onClick={() => onAction("cancel")}>
+          <X aria-hidden /> Discard preview
+        </Button>
+        <Button onClick={() => onAction("switch")} disabled={!m.canSwitch}>
+          <ArrowRightLeft aria-hidden /> Switch to the new index
+        </Button>
+      </>
+    );
+  }
   if (m.status === "running") {
     return (
       <>
         <Button variant="danger" onClick={() => onAction("cancel")}>
-          <X aria-hidden /> Cancel migration
+          <X aria-hidden /> {m.hold ? "Discard preview" : "Cancel migration"}
         </Button>
         {m.progress.failed > 0 && (
           <Button onClick={onRetry} loading={busy}>
@@ -140,6 +170,7 @@ function facts(m: Migration) {
   const grace = graceText(m);
   return [
     { label: "Status", value: <StatusBadge tone={statusTone[m.status]}>{statusLabels[m.status]}</StatusBadge> },
+    { label: "Kind", value: m.hold ? "Index preview: waits for you to switch" : undefined },
     {
       label: "Knowledge base",
       value: (
@@ -158,9 +189,12 @@ function facts(m: Migration) {
   ].filter((f) => f.value !== undefined);
 }
 
-function sections(m: Migration, error: unknown) {
+function sections(m: Migration, error: unknown, isAdmin: boolean) {
   const out = [];
   if (error) out.push({ title: "Error", content: <ErrorAlert error={error} /> });
+  if (m.hold && (m.status === "running" || m.status === "ready")) {
+    out.push({ title: "Compared with the current index", content: <PreviewComparison m={m} isAdmin={isAdmin} /> });
+  }
   if (m.status === "running") {
     out.push({
       title: "Progress",

@@ -6,6 +6,7 @@ import { api, unwrap, type Schemas } from "@/api/client";
 
 export type Migration = Schemas["ProfileMigration"];
 export type MigrationStatus = Schemas["ProfileMigrationStatus"];
+export type Comparison = Schemas["ProfileMigrationComparison"];
 export type Preflight = Schemas["ProfileMigrationPreflight"];
 export type Estimate = Schemas["ProfileMigrationEstimate"];
 export type AdminKB = Schemas["AdminKnowledgeBase"];
@@ -37,6 +38,13 @@ export const migrationQuery = (id: string) => ({
   queryKey: [...migrationsKey, id],
   queryFn: async () => unwrap(await api.GET("/v1/admin/profile-migrations/{migrationId}", { params: { path: { migrationId: id } } })),
   refetchInterval: (q: { state: { data?: Migration } }) => (q.state.data?.status === "running" ? pollMs : false),
+});
+/** An index preview's comparison (numbers only), polled while a comparison runs. */
+export const previewKey = (id: string) => [...migrationsKey, id, "preview"];
+export const previewQuery = (id: string) => ({
+  queryKey: previewKey(id),
+  queryFn: async () => unwrap(await api.GET("/v1/admin/profile-migrations/{migrationId}/preview", { params: { path: { migrationId: id } } })),
+  refetchInterval: (q: { state: { data?: Comparison } }) => (q.state.data?.running ? pollMs : false),
 });
 export const adminKBsQuery = () => ({
   queryKey: ["admin", "knowledge-bases"],
@@ -86,3 +94,9 @@ export function graceText(m: Pick<Migration, "status" | "oldVectorsUntil">, now 
   const days = Math.ceil(ms / 86_400_000);
   return days <= 1 ? "Old vectors are kept for less than a day more." : `Old vectors are kept for ${days} more days.`;
 }
+
+/** "93%" for a share of questions; a dash when nothing was scored. */
+export const percentText = (v: number | null | undefined) => (v === null || v === undefined ? "–" : `${Math.round(v * 100)}%`);
+
+/** "0.94" for a mean reciprocal rank. */
+export const mrrText = (v: number | null | undefined) => (v === null || v === undefined ? "–" : v.toFixed(2));

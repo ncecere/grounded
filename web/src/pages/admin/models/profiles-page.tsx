@@ -5,7 +5,7 @@
  * move) and its primary follows the tab: "Add profile" on Profiles, "Migrate
  * a knowledge base" on Migrations (platform admins only).
  */
-import { Layers, Plus, Shuffle } from "lucide-react";
+import { Eye, Layers, Plus, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { Button } from "@/components/ui/button/button";
@@ -27,15 +27,21 @@ export function EmbeddingProfilesPage() {
   const [tab, setTab] = useUrlTab(embeddingProfileTabs);
   const [creating, setCreating] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const add = isAdmin && (
     <Button onClick={() => setCreating(true)}>
       <Plus aria-hidden /> Add profile
     </Button>
   );
   const start = isAdmin && (
-    <Button onClick={() => setStarting(true)}>
-      <Plus aria-hidden /> Migrate a knowledge base
-    </Button>
+    <>
+      <Button variant="secondary" onClick={() => setPreviewing(true)}>
+        <Eye aria-hidden /> Preview new settings…
+      </Button>
+      <Button onClick={() => setStarting(true)}>
+        <Plus aria-hidden /> Migrate a knowledge base
+      </Button>
+    </>
   );
   const onMigrations = tab === "migrations";
   return (
@@ -51,7 +57,15 @@ export function EmbeddingProfilesPage() {
             value: "migrations",
             label: "Migrations",
             icon: <Shuffle aria-hidden />,
-            content: <ProfileMigrationsTab isAdmin={isAdmin} starting={starting} onStartClosed={() => setStarting(false)} />,
+            content: (
+              <ProfileMigrationsTab
+                isAdmin={isAdmin}
+                starting={starting}
+                onStartClosed={() => setStarting(false)}
+                previewing={previewing}
+                onPreviewClosed={() => setPreviewing(false)}
+              />
+            ),
           },
         ]}
       />
