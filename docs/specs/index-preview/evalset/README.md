@@ -38,5 +38,5 @@ measurement ([#25](https://github.com/ncecere/grounded/issues/25)): the docs sit
 - Every question has an answer; none tests what retrieval does when the docs hold nothing.
 - It goes stale as the docs change. Re-check the URLs and phrases against the live pages before relying on a result, and treat a question
   whose page changed as suspect, not as a regression.
-- A knowledge base made from the docs site is small (62 pages, a few hundred passages). A result here says little about a large or messy
+- A knowledge base made from the docs site is small (the production one: 102 documents, 763 passages). A result here says little about a large or messy
   one; it is a regression and comparison tool for index settings, not a benchmark.
