@@ -31,6 +31,7 @@ export function TeamPicker({ value, onChange }: { value: string; onChange: (slug
       }}
       onInputValueChange={setText}
       placeholder="Search teams"
+      listLabel="Teams"
       emptyText="No team matches."
       autoHighlight
     />

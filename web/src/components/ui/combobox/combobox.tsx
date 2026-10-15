@@ -80,6 +80,11 @@ type ComboboxBaseProps<V extends string> = {
   triggerLabel?: string;
   /** Accessible name when the combobox is not inside a labelled Field. */
   "aria-label"?: string;
+  /**
+   * Accessible name of the open list of options (a listbox must have one). Default: the aria-label, else the placeholder, else "Options".
+   * Give it when a Field's label names the input but the list needs its own words ("Teams").
+   */
+  listLabel?: string;
   /** Called as the user types. */
   onInputValueChange?: (text: string) => void;
   /** Highlight the first match while typing, so Enter picks it. */
@@ -176,6 +181,7 @@ function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | Combob
     clearLabel = "Clear selection",
     triggerLabel = "Show options",
     "aria-label": ariaLabel,
+    listLabel,
     onInputValueChange,
     autoHighlight,
     limit,
@@ -307,7 +313,7 @@ function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | Combob
         <BaseCombobox.Positioner className={popup.positioner} anchor={anchorRef} align="start" sideOffset={6}>
           <BaseCombobox.Popup className={cx(popup.popup, styles.popup)}>
             <BaseCombobox.Empty className={styles.empty}>{emptyText}</BaseCombobox.Empty>
-            <BaseCombobox.List className={styles.list}>
+            <BaseCombobox.List className={styles.list} aria-label={listLabel || ariaLabel || placeholder || "Options"}>
               {grouped
                 ? (group: OptionGroup<V>) => (
                     <BaseCombobox.Group key={group.value} items={group.items} className={styles.group}>
@@ -335,6 +341,7 @@ function FreeTextCombobox(props: ComboboxFreeTextProps) {
     clearLabel = "Clear text",
     triggerLabel = "Show suggestions",
     "aria-label": ariaLabel,
+    listLabel,
     autoHighlight,
     limit,
     submitOnEnter = true,
@@ -404,7 +411,7 @@ function FreeTextCombobox(props: ComboboxFreeTextProps) {
         <BaseAutocomplete.Positioner className={popup.positioner} anchor={anchorRef} align="start" sideOffset={6}>
           <BaseAutocomplete.Popup className={cx(popup.popup, styles.popup)}>
             {emptyText && <BaseAutocomplete.Empty className={styles.empty}>{emptyText}</BaseAutocomplete.Empty>}
-            <BaseAutocomplete.List className={styles.list}>
+            <BaseAutocomplete.List className={styles.list} aria-label={listLabel || ariaLabel || placeholder || "Suggestions"}>
               {grouped
                 ? (group: OptionGroup<string>) => (
                     <BaseAutocomplete.Group key={group.value} items={group.items} className={styles.group}>
