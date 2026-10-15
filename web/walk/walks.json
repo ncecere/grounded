@@ -95,6 +95,14 @@
   },
   {
    "persona": "admin",
+   "path": "/admin/embedding-profiles"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/embedding-profiles?tab=migrations"
+  },
+  {
+   "persona": "admin",
    "path": "/admin/classifications"
   },
   {
