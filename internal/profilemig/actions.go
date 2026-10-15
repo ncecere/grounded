@@ -26,6 +26,7 @@ var timeNow = time.Now
 type StartInput struct {
 	KBID, TargetProfileID uuid.UUID
 	GraceDays             *int32
+	Hold                  bool // build the new index, then wait for Switch instead of switching (index preview)
 }
 
 // BlockedError refuses a migration with its preflight blockers.
@@ -71,10 +72,10 @@ func (s *Service) Start(ctx context.Context, a authz.Actor, in StartInput) (Migr
 		}
 		m, err := q.InsertProfileMigration(ctx, dbgen.InsertProfileMigrationParams{
 			KBID: kb.ID, TeamID: kb.TeamID, FromProfileID: pf.From.ID, ToProfileID: pf.Target.ID, GraceDays: grace,
-			Estimate: estimate, StartedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
+			Estimate: estimate, StartedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}, Hold: in.Hold,
 		})
 		if apperr.IsUniqueViolation(err, "profile_migrations_one_active") {
-			return apperr.Conflict("migration_active", "Another migration of this knowledge base is running or in its grace period")
+			return apperr.Conflict("migration_active", "Another migration of this knowledge base is running, waiting to be switched, or in its grace period")
 		} else if err != nil {
 			return err
 		}
@@ -85,7 +86,7 @@ func (s *Service) Start(ctx context.Context, a authz.Actor, in StartInput) (Migr
 		e := a.Audit("kb.profile_migration_start", "knowledge_base", kb.ID.String())
 		e.TeamID, e.Metadata = kb.TeamID, mergeMeta(e.Metadata, s.meta(m, map[string]any{
 			"sources": len(pf.Sources), "documents": pf.Estimate.Documents, "passages": pf.Estimate.Passages,
-			"embeddingCalls": pf.Estimate.EmbeddingCalls, "rechunk": pf.Estimate.Rechunk, "graceDays": grace,
+			"embeddingCalls": pf.Estimate.EmbeddingCalls, "rechunk": pf.Estimate.Rechunk, "graceDays": grace, "hold": in.Hold,
 		}))
 		return audit.Record(ctx, q, e)
 	})
@@ -172,12 +173,12 @@ func (s *Service) record(ctx context.Context, q *dbgen.Queries, a authz.Actor, a
 
 var errNotRunning = apperr.Conflict("migration_not_running", "This migration is no longer running")
 
-// Cancel stops a running migration. The KB keeps its profile; the new
+// Cancel stops a running migration, or discards a held one that is ready. The KB keeps its profile; the new
 // vectors are deleted by the cleanup job (a shared source keeps them while
 // another KB's migration or search needs them).
 func (s *Service) Cancel(ctx context.Context, a authz.Actor, id uuid.UUID, rev int64) (Migration, error) {
 	return s.change(ctx, a, id, rev, func(q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration) error {
-		if m.Status != StatusRunning {
+		if m.Status != StatusRunning && m.Status != StatusReady {
 			return errNotRunning
 		}
 		m, err := q.FinishProfileMigration(ctx, dbgen.FinishProfileMigrationParams{Status: StatusCancelled, ID: m.ID,

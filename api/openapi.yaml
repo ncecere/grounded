@@ -2267,7 +2267,31 @@ paths:
     post:
       tags: [admin]
       operationId: adminCancelProfileMigration
-      summary: Cancel a running migration; its new vectors are deleted (platform admins with a session; audited)
+      summary: Cancel a running migration, or discard a held one that is ready; its new vectors are deleted (platform admins with a session; audited)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      responses:
+        "200": { $ref: "#/components/responses/ProfileMigrationReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/profile-migrations/{migrationId}/switch:
+    parameters:
+      - $ref: "#/components/parameters/MigrationIdParam"
+    post:
+      tags: [admin]
+      operationId: adminSwitchProfileMigration
+      summary: Switch a knowledge base to the new profile of a held migration that is ready (platform admins with a session; audited)
+      description: >-
+        For a migration started with hold, once its status is ready. It does
+        what the automatic switch does: the knowledge base searches the new
+        profile at once, the old vectors are kept for the grace period, and
+        the team is told. 409 migration_not_ready when the migration is not
+        ready; 409 migration_catching_up while documents that changed since
+        it was built lack vectors for the new profile (try again in a
+        minute).
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
@@ -9953,14 +9977,23 @@ components:
           minimum: 0
           maximum: 90
           description: Days the old vectors are kept after the switch, so the knowledge base can switch back (default PROFILE_MIGRATION_GRACE_DAYS, 7). 0 deletes them at the switch.
+        hold:
+          type: boolean
+          description: >-
+            Build the new index and stop before the switch (status ready);
+            an admin then switches it (POST .../switch) or discards it
+            (POST .../cancel). The knowledge base keeps its current profile
+            meanwhile. Default false: the migration switches by itself.
     ProfileMigrationStatus:
       type: string
       description: >-
         running: re-embedding (the knowledge base still searches its old
-        profile); switched: it searches the new profile and the old vectors
-        are kept until oldVectorsUntil; completed: old vectors deleted;
-        cancelled; switched_back.
-      enum: [running, switched, completed, cancelled, switched_back]
+        profile); ready: a held migration whose new index is built, waiting
+        for an admin to switch or discard it (the knowledge base still
+        searches its old profile); switched: it searches the new profile and
+        the old vectors are kept until oldVectorsUntil; completed: old
+        vectors deleted; cancelled; switched_back.
+      enum: [running, ready, switched, completed, cancelled, switched_back]
     ProfileMigrationIssue:
       type: object
       required: [code, message]
@@ -10065,7 +10098,7 @@ components:
         failedAt: { type: string, format: date-time }
     ProfileMigration:
       type: object
-      required: [id, status, kb, teamSlug, teamName, fromProfile, toProfile, graceDays, estimate, startedAt, startedBy, switchedAt, oldVectorsUntil, finishedAt, canSwitchBack, progress, revision]
+      required: [id, status, kb, teamSlug, teamName, fromProfile, toProfile, graceDays, estimate, startedAt, startedBy, switchedAt, oldVectorsUntil, finishedAt, canSwitchBack, canSwitch, hold, progress, revision]
       properties:
         id: { type: string, format: uuid }
         status: { $ref: "#/components/schemas/ProfileMigrationStatus" }
@@ -10084,6 +10117,8 @@ components:
         oldVectorsUntil: { type: string, format: date-time, nullable: true, description: Until when the old vectors are kept (switch back possible) }
         finishedAt: { type: string, format: date-time, nullable: true }
         canSwitchBack: { type: boolean }
+        hold: { type: boolean, description: Started to stop before the switch (index preview) }
+        canSwitch: { type: boolean, description: A held migration is ready for an admin to switch (the switch still checks that every document has vectors) }
         progress:
           type: object
           description: Totals over the knowledge base's sources (running migrations; zero afterwards)

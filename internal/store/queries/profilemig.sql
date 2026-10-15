@@ -134,8 +134,8 @@ LIMIT @max_rows;
 -- ---- cleanup ------------------------------------------------------------------
 
 -- Sets nothing needs any more: no KB with the source uses the profile, no
--- running migration of such a KB targets it, and no switched one (in its
--- grace period) can switch back to it.
+-- running or ready (held, being previewed) migration of such a KB targets it,
+-- and no switched one (in its grace period) can switch back to it.
 -- name: UnneededEmbeddingSets :many
 SELECT es.source_id, es.profile_id FROM source_embedding_sets es
 JOIN data_sources s ON s.id = es.source_id
@@ -144,7 +144,7 @@ WHERE es.profile_id <> s.embedding_profile_id
                   WHERE ks.source_id = es.source_id AND kb.embedding_profile_id = es.profile_id)
   AND NOT EXISTS (SELECT 1 FROM profile_migrations m JOIN kb_sources ks ON ks.kb_id = m.kb_id
                   WHERE ks.source_id = es.source_id
-                    AND ((m.status = 'running' AND m.to_profile_id = es.profile_id)
+                    AND ((m.status IN ('running', 'ready') AND m.to_profile_id = es.profile_id)
                       OR (m.status = 'switched' AND m.from_profile_id = es.profile_id)))
 ORDER BY es.created_at
 LIMIT 50;
@@ -165,8 +165,8 @@ SELECT * FROM profile_migrations WHERE status = 'switched' AND old_vectors_until
 -- ---- migrations -----------------------------------------------------------------
 
 -- name: InsertProfileMigration :one
-INSERT INTO profile_migrations (kb_id, team_id, from_profile_id, to_profile_id, grace_days, estimate, started_by)
-VALUES (@kb_id, @team_id, @from_profile_id, @to_profile_id, @grace_days, @estimate, @started_by)
+INSERT INTO profile_migrations (kb_id, team_id, from_profile_id, to_profile_id, grace_days, estimate, started_by, hold)
+VALUES (@kb_id, @team_id, @from_profile_id, @to_profile_id, @grace_days, @estimate, @started_by, @hold)
 RETURNING *;
 
 -- name: LockProfileMigration :one
@@ -182,6 +182,12 @@ RETURNING *;
 UPDATE profile_migrations SET status = 'switched', switched_at = now(),
     old_vectors_until = now() + make_interval(days => grace_days), revision = revision + 1, updated_at = now()
 WHERE id = @id
+RETURNING *;
+
+-- A held migration whose sources all have the target's vectors waits for an admin.
+-- name: ReadyProfileMigration :one
+UPDATE profile_migrations SET status = 'ready', revision = revision + 1, updated_at = now()
+WHERE id = @id AND hold
 RETURNING *;
 
 -- name: EndGraceNow :exec
@@ -204,7 +210,7 @@ JOIN embedding_profiles tp ON tp.id = m.to_profile_id
 LEFT JOIN users u ON u.id = m.started_by
 WHERE (sqlc.narg(kb_id)::uuid IS NULL OR m.kb_id = sqlc.narg(kb_id))
   AND (sqlc.narg(id)::uuid IS NULL OR m.id = sqlc.narg(id))
-  AND (NOT @active_only::bool OR m.status IN ('running', 'switched'))
+  AND (NOT @active_only::bool OR m.status IN ('running', 'ready', 'switched'))
 ORDER BY m.started_at DESC, m.id
 LIMIT @max_rows;
 
@@ -216,9 +222,10 @@ WHERE m.status = 'running' AND ks.source_id = @source_id AND m.to_profile_id = @
 -- name: RunningMigrationIDs :many
 SELECT id FROM profile_migrations WHERE status = 'running' ORDER BY started_at;
 
--- The KB's running migration, if any (attaching a source during a migration).
--- name: RunningMigrationForKB :one
-SELECT * FROM profile_migrations WHERE kb_id = $1 AND status = 'running';
+-- The KB's migration that is still building or waiting to switch, if any (a source attached meanwhile
+-- needs the target's vectors too).
+-- name: BuildingMigrationForKB :one
+SELECT * FROM profile_migrations WHERE kb_id = $1 AND status IN ('running', 'ready');
 
 -- ---- per-source figures -------------------------------------------------------------
 
@@ -286,7 +293,7 @@ SELECT kb.id, kb.name, kb.embedding_profile_id, t.slug AS team_slug, t.name AS t
 FROM knowledge_bases kb
 JOIN teams t ON t.id = kb.team_id
 JOIN embedding_profiles p ON p.id = kb.embedding_profile_id
-LEFT JOIN profile_migrations m ON m.kb_id = kb.id AND m.status IN ('running', 'switched')
+LEFT JOIN profile_migrations m ON m.kb_id = kb.id AND m.status IN ('running', 'ready', 'switched')
 ORDER BY lower(t.name), lower(kb.name), kb.id
 LIMIT 1000;
 

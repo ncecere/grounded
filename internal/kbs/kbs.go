@@ -547,12 +547,12 @@ func checkSourceProfile(ctx context.Context, q *dbgen.Queries, src dbgen.DataSou
 	return nil
 }
 
-// joinMigration gives a source attached during the KB's profile migration
-// an embedding set for the target profile; the migration's sweep embeds it
+// joinMigration gives a source attached during the KB's profile migration (running, or held and ready) an
+// embedding set for the target profile; the migration's sweep embeds it
 // (docs/phase5-deploy.md §5 P2).
 // The caller holds the profile migration lock.
 func joinMigration(ctx context.Context, q *dbgen.Queries, kbID uuid.UUID, src dbgen.DataSource) error {
-	m, err := q.RunningMigrationForKB(ctx, kbID)
+	m, err := q.BuildingMigrationForKB(ctx, kbID)
 	if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && m.ToProfileID == src.EmbeddingProfileID) {
 		return nil
 	} else if err != nil {

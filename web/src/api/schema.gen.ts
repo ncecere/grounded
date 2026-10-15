@@ -1396,8 +1396,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel a running migration; its new vectors are deleted (platform admins with a session; audited) */
+        /** Cancel a running migration, or discard a held one that is ready; its new vectors are deleted (platform admins with a session; audited) */
         post: operations["adminCancelProfileMigration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/profile-migrations/{migrationId}/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch a knowledge base to the new profile of a held migration that is ready (platform admins with a session; audited)
+         * @description For a migration started with hold, once its status is ready. It does what the automatic switch does: the knowledge base searches the new profile at once, the old vectors are kept for the grace period, and the team is told. 409 migration_not_ready when the migration is not ready; 409 migration_catching_up while documents that changed since it was built lack vectors for the new profile (try again in a minute).
+         */
+        post: operations["adminSwitchProfileMigration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6893,12 +6915,14 @@ export interface components {
              * @description Days the old vectors are kept after the switch, so the knowledge base can switch back (default PROFILE_MIGRATION_GRACE_DAYS, 7). 0 deletes them at the switch.
              */
             graceDays?: number;
+            /** @description Build the new index and stop before the switch (status ready); an admin then switches it (POST .../switch) or discards it (POST .../cancel). The knowledge base keeps its current profile meanwhile. Default false: the migration switches by itself. */
+            hold?: boolean;
         };
         /**
-         * @description running: re-embedding (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
+         * @description running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
          * @enum {string}
          */
-        ProfileMigrationStatus: "running" | "switched" | "completed" | "cancelled" | "switched_back";
+        ProfileMigrationStatus: "running" | "ready" | "switched" | "completed" | "cancelled" | "switched_back";
         ProfileMigrationIssue: {
             /** @description Blockers: same_profile, profile_retired, profile_unusable, model_classification, dimensions, migration_active. Warnings: rechunk, shared_sources, documents_in_progress, failed_documents, no_rate_limit, maintenance_suggested, no_sources. */
             code: string;
@@ -7068,6 +7092,10 @@ export interface components {
             /** Format: date-time */
             finishedAt: string | null;
             canSwitchBack: boolean;
+            /** @description Started to stop before the switch (index preview) */
+            hold: boolean;
+            /** @description A held migration is ready for an admin to switch (the switch still checks that every document has vectors) */
+            canSwitch: boolean;
             /** @description Totals over the knowledge base's sources (running migrations; zero afterwards) */
             progress: {
                 /** Format: int64 */
@@ -13697,6 +13725,28 @@ export interface operations {
         };
     };
     adminCancelProfileMigration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["ProfileMigrationReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminSwitchProfileMigration: {
         parameters: {
             query?: never;
             header: {

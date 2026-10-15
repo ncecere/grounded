@@ -40,6 +40,7 @@ import (
 // Statuses.
 const (
 	StatusRunning      = "running"
+	StatusReady        = "ready" // held (index preview): built, not switched
 	StatusSwitched     = "switched"
 	StatusCompleted    = "completed"
 	StatusCancelled    = "cancelled"
@@ -128,6 +129,10 @@ type Migration struct {
 	Sources  []SourceProgress
 	Failures []dbgen.ListSetFailuresRow
 }
+
+// CanSwitch reports whether an admin may switch a held migration now. Whether its documents are all embedded is
+// checked at the switch (they may have changed since).
+func (m Migration) CanSwitch() bool { return m.ProfileMigration.Status == StatusReady }
 
 // CanSwitchBack reports whether the KB may switch back now.
 func (m Migration) CanSwitchBack() bool {

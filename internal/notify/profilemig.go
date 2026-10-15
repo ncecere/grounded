@@ -44,6 +44,19 @@ func ProfileSwitchedEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, 
 	}
 }
 
+// ProfilePreviewReadyEvent: a held migration built the new index and waits for a platform admin to switch it or
+// discard it (index preview). The knowledge base keeps searching its current profile until then.
+func ProfilePreviewReadyEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, kbName, to string) Event {
+	return Event{
+		Type: ProfileMigration, TeamID: t.ID, Users: admins, Link: migrationLink(migrationID),
+		DedupeKey: "profile_ready:" + migrationID.String(),
+		Title:     fmt.Sprintf("Profile preview is ready: %s (%s)", kbName, t.Name),
+		Body: fmt.Sprintf("The new index of %s (%s) for %s is built. The knowledge base still searches its current profile. "+
+			"Switch it, or discard it, under Admin, Embedding profiles, Migrations.", kbName, t.Name, to),
+		Data: map[string]any{"team": t.Slug, "migrationId": migrationID, "result": "ready"},
+	}
+}
+
 // ProfileAttentionEvent: documents of a running migration failed; it
 // can't switch until they are retried (or removed).
 func ProfileAttentionEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, kbName, to string, failed int64, at time.Time) Event {

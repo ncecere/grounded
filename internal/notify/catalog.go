@@ -97,7 +97,7 @@ var catalog = []Def{
 	{Type: BreakGlassEnded, Label: "Break-glass access ended", Description: "A platform admin's break-glass session on a team you own ended, with what it read.", Mandatory: true, TeamRole: authz.RoleOwner},
 	{Type: BreakGlassRequested, Label: "Break-glass approval requested", Description: "Another platform admin asked to read a team's content and needs a second admin's approval (platform admins).", PlatformAdmins: true},
 	{Type: BreakGlassDecided, Label: "Break-glass request decided", Description: "Another platform admin approved or denied your break-glass request, or it lapsed (platform admins).", PlatformAdmins: true},
-	{Type: ProfileMigration, Label: "Profile migration switched or needs attention", Description: "A knowledge base switched to another embedding profile, or documents failed to move (platform admins).", PlatformAdmins: true},
+	{Type: ProfileMigration, Label: "Profile migration switched, ready to switch, or needs attention", Description: "A knowledge base switched to another embedding profile, a previewed index is ready to switch, or documents failed to move (platform admins).", PlatformAdmins: true},
 	{Type: KBProfileChanged, Label: "Knowledge base changed embedding profile", Description: "A knowledge base in a team where you're an admin or owner moved to another embedding profile, or back.", TeamRole: authz.RoleAdmin},
 	{Type: EvaluationRegression, Label: "Evaluation scores dropped", Description: "An automatic evaluation run in a team where you're an editor, admin or owner found questions that newly fail, or recall fell by more than 5 points.", TeamRole: authz.RoleEditor},
 }
