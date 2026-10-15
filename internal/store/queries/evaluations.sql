@@ -308,6 +308,12 @@ SELECT * FROM eval_runs
 WHERE trigger = 'index_preview' AND config->'preview'->>'migrationId' = @migration_id::text AND status IN ('queued', 'running')
 LIMIT 1;
 
+-- All of a migration's index-preview runs, newest first.
+-- name: PreviewRunsForMigration :many
+SELECT * FROM eval_runs
+WHERE trigger = 'index_preview' AND config->'preview'->>'migrationId' = @migration_id::text
+ORDER BY created_at DESC, id DESC;
+
 -- ---- results ------------------------------------------------------------------------------
 
 -- name: InsertEvalResult :exec

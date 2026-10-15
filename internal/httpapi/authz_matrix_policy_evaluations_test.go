@@ -37,6 +37,8 @@ func (c *mctx) questionRev(path string) map[string]string {
 
 var evaluationPolicies = map[string]policy{
 	"listEvaluationSets": {own: editors, build: func(c *mctx) request { return get(c.team("/evaluation-sets")) }},
+	// An index preview's comparison with the questions: the evaluation sets' own access (editors, admins and owners).
+	"getKnowledgeBaseIndexPreview": {own: editors, build: func(c *mctx) request { return get(c.kb("/index-preview")) }},
 	"createEvaluationSet": {own: editors, build: func(c *mctx) request {
 		return post(c.team("/evaluation-sets"), map[string]any{"kbId": c.tf.kb, "name": fmt.Sprintf("matrix set %d", c.e.next())})
 	}},

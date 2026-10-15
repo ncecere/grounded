@@ -1439,6 +1439,49 @@ func (q *Queries) PhrasesInSources(ctx context.Context, arg PhrasesInSourcesPara
 	return items, nil
 }
 
+const previewRunsForMigration = `-- name: PreviewRunsForMigration :many
+SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs
+WHERE trigger = 'index_preview' AND config->'preview'->>'migrationId' = $1::text
+ORDER BY created_at DESC, id DESC
+`
+
+// All of a migration's index-preview runs, newest first.
+func (q *Queries) PreviewRunsForMigration(ctx context.Context, migrationID string) ([]EvalRun, error) {
+	rows, err := q.db.Query(ctx, previewRunsForMigration, migrationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EvalRun{}
+	for rows.Next() {
+		var i EvalRun
+		if err := rows.Scan(
+			&i.ID,
+			&i.SetID,
+			&i.TeamID,
+			&i.Kind,
+			&i.Trigger,
+			&i.Status,
+			&i.StartedBy,
+			&i.Config,
+			&i.Summary,
+			&i.Total,
+			&i.Done,
+			&i.Error,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const previewSetsForKB = `-- name: PreviewSetsForKB :many
 
 SELECT id, team_id, kb_id, agent_id, name, description, auto_run, created_by, revision, created_at, updated_at FROM eval_sets WHERE kb_id = $1 ORDER BY created_at, id

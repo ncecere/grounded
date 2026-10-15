@@ -283,6 +283,10 @@ var adminPolicies = map[string]policy{
 	"adminGetProfileMigration": {own: platform, build: func(c *mctx) request {
 		return get("/v1/admin/profile-migrations/" + c.e.migration)
 	}},
+	// The index preview's numbers (no question text): platform admins and auditors.
+	"adminGetProfileMigrationPreview": {own: platform, build: func(c *mctx) request {
+		return get("/v1/admin/profile-migrations/" + c.e.migration + "/preview")
+	}},
 	// A read (counts and estimates) sent as POST: auditors may run it.
 	"adminPreflightProfileMigration": {own: platform, build: func(c *mctx) request {
 		return post("/v1/admin/profile-migrations/preflight", map[string]any{"kbId": c.e.b.kb, "targetProfileId": c.e.targetProfile})
