@@ -39,20 +39,35 @@ func (env *migEnv) dropPassages(t *testing.T, profile, source uuid.UUID, filenam
 	}
 }
 
-// sweepAndSettle runs the migration sweep now and waits until its embedding jobs are done: what a sweep tick at any moment would do to the data.
+// sweepAndSettle runs the migration sweep now and waits until it, and the embedding jobs it queued, are done: what a sweep tick at any moment
+// would do to the data. It waits for the job it inserted to be completed (not for a quiet queue, which is also true before the job has started).
 func (env *migEnv) sweepAndSettle(t *testing.T) {
 	t.Helper()
 	client, err := river.NewClient(riverpgxv5.New(env.app.Pool), &river.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.Insert(t.Context(), profilemig.SweepArgs{}, nil); err != nil {
+	// The sweep is unique over 30 s (a periodic one just ran, or the previous forced one): a shorter period gives this job its own unique key.
+	res, err := client.Insert(t.Context(), profilemig.SweepArgs{}, &river.InsertOpts{UniqueOpts: river.UniqueOpts{ByPeriod: time.Second}})
+	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second) // the sweep job queues the embedding jobs
+	if res.UniqueSkippedAsDuplicate {
+		t.Fatal("the sweep was dropped as a duplicate of one already queued")
+	}
+	eventually(t, "the sweep job", func() bool {
+		return env.scalar(t, `SELECT count(*) FROM river_job WHERE id = $1 AND state = 'completed'`, res.Job.ID) == 1
+	})
+	// Its embedding jobs are queued in the same transaction that completed it: wait until none is left, twice in a row.
+	quiet := 0
 	eventually(t, "the sweep's embedding jobs", func() bool {
-		return env.scalar(t, `SELECT count(*) FROM river_job WHERE kind IN ('profile_migration.sweep', 'embedding_set.sync')
-			AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled')`) == 0
+		if env.scalar(t, `SELECT count(*) FROM river_job WHERE kind = 'embedding_set.sync' AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled')`) == 0 {
+			quiet++
+		} else {
+			quiet = 0
+		}
+		time.Sleep(300 * time.Millisecond)
+		return quiet >= 2
 	})
 }
 
