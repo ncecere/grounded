@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
+	"github.com/ncecere/grounded/internal/profilemig"
 )
 
 const (
@@ -17,12 +21,54 @@ const (
 
 // dropPassages removes a profile's passages (and so its vectors) of one uploaded file: a deterministic way to make one index worse than the
 // other for the questions that expect that file.
+//
+// The hole has to stay a hole: the sweep (every 30 s, and once at start) queues an embedding job for every set, and a job puts back the passages of
+// any ready document that has none. So the document is also recorded as permanently failed for that profile, as it would be if its model had
+// refused it, and the sweep leaves it alone. (Without that, a sweep landing between the drop and the comparison made CI's tag build fail with
+// "worse 0, same 1": the candidate's passages had been repaired.)
 func (env *migEnv) dropPassages(t *testing.T, profile, source uuid.UUID, filename string) {
 	t.Helper()
 	if n := env.scalar(t, `WITH d AS (DELETE FROM chunks WHERE profile_id = $1 AND document_id IN
 		(SELECT id FROM documents WHERE source_id = $2 AND filename = $3) RETURNING 1) SELECT count(*) FROM d`, profile, source, filename); n == 0 {
 		t.Fatalf("no passages of %s in profile %s", filename, profile)
 	}
+	if _, err := env.app.Pool.Exec(t.Context(), `INSERT INTO embedding_set_failures (document_id, profile_id, source_id, version, error_code, error_message, permanent)
+		SELECT id, $1, source_id, version, 'test', 'the model refused this document (a test)', true FROM documents WHERE source_id = $2 AND filename = $3
+		ON CONFLICT (document_id, profile_id) DO UPDATE SET permanent = true, version = EXCLUDED.version`, profile, source, filename); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// sweepAndSettle runs the migration sweep now and waits until it, and the embedding jobs it queued, are done: what a sweep tick at any moment
+// would do to the data. It waits for the job it inserted to be completed (not for a quiet queue, which is also true before the job has started).
+func (env *migEnv) sweepAndSettle(t *testing.T) {
+	t.Helper()
+	client, err := river.NewClient(riverpgxv5.New(env.app.Pool), &river.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The sweep is unique over 30 s (a periodic one just ran, or the previous forced one): a shorter period gives this job its own unique key.
+	res, err := client.Insert(t.Context(), profilemig.SweepArgs{}, &river.InsertOpts{UniqueOpts: river.UniqueOpts{ByPeriod: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.UniqueSkippedAsDuplicate {
+		t.Fatal("the sweep was dropped as a duplicate of one already queued")
+	}
+	eventually(t, "the sweep job", func() bool {
+		return env.scalar(t, `SELECT count(*) FROM river_job WHERE id = $1 AND state = 'completed'`, res.Job.ID) == 1
+	})
+	// Its embedding jobs are queued in the same transaction that completed it: wait until none is left, twice in a row.
+	quiet := 0
+	eventually(t, "the sweep's embedding jobs", func() bool {
+		if env.scalar(t, `SELECT count(*) FROM river_job WHERE kind = 'embedding_set.sync' AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled')`) == 0 {
+			quiet++
+		} else {
+			quiet = 0
+		}
+		time.Sleep(300 * time.Millisecond)
+		return quiet >= 2
+	})
 }
 
 func (env *migEnv) comparisonFor(t *testing.T, migration uuid.UUID) apitypes.ProfileMigrationComparison {
@@ -83,6 +129,7 @@ func TestProfilePreviewComparison(t *testing.T) {
 
 	// The candidate loses housing.md's passages: the housing question is worse, the parking one the same.
 	env.dropPassages(t, m.ToProfile.Id, src.Id, "housing.md")
+	env.sweepAndSettle(t) // a sweep must not put them back
 	env.reevaluate(t, m.Id, 4)
 	c = env.comparisonFor(t, m.Id)
 	if s := c.Sets[0]; s.Better != 0 || s.Worse != 1 || s.Same != 1 {
@@ -94,6 +141,7 @@ func TestProfilePreviewComparison(t *testing.T) {
 
 	// The live index loses parking.md's: now parking is better and housing worse.
 	env.dropPassages(t, env.from.Id, src.Id, "parking.md")
+	env.sweepAndSettle(t)
 	env.reevaluate(t, m.Id, 6)
 	c = env.comparisonFor(t, m.Id)
 	if s := c.Sets[0]; s.Better != 1 || s.Worse != 1 || s.Same != 0 {

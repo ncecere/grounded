@@ -1,7 +1,6 @@
 package httpapi_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -175,11 +174,10 @@ func TestProfileMigrationSwitchWaitsForDocumentsThatChanged(t *testing.T) {
 	m := env.held(t, kb.Id, env.wide.Id)
 	m = env.waitStatus(t, m.Id, statusReady)
 
-	// Simulate a document the sweep has not embedded for the new profile yet.
-	if n, err := env.app.Pool.Exec(context.Background(), `DELETE FROM chunks WHERE profile_id = $1 AND document_id = (
-		SELECT document_id FROM chunks WHERE profile_id = $1 AND source_id = $2 LIMIT 1)`, env.wide.Id, src.Id); err != nil || n.RowsAffected() == 0 {
-		t.Fatalf("removing one document's new vectors: %v, %d rows", err, n.RowsAffected())
-	}
+	// A document that has no vectors for the new profile (and stays so: dropPassages records it as failed, or the sweep, which re-embeds a ready
+	// document that has none, could put them back between here and the switch).
+	env.dropPassages(t, env.wide.Id, src.Id, "housing.md")
+	env.sweepAndSettle(t)
 	env.action(t, m, "switch", 409, "migration_catching_up")
 	again := env.migration(t, m.Id)
 	if again.Status != statusReady || again.Revision != m.Revision {
