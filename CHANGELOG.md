@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Index preview** (roadmap v0.5.0, [#18](https://github.com/ncecere/grounded/issues/18)). A platform admin can **preview new settings** for a knowledge base (passage size and overlap, embedding model, prefixes): Admin → Embedding profiles → Migrations → **Preview new settings…**. The new index is built **beside** the current one while the knowledge base keeps answering from the current one; the knowledge base's evaluation sets are then run on both, retrieval only, and the migration's page shows what got better and what got worse (recall, MRR, questions ranked first), with **Switch to the new index** and **Discard preview**. The team's editors see each question that changed on the knowledge base's own page; the platform admin sees only the scores, because evaluation sets are the team's. See [`operations/profile-migration.md`](docs/operations/profile-migration.md).
+  - A migration can now **hold** (`hold` on `POST /v1/admin/profile-migrations`): when its new index is built it becomes `ready` and waits for `POST …/{id}/switch`, which makes the same switch the automatic one does (and `409 migration_catching_up` while documents lack vectors).
+  - `POST /v1/admin/profile-migrations/preview` creates the hidden candidate profile and the held migration in one call; `GET …/{id}/preview` and `GET /v1/teams/{team}/kbs/{kbId}/index-preview` give the comparison; `POST …/{id}/evaluate` compares again. The candidate profile is in no list or picker and cannot be selected, edited or deleted; a switch makes it an ordinary profile, a discard retires it (it stays hidden, its migration record stays), deletes its passages and drops its vector table.
+  - The comparison's runs are not in the team's run list, trend or regression checks.
+  - Three additive migrations: `00046` (`hold`, the `ready` status), `00047` (`candidate_of`), `00048` (the `index_preview` evaluation trigger). Switch or discard any preview before rolling back to an earlier release.
+
 ### Fixed
 
 - **Deleting something that is in use now says so on PostgreSQL 18.** A delete that `ON DELETE RESTRICT` blocks (a model used by an embedding profile, a connection with models, an MCP server with tools, and the like) answers 409 `model_in_use` (or the matching code), as on PostgreSQL 17. PostgreSQL 18 reports that case as `restrict_violation` (SQLSTATE 23001) instead of `foreign_key_violation` (23503), and Grounded only recognised the second, so on 18 it answered 500. Production installs documented on PostgreSQL 17 were not affected.
