@@ -111,25 +111,16 @@ func (s *Service) previewComparison(ctx context.Context, migrationID uuid.UUID, 
 	if err != nil {
 		return out, err
 	}
-	type pair struct{ live, cand *dbgen.EvalRun }
-	bySet := map[uuid.UUID]*pair{}
+	seen := map[uuid.UUID]bool{}
 	var order []uuid.UUID
-	for i := range runs {
-		r := runs[i]
+	for _, r := range runs {
 		if r.Status == "queued" || r.Status == "running" {
 			out.Running = true
 		}
-		ref := DecodeRun(r).Config.Preview
-		if ref == nil {
-			continue
-		}
-		p := bySet[r.SetID]
-		if p == nil {
-			p = &pair{}
-			bySet[r.SetID] = p
+		if ref := DecodeRun(r).Config.Preview; ref != nil && !seen[r.SetID] {
+			seen[r.SetID] = true
 			order = append(order, r.SetID)
 		}
-		_ = p
 	}
 	// Per set: the newest candidate run whose live run, made in the same batch (the same transaction, so the same time), completed too;
 	// else the newest pair, which is still going or failed.
