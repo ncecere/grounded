@@ -77,7 +77,11 @@ type Service struct {
 	// profile, or switches it back (internal/evals queues the KB's
 	// automatic evaluation runs; nil: nothing).
 	OnSwitched func(ctx context.Context, tx pgx.Tx, kbID uuid.UUID) error
-	q          *dbgen.Queries
+	// OnPreviewReady runs in the transaction that makes a held migration ready, and when an admin asks for the comparison again
+	// (internal/evals starts the live and candidate runs of the knowledge base's evaluation sets). It returns how many sets it started
+	// (nil: none).
+	OnPreviewReady func(ctx context.Context, tx pgx.Tx, kbID, migrationID, liveProfile, candidateProfile uuid.UUID) (int, error)
+	q              *dbgen.Queries
 }
 
 // New returns a Service.

@@ -249,6 +249,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Evaluations.Concurrency = cfg.EvaluationConcurrency
 	// Automatic evaluation runs: after a publish and a profile switch.
 	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
+	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
 	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache

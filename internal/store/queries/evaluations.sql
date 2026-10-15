@@ -36,11 +36,11 @@ FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
-    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id AND r.trigger <> 'index_preview' ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
-    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    WHERE r.set_id = s.id AND r.trigger <> 'index_preview' AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
       AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
@@ -60,11 +60,11 @@ FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
-    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id AND r.trigger <> 'index_preview' ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
-    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    WHERE r.set_id = s.id AND r.trigger <> 'index_preview' AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
       AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
@@ -261,11 +261,13 @@ SELECT * FROM eval_runs WHERE id = @id;
 -- name: LockEvalRun :one
 SELECT * FROM eval_runs WHERE id = @id FOR UPDATE;
 
+-- The team's runs of a set (an index preview's runs are the platform admin's comparison, not the team's history).
 -- name: ListEvalRuns :many
-SELECT * FROM eval_runs WHERE set_id = @set_id ORDER BY created_at DESC, id DESC LIMIT @lim;
+SELECT * FROM eval_runs WHERE set_id = @set_id AND trigger <> 'index_preview' ORDER BY created_at DESC, id DESC LIMIT @lim;
 
+-- A set's run in progress; an index preview's runs do not count (they neither block a team's run nor wait for it).
 -- name: ActiveEvalRun :one
-SELECT * FROM eval_runs WHERE set_id = @set_id AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1;
+SELECT * FROM eval_runs WHERE set_id = @set_id AND trigger <> 'index_preview' AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1;
 
 -- name: MarkEvalRunRunning :exec
 UPDATE eval_runs SET status = 'running', started_at = coalesce(started_at, now()) WHERE id = @id AND status IN ('queued', 'running');
@@ -289,9 +291,21 @@ RETURNING *;
 -- regression checks (a run whose every check failed can't be compared with).
 -- name: PreviousCompletedRun :one
 SELECT * FROM eval_runs
-WHERE set_id = @set_id AND kind = @kind AND status = 'completed' AND created_at < @before::timestamptz
+WHERE set_id = @set_id AND trigger <> 'index_preview' AND kind = @kind AND status = 'completed' AND created_at < @before::timestamptz
   AND coalesce(summary->>'recall', summary->>'passRate') IS NOT NULL
 ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
+-- ---- index preview ------------------------------------------------------------------------
+
+-- Every evaluation set of a knowledge base, whatever team member made it, for an index preview's runs.
+-- name: PreviewSetsForKB :many
+SELECT * FROM eval_sets WHERE kb_id = @kb_id ORDER BY created_at, id;
+
+-- An index preview's run of a migration that has not ended.
+-- name: ActivePreviewRun :one
+SELECT * FROM eval_runs
+WHERE trigger = 'index_preview' AND config->'preview'->>'migrationId' = @migration_id::text AND status IN ('queued', 'running')
 LIMIT 1;
 
 -- ---- results ------------------------------------------------------------------------------
@@ -311,7 +325,7 @@ ORDER BY c.created_at NULLS LAST, r.created_at, r.id;
 -- name: ListCaseResults :many
 SELECT sqlc.embed(r), run.kind AS run_kind, run.trigger AS run_trigger, run.created_at AS run_created_at, run.config AS run_config
 FROM eval_results r
-JOIN eval_runs run ON run.id = r.run_id
+JOIN eval_runs run ON run.id = r.run_id AND run.trigger <> 'index_preview'
 WHERE r.case_id = @case_id
 ORDER BY run.created_at DESC, run.id DESC
 LIMIT @lim;
@@ -325,7 +339,7 @@ SELECT c.id AS case_id, x.id, x.run_id, x.status, x.scores
 FROM eval_cases c
 CROSS JOIN LATERAL (
     SELECT r.id, r.run_id, r.status, r.scores, r.created_at FROM eval_results r
-    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval'
+    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval' AND run.trigger <> 'index_preview'
     WHERE r.case_id = c.id
     ORDER BY r.created_at DESC, r.id DESC
     LIMIT @per_case

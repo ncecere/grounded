@@ -137,6 +137,11 @@ func (s *Service) executor(ctx context.Context, run dbgen.EvalRun, set dbgen.Eva
 	if err != nil {
 		return nil, err
 	}
+	if cfg.Preview != nil {
+		if err := s.applyPreview(ctx, &t, cfg.Preview); err != nil {
+			return nil, err
+		}
+	}
 	raw, _ := json.Marshal(t.cfg)
 	if err := s.q.SetEvalRunConfig(ctx, dbgen.SetEvalRunConfigParams{ID: run.ID, Config: raw}); err != nil {
 		return nil, err
