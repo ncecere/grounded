@@ -22,13 +22,14 @@ It is not a new copy mechanism. It is the existing **profile migration** (P2, [`
 
 ## Decisions
 
-- **D1: a candidate index is a held migration, not a new mechanism.** The migration gains a mode (`hold`): when every source is complete it moves to `ready` and waits for an admin, instead of switching. Cancelling or discarding it deletes the candidate vectors through the existing cleanup. Reuses preflight, throttling, resumability, shared-source handling and the grace period, all already tested.
+- **D1: a candidate index is a held migration, not a new mechanism.** The migration gains a mode (`hold`): when every source is complete it moves to `ready` and waits for an admin, instead of switching. Cancelling or discarding it deletes the candidate vectors through the existing cleanup, then the candidate profile is **retired and stays hidden** and its vector table is dropped (**D8**, below). Reuses preflight, throttling, resumability, shared-source handling and the grace period, all already tested.
 - **D2: "new ingest settings" are fields of the embedding profile.** The passage settings are on the profile today; the v0.5.0 strategies (a chunking strategy, parent/child, contextual chunks, table handling) will be added there as fields. A preview therefore starts from "a copy of this KB's profile, with these changes". The copy is marked as a candidate and hidden from the profile pickers, so previews do not clutter the list of profiles teams choose from. Changing the **model** is a preview too (the case P2 already covers) and needs no new field.
 - **D3: platform admins start and decide, as migrations do.** The embedding load is platform-wide and sources can be shared across teams. Team editors see that a preview of their KB is running and its result, read-only.
 - **D4: retrieval runs only, in v1.** The candidate is evaluated by running the KB's **retrieval** checks (recall@k, rank): deterministic, no model, no cost. Full-answer runs depend on prompts and a model and are out of scope for the preview; the owner can run them after switching. The run retrieves through the candidate by replacing the profile on the KB value passed to `RetrieveForEvaluation` (checked: `kbs/search.go` takes the embedding target and the vector table from `kb.EmbeddingProfileID`); there is no way to ask for a profile from chat or the API.
 - **D5: the comparison reuses "compare two runs".** The old index is evaluated first (a baseline run unless a recent one exists, so the comparison is like for like and at the same moment), then the candidate. The result shows recall@k for both, the questions that improved, got worse or stayed, and the per-question rank. **Switch** and **Discard** sit beside it.
 - **D6: the cost is shown, not capped.** A candidate index doubles a KB's vectors until it is switched (then until the grace period ends) or discarded. Preflight already estimates sources, passages, tokens, requests and time; it gains an estimate of the extra storage. No platform cap in v1.
 - **D7: what a preview can and cannot try.** It covers changes applied **from stored parsed text** (re-chunking: strategy, size, overlap, parent/child, contextual chunks, boilerplate) and, where the existing migration already does it, from the stored original (a document without stored parsed text). A change to **how a document is parsed** (a new parser, a table extractor) needs the document parsed again and is a follow-up; the spec for that item says so.
+- **D8 (owner, 2026-10-14): discard retires the candidate; it does not delete it.** A profile with migration history cannot be deleted (AD-15: deleting it would delete the history), and the migration record of a preview is part of the audit trail. So a discarded candidate is set to `retired` (still hidden by `candidate_of`), the cleanup job deletes its passages and vectors, and drops its `emb_<id>` table (nothing else ever drops one). Each discarded preview leaves one small hidden row. A switched candidate stops being a candidate: `candidate_of` is cleared and it becomes a normal profile.
 
 ## Assumptions (correct me)
 
@@ -39,7 +40,7 @@ It is not a new copy mechanism. It is the existing **profile migration** (P2, [`
 ## Commands and API (sketch; the plan fixes the exact shapes)
 
 - `POST /v1/admin/profile-migrations` gains `hold: true`; its state gains `ready` (all sources complete, not switched). `POST /v1/admin/profile-migrations/{id}/switch` makes the switch from `ready`.
-- `POST /v1/admin/profiles/{id}/candidate` creates the hidden copy with the changes (or the migration request carries the changes).
+- `POST /v1/admin/profile-migrations/preview` carries the KB and the changed settings; it creates the hidden copy and starts the held migration in one call.
 - `GET /v1/admin/profile-migrations/{id}/preview` returns the comparison (both runs' scores and the per-question changes).
 - Admin → Embedding profiles → Migrations gains **Preview new settings…** on a KB, and the migration's page gains the comparison and the Switch and Discard buttons.
 
@@ -47,7 +48,7 @@ It is not a new copy mechanism. It is the existing **profile migration** (P2, [`
 
 1. A preview of a KB with evaluation sets builds the candidate index while the live KB keeps answering, and never changes what a query returns until it is switched.
 2. The comparison shows recall@k for the live and the candidate index from runs made at the same time, and lists improved, worse and unchanged questions; a candidate that is identical to the live index shows no changes.
-3. Switch makes the candidate live in one transaction and keeps the old vectors for the grace period (switch-back works); Discard removes the candidate vectors and the hidden profile and leaves the live index untouched.
+3. Switch makes the candidate live in one transaction and keeps the old vectors for the grace period (switch-back works); Discard removes the candidate vectors, drops the candidate's vector table and retires the hidden profile (it stays hidden; the migration's record stays, as Cancelled), and leaves the live index untouched.
 4. A KB with no evaluation sets builds and holds, and says why it cannot compare.
 5. Chat, the API and teams cannot select a candidate profile; only the evaluation run can.
 6. Every start, hold, switch and discard is audited (counts only) and notifies as migrations do.

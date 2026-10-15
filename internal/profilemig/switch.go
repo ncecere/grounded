@@ -72,6 +72,10 @@ func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbge
 // the system acts) and an admin's switch of a held one are the same steps. The caller holds the migration lock and
 // has checked that every document has vectors for the target.
 func (s *Service) doSwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase, by *authz.Actor) error {
+	// An index preview's candidate is an ordinary profile from here on: a knowledge base uses it.
+	if err := q.PromoteCandidateProfile(ctx, m.ToProfileID); err != nil {
+		return err
+	}
 	sources, err := s.flip(ctx, q, kb, m.ToProfileID)
 	if err != nil {
 		return err

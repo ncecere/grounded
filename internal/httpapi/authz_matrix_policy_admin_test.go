@@ -291,6 +291,10 @@ var adminPolicies = map[string]policy{
 		return post("/v1/admin/profile-migrations", map[string]any{"kbId": c.pickP(c.e.migrationKB, c.e.freshMigrationKB),
 			"targetProfileId": c.e.targetProfile})
 	}},
+	"adminPreviewProfileMigration": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/profile-migrations/preview", map[string]any{"kbId": c.pickP(c.e.migrationKB, c.e.freshMigrationKB),
+			"changes": map[string]any{"chunkSize": 128, "chunkOverlap": 16}})
+	}},
 	// Actions depend on the migration's state: 409 when it has none to act on.
 	"adminCancelProfileMigration":     migrationAction("cancel"),
 	"adminSwitchProfileMigration":     migrationAction("switch"),

@@ -3,6 +3,7 @@ package vectorstore_test
 import (
 	"context"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -137,5 +138,41 @@ func TestSearchBeforeAnyVectorsIsEmpty(t *testing.T) {
 	hits, err := store.Search(context.Background(), f.profile, unit(1, 0, 0), vectorstore.Filter{SourceIDs: []uuid.UUID{uuid.New()}}, 5)
 	if err != nil || len(hits) != 0 {
 		t.Fatalf("hits = %v err = %v", hits, err)
+	}
+}
+
+// A discarded index preview's table is dropped, once, and nothing else is: another profile's table stays.
+func TestPGVectorDropProfileDropsOnlyThatTable(t *testing.T) {
+	f := newFixture(t, 3)
+	store := &vectorstore.PGVector{Pool: f.pool}
+	ctx := context.Background()
+	other := f.profile
+	other.ID = uuid.New()
+	for _, p := range []vectorstore.Profile{f.profile, other} {
+		if err := store.EnsureProfile(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exists := func(p vectorstore.Profile) bool {
+		var ok bool
+		name := "emb_" + strings.ReplaceAll(p.ID.String(), "-", "")
+		if err := f.pool.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, name).Scan(&ok); err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if !exists(f.profile) || !exists(other) {
+		t.Fatal("EnsureProfile did not create both tables")
+	}
+	for i := 0; i < 2; i++ { // the second call finds nothing to drop
+		if err := store.DropProfile(ctx, other.ID); err != nil {
+			t.Fatalf("drop %d: %v", i+1, err)
+		}
+	}
+	if exists(other) {
+		t.Error("the dropped profile's table is still there")
+	}
+	if !exists(f.profile) {
+		t.Error("dropping one profile's table dropped another's")
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/profilemig"
@@ -22,6 +23,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"GET", "/v1/admin/knowledge-bases", a.admin(a.adminListKnowledgeBases)},
 		{"GET", "/v1/admin/profile-migrations", a.admin(a.adminListProfileMigrations)},
 		{"POST", "/v1/admin/profile-migrations", a.admin(a.adminStartProfileMigration)},
+		{"POST", "/v1/admin/profile-migrations/preview", a.admin(a.adminPreviewProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/preflight", a.admin(a.adminPreflightProfileMigration)},
 		{"GET", "/v1/admin/profile-migrations/{migrationId}", a.admin(a.adminGetProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/cancel", a.admin(a.migrationAction(a.ProfileMigrations.Cancel))},
@@ -72,6 +74,26 @@ func (a *api) adminStartProfileMigration(w http.ResponseWriter, r *http.Request)
 	m, err := a.ProfileMigrations.Start(r.Context(), a.actor(r), profilemig.StartInput{
 		KBID: in.KbId, TargetProfileID: in.TargetProfileId, GraceDays: in.GraceDays, Hold: in.Hold != nil && *in.Hold,
 	})
+	if failed(w, r, err) {
+		return
+	}
+	writeRevised(w, http.StatusCreated, m.ProfileMigration.Revision, toAPIProfileMigration(m))
+}
+
+func (a *api) adminPreviewProfileMigration(w http.ResponseWriter, r *http.Request) {
+	var in apitypes.ProfileMigrationPreview
+	if !httpx.Decode(w, r, &in) {
+		return
+	}
+	ch := catalog.CandidateChanges{
+		Name: in.Changes.Name, ModelID: in.Changes.ModelId, DocumentPrefix: in.Changes.DocumentPrefix, QueryPrefix: in.Changes.QueryPrefix,
+		ChunkSize: in.Changes.ChunkSize, ChunkOverlap: in.Changes.ChunkOverlap,
+	}
+	if in.Changes.StorageType != nil {
+		st := string(*in.Changes.StorageType)
+		ch.StorageType = &st
+	}
+	m, err := a.ProfileMigrations.Preview(r.Context(), a.actor(r), profilemig.PreviewInput{KBID: in.KbId, Changes: ch, GraceDays: in.GraceDays})
 	if failed(w, r, err) {
 		return
 	}

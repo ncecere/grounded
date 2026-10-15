@@ -117,7 +117,7 @@ func toAPIProfile(p catalog.Profile) apitypes.EmbeddingProfile {
 		Dimensions: p.Dimensions, StorageType: apitypes.EmbeddingProfileStorageType(p.StorageType),
 		DocumentPrefix: p.DocumentPrefix, QueryPrefix: p.QueryPrefix,
 		ChunkSize: p.ChunkSize, ChunkOverlap: p.ChunkOverlap, ChunkerVersion: p.ChunkerVersion,
-		Status: apitypes.EmbeddingProfileStatus(p.Status), IsDefault: p.IsDefault,
+		Status: apitypes.EmbeddingProfileStatus(p.Status), IsDefault: p.IsDefault, CandidateOf: nullUUID(p.CandidateOf),
 		Revision: p.Revision, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 		OutputDimensions:     p.OutputDimensions,
 		DefaultFusionWeights: toAPIFusionWeights(p.DefaultVectorWeight, p.DefaultKeywordWeight),

@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/vectorstore"
 )
 
 // deleteBatch is how many chunks one delete statement removes.
@@ -92,7 +93,22 @@ func (s *Service) Cleanup(ctx context.Context, deadline time.Time) (bool, error)
 			return true, err
 		}
 	}
-	return false, nil
+	return false, s.dropDiscardedCandidates(ctx)
+}
+
+// dropDiscardedCandidates drops the vector tables of discarded index previews once nothing holds them: the sets above are deleted, so no
+// passage or set of such a profile is left. Nothing else ever drops a profile's table.
+func (s *Service) dropDiscardedCandidates(ctx context.Context) error {
+	ids, err := s.q.DroppableCandidateProfiles(ctx)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := vectorstore.DropProfileTable(ctx, s.Pool, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // expire completes switched migrations whose old vectors are due.

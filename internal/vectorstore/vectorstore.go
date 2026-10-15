@@ -215,6 +215,28 @@ func (s *PGVector) EnsureProfile(ctx context.Context, p Profile) error {
 	})
 }
 
+// DropProfileTable drops a profile's table and indexes if they exist (idempotent). Only for a profile nothing uses and nothing can
+// still write to: its chunks are gone, so its rows are too (they go with the chunks), and the profile is retired. It takes the lock
+// EnsureProfile takes, so an ingest that is creating the table is not raced.
+func DropProfileTable(ctx context.Context, db interface {
+	Begin(context.Context) (pgx.Tx, error)
+}, id uuid.UUID) error {
+	return pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", tableName(id)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "DROP TABLE IF EXISTS "+pgx.Identifier{tableName(id)}.Sanitize()); err != nil {
+			return fmt.Errorf("drop vector table: %w", err)
+		}
+		return nil
+	})
+}
+
+// DropProfile drops a profile's table (see DropProfileTable).
+func (s *PGVector) DropProfile(ctx context.Context, id uuid.UUID) error {
+	return DropProfileTable(ctx, s.Pool, id)
+}
+
 func literal(p Profile, v []float32) (string, error) {
 	if len(v) != p.Dimensions {
 		return "", fmt.Errorf("%w: got %d, expected %d", ErrDimensions, len(v), p.Dimensions)

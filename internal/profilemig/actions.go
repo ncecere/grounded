@@ -189,6 +189,10 @@ func (s *Service) Cancel(ctx context.Context, a authz.Actor, id uuid.UUID, rev i
 		if err := s.record(ctx, q, a, "kb.profile_migration_cancel", m, nil); err != nil {
 			return err
 		}
+		// An index preview's hidden profile is retired, not deleted (it has history); the cleanup job removes its passages and its table.
+		if err := q.RetireCandidateProfile(ctx, m.ToProfileID); err != nil {
+			return err
+		}
 		return s.kickCleanup(ctx, tx)
 	})
 }
