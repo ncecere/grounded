@@ -62,10 +62,16 @@ A migration to another profile switches by itself when its new index is ready. A
 ### Run a preview
 
 1. **Admin → Embedding profiles → Migrations → Preview new settings…**
-2. Pick the knowledge base and fill in **only the settings that change** (passage size and overlap, embedding model, prefixes, name, how long to keep the old vectors if you switch). Empty fields keep the current profile's. A preview with nothing filled in builds an identical index, which is a way to check that a comparison shows no change.
+2. Pick the knowledge base and fill in **only the settings that change** (passage size and overlap, embedding model, prefixes, **chunker**, name, how long to keep the old vectors if you switch). Empty fields keep the current profile's. A preview with nothing filled in builds an identical index, which is a way to check that a comparison shows no change.
 3. **Build the new index.** The preview's page opens with the same progress as a migration.
 4. When it says **Ready to switch**, read **Compared with the current index**. Ask the team's editors to look at the questions that got worse: they see them on the knowledge base's page.
 5. **Switch to the new index**, or **Discard preview**. **Compare again** runs the sets once more (after documents changed, or if a run failed).
+
+### The chunker (version 1 and 2)
+
+A profile's **chunker** decides how a page is cut into passages. **Version 1**, the original and the default, starts a new passage at every heading of level 1 to 3. **Version 2** keeps that and adds two rules: it **merges short neighbouring sections** into one passage (when the passage being filled and the whole next section are each under a quarter of the passage size, they fit together, the next heading is under the same parent heading as the passage started in, and no page boundary lies between them; a level 1 heading always starts a new passage), and it **drops passages that are only headings, rules and images** (version 1 drops such a passage only when it contains an image), unless that is all a document has. With no overlap, version 2 leaves the same text in the same order as version 1, in fewer passages.
+
+It is a setting of the profile, fixed once the profile exists (**Add profile → Chunker**, or `chunkerVersion` in the API); an index preview can change **only** the chunker, which builds the same sizes cut again, beside the live index. **Version 2 has not been measured on a real knowledge base with a real embedding model**: preview it on a knowledge base that has evaluation sets and decide by the numbers. An unknown version is refused (`400 invalid_chunker_version`).
 
 ### Reading a comparison
 

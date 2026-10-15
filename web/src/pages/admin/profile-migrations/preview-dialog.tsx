@@ -35,6 +35,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
   const [overlap, setOverlap] = useState("");
   const [docPrefix, setDocPrefix] = useState("");
   const [queryPrefix, setQueryPrefix] = useState("");
+  const [chunker, setChunker] = useState(""); // "" keeps the current profile's
   const [grace, setGrace] = useState("");
   const kb = kbs.data?.find((k) => k.id === kbId);
   const live = profiles.data?.find((x) => x.id === kb?.profile.id);
@@ -46,6 +47,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
     ...(whole(overlap) !== undefined ? { chunkOverlap: whole(overlap) } : {}),
     ...(docPrefix !== "" ? { documentPrefix: docPrefix } : {}),
     ...(queryPrefix !== "" ? { queryPrefix } : {}),
+    ...(chunker !== "" ? { chunkerVersion: Number(chunker) } : {}),
   };
   const graceDays = whole(grace);
   const graceInvalid = grace.trim() !== "" && (graceDays === undefined || graceDays < 0 || graceDays > 90);
@@ -85,7 +87,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
       </Field>
       <p className={s.settingDescription}>
         {live
-          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap. Leave a setting empty to keep it.`
+          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap, ${live.chunkerVersion === 2 ? "chunker: merge short sections" : "standard chunker"}. Leave a setting empty to keep it.`
           : "Fill in only what should change; the rest keeps the current profile's."}
       </p>
       <div className={s.grid2}>
@@ -105,6 +107,13 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
                   {m.displayName}
                 </option>
               ))}
+          </NativeSelect>
+        </Field>
+        <Field label="Chunker" description="How pages are cut into passages. Merge short sections joins short neighbouring sections and drops passages that are only a heading.">
+          <NativeSelect value={chunker} onChange={(e) => setChunker(e.target.value)} disabled={!kb}>
+            <option value="">Keep the current chunker</option>
+            <option value="1">Standard: a new passage at every heading</option>
+            <option value="2">Merge short sections</option>
           </NativeSelect>
         </Field>
         <Field label="Name" description="Shown while it is a preview. Default: the profile's name and (new settings).">

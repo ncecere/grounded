@@ -101,6 +101,31 @@ describe("Preview new settings", () => {
     expect(await screen.findByText("The new index is still being built")).toBeInTheDocument();
   });
 
+  it("sends the chunker only when one is chosen, and says which one the knowledge base has now (#19)", async () => {
+    const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    expect(await within(dialog).findByText(/512 tokens per passage, 64 overlap, standard chunker/)).toBeInTheDocument();
+    const chunker = within(dialog).getByRole("combobox", { name: "Chunker" });
+    expect(chunker).toHaveValue("");
+    expect(within(chunker).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Keep the current chunker",
+      "Standard: a new passage at every heading",
+      "Merge short sections",
+    ]);
+    await userEvent.selectOptions(chunker, "2");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
+    expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 2 } });
+  });
+
+  it("says when the knowledge base already uses the merging chunker", async () => {
+    mockApi(routes({ "GET /v1/admin/embedding-profiles": () => [profile("p1", "Nomic 768", { chunkerVersion: 2 }), profile("p2", "Qwen3 768")] }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    expect(await within(dialog).findByText(/overlap, chunker: merge short sections/)).toBeInTheDocument();
+  });
+
   it("says when nothing is filled in, and keeps the header's one primary", async () => {
     mockApi(routes());
     renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
