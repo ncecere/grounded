@@ -12,7 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Bot, ClipboardCheck, Database, FileCheck2, Layers, LayoutDashboard, Search, Settings2, Shuffle, Trash2 } from "lucide-react";
+import { Bot, ClipboardCheck, Database, Eye, FileCheck2, Layers, LayoutDashboard, Search, Settings2, Shuffle, Trash2 } from "lucide-react";
 import { DetailPage } from "@/components/templates/detail-page";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { kbTabs } from "@/lib/tabs";
@@ -104,6 +104,12 @@ function KBPage({ kb: k }: { kb: KB }) {
             icon: <Shuffle aria-hidden />,
             hidden: !isAdmin,
             render: <Link to="/admin/embedding-profiles" search={{ tab: "migrations", start: k.id } as never} />,
+          },
+          {
+            label: "Preview new settings…",
+            icon: <Eye aria-hidden />,
+            hidden: !isAdmin,
+            render: <Link to="/admin/embedding-profiles" search={{ tab: "migrations", preview: k.id } as never} />,
           },
           { label: "Delete knowledge base…", icon: <Trash2 aria-hidden />, danger: true, hidden: !canEdit, onSelect: del.request },
         ]}

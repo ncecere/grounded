@@ -124,6 +124,8 @@ describe("A held migration's page", () => {
     const sheet = await screen.findByRole("region", { name: /Student handbook: Nomic 768 → Nomic 768 \(new settings\)/ }, { timeout: scaled(4000) });
     expect(within(sheet).getByText("Index preview: waits for you to switch")).toBeInTheDocument();
     const table = await within(sheet).findByRole("table", { name: /Current index → new index/ });
+    // One header per column: the count and the changes are not both called "Questions".
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Evaluation set", "Questions", "Recall", "MRR", "Ranked first", "Changes"]);
     const row = within(table).getByText("Admissions questions").closest("tr")!;
     // From the current index to the new one, one cell each (the arrow between them is an icon named "to").
     const cells = within(row).getAllByRole("cell");
@@ -239,7 +241,8 @@ describe("The knowledge base's page for the team", () => {
     mockApi(teamRoutes({ "GET /v1/teams/registrar/kbs/k1/index-preview": () => withQuestions }));
     const { container } = renderApp("/teams/registrar/kbs/k1");
     expect(await screen.findByText("A platform admin is trying new index settings on this knowledge base", {}, { timeout: scaled(4000) })).toBeInTheDocument();
-    expect(screen.getByText(/Search and agents still use Nomic 768 until the platform admin switches/)).toBeInTheDocument();
+    // The notice does not repeat the new index's name (a name such as "Nomic 768 (new settings)" read as nested parentheses).
+    expect(screen.getByText("The new index is built. Search and agents still use Nomic 768 until the platform admin switches. Your evaluation sets were run on both; what changed is below.")).toBeInTheDocument();
     const table = await screen.findByRole("table", { name: "Questions that changed in Admissions questions" });
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("Where do I park?#1not foundWorse");
@@ -262,5 +265,38 @@ describe("The knowledge base's page for the team", () => {
     renderApp("/teams/registrar/kbs/k1");
     expect(await screen.findByText(/is being built\. Search and agents keep using Nomic 768/, {}, { timeout: scaled(4000) })).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "Documents embedded" })).toHaveAttribute("aria-valuetext", "12 of 40 documents");
+  });
+});
+
+describe("The knowledge base's menu", () => {
+  const kb: Schemas["KnowledgeBase"] = {
+    id: "k1", name: "Student handbook", description: "", embeddingProfileId: "p1", topK: 8, sources: [{ id: "s1", name: "Policies", classification: "open", shared: false }],
+    effectiveClassification: "open", revision: 2, createdAt: "2026-09-01T10:00:00Z", updatedAt: "2026-09-01T10:00:00Z",
+  };
+  const kbRoutes = (persona: "platform_admin" | "none") => ({
+    ...shellRoutes(persona, "owner"),
+    "GET /v1/teams/registrar/kbs/k1": () => kb,
+    "GET /v1/teams/registrar/kbs/k1/profile-migration": () => null,
+    "GET /v1/teams/registrar/sources": () => [],
+    "GET /v1/shared-sources": () => [],
+    "GET /v1/teams/registrar/agents": () => [],
+  });
+
+  it("offers Preview new settings… to platform admins, which opens the dialog for this knowledge base", async () => {
+    mockApi({ ...routes(), ...kbRoutes("platform_admin") });
+    renderApp("/teams/registrar/kbs/k1");
+    await userEvent.click(await screen.findByRole("button", { name: "More actions" }, { timeout: scaled(4000) }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Preview new settings…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    await waitFor(() => expect(within(dialog).getByRole("combobox", { name: "Knowledge base" })).toHaveValue("k1"));
+  });
+
+  it("does not offer it to a team owner who is not a platform admin", async () => {
+    mockApi(kbRoutes("none"));
+    renderApp("/teams/registrar/kbs/k1");
+    await userEvent.click(await screen.findByRole("button", { name: "More actions" }, { timeout: scaled(4000) }));
+    // The menu is open once an item that must be there is; only then does an absent item mean something.
+    expect(await screen.findByRole("menuitem", { name: "Delete knowledge base…" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Preview new settings…" })).toBeNull();
   });
 });

@@ -102,7 +102,7 @@ export function PreviewComparison({ m, isAdmin }: { m: Migration; isAdmin: boole
         <>
           <Table
             caption="Current index → new index, per evaluation set (retrieval only)"
-            columns={["Evaluation set", { label: "Questions", numeric: true }, { label: "Recall", numeric: true }, { label: "MRR", numeric: true }, { label: "Ranked first", numeric: true }, "Questions"]}
+            columns={["Evaluation set", { label: "Questions", numeric: true }, { label: "Recall", numeric: true }, { label: "MRR", numeric: true }, { label: "Ranked first", numeric: true }, "Changes"]}
             density="compact"
           >
             {c.sets.map(setRow)}

@@ -37,8 +37,8 @@ export function KBMigrationNotice({ team, kbId, isAdmin }: { team: string; kbId:
       <Alert tone="info" title="A platform admin is trying new index settings on this knowledge base" actions={manage || undefined}>
         <p>
           {m.status === "running"
-            ? `The new index (${m.toProfile.name}) is being built. Search and agents keep using ${m.fromProfile.name}, and nothing changes for you unless the platform admin switches.`
-            : `The new index (${m.toProfile.name}) is built. Search and agents still use ${m.fromProfile.name} until the platform admin switches. Your evaluation sets were run on both; what changed is below.`}
+            ? `The new index is being built. Search and agents keep using ${m.fromProfile.name}, and nothing changes for you unless the platform admin switches.`
+            : `The new index is built. Search and agents still use ${m.fromProfile.name} until the platform admin switches. Your evaluation sets were run on both; what changed is below.`}
         </p>
         {m.status === "running" && (
           <Meter

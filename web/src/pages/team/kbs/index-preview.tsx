@@ -10,6 +10,7 @@ import { Stack } from "@/components/ui/layout/layout";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { mrrText, percentText, pollMs } from "../../admin/profile-migrations/common";
 import s from "../../shared.module.css";
+import p from "../../admin/profile-migrations/profile-migrations.module.css";
 
 type Item = NonNullable<Schemas["ProfileMigrationComparison"]["sets"][number]["items"]>[number];
 
@@ -53,7 +54,7 @@ export function IndexPreviewDetail({ team, kbId }: { team: string; kbId: string 
   const done = c.sets.filter((x) => x.items);
   if (done.length === 0) return null;
   return (
-    <Stack gap={4}>
+    <Stack gap={4} className={p.preview}>
       {done.map((set) => {
         const items = [...(set.items ?? [])].sort((a, b) => order[a.change] - order[b.change]);
         const changed = items.filter((i) => i.change !== "same");
