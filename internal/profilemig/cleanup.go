@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/ingest"
@@ -29,8 +30,13 @@ type CleanupArgs struct{}
 
 func (CleanupArgs) Kind() string { return "profile_migration.cleanup" }
 
+// A request for cleanup is dropped only while an earlier one has not finished: a job that already completed in the same 10 seconds does not
+// count, or a cancel or a switch back right after one cleanup run would be left to the periodic run, up to ten minutes later (found by the
+// index preview's cluster acceptance: a discarded preview's passages and vector table stayed).
 func (CleanupArgs) InsertOpts() river.InsertOpts {
-	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByPeriod: 10 * time.Second}}
+	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByPeriod: 10 * time.Second, ByState: []rivertype.JobState{
+		rivertype.JobStateAvailable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateRetryable, rivertype.JobStateScheduled,
+	}}}
 }
 
 // CleanupWorker runs profile_migration.cleanup.

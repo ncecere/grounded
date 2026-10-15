@@ -1446,6 +1446,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/profile-migrations/{migrationId}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compare the live index with a held migration's candidate again (platform admins with a session; audited)
+         * @description For a held migration that is ready. Runs every evaluation set of the knowledge base, retrieval only, on the live profile and on the candidate: two runs per set that has questions, started in the background. They happen by themselves when the migration becomes ready; ask again after documents changed or the candidate caught up. These runs are not in the team's run list, trend or regression checks. 409 preview_running while a comparison of this migration is still running; 409 migration_not_ready when it is not ready.
+         */
+        post: operations["adminEvaluateProfileMigration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/profile-migrations/{migrationId}/switch-back": {
         parameters: {
             query?: never;
@@ -6942,6 +6964,13 @@ export interface components {
             graceDays?: number;
             /** @description Build the new index and stop before the switch (status ready); an admin then switches it (POST .../switch) or discards it (POST .../cancel). The knowledge base keeps its current profile meanwhile. Default false: the migration switches by itself. */
             hold?: boolean;
+        };
+        ProfileMigrationEvaluation: {
+            /**
+             * Format: int64
+             * @description Evaluation sets whose live and candidate runs were started (a knowledge base without questions starts none)
+             */
+            sets: number;
         };
         ProfileMigrationPreview: {
             /** Format: uuid */
@@ -13846,6 +13875,33 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminEvaluateProfileMigration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationEvaluation"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
         };
     };
     adminSwitchBackProfileMigration: {

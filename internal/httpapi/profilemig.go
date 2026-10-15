@@ -28,6 +28,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"GET", "/v1/admin/profile-migrations/{migrationId}", a.admin(a.adminGetProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/cancel", a.admin(a.migrationAction(a.ProfileMigrations.Cancel))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/switch", a.admin(a.migrationAction(a.ProfileMigrations.Switch))},
+		{"POST", "/v1/admin/profile-migrations/{migrationId}/evaluate", a.admin(a.adminEvaluateProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/switch-back", a.admin(a.migrationAction(a.ProfileMigrations.SwitchBack))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/retry", a.admin(a.migrationAction(a.ProfileMigrations.Retry))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/finish", a.admin(a.migrationAction(a.ProfileMigrations.Finish))},
@@ -78,6 +79,18 @@ func (a *api) adminStartProfileMigration(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeRevised(w, http.StatusCreated, m.ProfileMigration.Revision, toAPIProfileMigration(m))
+}
+
+func (a *api) adminEvaluateProfileMigration(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "migrationId")
+	if !ok {
+		return
+	}
+	n, err := a.ProfileMigrations.Evaluate(r.Context(), a.actor(r), id)
+	if failed(w, r, err) {
+		return
+	}
+	httpx.JSON(w, http.StatusAccepted, apitypes.ProfileMigrationEvaluation{Sets: int64(n)})
 }
 
 func (a *api) adminPreviewProfileMigration(w http.ResponseWriter, r *http.Request) {

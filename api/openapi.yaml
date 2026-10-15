@@ -2340,6 +2340,35 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/profile-migrations/{migrationId}/evaluate:
+    parameters:
+      - $ref: "#/components/parameters/MigrationIdParam"
+    post:
+      tags: [admin]
+      operationId: adminEvaluateProfileMigration
+      summary: Compare the live index with a held migration's candidate again (platform admins with a session; audited)
+      description: >-
+        For a held migration that is ready. Runs every evaluation set of the
+        knowledge base, retrieval only, on the live profile and on the
+        candidate: two runs per set that has questions, started in the
+        background. They happen by themselves when the migration becomes
+        ready; ask again after documents changed or the candidate caught up.
+        These runs are not in the team's run list, trend or regression
+        checks. 409 preview_running while a comparison of this migration is
+        still running; 409 migration_not_ready when it is not ready.
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ProfileMigrationEvaluation" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/profile-migrations/{migrationId}/switch-back:
     parameters:
       - $ref: "#/components/parameters/MigrationIdParam"
@@ -10024,6 +10053,11 @@ components:
             an admin then switches it (POST .../switch) or discards it
             (POST .../cancel). The knowledge base keeps its current profile
             meanwhile. Default false: the migration switches by itself.
+    ProfileMigrationEvaluation:
+      type: object
+      required: [sets]
+      properties:
+        sets: { type: integer, format: int64, description: Evaluation sets whose live and candidate runs were started (a knowledge base without questions starts none) }
     ProfileMigrationPreview:
       type: object
       required: [kbId, changes]

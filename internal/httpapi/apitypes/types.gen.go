@@ -9696,6 +9696,12 @@ type ProfileMigrationEstimate struct {
 	Tokens int64 `json:"tokens"`
 }
 
+// ProfileMigrationEvaluation defines model for ProfileMigrationEvaluation.
+type ProfileMigrationEvaluation struct {
+	// Sets Evaluation sets whose live and candidate runs were started (a knowledge base without questions starts none)
+	Sets int64 `json:"sets"`
+}
+
 // ProfileMigrationFailure defines model for ProfileMigrationFailure.
 type ProfileMigrationFailure struct {
 	Attempts   int32              `json:"attempts"`

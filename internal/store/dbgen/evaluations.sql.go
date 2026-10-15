@@ -14,11 +14,42 @@ import (
 )
 
 const activeEvalRun = `-- name: ActiveEvalRun :one
-SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs WHERE set_id = $1 AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1
+SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs WHERE set_id = $1 AND trigger <> 'index_preview' AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1
 `
 
+// A set's run in progress; an index preview's runs do not count (they neither block a team's run nor wait for it).
 func (q *Queries) ActiveEvalRun(ctx context.Context, setID uuid.UUID) (EvalRun, error) {
 	row := q.db.QueryRow(ctx, activeEvalRun, setID)
+	var i EvalRun
+	err := row.Scan(
+		&i.ID,
+		&i.SetID,
+		&i.TeamID,
+		&i.Kind,
+		&i.Trigger,
+		&i.Status,
+		&i.StartedBy,
+		&i.Config,
+		&i.Summary,
+		&i.Total,
+		&i.Done,
+		&i.Error,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
+const activePreviewRun = `-- name: ActivePreviewRun :one
+SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs
+WHERE trigger = 'index_preview' AND config->'preview'->>'migrationId' = $1::text AND status IN ('queued', 'running')
+LIMIT 1
+`
+
+// An index preview's run of a migration that has not ended.
+func (q *Queries) ActivePreviewRun(ctx context.Context, migrationID string) (EvalRun, error) {
+	row := q.db.QueryRow(ctx, activePreviewRun, migrationID)
 	var i EvalRun
 	err := row.Scan(
 		&i.ID,
@@ -470,11 +501,11 @@ FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
-    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id AND r.trigger <> 'index_preview' ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
-    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    WHERE r.set_id = s.id AND r.trigger <> 'index_preview' AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
       AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
@@ -734,7 +765,7 @@ SELECT c.id AS case_id, x.id, x.run_id, x.status, x.scores
 FROM eval_cases c
 CROSS JOIN LATERAL (
     SELECT r.id, r.run_id, r.status, r.scores, r.created_at FROM eval_results r
-    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval'
+    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval' AND run.trigger <> 'index_preview'
     WHERE r.case_id = c.id
     ORDER BY r.created_at DESC, r.id DESC
     LIMIT $1
@@ -789,7 +820,7 @@ func (q *Queries) LatestRetrievalResults(ctx context.Context, arg LatestRetrieva
 const listCaseResults = `-- name: ListCaseResults :many
 SELECT r.id, r.run_id, r.case_id, r.question, r.status, r.rank, r.hits, r.answer, r.scores, r.error, r.latency_ms, r.created_at, run.kind AS run_kind, run.trigger AS run_trigger, run.created_at AS run_created_at, run.config AS run_config
 FROM eval_results r
-JOIN eval_runs run ON run.id = r.run_id
+JOIN eval_runs run ON run.id = r.run_id AND run.trigger <> 'index_preview'
 WHERE r.case_id = $1
 ORDER BY run.created_at DESC, run.id DESC
 LIMIT $2
@@ -922,7 +953,7 @@ func (q *Queries) ListEvalResults(ctx context.Context, runID uuid.UUID) ([]EvalR
 }
 
 const listEvalRuns = `-- name: ListEvalRuns :many
-SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs WHERE set_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2
+SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs WHERE set_id = $1 AND trigger <> 'index_preview' ORDER BY created_at DESC, id DESC LIMIT $2
 `
 
 type ListEvalRunsParams struct {
@@ -930,6 +961,7 @@ type ListEvalRunsParams struct {
 	Lim   int32
 }
 
+// The team's runs of a set (an index preview's runs are the platform admin's comparison, not the team's history).
 func (q *Queries) ListEvalRuns(ctx context.Context, arg ListEvalRunsParams) ([]EvalRun, error) {
 	rows, err := q.db.Query(ctx, listEvalRuns, arg.SetID, arg.Lim)
 	if err != nil {
@@ -977,11 +1009,11 @@ FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
-    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id AND r.trigger <> 'index_preview' ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
-    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    WHERE r.set_id = s.id AND r.trigger <> 'index_preview' AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
       AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
@@ -1407,9 +1439,48 @@ func (q *Queries) PhrasesInSources(ctx context.Context, arg PhrasesInSourcesPara
 	return items, nil
 }
 
+const previewSetsForKB = `-- name: PreviewSetsForKB :many
+
+SELECT id, team_id, kb_id, agent_id, name, description, auto_run, created_by, revision, created_at, updated_at FROM eval_sets WHERE kb_id = $1 ORDER BY created_at, id
+`
+
+// ---- index preview ------------------------------------------------------------------------
+// Every evaluation set of a knowledge base, whatever team member made it, for an index preview's runs.
+func (q *Queries) PreviewSetsForKB(ctx context.Context, kbID uuid.NullUUID) ([]EvalSet, error) {
+	rows, err := q.db.Query(ctx, previewSetsForKB, kbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EvalSet{}
+	for rows.Next() {
+		var i EvalSet
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.KBID,
+			&i.AgentID,
+			&i.Name,
+			&i.Description,
+			&i.AutoRun,
+			&i.CreatedBy,
+			&i.Revision,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const previousCompletedRun = `-- name: PreviousCompletedRun :one
 SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs
-WHERE set_id = $1 AND kind = $2 AND status = 'completed' AND created_at < $3::timestamptz
+WHERE set_id = $1 AND trigger <> 'index_preview' AND kind = $2 AND status = 'completed' AND created_at < $3::timestamptz
   AND coalesce(summary->>'recall', summary->>'passRate') IS NOT NULL
 ORDER BY created_at DESC, id DESC
 LIMIT 1

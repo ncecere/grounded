@@ -27,6 +27,9 @@ const (
 	TriggerAgentPublished  = "agent_published"
 	TriggerProfileSwitched = "profile_switched"
 	TriggerNightly         = "nightly"
+	// TriggerIndexPreview marks the runs a held migration starts to compare the live index with its candidate (preview.go): the platform
+	// admin's comparison, left out of every team-facing list, trend and regression check.
+	TriggerIndexPreview = "index_preview"
 )
 
 // Agent versions a run can test.
@@ -62,6 +65,8 @@ type RunConfig struct {
 	// agent) turned reranking off, "" without a rerank model
 	// (docs/v0.4.0.md §3).
 	Rerank string `json:"rerank,omitempty"`
+	// Preview is set on an index preview's runs: which index the run retrieved from (preview.go).
+	Preview *PreviewRef `json:"preview,omitempty"`
 }
 
 // Rerank states of a run (RunConfig.Rerank).

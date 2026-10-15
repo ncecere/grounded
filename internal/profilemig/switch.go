@@ -60,8 +60,21 @@ func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbge
 	if err != nil {
 		return err
 	}
+	// The comparison of the live index with this one: a failure to start it must not keep the migration from becoming ready, so it runs in a
+	// savepoint and is logged (an admin can ask for it again).
+	sets := 0
+	if s.OnPreviewReady != nil {
+		if sp, err := tx.Begin(ctx); err == nil {
+			if n, herr := s.OnPreviewReady(ctx, sp, kb.ID, m.ID, m.FromProfileID, m.ToProfileID); herr != nil {
+				_ = sp.Rollback(ctx)
+				s.Log.WarnContext(ctx, "index preview: the comparison could not be started", "migration", m.ID, "err", herr)
+			} else if err := sp.Commit(ctx); err == nil {
+				sets = n
+			}
+		}
+	}
 	e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "kb.profile_preview_ready",
-		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, nil)}
+		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, map[string]any{"evaluationSets": sets})}
 	if err := audit.Record(ctx, q, e); err != nil {
 		return err
 	}

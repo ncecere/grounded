@@ -298,6 +298,7 @@ var adminPolicies = map[string]policy{
 	// Actions depend on the migration's state: 409 when it has none to act on.
 	"adminCancelProfileMigration":     migrationAction("cancel"),
 	"adminSwitchProfileMigration":     migrationAction("switch"),
+	"adminEvaluateProfileMigration":   migrationAction("evaluate"),
 	"adminSwitchBackProfileMigration": migrationAction("switch-back"),
 	"adminRetryProfileMigration":      migrationAction("retry"),
 	"adminFinishProfileMigration":     migrationAction("finish"),
