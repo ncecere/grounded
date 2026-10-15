@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-15
+
+The first release of "better knowledge in": **try new indexing settings on a knowledge base and compare before switching** (the index preview), and an **opt-in chunker** that merges short sections. It also fixes unnamed option lists in every picker, a menu that closed itself while a list reloaded, and a delay in cleaning up after a discarded migration. Three migrations (the schema moves from 45 to 48). Parent/child retrieval, contextual chunks, tables, fuzzy boilerplate and the content health report are not in this release; see [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md).
+
 ### Added
 
 - **Chunker v2, opt-in** (roadmap v0.5.0, [#19](https://github.com/ncecere/grounded/issues/19)). A profile has a **chunker** (`chunker_version`, shown on the profile; **Add profile → Chunker**, or `chunkerVersion` in the API). Version 1, the original, is unchanged and the default; its output is pinned by a golden test. **Version 2 merges short neighbouring sections** into one passage and **drops passages that are only a heading and a rule**; with no overlap it leaves the same text in the same order, in fewer passages. It has **not been measured on a real knowledge base with a real embedding model**: try it with the index preview, which can change only the chunker. An unknown version is `400 invalid_chunker_version`. See [`operations/profile-migration.md`](docs/operations/profile-migration.md#the-chunker-version-1-and-2) and [`specs/chunker-v2/SPEC.md`](docs/specs/chunker-v2/SPEC.md).
@@ -17,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Every list of options has an accessible name.** The option list of a Combobox, a free-text Combobox and the model selector was a `listbox` with no name (axe: `aria-input-field-name`), present while a picker's popup is open or closing. Each is now named (a new `listLabel`, else the `aria-label`, else the placeholder; the Team picker says "Teams"). This also fixes a CI accessibility check that failed on slower machines.
+- **The Conversations list keeps its rows while a search loads.** Changing the search, agent or date range replaced the list with a loading placeholder, which also closed a row's open actions menu; the previous rows now stay until the new list arrives.
+- **Cleaning up after a cancelled or switched-back migration starts at once.** The request to delete the vectors a migration no longer needs was dropped when a cleanup run had finished within the same ten seconds, leaving them until the next periodic run, up to ten minutes later.
 - **Deleting something that is in use now says so on PostgreSQL 18.** A delete that `ON DELETE RESTRICT` blocks (a model used by an embedding profile, a connection with models, an MCP server with tools, and the like) answers 409 `model_in_use` (or the matching code), as on PostgreSQL 17. PostgreSQL 18 reports that case as `restrict_violation` (SQLSTATE 23001) instead of `foreign_key_violation` (23503), and Grounded only recognised the second, so on 18 it answered 500. Production installs documented on PostgreSQL 17 were not affected.
 
 ## [0.4.4] - 2026-10-14
@@ -533,7 +540,9 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.4...v0.5.0
+[0.4.4]: https://github.com/ncecere/grounded/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/ncecere/grounded/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/ncecere/grounded/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.4.1
