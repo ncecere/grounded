@@ -36,16 +36,26 @@ func withProxy(c *gateway.Client, proxy string) *gateway.Client {
 	return c
 }
 
-// closedPort is a local port with nothing listening.
+// closedPort is a local port with nothing listening: a port the kernel gave out and took back, checked by connecting to it (refused). Another
+// listener can still be handed it afterwards, so a test calls this after it has started its own servers (they listen on port 0 too, and one that
+// answers, such as the resetter below, makes a connection to "the refused port" succeed or reset instead of being refused: the failure CI showed).
 func closedPort(t *testing.T) string {
 	t.Helper()
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	for range 20 {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		addr := l.Addr().String()
+		l.Close()
+		c, err := net.DialTimeout("tcp", addr, time.Second)
+		if err != nil {
+			return addr // nothing answered: the port is closed
+		}
+		c.Close() // someone took it in the meantime; try another
 	}
-	addr := l.Addr().String()
-	l.Close()
-	return addr
+	t.Fatal("no closed port found")
+	return ""
 }
 
 func TestTransportErrorsAreNamed(t *testing.T) {
@@ -55,7 +65,6 @@ func TestTransportErrorsAreNamed(t *testing.T) {
 	defer tlsSrv.Close()
 	plain := httptest.NewServer(http.NotFoundHandler())
 	defer plain.Close()
-	refused := closedPort(t)
 	// A proxy that refuses every CONNECT.
 	forbidding := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no", http.StatusForbidden)
@@ -79,6 +88,7 @@ func TestTransportErrorsAreNamed(t *testing.T) {
 		}
 	}()
 
+	refused := closedPort(t) // last: every server of this test is listening, so none can take this port
 	trusting := func(host string) *gateway.Client {
 		c := gateway.New("https://"+host+"/v1", "secret-key", 5*time.Second)
 		c.HTTP.Transport = tlsSrv.Client().Transport.(*http.Transport).Clone()
