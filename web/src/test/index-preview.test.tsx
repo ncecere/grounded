@@ -134,6 +134,17 @@ describe("Preview new settings", () => {
     expect(within(dialog).getByRole("combobox", { name: "Knowledge base" })).toHaveValue("k1");
   });
 
+  it("on a phone the header keeps one button, and Preview new settings… is in the … menu", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    mockApi(routes());
+    renderApp("/admin/embedding-profiles?tab=migrations");
+    await screen.findByRole("button", { name: "Migrate a knowledge base" }, { timeout: scaled(4000) });
+    expect(screen.queryByRole("button", { name: "Preview new settings…" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Preview new settings…" }));
+    expect(await screen.findByRole("dialog", { name: "Preview new settings" })).toBeInTheDocument();
+  });
+
   it("is for platform admins only", async () => {
     mockApi({ ...routes(), ...shellRoutes("platform_auditor") });
     renderApp("/admin/embedding-profiles?tab=migrations");
