@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-14. **v0.4.4 is released** (2026-10-14: beta fixes), on top of **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, measuring v0.4 with real use (reranking on and off, latency per step from traces), then v0.5.0 "better knowledge in" (§ L, the release plan).
+Status: refreshed 2026-10-14 (evening). **v0.4.4 is released** (2026-10-14: beta fixes), on top of **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, then v0.5.0 "better knowledge in" (§ L, the release plan), which has started with the index preview: its first step (hold mode) is on `main`, unreleased (see "On main since v0.4.4"). No v0.4.5 is planned.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -162,13 +162,24 @@ A security patch ([`releases/v0.4.3.md`](releases/v0.4.3.md)): Go 1.26.9 and gol
 
 Beta fixes ([`releases/v0.4.4.md`](releases/v0.4.4.md)): A16 (models that ignore thinking off are found by the model Test, kept on the model and shown beside Reasoning effort Off; suggestions retry once), G22 ("Working on it…" while an answer waits for the model's capacity), E18 (a Profile page, and your API keys in the account menu), and the OCR image on Debian 13. One migration (schema 45), no new setting.
 
+## On main since v0.4.4 (unreleased)
+
+| What | Notes |
+|---|---|
+| **Index preview, step 1: a migration can hold before its switch** (v0.5.0, [`specs/index-preview/SPEC.md`](specs/index-preview/SPEC.md), [plan](specs/index-preview/PLAN.md)) | A migration started with `hold` builds the new index and then waits as `ready`: the knowledge base keeps its profile, the platform admins are told, and `POST /v1/admin/profile-migrations/{id}/switch` makes the same switch the automatic one makes (audited as the admin). It refuses with a retry message while documents changed since `ready` lack vectors for the new profile. Migration 00046. API only; nothing in the UI starts a held migration yet (it is listed as "Ready to switch"). The hidden candidate profile, the comparison and the admin screens are the next steps. |
+| **Conversations list keeps its rows while a changed search loads** | Changing the search, agent or range replaced the list with a skeleton and rebuilt it, which also closed a row's open actions menu. Found by running the web tests on the cluster. |
+| **Postgres 18 compatibility** | A foreign-key violation raised as `restrict_violation` (SQLSTATE 23001) on PG 18 is recognised like 23503. The reference install stays on 17. |
+| **Development on the cluster** | The CI suites (`dev-env test grounded`) and a QA walk of a running Grounded (`dev-env walk grounded`) run as Jobs on the homelab cluster; the local Docker stack is no longer needed ([`CONTRIBUTING.md`](../CONTRIBUTING.md), [`specs/cluster-testing/`](specs/cluster-testing/)). Getting the first clean full run needed `TEST_TIME_SCALE` for slower cores, and found four test races, the Postgres 18 fix and the list fix above. |
+
+**Open follow-ups:** the OCR image's network egress could be denied to harden it ([issue #77](https://github.com/ncecere/grounded/issues/77)); the index-quality measurement (#25) has a first result on the docs-site knowledge base (below) but not yet on a large one.
+
 ## L. Release plan (owner, 2026-10-04)
 
 | Version | Theme | Items |
 |---|---|---|
 | **v0.4.3** | Security patch (released 2026-10-11) | Go 1.26.9 and golang.org/x/net v0.60.0: 13 advisories that `govulncheck` flagged ([`releases/v0.4.3.md`](releases/v0.4.3.md)) |
 | **v0.4.4** | Beta fixes (released 2026-10-14) | A16, G22, E18 and the OCR image on Debian 13 ([`releases/v0.4.4.md`](releases/v0.4.4.md)); what beta testers report goes to the next release |
-| **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview:** re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
+| **v0.5.0** | **Better knowledge in** (owner chose theme A) | **Index preview** (first; in progress, hold mode is on `main`): re-index a knowledge base with new ingest settings into a candidate index, run its evaluation sets against old and new, then switch or discard (extends profile migrations, P2); **structure-aware chunking** (A9 + C15); **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half) |
 | **v0.6.0** | **Service desk building blocks** ([`v0.6.0.md`](v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
 | **v0.7.0** | **Adoption by other installs** ([`v0.7.0.md`](v0.7.0.md)) | **Helm chart** (F5); **configuration as code** (D4); **bitop-ui docs site and registry** (F11); **accessibility statement and model cards** (E8) |
 | **v0.8.0** | **Identity and compliance** ([`v0.8.0.md`](v0.8.0.md)) | E4 SCIM, E5 audit export and SIEM, B7 PII scanning at ingest, E17 per-agent budgets, E13 audience in usage, E16 auditors see read-only facts |
@@ -177,6 +188,8 @@ Beta fixes ([`releases/v0.4.4.md`](releases/v0.4.4.md)): A16 (models that ignore
 After v1.0.0: **D1 Microsoft Teams and Slack bots** (owner, 2026-10-04). Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner: no SDKs; a CLI may come back later); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
 
 Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
+
+**First measurement (2026-10-14, issue #25).** A retrieval-only run of 96 questions about the docs site, on the reference install's own copy of it (102 documents, 763 passages, reranker on, k=20, the Qwen3 4B 768 profile): the expected page ranked first for 87 of 96 (90.6%), in the top 3 for 94, in the top 10 for all 96; MRR 0.943; median 1.3 s per query. On a corpus this small recall@20 is saturated, so only rank and MRR can tell index settings apart, and a change of two or three questions is noise. It says nothing yet about a large knowledge base (the 1,395-document website one), which needs questions from someone who knows its content. The reranker on versus off comparison and per-step latency are still to do.
 
 ---
 
