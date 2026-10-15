@@ -64,7 +64,7 @@ class A11y {
     const key = pageKey(page.url());
     if (key) this.checked.add(key);
     const problems = results.violations.map(
-      (v) => `  ${v.id} (${v.impact}): ${v.help}\n${v.nodes.map((n) => `    ${n.target.join(" ")}: ${n.failureSummary?.split("\n").join(" ")}`).join("\n")}`,
+      (v) => `  ${v.id} (${v.impact}): ${v.help}\n${v.nodes.map((n) => `    ${n.target.join(" ")}: ${n.failureSummary?.split("\n").join(" ")}\n    HTML: ${n.html}`).join("\n")}`,
     );
     expect(problems, `axe violations on ${what ?? page.url()}:\n${problems.join("\n")}`).toEqual([]);
   }

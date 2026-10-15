@@ -125,7 +125,7 @@ export function ModelSelector({
               <Combobox.Input className={styles.input} placeholder={searchPlaceholder} aria-label={`Search ${label.toLowerCase()}s`} />
             </div>
             <Combobox.Empty className={styles.empty}>{emptyText}</Combobox.Empty>
-            <Combobox.List className={styles.list}>
+            <Combobox.List className={styles.list} aria-label={label}>
               {(group: Group) => (
                 <Combobox.Group key={group.value} items={group.items} className={styles.group}>
                   <Combobox.GroupLabel className={popup.groupLabel}>{group.value}</Combobox.GroupLabel>
