@@ -707,11 +707,14 @@ func FuzzSplit(f *testing.F) {
 			return
 		}
 		m := 1 + int(max%300)
-		o := opts(m, int(overlap)%m)
-		cs, err := Split(md, o)
-		if err != nil {
-			t.Fatal(err)
+		for _, version := range []int32{Version1, Version2} {
+			o := opts(m, int(overlap)%m)
+			o.Version = version
+			cs, err := Split(md, o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkInvariants(t, md, o, cs)
 		}
-		checkInvariants(t, md, o, cs)
 	})
 }

@@ -37,8 +37,14 @@ type Options struct {
 
 	// DropImageOnly leaves out chunks whose only text is images (alt text),
 	// headings and rules, unless every chunk is like that. Images inside
-	// chunks with other text are kept.
+	// chunks with other text are kept. In version 2 it leaves out every chunk
+	// with no body, with or without an image (see Version2).
 	DropImageOnly bool
+
+	// Version is the chunker version (an embedding profile's chunker_version):
+	// 0 or 1, the original; 2, which merges short neighbouring sections and
+	// drops chunks with no body (v2.go). Any other value is an error.
+	Version int32
 }
 
 // Chunk is one retrieval unit.
@@ -67,6 +73,9 @@ func Split(markdown string, opts Options) ([]Chunk, error) {
 	if opts.Counter == nil {
 		return nil, errors.New("chunk: Counter is required")
 	}
+	if err := checkVersion(opts.Version); err != nil {
+		return nil, err
+	}
 	doc := normalize(markdown)
 	if doc == "" {
 		return nil, nil
@@ -76,11 +85,18 @@ func Split(markdown string, opts Options) ([]Chunk, error) {
 		blocks = dropBlocks(blocks, opts.DropBlock)
 	}
 	s := newSplitter(opts)
+	if opts.Version == Version2 {
+		s.floor = max(opts.MaxTokens/4, 1)
+	}
 	s.prepare(blocks)
 	drafts := s.pack(blocks)
 	out := s.finish(drafts, paginated)
 	if opts.DropImageOnly {
-		out = dropImageOnly(out)
+		if opts.Version == Version2 {
+			out = dropWhere(out, bodyless)
+		} else {
+			out = dropWhere(out, ImageOnly)
+		}
 	}
 	return out, nil
 }
