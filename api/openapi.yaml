@@ -2361,7 +2361,11 @@ paths:
           description: The comparison
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ProfileMigrationComparison" }
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ProfileMigrationComparison" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/profile-migrations/{migrationId}/evaluate:
@@ -3263,9 +3267,13 @@ paths:
           content:
             application/json:
               schema:
-                nullable: true
-                allOf:
-                  - $ref: "#/components/schemas/ProfileMigrationComparison"
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    nullable: true
+                    allOf:
+                      - $ref: "#/components/schemas/ProfileMigrationComparison"
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/kbs/{kbId}/profile-migration:
     parameters:

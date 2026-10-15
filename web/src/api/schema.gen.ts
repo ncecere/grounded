@@ -14022,7 +14022,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileMigrationComparison"];
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationComparison"];
+                    };
                 };
             };
             403: components["responses"]["ErrorReply"];
@@ -15082,7 +15084,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileMigrationComparison"] | null;
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationComparison"] | null;
+                    };
                 };
             };
             404: components["responses"]["ErrorReply"];
