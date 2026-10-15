@@ -84,10 +84,12 @@ DELETE FROM models WHERE id = $1;
 -- name: CountModelProfiles :one
 SELECT count(*) FROM embedding_profiles WHERE model_id = $1;
 
+-- Real profiles: a candidate (a hidden copy made for an index preview) is in no list or picker.
 -- name: ListEmbeddingProfiles :many
 SELECT sqlc.embed(p), sqlc.embed(m)
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
+WHERE p.candidate_of IS NULL
 ORDER BY p.is_default DESC, p.name, p.key;
 
 -- name: GetEmbeddingProfile :one
@@ -102,10 +104,10 @@ SELECT * FROM embedding_profiles WHERE id = $1 FOR UPDATE;
 -- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of)
 VALUES (@key, @name, @description, @model_id, @dimensions, @storage_type,
         @document_prefix, @query_prefix, @chunk_size, @chunk_overlap, @created_by,
-        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight))
+        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight), sqlc.narg(candidate_of))
 RETURNING *;
 
 -- name: UpdateEmbeddingProfile :one
@@ -121,11 +123,34 @@ UPDATE embedding_profiles
 SET is_default = false, revision = revision + 1, updated_at = now()
 WHERE is_default AND id <> @except_id;
 
+-- Real profiles (the first one becomes the default; a candidate does not count).
 -- name: CountEmbeddingProfiles :one
-SELECT count(*) FROM embedding_profiles;
+SELECT count(*) FROM embedding_profiles WHERE candidate_of IS NULL;
 
 -- name: LockModelConfig :exec
 SELECT pg_advisory_xact_lock(7378431002);
+
+-- A discarded index preview's hidden profile: retired, and still hidden (never deleted: it has migration history).
+-- name: RetireCandidateProfile :exec
+UPDATE embedding_profiles SET status = 'retired', revision = revision + 1, updated_at = now()
+WHERE id = @id AND candidate_of IS NOT NULL AND status <> 'retired';
+
+-- A switched index preview's profile becomes an ordinary one: a knowledge base uses it now.
+-- name: PromoteCandidateProfile :exec
+UPDATE embedding_profiles SET candidate_of = NULL, revision = revision + 1, updated_at = now()
+WHERE id = @id AND candidate_of IS NOT NULL;
+
+-- Discarded candidates whose vector table is still there and nothing holds any more: no passages, no set (the cleanup job
+-- deleted them), and no migration that is still building or waiting.
+-- name: DroppableCandidateProfiles :many
+SELECT p.id FROM embedding_profiles p
+WHERE p.candidate_of IS NOT NULL AND p.status = 'retired'
+  AND to_regclass(format('public.emb_%s', replace(p.id::text, '-', ''))) IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.profile_id = p.id)
+  AND NOT EXISTS (SELECT 1 FROM source_embedding_sets es WHERE es.profile_id = p.id)
+  AND NOT EXISTS (SELECT 1 FROM profile_migrations m WHERE m.to_profile_id = p.id AND m.status IN ('running', 'ready'))
+ORDER BY p.id
+LIMIT 20;
 
 -- name: DeleteEmbeddingProfile :exec
 DELETE FROM embedding_profiles WHERE id = $1;

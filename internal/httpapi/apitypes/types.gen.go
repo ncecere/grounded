@@ -3282,6 +3282,24 @@ func (e PriceUnit) Valid() bool {
 	}
 }
 
+// Defines values for ProfileMigrationPreviewChangesStorageType.
+const (
+	ProfileMigrationPreviewChangesStorageTypeHalfvec ProfileMigrationPreviewChangesStorageType = "halfvec"
+	ProfileMigrationPreviewChangesStorageTypeVector  ProfileMigrationPreviewChangesStorageType = "vector"
+)
+
+// Valid indicates whether the value is a known member of the ProfileMigrationPreviewChangesStorageType enum.
+func (e ProfileMigrationPreviewChangesStorageType) Valid() bool {
+	switch e {
+	case ProfileMigrationPreviewChangesStorageTypeHalfvec:
+		return true
+	case ProfileMigrationPreviewChangesStorageTypeVector:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProfileMigrationSourceState.
 const (
 	Attention  ProfileMigrationSourceState = "attention"
@@ -6900,10 +6918,12 @@ type DomainReviewDecision string
 
 // EmbeddingProfile defines model for EmbeddingProfile.
 type EmbeddingProfile struct {
-	ChunkOverlap   int32     `json:"chunkOverlap"`
-	ChunkSize      int32     `json:"chunkSize"`
-	ChunkerVersion int32     `json:"chunkerVersion"`
-	CreatedAt      time.Time `json:"createdAt"`
+	// CandidateOf Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
+	CandidateOf    *openapi_types.UUID `json:"candidateOf,omitempty"`
+	ChunkOverlap   int32               `json:"chunkOverlap"`
+	ChunkSize      int32               `json:"chunkSize"`
+	ChunkerVersion int32               `json:"chunkerVersion"`
+	CreatedAt      time.Time           `json:"createdAt"`
 
 	// DefaultFusionWeights Fusion weights of knowledge bases on this profile that don't set their own; null means the platform default
 	DefaultFusionWeights *FusionWeights `json:"defaultFusionWeights,omitempty"`
@@ -9751,6 +9771,29 @@ type ProfileMigrationPreflightSource struct {
 	Tokens int64 `json:"tokens"`
 }
 
+// ProfileMigrationPreview defines model for ProfileMigrationPreview.
+type ProfileMigrationPreview struct {
+	// Changes The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
+	Changes struct {
+		ChunkOverlap   *int32              `json:"chunkOverlap,omitempty"`
+		ChunkSize      *int32              `json:"chunkSize,omitempty"`
+		DocumentPrefix *string             `json:"documentPrefix,omitempty"`
+		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`
+
+		// Name The candidate's name (default the profile's name plus "(new settings)")
+		Name        *string                                    `json:"name,omitempty"`
+		QueryPrefix *string                                    `json:"queryPrefix,omitempty"`
+		StorageType *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
+	} `json:"changes"`
+
+	// GraceDays Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
+	GraceDays *int32             `json:"graceDays,omitempty"`
+	KbId      openapi_types.UUID `json:"kbId"`
+}
+
+// ProfileMigrationPreviewChangesStorageType defines model for ProfileMigrationPreview.Changes.StorageType.
+type ProfileMigrationPreviewChangesStorageType string
+
 // ProfileMigrationSource defines model for ProfileMigrationSource.
 type ProfileMigrationSource struct {
 	// Documents Ready documents
@@ -12171,6 +12214,9 @@ type AdminStartProfileMigrationJSONRequestBody = ProfileMigrationStart
 
 // AdminPreflightProfileMigrationJSONRequestBody defines body for AdminPreflightProfileMigration for application/json ContentType.
 type AdminPreflightProfileMigrationJSONRequestBody = ProfileMigrationTarget
+
+// AdminPreviewProfileMigrationJSONRequestBody defines body for AdminPreviewProfileMigration for application/json ContentType.
+type AdminPreviewProfileMigrationJSONRequestBody = ProfileMigrationPreview
 
 // AdminPutRerankJSONRequestBody defines body for AdminPutRerank for application/json ContentType.
 type AdminPutRerankJSONRequestBody = RerankSettingsInput

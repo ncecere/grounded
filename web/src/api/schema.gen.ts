@@ -1349,6 +1349,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/profile-migrations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build a knowledge base's index with changed settings beside the live one, and wait (platform admins with a session; audited)
+         * @description Index preview. Copies the knowledge base's embedding profile with the changes applied as a hidden candidate (it is in no list or picker, is never the default, and cannot be selected) and starts a migration into it that holds: the new index is built while the knowledge base keeps searching its current profile, and the migration becomes ready. An admin then switches it (POST .../switch), which makes the candidate an ordinary profile, or discards it (POST .../cancel), which retires the hidden profile and deletes its passages and vector table; the migration's record stays. Refused with 409 migration_blocked (details.blockers) when the preflight has blockers, and then no candidate is left behind. Audited as kb.profile_migration_start with hold.
+         */
+        post: operations["adminPreviewProfileMigration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/profile-migrations/preflight": {
         parameters: {
             query?: never;
@@ -6818,6 +6838,11 @@ export interface components {
             /** @enum {string} */
             status: "active" | "retired";
             isDefault: boolean;
+            /**
+             * Format: uuid
+             * @description Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
+             */
+            candidateOf?: string | null;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             createdAt: string;
@@ -6917,6 +6942,30 @@ export interface components {
             graceDays?: number;
             /** @description Build the new index and stop before the switch (status ready); an admin then switches it (POST .../switch) or discards it (POST .../cancel). The knowledge base keeps its current profile meanwhile. Default false: the migration switches by itself. */
             hold?: boolean;
+        };
+        ProfileMigrationPreview: {
+            /** Format: uuid */
+            kbId: string;
+            /**
+             * Format: int32
+             * @description Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
+             */
+            graceDays?: number;
+            /** @description The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model. */
+            changes: {
+                /** @description The candidate's name (default the profile's name plus "(new settings)") */
+                name?: string;
+                /** Format: uuid */
+                modelId?: string;
+                /** @enum {string} */
+                storageType?: "halfvec" | "vector";
+                documentPrefix?: string;
+                queryPrefix?: string;
+                /** Format: int32 */
+                chunkSize?: number;
+                /** Format: int32 */
+                chunkOverlap?: number;
+            };
         };
         /**
          * @description running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
@@ -13662,6 +13711,37 @@ export interface operations {
         };
         responses: {
             /** @description Started */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigration"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPreviewProfileMigration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileMigrationPreview"];
+            };
+        };
+        responses: {
+            /** @description Started (status running, then ready) */
             201: {
                 headers: {
                     ETag: components["headers"]["ETag"];

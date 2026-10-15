@@ -27,6 +27,9 @@ var maxDimensions = map[string]int32{"halfvec": 4000, "vector": 2000}
 
 var errNoProfile = apperr.NotFound("profile_not_found", "Embedding profile not found")
 
+// errIsCandidate: a candidate is changed only by the index preview that made it (switch, discard).
+var errIsCandidate = apperr.Conflict("profile_is_candidate", "This profile belongs to an index preview. Switch or discard the preview instead")
+
 // Profile is an embedding profile with its model.
 type Profile struct {
 	dbgen.EmbeddingProfile
@@ -117,6 +120,12 @@ func (s *Service) GetProfile(ctx context.Context, a authz.Actor, id uuid.UUID) (
 }
 
 func (s *Service) CreateProfile(ctx context.Context, a authz.Actor, in ProfileInput) (Profile, error) {
+	return s.createProfile(ctx, a, in, uuid.NullUUID{})
+}
+
+// createProfile inserts a profile; candidateOf is set for the hidden copy an index preview builds into (candidate.go), which is never
+// the default whatever the input says.
+func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileInput, candidateOf uuid.NullUUID) (Profile, error) {
 	if !a.IsPlatformAdmin() {
 		return Profile{}, errAdminOnly
 	}
@@ -142,13 +151,13 @@ func (s *Service) CreateProfile(ctx context.Context, a authz.Actor, in ProfileIn
 		if err != nil {
 			return err
 		}
-		isDefault := in.IsDefault || n == 0 // the first profile becomes the default
+		isDefault := !candidateOf.Valid && (in.IsDefault || n == 0) // the first profile becomes the default
 		p, err := q.InsertEmbeddingProfile(ctx, dbgen.InsertEmbeddingProfileParams{
 			Key: in.Key, Name: in.Name, Description: in.Description, ModelID: m.ID, Dimensions: dims,
 			StorageType: in.StorageType, DocumentPrefix: in.DocumentPrefix, QueryPrefix: in.QueryPrefix,
 			ChunkSize: in.ChunkSize, ChunkOverlap: in.ChunkOverlap,
 			CreatedBy:        uuid.NullUUID{UUID: a.UserID, Valid: true},
-			OutputDimensions: in.OutputDimensions, DefaultVectorWeight: vw, DefaultKeywordWeight: kw,
+			OutputDimensions: in.OutputDimensions, DefaultVectorWeight: vw, DefaultKeywordWeight: kw, CandidateOf: candidateOf,
 		})
 		if apperr.IsUniqueViolation(err, "embedding_profiles_key_key") {
 			return apperr.Conflict("key_taken", "An embedding profile with that key already exists")
@@ -166,7 +175,11 @@ func (s *Service) CreateProfile(ctx context.Context, a authz.Actor, in ProfileIn
 				return err
 			}
 		}
-		e := a.Audit("platform.embedding_profile_create", "embedding_profile", p.ID.String())
+		action := "platform.embedding_profile_create"
+		if candidateOf.Valid {
+			action = "platform.embedding_profile_candidate_create"
+		}
+		e := a.Audit(action, "embedding_profile", p.ID.String())
 		e.After = profileSnapshot(p)
 		out = Profile{EmbeddingProfile: p, Model: m}
 		return audit.Record(ctx, q, e)
@@ -260,6 +273,9 @@ func (s *Service) UpdateProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 		cur, err := q.LockEmbeddingProfile(ctx, id)
 		if err != nil {
 			return notFound(err, errNoProfile)
+		}
+		if cur.CandidateOf.Valid {
+			return errIsCandidate
 		}
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
@@ -357,6 +373,9 @@ func (s *Service) DeleteProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 		if err != nil {
 			return notFound(err, errNoProfile)
 		}
+		if cur.CandidateOf.Valid {
+			return errIsCandidate
+		}
 		if cur.IsDefault {
 			n, err := q.CountEmbeddingProfiles(ctx)
 			if err != nil {
@@ -430,6 +449,10 @@ func (s *Service) ProfileForUse(ctx context.Context, q *dbgen.Queries, profileID
 	row, err := q.GetEmbeddingProfile(ctx, profileID)
 	if err != nil {
 		return Profile{}, notFound(err, apperr.Invalid("unknown_profile", "Unknown embedding profile"))
+	}
+	if row.EmbeddingProfile.CandidateOf.Valid {
+		// A candidate belongs to an index preview until an admin switches it: nothing else may use it.
+		return Profile{}, apperr.Invalid("unknown_profile", "Unknown embedding profile")
 	}
 	if row.EmbeddingProfile.Status != ProfileActive {
 		return Profile{}, apperr.Invalid("profile_retired", "That embedding profile is retired")

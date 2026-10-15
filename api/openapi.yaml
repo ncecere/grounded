@@ -2227,6 +2227,45 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/profile-migrations/preview:
+    post:
+      tags: [admin]
+      operationId: adminPreviewProfileMigration
+      summary: Build a knowledge base's index with changed settings beside the live one, and wait (platform admins with a session; audited)
+      description: >-
+        Index preview. Copies the knowledge base's embedding profile with the
+        changes applied as a hidden candidate (it is in no list or picker, is
+        never the default, and cannot be selected) and starts a migration into
+        it that holds: the new index is built while the knowledge base keeps
+        searching its current profile, and the migration becomes ready. An
+        admin then switches it (POST .../switch), which makes the candidate an
+        ordinary profile, or discards it (POST .../cancel), which retires the
+        hidden profile and deletes its passages and vector table; the
+        migration's record stays. Refused with 409 migration_blocked
+        (details.blockers) when the preflight has blockers, and then no
+        candidate is left behind. Audited as kb.profile_migration_start with
+        hold.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfileMigrationPreview" }
+      responses:
+        "201":
+          description: Started (status running, then ready)
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ProfileMigration" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/profile-migrations/preflight:
     post:
       tags: [admin]
@@ -9890,6 +9929,7 @@ components:
         chunkerVersion: { type: integer, format: int32 }
         status: { type: string, enum: [active, retired] }
         isDefault: { type: boolean }
+        candidateOf: { type: string, format: uuid, nullable: true, description: "Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id." }
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -9984,6 +10024,28 @@ components:
             an admin then switches it (POST .../switch) or discards it
             (POST .../cancel). The knowledge base keeps its current profile
             meanwhile. Default false: the migration switches by itself.
+    ProfileMigrationPreview:
+      type: object
+      required: [kbId, changes]
+      properties:
+        kbId: { type: string, format: uuid }
+        graceDays:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 90
+          description: Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
+        changes:
+          type: object
+          description: The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
+          properties:
+            name: { type: string, maxLength: 100, description: The candidate's name (default the profile's name plus "(new settings)") }
+            modelId: { type: string, format: uuid }
+            storageType: { type: string, enum: [halfvec, vector] }
+            documentPrefix: { type: string, maxLength: 200 }
+            queryPrefix: { type: string, maxLength: 200 }
+            chunkSize: { type: integer, format: int32, minimum: 64, maximum: 8192 }
+            chunkOverlap: { type: integer, format: int32, minimum: 0 }
     ProfileMigrationStatus:
       type: string
       description: >-

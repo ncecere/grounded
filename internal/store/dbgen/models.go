@@ -396,6 +396,7 @@ type EmbeddingProfile struct {
 	OutputDimensions     *int32
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
+	CandidateOf          uuid.NullUUID
 }
 
 type EmbeddingSetFailure struct {

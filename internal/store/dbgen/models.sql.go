@@ -45,9 +45,10 @@ func (q *Queries) CountConnectionModels(ctx context.Context, connectionID uuid.U
 }
 
 const countEmbeddingProfiles = `-- name: CountEmbeddingProfiles :one
-SELECT count(*) FROM embedding_profiles
+SELECT count(*) FROM embedding_profiles WHERE candidate_of IS NULL
 `
 
+// Real profiles (the first one becomes the default; a candidate does not count).
 func (q *Queries) CountEmbeddingProfiles(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countEmbeddingProfiles)
 	var count int64
@@ -107,6 +108,39 @@ func (q *Queries) DeleteModel(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const droppableCandidateProfiles = `-- name: DroppableCandidateProfiles :many
+SELECT p.id FROM embedding_profiles p
+WHERE p.candidate_of IS NOT NULL AND p.status = 'retired'
+  AND to_regclass(format('public.emb_%s', replace(p.id::text, '-', ''))) IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.profile_id = p.id)
+  AND NOT EXISTS (SELECT 1 FROM source_embedding_sets es WHERE es.profile_id = p.id)
+  AND NOT EXISTS (SELECT 1 FROM profile_migrations m WHERE m.to_profile_id = p.id AND m.status IN ('running', 'ready'))
+ORDER BY p.id
+LIMIT 20
+`
+
+// Discarded candidates whose vector table is still there and nothing holds any more: no passages, no set (the cleanup job
+// deleted them), and no migration that is still building or waiting.
+func (q *Queries) DroppableCandidateProfiles(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, droppableCandidateProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getConnection = `-- name: GetConnection :one
 SELECT id, name, description, base_url, api_key_ciphertext, api_key_hint, timeout_seconds, enabled, revision, created_by, created_at, updated_at, requests_per_minute, max_concurrent_requests FROM model_connections WHERE id = $1
 `
@@ -134,7 +168,7 @@ func (q *Queries) GetConnection(ctx context.Context, id uuid.UUID) (ModelConnect
 }
 
 const getEmbeddingProfile = `-- name: GetEmbeddingProfile :one
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
 WHERE p.id = $1
@@ -170,6 +204,7 @@ func (q *Queries) GetEmbeddingProfile(ctx context.Context, id uuid.UUID) (GetEmb
 		&i.EmbeddingProfile.OutputDimensions,
 		&i.EmbeddingProfile.DefaultVectorWeight,
 		&i.EmbeddingProfile.DefaultKeywordWeight,
+		&i.EmbeddingProfile.CandidateOf,
 		&i.Model.ID,
 		&i.Model.ConnectionID,
 		&i.Model.Key,
@@ -295,11 +330,11 @@ func (q *Queries) InsertConnection(ctx context.Context, arg InsertConnectionPara
 const insertEmbeddingProfile = `-- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of)
 VALUES ($1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10, $11,
-        $12, $13, $14)
-RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight
+        $12, $13, $14, $15)
+RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of
 `
 
 type InsertEmbeddingProfileParams struct {
@@ -317,6 +352,7 @@ type InsertEmbeddingProfileParams struct {
 	OutputDimensions     *int32
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
+	CandidateOf          uuid.NullUUID
 }
 
 func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddingProfileParams) (EmbeddingProfile, error) {
@@ -335,6 +371,7 @@ func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddin
 		arg.OutputDimensions,
 		arg.DefaultVectorWeight,
 		arg.DefaultKeywordWeight,
+		arg.CandidateOf,
 	)
 	var i EmbeddingProfile
 	err := row.Scan(
@@ -359,6 +396,7 @@ func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddin
 		&i.OutputDimensions,
 		&i.DefaultVectorWeight,
 		&i.DefaultKeywordWeight,
+		&i.CandidateOf,
 	)
 	return i, err
 }
@@ -511,9 +549,10 @@ func (q *Queries) ListConnections(ctx context.Context) ([]ListConnectionsRow, er
 }
 
 const listEmbeddingProfiles = `-- name: ListEmbeddingProfiles :many
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
+WHERE p.candidate_of IS NULL
 ORDER BY p.is_default DESC, p.name, p.key
 `
 
@@ -522,6 +561,7 @@ type ListEmbeddingProfilesRow struct {
 	Model            Model
 }
 
+// Real profiles: a candidate (a hidden copy made for an index preview) is in no list or picker.
 func (q *Queries) ListEmbeddingProfiles(ctx context.Context) ([]ListEmbeddingProfilesRow, error) {
 	rows, err := q.db.Query(ctx, listEmbeddingProfiles)
 	if err != nil {
@@ -553,6 +593,7 @@ func (q *Queries) ListEmbeddingProfiles(ctx context.Context) ([]ListEmbeddingPro
 			&i.EmbeddingProfile.OutputDimensions,
 			&i.EmbeddingProfile.DefaultVectorWeight,
 			&i.EmbeddingProfile.DefaultKeywordWeight,
+			&i.EmbeddingProfile.CandidateOf,
 			&i.Model.ID,
 			&i.Model.ConnectionID,
 			&i.Model.Key,
@@ -836,7 +877,7 @@ func (q *Queries) LockConnection(ctx context.Context, id uuid.UUID) (ModelConnec
 }
 
 const lockEmbeddingProfile = `-- name: LockEmbeddingProfile :one
-SELECT id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight FROM embedding_profiles WHERE id = $1 FOR UPDATE
+SELECT id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of FROM embedding_profiles WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockEmbeddingProfile(ctx context.Context, id uuid.UUID) (EmbeddingProfile, error) {
@@ -864,6 +905,7 @@ func (q *Queries) LockEmbeddingProfile(ctx context.Context, id uuid.UUID) (Embed
 		&i.OutputDimensions,
 		&i.DefaultVectorWeight,
 		&i.DefaultKeywordWeight,
+		&i.CandidateOf,
 	)
 	return i, err
 }
@@ -911,6 +953,28 @@ SELECT pg_advisory_xact_lock(7378431002)
 
 func (q *Queries) LockModelConfig(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockModelConfig)
+	return err
+}
+
+const promoteCandidateProfile = `-- name: PromoteCandidateProfile :exec
+UPDATE embedding_profiles SET candidate_of = NULL, revision = revision + 1, updated_at = now()
+WHERE id = $1 AND candidate_of IS NOT NULL
+`
+
+// A switched index preview's profile becomes an ordinary one: a knowledge base uses it now.
+func (q *Queries) PromoteCandidateProfile(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, promoteCandidateProfile, id)
+	return err
+}
+
+const retireCandidateProfile = `-- name: RetireCandidateProfile :exec
+UPDATE embedding_profiles SET status = 'retired', revision = revision + 1, updated_at = now()
+WHERE id = $1 AND candidate_of IS NOT NULL AND status <> 'retired'
+`
+
+// A discarded index preview's hidden profile: retired, and still hidden (never deleted: it has migration history).
+func (q *Queries) RetireCandidateProfile(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, retireCandidateProfile, id)
 	return err
 }
 
@@ -992,7 +1056,7 @@ SET name = $1, description = $2, status = $3, is_default = $4,
     default_vector_weight = $5, default_keyword_weight = $6,
     revision = revision + 1, updated_at = now()
 WHERE id = $7
-RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight
+RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of
 `
 
 type UpdateEmbeddingProfileParams struct {
@@ -1038,6 +1102,7 @@ func (q *Queries) UpdateEmbeddingProfile(ctx context.Context, arg UpdateEmbeddin
 		&i.OutputDimensions,
 		&i.DefaultVectorWeight,
 		&i.DefaultKeywordWeight,
+		&i.CandidateOf,
 	)
 	return i, err
 }

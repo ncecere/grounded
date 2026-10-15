@@ -58,7 +58,7 @@ SELECT p.id, p.name, p.key, p.status,
        LEAST(CASE WHEN p.name ILIKE @prefix::text THEN 0 WHEN p.name ~* @word::text THEN 1 ELSE 2 END,
              CASE WHEN p.key ILIKE @prefix::text THEN 0 WHEN p.key ~* @word::text THEN 1 ELSE 2 END)::int AS rank
 FROM embedding_profiles p
-WHERE p.name ILIKE @contains::text OR p.key ILIKE @contains::text
+WHERE p.candidate_of IS NULL AND (p.name ILIKE @contains::text OR p.key ILIKE @contains::text)
 ORDER BY rank, length(p.name), lower(p.name), p.id
 LIMIT @lim;
 
