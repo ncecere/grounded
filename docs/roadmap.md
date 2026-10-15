@@ -189,7 +189,7 @@ After v1.0.0: **D1 Microsoft Teams and Slack bots** (owner, 2026-10-04). Not pla
 
 Before v0.5.0's design, measure v0.4 with real use: reranking on and off in evaluation runs, and latency per step from traces.
 
-**First measurement (2026-10-14, issue #25).** A retrieval-only run of 96 questions about the docs site, on the reference install's own copy of it (100 documents, reranker on, k=20, the Qwen3 4B 768 profile): the expected page ranked first for 87 of 96 (90.6%), in the top 3 for 94, in the top 10 for all 96; MRR 0.943; median 1.3 s per query. On a corpus this small recall@20 is saturated, so only rank and MRR can tell index settings apart, and a change of two or three questions is noise. It says nothing yet about a large knowledge base (the 1,395-document website one), which needs questions from someone who knows its content. The reranker on versus off comparison and per-step latency are still to do.
+**First measurement (2026-10-14, issue #25).** A retrieval-only run of 96 questions about the docs site, on the reference install's own copy of it (102 documents, 763 passages, reranker on, k=20, the Qwen3 4B 768 profile): the expected page ranked first for 87 of 96 (90.6%), in the top 3 for 94, in the top 10 for all 96; MRR 0.943; median 1.3 s per query. On a corpus this small recall@20 is saturated, so only rank and MRR can tell index settings apart, and a change of two or three questions is noise. It says nothing yet about a large knowledge base (the 1,395-document website one), which needs questions from someone who knows its content. The reranker on versus off comparison and per-step latency are still to do.
 
 ---
 
