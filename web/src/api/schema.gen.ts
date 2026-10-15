@@ -13894,7 +13894,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileMigrationEvaluation"];
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationEvaluation"];
+                    };
                 };
             };
             403: components["responses"]["ErrorReply"];

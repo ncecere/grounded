@@ -2361,7 +2361,11 @@ paths:
           description: Started
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ProfileMigrationEvaluation" }
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ProfileMigrationEvaluation" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
