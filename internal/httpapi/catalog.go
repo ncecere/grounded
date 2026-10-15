@@ -373,7 +373,7 @@ func (a *api) adminCreateEmbeddingProfile(w http.ResponseWriter, r *http.Request
 		Key: in.Key, Name: in.Name, Description: deref(in.Description, ""), ModelID: in.ModelId,
 		StorageType: string(deref(in.StorageType, "")), DocumentPrefix: deref(in.DocumentPrefix, ""),
 		QueryPrefix: deref(in.QueryPrefix, ""), ChunkSize: deref(in.ChunkSize, 0),
-		ChunkOverlap: deref(in.ChunkOverlap, 0), IsDefault: deref(in.IsDefault, false),
+		ChunkOverlap: deref(in.ChunkOverlap, 0), ChunkerVersion: deref(in.ChunkerVersion, 0), IsDefault: deref(in.IsDefault, false),
 		OutputDimensions: in.OutputDimensions, DefaultWeights: fromAPIProfileWeights(in.DefaultFusionWeights),
 	})
 	if failed(w, r, err) {

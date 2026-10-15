@@ -35,13 +35,13 @@ func ImageOnly(content string) bool {
 	return true
 }
 
-// dropImageOnly removes image-only chunks and renumbers the rest. When every
-// chunk is image-only, the document keeps them: its only content is never
+// dropWhere removes the chunks drop reports and renumbers the rest. When
+// every chunk would go, the document keeps them: its only content is never
 // dropped.
-func dropImageOnly(chunks []Chunk) []Chunk {
+func dropWhere(chunks []Chunk, drop func(content string) bool) []Chunk {
 	out := make([]Chunk, 0, len(chunks))
 	for _, c := range chunks {
-		if !ImageOnly(c.Content) {
+		if !drop(c.Content) {
 			c.Ordinal = len(out)
 			out = append(out, c)
 		}

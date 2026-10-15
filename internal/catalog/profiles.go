@@ -11,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -44,7 +45,10 @@ type ProfileInput struct {
 	StorageType                 string
 	DocumentPrefix, QueryPrefix string
 	ChunkSize, ChunkOverlap     int32
-	IsDefault                   bool
+	// ChunkerVersion is the chunker that cuts the profile's passages (internal/chunk): 1, the original, or 2, which merges short neighbouring
+	// sections; 0 means 1. Immutable afterwards, like the sizes (ADR-0007).
+	ChunkerVersion int32
+	IsDefault      bool
 	// OutputDimensions stores fewer dimensions than the model's
 	// (Matryoshka truncation, DESIGN.md §10); nil = the model's.
 	OutputDimensions *int32
@@ -155,7 +159,7 @@ func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileIn
 		p, err := q.InsertEmbeddingProfile(ctx, dbgen.InsertEmbeddingProfileParams{
 			Key: in.Key, Name: in.Name, Description: in.Description, ModelID: m.ID, Dimensions: dims,
 			StorageType: in.StorageType, DocumentPrefix: in.DocumentPrefix, QueryPrefix: in.QueryPrefix,
-			ChunkSize: in.ChunkSize, ChunkOverlap: in.ChunkOverlap,
+			ChunkSize: in.ChunkSize, ChunkOverlap: in.ChunkOverlap, ChunkerVersion: in.ChunkerVersion,
 			CreatedBy:        uuid.NullUUID{UUID: a.UserID, Valid: true},
 			OutputDimensions: in.OutputDimensions, DefaultVectorWeight: vw, DefaultKeywordWeight: kw, CandidateOf: candidateOf,
 		})
@@ -218,6 +222,12 @@ func checkProfileInput(in *ProfileInput) (int32, error) {
 	}
 	if len(in.DocumentPrefix) > 200 || len(in.QueryPrefix) > 200 {
 		return 0, apperr.Invalid("invalid_prefix", "Prefixes must be at most 200 characters")
+	}
+	if in.ChunkerVersion == 0 {
+		in.ChunkerVersion = chunk.Version1
+	}
+	if !chunk.ValidVersion(in.ChunkerVersion) {
+		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original) or 2 (merges short neighbouring sections)")
 	}
 	return limit, in.DefaultWeights.validate()
 }

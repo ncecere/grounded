@@ -10049,6 +10049,7 @@ components:
         queryPrefix: { type: string, example: "search_query: " }
         chunkSize: { type: integer, format: int32, default: 512 }
         chunkOverlap: { type: integer, format: int32, default: 0 }
+        chunkerVersion: { type: integer, format: int32, minimum: 1, default: 1, description: "The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version)." }
         isDefault: { type: boolean }
     EmbeddingProfileUpdate:
       type: object
@@ -10201,6 +10202,14 @@ components:
             queryPrefix: { type: string, maxLength: 200 }
             chunkSize: { type: integer, format: int32, minimum: 64, maximum: 8192 }
             chunkOverlap: { type: integer, format: int32, minimum: 0 }
+            chunkerVersion:
+              type: integer
+              format: int32
+              minimum: 1
+              description: >-
+                The chunker: 1, the original, or 2, which merges short
+                neighbouring sections and drops chunks with no body. Anything
+                else is refused (400 invalid_chunker_version).
     ProfileMigrationStatus:
       type: string
       description: >-

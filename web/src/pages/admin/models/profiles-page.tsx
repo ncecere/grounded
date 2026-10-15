@@ -8,6 +8,7 @@
 import { Eye, Layers, Plus, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
+import { PageActions } from "@/components/templates/page-actions";
 import { Button } from "@/components/ui/button/button";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
@@ -33,15 +34,16 @@ export function EmbeddingProfilesPage() {
       <Plus aria-hidden /> Add profile
     </Button>
   );
+  // One primary; Preview is a secondary action, which on a phone joins the "…" menu (PageActions), so the header keeps to one button.
   const start = isAdmin && (
-    <>
-      <Button variant="secondary" onClick={() => setPreviewing(true)}>
-        <Eye aria-hidden /> Preview new settings…
-      </Button>
-      <Button onClick={() => setStarting(true)}>
-        <Plus aria-hidden /> Migrate a knowledge base
-      </Button>
-    </>
+    <PageActions
+      primary={
+        <Button onClick={() => setStarting(true)}>
+          <Plus aria-hidden /> Migrate a knowledge base
+        </Button>
+      }
+      secondary={[{ label: "Preview new settings…", icon: <Eye aria-hidden />, onSelect: () => setPreviewing(true) }]}
+    />
   );
   const onMigrations = tab === "migrations";
   return (

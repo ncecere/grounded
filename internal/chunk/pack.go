@@ -44,6 +44,12 @@ type splitter struct {
 	base   int // estimated tokens of cur, excluding the last unit's trail
 	body   int // units in cur that are neither headings nor overlap
 	drafts [][]unit
+
+	// Version 2 (v2.go): floor is the size under which a chunk takes a short next section (0: version 1, never); secTok the tokens of the
+	// section each break heading starts; parent the headings above the section cur started in.
+	floor  int
+	secTok []int
+	parent []string
 }
 
 func newSplitter(opts Options) *splitter {
@@ -76,9 +82,12 @@ func (sp *splitter) prepare(blocks []*block) {
 
 // pack groups blocks into draft chunks.
 func (sp *splitter) pack(blocks []*block) [][]unit {
-	for _, b := range blocks {
+	if sp.floor > 0 {
+		sp.secTok = sp.sectionTokens(blocks)
+	}
+	for i, b := range blocks {
 		if b.brk {
-			sp.sectionBreak()
+			sp.sectionBreak(i, b)
 		}
 		whole := unit{b: b, end: len(b.text), tokens: b.tokens}
 		switch {
@@ -112,6 +121,9 @@ func (sp *splitter) cost(u unit) int {
 }
 
 func (sp *splitter) push(u unit) {
+	if len(sp.cur) == 0 {
+		sp.parent = parentPath(u.b.path)
+	}
 	sp.base = sp.cost(u) - u.trailTok()
 	sp.cur = append(sp.cur, u)
 	if !u.overlap && !u.sticky() {
@@ -125,9 +137,10 @@ func (sp *splitter) emit() {
 }
 
 // sectionBreak ends the chunk before a level 1-3 heading. Headings with no
-// body yet stay and carry into the new section's chunk.
-func (sp *splitter) sectionBreak() {
-	if sp.body > 0 {
+// body yet stay and carry into the new section's chunk. In version 2 a short
+// chunk takes a short section that follows (mergeable).
+func (sp *splitter) sectionBreak(i int, next *block) {
+	if sp.body > 0 && !sp.mergeable(i, next) {
 		sp.emit()
 	}
 }
