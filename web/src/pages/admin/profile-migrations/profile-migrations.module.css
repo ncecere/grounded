@@ -54,3 +54,8 @@
   display: grid;
   gap: var(--space-1);
 }
+
+/* The team's view of a ready preview, inside the notice: its paragraphs and tables need air between them. */
+.preview {
+  margin-top: var(--space-3);
+}

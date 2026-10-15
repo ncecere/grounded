@@ -20,6 +20,7 @@ import { documentsText, graceText, type Migration, type MigrationStatus, migrati
 import { MigrationPage } from "./migration-record";
 import s from "../../shared.module.css";
 import p from "./profile-migrations.module.css";
+import { PreviewDialog } from "./preview-dialog";
 import { StartMigrationDialog } from "./start-dialog";
 
 /** What a migration is, above the list. */
@@ -89,24 +90,33 @@ type TabProps = {
   /** The header's "Migrate a knowledge base" was pressed. */
   starting: boolean;
   onStartClosed: () => void;
+  /** The header's "Preview new settings…" was pressed. */
+  previewing: boolean;
+  onPreviewClosed: () => void;
 };
 
-export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed }: TabProps) {
+export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed, previewing, onPreviewClosed }: TabProps) {
   const migrations = useQuery(migrationsQuery());
   const record = useRecordParam();
   const [params, setParams] = useSearchParams();
   const startFor = params.get("start") ?? undefined;
-  const closeStart = () => {
-    onStartClosed();
-    if (!startFor) return;
+  const previewFor = params.get("preview") ?? undefined;
+  const dropParam = (name: string) =>
     setParams(
       (q) => {
         const out = new URLSearchParams(q);
-        out.delete("start");
+        out.delete(name);
         return out;
       },
       { replace: true },
     );
+  const closeStart = () => {
+    onStartClosed();
+    if (startFor) dropParam("start");
+  };
+  const closePreview = () => {
+    onPreviewClosed();
+    if (previewFor) dropParam("preview");
   };
   const none = migrations.data?.length === 0;
   return (
@@ -133,6 +143,16 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed }: TabPr
         }}
       />
       <MigrationPage id={record.id} onClose={record.close} isAdmin={isAdmin} />
+      {isAdmin && (previewing || previewFor) && (
+        <PreviewDialog
+          initialKB={previewFor}
+          onClose={closePreview}
+          onStarted={(m) => {
+            closePreview();
+            record.open(m.id);
+          }}
+        />
+      )}
       {isAdmin && (starting || startFor) && (
         <StartMigrationDialog
           initialKB={startFor}
