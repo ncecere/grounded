@@ -24,9 +24,15 @@ measurement ([#25](https://github.com/ncecere/grounded/issues/25)): the docs sit
 - 37 questions share their phrases with another page. A second pass read those pages and kept one only if it states the same answer, with
   the quote checked against the page text: 25 questions accept two or more pages (34 extra pages). A hit on any accepted page counts. One
   of the 34 is borderline (a page that states the rule for counting uncited claims, for a question about the claims array).
+- Checked again against what the production knowledge base "Grounded Documentation" (team `demo`, source crawled 2026-10-12) actually stored:
+  all 96 expected pages are there, and 94 questions find their phrases in the stored text. Two do not yet, because the docs changed after
+  that crawl (`self-hosting/upgrades`: "Debian 13", added with v0.4.4; `using/editors/versions`: "Publish is disabled"); a re-sync of the
+  source fixes that. The check also caught two phrases of mine that broke on markup (below); they are fixed.
 
 ## Limits
 
+- The knowledge base stores markdown, so a phrase that crosses inline code does not match: `429 budget_exhausted` is stored as ``429 ` budget_exhausted ` ``.
+  Phrases here avoid code boundaries; keep that when adding questions.
 - One page per question, not one passage: it shows whether retrieval finds the right page, not whether the right sentence is in the
   top results (`must_mention` covers that in a full-answer run, not in retrieval-only).
 - Every question has an answer; none tests what retrieval does when the docs hold nothing.
