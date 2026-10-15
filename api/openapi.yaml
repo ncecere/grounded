@@ -2340,6 +2340,34 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/profile-migrations/{migrationId}/preview:
+    parameters:
+      - $ref: "#/components/parameters/MigrationIdParam"
+    get:
+      tags: [admin]
+      operationId: adminGetProfileMigrationPreview
+      summary: How a held migration's candidate index compares with the live one (platform admins and auditors; numbers only)
+      description: >-
+        Per evaluation set of the knowledge base, the live index's and the
+        candidate's retrieval runs side by side: recall@k, MRR, questions
+        ranked first, and how many questions got better, worse or stayed,
+        from the latest comparison that finished (running says a newer one is
+        under way). Evaluation sets belong to the team, so there is no
+        question text here: the team's editors read the questions at
+        GET /v1/teams/{team}/kbs/{kbId}/index-preview. A knowledge base
+        without evaluation sets has none to compare (sets is empty).
+      responses:
+        "200":
+          description: The comparison
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ProfileMigrationComparison" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/profile-migrations/{migrationId}/evaluate:
     parameters:
       - $ref: "#/components/parameters/MigrationIdParam"
@@ -3214,6 +3242,38 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/kbs/{kbId}/index-preview:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: kbId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [evaluations]
+      operationId: getKnowledgeBaseIndexPreview
+      summary: The comparison of the knowledge base's index preview, with its questions (editors, admins and owners)
+      description: >-
+        The same comparison as the platform admin's, with each question's
+        result on the live index and on the candidate. Null when the
+        knowledge base has no index preview building or waiting. Evaluation
+        sets are for the team's editors, admins and owners: members, API
+        keys and platform staff get 404, and so does everyone while
+        evaluations are off.
+      responses:
+        "200":
+          description: The comparison, or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    nullable: true
+                    allOf:
+                      - $ref: "#/components/schemas/ProfileMigrationComparison"
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/kbs/{kbId}/profile-migration:
     parameters:
@@ -10053,6 +10113,67 @@ components:
             an admin then switches it (POST .../switch) or discards it
             (POST .../cancel). The knowledge base keeps its current profile
             meanwhile. Default false: the migration switches by itself.
+    PreviewSide:
+      type: object
+      description: One side of a set's comparison, a retrieval run of the live index or of the candidate
+      required: [runId, status, createdAt, summary, firstPlace]
+      properties:
+        runId: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, completed, failed, cancelled] }
+        createdAt: { type: string, format: date-time }
+        summary: { $ref: "#/components/schemas/EvaluationSummary" }
+        firstPlace: { type: integer, format: int64, description: Questions whose expected document ranked first }
+    PreviewQuestionChange:
+      type: object
+      required: [caseId, question, change, liveStatus, candidateStatus, liveRank, candidateRank]
+      properties:
+        caseId: { type: string, format: uuid, nullable: true }
+        question: { type: string }
+        change: { type: string, enum: [better, worse, same, only_live, only_candidate], description: "How the candidate did against the live index (only_live and only_candidate: the question was checked in one run only)" }
+        liveStatus: { type: string, description: "pass, fail, missing or error; empty when the question was not in that run" }
+        candidateStatus: { type: string }
+        liveRank: { type: integer, format: int32, nullable: true }
+        candidateRank: { type: integer, format: int32, nullable: true }
+    PreviewSetComparison:
+      type: object
+      required: [setId, name, questions, live, candidate, better, worse, same, unscored]
+      properties:
+        setId: { type: string, format: uuid }
+        name: { type: string }
+        questions: { type: integer, format: int64 }
+        live: { allOf: [{ $ref: "#/components/schemas/PreviewSide" }], nullable: true }
+        candidate: { allOf: [{ $ref: "#/components/schemas/PreviewSide" }], nullable: true }
+        better: { type: integer, format: int64 }
+        worse: { type: integer, format: int64 }
+        same: { type: integer, format: int64 }
+        unscored: { type: integer, format: int64, description: "Questions checked in one run only" }
+        items:
+          type: array
+          description: Each question in both runs; only in the team's view
+          items: { $ref: "#/components/schemas/PreviewQuestionChange" }
+    PreviewTotals:
+      type: object
+      description: Every completed set together; the summaries are scored over all their questions
+      required: [sets, questions, live, candidate, liveFirstPlace, candidateFirstPlace, better, worse, same]
+      properties:
+        sets: { type: integer, format: int64 }
+        questions: { type: integer, format: int64 }
+        live: { $ref: "#/components/schemas/EvaluationSummary" }
+        candidate: { $ref: "#/components/schemas/EvaluationSummary" }
+        liveFirstPlace: { type: integer, format: int64 }
+        candidateFirstPlace: { type: integer, format: int64 }
+        better: { type: integer, format: int64 }
+        worse: { type: integer, format: int64 }
+        same: { type: integer, format: int64 }
+    ProfileMigrationComparison:
+      type: object
+      required: [migrationId, status, running, sets, totals]
+      properties:
+        migrationId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ProfileMigrationStatus" }
+        running: { type: boolean, description: "A comparison of this migration is queued or running; the numbers are the latest that finished" }
+        sets: { type: array, items: { $ref: "#/components/schemas/PreviewSetComparison" } }
+        totals: { $ref: "#/components/schemas/PreviewTotals" }
     ProfileMigrationEvaluation:
       type: object
       required: [sets]

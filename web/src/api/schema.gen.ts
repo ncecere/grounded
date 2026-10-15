@@ -1446,6 +1446,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/profile-migrations/{migrationId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * How a held migration's candidate index compares with the live one (platform admins and auditors; numbers only)
+         * @description Per evaluation set of the knowledge base, the live index's and the candidate's retrieval runs side by side: recall@k, MRR, questions ranked first, and how many questions got better, worse or stayed, from the latest comparison that finished (running says a newer one is under way). Evaluation sets belong to the team, so there is no question text here: the team's editors read the questions at GET /v1/teams/{team}/kbs/{kbId}/index-preview. A knowledge base without evaluation sets has none to compare (sets is empty).
+         */
+        get: operations["adminGetProfileMigrationPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/profile-migrations/{migrationId}/evaluate": {
         parameters: {
             query?: never;
@@ -2032,6 +2054,30 @@ export interface paths {
         head?: never;
         /** Rename or change retrieval settings */
         patch: operations["updateKnowledgeBase"];
+        trace?: never;
+    };
+    "/v1/teams/{team}/kbs/{kbId}/index-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                kbId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The comparison of the knowledge base's index preview, with its questions (editors, admins and owners)
+         * @description The same comparison as the platform admin's, with each question's result on the live index and on the candidate. Null when the knowledge base has no index preview building or waiting. Evaluation sets are for the team's editors, admins and owners: members, API keys and platform staff get 404, and so does everyone while evaluations are off.
+         */
+        get: operations["getKnowledgeBaseIndexPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/teams/{team}/kbs/{kbId}/profile-migration": {
@@ -6964,6 +7010,88 @@ export interface components {
             graceDays?: number;
             /** @description Build the new index and stop before the switch (status ready); an admin then switches it (POST .../switch) or discards it (POST .../cancel). The knowledge base keeps its current profile meanwhile. Default false: the migration switches by itself. */
             hold?: boolean;
+        };
+        /** @description One side of a set's comparison, a retrieval run of the live index or of the candidate */
+        PreviewSide: {
+            /** Format: uuid */
+            runId: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed" | "cancelled";
+            /** Format: date-time */
+            createdAt: string;
+            summary: components["schemas"]["EvaluationSummary"];
+            /**
+             * Format: int64
+             * @description Questions whose expected document ranked first
+             */
+            firstPlace: number;
+        };
+        PreviewQuestionChange: {
+            /** Format: uuid */
+            caseId: string | null;
+            question: string;
+            /**
+             * @description How the candidate did against the live index (only_live and only_candidate: the question was checked in one run only)
+             * @enum {string}
+             */
+            change: "better" | "worse" | "same" | "only_live" | "only_candidate";
+            /** @description pass, fail, missing or error; empty when the question was not in that run */
+            liveStatus: string;
+            candidateStatus: string;
+            /** Format: int32 */
+            liveRank: number | null;
+            /** Format: int32 */
+            candidateRank: number | null;
+        };
+        PreviewSetComparison: {
+            /** Format: uuid */
+            setId: string;
+            name: string;
+            /** Format: int64 */
+            questions: number;
+            live: components["schemas"]["PreviewSide"] | null;
+            candidate: components["schemas"]["PreviewSide"] | null;
+            /** Format: int64 */
+            better: number;
+            /** Format: int64 */
+            worse: number;
+            /** Format: int64 */
+            same: number;
+            /**
+             * Format: int64
+             * @description Questions checked in one run only
+             */
+            unscored: number;
+            /** @description Each question in both runs; only in the team's view */
+            items?: components["schemas"]["PreviewQuestionChange"][];
+        };
+        /** @description Every completed set together; the summaries are scored over all their questions */
+        PreviewTotals: {
+            /** Format: int64 */
+            sets: number;
+            /** Format: int64 */
+            questions: number;
+            live: components["schemas"]["EvaluationSummary"];
+            candidate: components["schemas"]["EvaluationSummary"];
+            /** Format: int64 */
+            liveFirstPlace: number;
+            /** Format: int64 */
+            candidateFirstPlace: number;
+            /** Format: int64 */
+            better: number;
+            /** Format: int64 */
+            worse: number;
+            /** Format: int64 */
+            same: number;
+        };
+        ProfileMigrationComparison: {
+            /** Format: uuid */
+            migrationId: string;
+            status: components["schemas"]["ProfileMigrationStatus"];
+            /** @description A comparison of this migration is queued or running; the numbers are the latest that finished */
+            running: boolean;
+            sets: components["schemas"]["PreviewSetComparison"][];
+            totals: components["schemas"]["PreviewTotals"];
         };
         ProfileMigrationEvaluation: {
             /**
@@ -13877,6 +14005,32 @@ export interface operations {
             428: components["responses"]["ErrorReply"];
         };
     };
+    adminGetProfileMigrationPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                migrationId: components["parameters"]["MigrationIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The comparison */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationComparison"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
     adminEvaluateProfileMigration: {
         parameters: {
             query?: never;
@@ -14909,6 +15063,33 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+        };
+    };
+    getKnowledgeBaseIndexPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                kbId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The comparison, or null */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileMigrationComparison"] | null;
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
         };
     };
     getKnowledgeBaseProfileMigration: {

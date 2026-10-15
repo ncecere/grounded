@@ -1556,25 +1556,25 @@ func (e EmbeddingProfileUpdateStatus) Valid() bool {
 
 // Defines values for EvaluationComparisonItemChange.
 const (
-	Better EvaluationComparisonItemChange = "better"
-	OnlyA  EvaluationComparisonItemChange = "only_a"
-	OnlyB  EvaluationComparisonItemChange = "only_b"
-	Same   EvaluationComparisonItemChange = "same"
-	Worse  EvaluationComparisonItemChange = "worse"
+	EvaluationComparisonItemChangeBetter EvaluationComparisonItemChange = "better"
+	EvaluationComparisonItemChangeOnlyA  EvaluationComparisonItemChange = "only_a"
+	EvaluationComparisonItemChangeOnlyB  EvaluationComparisonItemChange = "only_b"
+	EvaluationComparisonItemChangeSame   EvaluationComparisonItemChange = "same"
+	EvaluationComparisonItemChangeWorse  EvaluationComparisonItemChange = "worse"
 )
 
 // Valid indicates whether the value is a known member of the EvaluationComparisonItemChange enum.
 func (e EvaluationComparisonItemChange) Valid() bool {
 	switch e {
-	case Better:
+	case EvaluationComparisonItemChangeBetter:
 		return true
-	case OnlyA:
+	case EvaluationComparisonItemChangeOnlyA:
 		return true
-	case OnlyB:
+	case EvaluationComparisonItemChangeOnlyB:
 		return true
-	case Same:
+	case EvaluationComparisonItemChangeSame:
 		return true
-	case Worse:
+	case EvaluationComparisonItemChangeWorse:
 		return true
 	default:
 		return false
@@ -3231,6 +3231,60 @@ func (e PlatformRole) Valid() bool {
 	case PlatformRolePlatformAdmin:
 		return true
 	case PlatformRolePlatformAuditor:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PreviewQuestionChangeChange.
+const (
+	PreviewQuestionChangeChangeBetter        PreviewQuestionChangeChange = "better"
+	PreviewQuestionChangeChangeOnlyCandidate PreviewQuestionChangeChange = "only_candidate"
+	PreviewQuestionChangeChangeOnlyLive      PreviewQuestionChangeChange = "only_live"
+	PreviewQuestionChangeChangeSame          PreviewQuestionChangeChange = "same"
+	PreviewQuestionChangeChangeWorse         PreviewQuestionChangeChange = "worse"
+)
+
+// Valid indicates whether the value is a known member of the PreviewQuestionChangeChange enum.
+func (e PreviewQuestionChangeChange) Valid() bool {
+	switch e {
+	case PreviewQuestionChangeChangeBetter:
+		return true
+	case PreviewQuestionChangeChangeOnlyCandidate:
+		return true
+	case PreviewQuestionChangeChangeOnlyLive:
+		return true
+	case PreviewQuestionChangeChangeSame:
+		return true
+	case PreviewQuestionChangeChangeWorse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PreviewSideStatus.
+const (
+	PreviewSideStatusCancelled PreviewSideStatus = "cancelled"
+	PreviewSideStatusCompleted PreviewSideStatus = "completed"
+	PreviewSideStatusFailed    PreviewSideStatus = "failed"
+	PreviewSideStatusQueued    PreviewSideStatus = "queued"
+	PreviewSideStatusRunning   PreviewSideStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the PreviewSideStatus enum.
+func (e PreviewSideStatus) Valid() bool {
+	switch e {
+	case PreviewSideStatusCancelled:
+		return true
+	case PreviewSideStatusCompleted:
+		return true
+	case PreviewSideStatusFailed:
+		return true
+	case PreviewSideStatusQueued:
+		return true
+	case PreviewSideStatusRunning:
 		return true
 	default:
 		return false
@@ -9622,6 +9676,75 @@ type PlatformLimitsUpdate struct {
 // PlatformRole defines model for PlatformRole.
 type PlatformRole string
 
+// PreviewQuestionChange defines model for PreviewQuestionChange.
+type PreviewQuestionChange struct {
+	CandidateRank   *int32              `json:"candidateRank"`
+	CandidateStatus string              `json:"candidateStatus"`
+	CaseId          *openapi_types.UUID `json:"caseId"`
+
+	// Change How the candidate did against the live index (only_live and only_candidate: the question was checked in one run only)
+	Change   PreviewQuestionChangeChange `json:"change"`
+	LiveRank *int32                      `json:"liveRank"`
+
+	// LiveStatus pass, fail, missing or error; empty when the question was not in that run
+	LiveStatus string `json:"liveStatus"`
+	Question   string `json:"question"`
+}
+
+// PreviewQuestionChangeChange How the candidate did against the live index (only_live and only_candidate: the question was checked in one run only)
+type PreviewQuestionChangeChange string
+
+// PreviewSetComparison defines model for PreviewSetComparison.
+type PreviewSetComparison struct {
+	Better    int64        `json:"better"`
+	Candidate *PreviewSide `json:"candidate"`
+
+	// Items Each question in both runs; only in the team's view
+	Items     *[]PreviewQuestionChange `json:"items,omitempty"`
+	Live      *PreviewSide             `json:"live"`
+	Name      string                   `json:"name"`
+	Questions int64                    `json:"questions"`
+	Same      int64                    `json:"same"`
+	SetId     openapi_types.UUID       `json:"setId"`
+
+	// Unscored Questions checked in one run only
+	Unscored int64 `json:"unscored"`
+	Worse    int64 `json:"worse"`
+}
+
+// PreviewSide One side of a set's comparison, a retrieval run of the live index or of the candidate
+type PreviewSide struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// FirstPlace Questions whose expected document ranked first
+	FirstPlace int64              `json:"firstPlace"`
+	RunId      openapi_types.UUID `json:"runId"`
+	Status     PreviewSideStatus  `json:"status"`
+
+	// Summary A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
+	Summary EvaluationSummary `json:"summary"`
+}
+
+// PreviewSideStatus defines model for PreviewSide.Status.
+type PreviewSideStatus string
+
+// PreviewTotals Every completed set together; the summaries are scored over all their questions
+type PreviewTotals struct {
+	Better int64 `json:"better"`
+
+	// Candidate A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
+	Candidate           EvaluationSummary `json:"candidate"`
+	CandidateFirstPlace int64             `json:"candidateFirstPlace"`
+
+	// Live A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
+	Live           EvaluationSummary `json:"live"`
+	LiveFirstPlace int64             `json:"liveFirstPlace"`
+	Questions      int64             `json:"questions"`
+	Same           int64             `json:"same"`
+	Sets           int64             `json:"sets"`
+	Worse          int64             `json:"worse"`
+}
+
 // PriceUnit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 type PriceUnit string
 
@@ -9670,6 +9793,21 @@ type ProfileMigration struct {
 	TeamName   string                 `json:"teamName"`
 	TeamSlug   string                 `json:"teamSlug"`
 	ToProfile  ProfileRef             `json:"toProfile"`
+}
+
+// ProfileMigrationComparison defines model for ProfileMigrationComparison.
+type ProfileMigrationComparison struct {
+	MigrationId openapi_types.UUID `json:"migrationId"`
+
+	// Running A comparison of this migration is queued or running; the numbers are the latest that finished
+	Running bool                   `json:"running"`
+	Sets    []PreviewSetComparison `json:"sets"`
+
+	// Status running: re-embedding (the knowledge base still searches its old profile); ready: a held migration whose new index is built, waiting for an admin to switch or discard it (the knowledge base still searches its old profile); switched: it searches the new profile and the old vectors are kept until oldVectorsUntil; completed: old vectors deleted; cancelled; switched_back.
+	Status ProfileMigrationStatus `json:"status"`
+
+	// Totals Every completed set together; the summaries are scored over all their questions
+	Totals PreviewTotals `json:"totals"`
 }
 
 // ProfileMigrationEstimate defines model for ProfileMigrationEstimate.

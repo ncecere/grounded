@@ -26,6 +26,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"POST", "/v1/admin/profile-migrations/preview", a.admin(a.adminPreviewProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/preflight", a.admin(a.adminPreflightProfileMigration)},
 		{"GET", "/v1/admin/profile-migrations/{migrationId}", a.admin(a.adminGetProfileMigration)},
+		{"GET", "/v1/admin/profile-migrations/{migrationId}/preview", a.admin(a.adminPreviewComparison)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/cancel", a.admin(a.migrationAction(a.ProfileMigrations.Cancel))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/switch", a.admin(a.migrationAction(a.ProfileMigrations.Switch))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/evaluate", a.admin(a.adminEvaluateProfileMigration)},
@@ -33,6 +34,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/retry", a.admin(a.migrationAction(a.ProfileMigrations.Retry))},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/finish", a.admin(a.migrationAction(a.ProfileMigrations.Finish))},
 		{"GET", "/v1/teams/{team}/kbs/{kbId}/profile-migration", a.session(a.getKBProfileMigration)},
+		{"GET", "/v1/teams/{team}/kbs/{kbId}/index-preview", a.session(a.getKBIndexPreview)},
 	}
 }
 
