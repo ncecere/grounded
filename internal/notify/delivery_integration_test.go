@@ -84,7 +84,7 @@ func (env *deliveryEnv) delivery(t *testing.T, to string) (status string, attemp
 
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)

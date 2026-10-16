@@ -52,7 +52,7 @@ Never commit `.env`, `ai.env` (credentials for a real model gateway) or anything
 
 CI's `test` job runs, in order: `make check-generated`, `make lint`, `npm run check:styling` (in `web/`), `make web-test`, `make test SKIP_AUTHZ=1` and `make web build`; the `authz` job runs `make test-authz` alongside it. Run the same (or plain `make test`, which includes the matrix) before opening a pull request. The required checks on `main` are `test`, `authz`, `e2e`, `k8s` and `k8s-smoke`.
 
-**Slow or shared machines:** `TEST_TIME_SCALE=3` (1 to 10, default 1) stretches every test timeout by that factor: the unit tests' 20 s limit and the 5 s `findBy`/`waitFor` wait, and Playwright's test, expect, action and server limits (`web/test-scale.ts`). It is a limit, not a delay, so a test that finishes in time is no slower and a real hang still fails, only later. CI does not set it.
+**Slow or shared machines:** `TEST_TIME_SCALE=3` (1 to 10, default 1) stretches every test timeout by that factor: the unit tests' 20 s limit and the 5 s `findBy`/`waitFor` wait, and Playwright's test, expect, action and server limits (`web/test-scale.ts`), and the deadlines of the Go integration tests' polls ("wait until the documents are ready"; `testutil.Scale`, and `TestWaitDeadlinesAreScaled` fails a poll that does not use it). Durations a test is about (a TTL, a timeout it expects to fire) are never scaled. It is a limit, not a delay, so a test that finishes in time is no slower and a real hang still fails, only later. CI does not set it.
 
 The same suites can run on the homelab cluster instead of the laptop (`dev-env test grounded <name> --ref <branch>`; see [`AGENTS.md`](AGENTS.md)). GitHub CI stays the gate.
 

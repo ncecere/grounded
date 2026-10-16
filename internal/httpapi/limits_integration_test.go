@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
+	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // limitError is an error response with limit details.
@@ -542,7 +543,7 @@ func dailyLimitRaisedByPlatform(t *testing.T, env *webEnv, maxPages int64) {
 // day's page quota.
 func waitDailyLimited(t *testing.T, s *session, sourcePath string) apitypes.Crawl {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
 	for {
 		var list []apitypes.Crawl
 		s.get(sourcePath+"/crawls", &list)

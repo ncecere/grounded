@@ -142,7 +142,7 @@ func TestMaintenanceGatePropagation(t *testing.T) {
 	if _, err := api.SetMaintenance(ctx, admin, MaintenanceUpdate{}, 2); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(MaintenanceTTL + time.Second)
+	deadline := time.Now().Add(testutil.Scale(MaintenanceTTL + time.Second))
 	for {
 		if paused, err := worker.Gate.Paused(ctx); err != nil {
 			t.Fatal(err)

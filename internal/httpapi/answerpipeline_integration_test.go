@@ -355,7 +355,7 @@ func TestStoppedAnswerIsStoredAsShown(t *testing.T) {
 		t.Helper()
 		q := `SELECT count(*) FROM messages m JOIN conversations c ON c.id = m.conversation_id
 			WHERE c.agent_id = $1 AND m.role = 'assistant' AND m.stop_reason = 'aborted'`
-		for deadline := time.Now().Add(10 * time.Second); env.scalar(t, q, agentID) == 0; time.Sleep(50 * time.Millisecond) {
+		for deadline := time.Now().Add(testutil.Scale(10 * time.Second)); env.scalar(t, q, agentID) == 0; time.Sleep(50 * time.Millisecond) {
 			if time.Now().After(deadline) {
 				t.Fatal("no stopped answer stored")
 			}
