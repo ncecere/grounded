@@ -51,8 +51,8 @@ export function renamedTabHref(pathname: string, searchStr: string, renamed: Rec
   return `${pathname}?${q.toString()}`;
 }
 export const crawlDomainTabs = ["requests", "allowlist"] as const;
-/** Team settings (D1). Crawl domains moved to the Data sources page in v0.2.1 (I4); the router redirects ?tab=crawl-domains. */
-export const teamSettingsTabs = ["members", "usage", "api-keys", "audit", "general"] as const;
+/** Team settings (D1); Webhooks (v0.6.0) shows to admins and owners while webhooks are on. Crawl domains moved to the Data sources page in v0.2.1 (I4); the router redirects ?tab=crawl-domains. */
+export const teamSettingsTabs = ["members", "usage", "api-keys", "webhooks", "audit", "general"] as const;
 /** The team's Data sources page (I4): the sources, and the team's crawl domain requests. */
 export const dataSourceTabs = ["sources", "crawl-domains"] as const;
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];

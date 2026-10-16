@@ -5208,6 +5208,351 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /** Team's webhooks, oldest first */
+        get: operations["listTeamWebhooks"];
+        put?: never;
+        /**
+         * Make a webhook; its secret is in the answer and is shown only this once
+         * @description The address must be https on port 443 with a host name an approved destination covers (400 destination_not_approved); at least one event of this kind of webhook; at most 10 per team and 10 for the platform (409 too_many_webhooks). 409 webhooks_off while a platform admin has webhooks turned off.
+         */
+        post: operations["createTeamWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/webhooks/{webhookId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        /** One webhook (never its secret) */
+        get: operations["getTeamWebhook"];
+        put?: never;
+        post?: never;
+        /** Delete a webhook and its delivery log */
+        delete: operations["deleteTeamWebhook"];
+        options?: never;
+        head?: never;
+        /** Change a webhook (If-Match); turning it on again clears what paused it */
+        patch: operations["updateTeamWebhook"];
+        trace?: never;
+    };
+    "/v1/teams/{team}/webhooks/{webhookId}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace the secret at once; the new one is in the answer and is shown only this once */
+        post: operations["rotateTeamWebhookSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/webhooks/{webhookId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test event (webhook.test), whatever the webhook subscribes to */
+        post: operations["testTeamWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/webhooks/{webhookId}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        /** The last 50 deliveries, newest first (kept for 14 days) */
+        get: operations["listTeamWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+                deliveryId: components["parameters"]["WebhookDeliveryIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a delivery's event again (the same event ID and body), as a new delivery */
+        post: operations["redeliverTeamWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platform's webhooks, oldest first */
+        get: operations["listPlatformWebhooks"];
+        put?: never;
+        /**
+         * Make a webhook; its secret is in the answer and is shown only this once
+         * @description The address must be https on port 443 with a host name an approved destination covers (400 destination_not_approved); at least one event of this kind of webhook; at most 10 per team and 10 for the platform (409 too_many_webhooks). 409 webhooks_off while a platform admin has webhooks turned off.
+         */
+        post: operations["createPlatformWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhooks/{webhookId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        /** One webhook (never its secret) */
+        get: operations["getPlatformWebhook"];
+        put?: never;
+        post?: never;
+        /** Delete a webhook and its delivery log */
+        delete: operations["deletePlatformWebhook"];
+        options?: never;
+        head?: never;
+        /** Change a webhook (If-Match); turning it on again clears what paused it */
+        patch: operations["updatePlatformWebhook"];
+        trace?: never;
+    };
+    "/v1/admin/webhooks/{webhookId}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace the secret at once; the new one is in the answer and is shown only this once */
+        post: operations["rotatePlatformWebhookSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhooks/{webhookId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test event (webhook.test), whatever the webhook subscribes to */
+        post: operations["testPlatformWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhooks/{webhookId}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        /** The last 50 deliveries, newest first (kept for 14 days) */
+        get: operations["listPlatformWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+                deliveryId: components["parameters"]["WebhookDeliveryIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a delivery's event again (the same event ID and body), as a new delivery */
+        post: operations["redeliverPlatformWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The events a webhook can subscribe to (people signing in; not API keys) */
+        get: operations["listWebhookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The approved destination host patterns (people signing in; not API keys), so a team admin can choose an address */
+        get: operations["listWebhookDestinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhook-destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a destination host pattern (platform admins; audited)
+         * @description A host such as hooks.example.edu, or *.example.edu for it and its subdomains. Private, loopback, link-local and cloud metadata addresses are refused (400 blocked_address); 409 destination_exists.
+         */
+        post: operations["createWebhookDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/webhook-destinations/{destinationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Withdraw an approval: webhooks to that host stop at once (platform admins; audited) */
+        delete: operations["deleteWebhookDestination"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/settings/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether webhooks are on (platform admins and auditors) */
+        get: operations["adminGetWebhookSettings"];
+        /**
+         * Turn webhooks on or off (platform admins; audited)
+         * @description Off by default. Off means no new webhooks, no events recorded and nothing sent (409 webhooks_off); what exists is kept.
+         */
+        put: operations["adminPutWebhookSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5512,6 +5857,7 @@ export interface components {
         AdminFeatures: {
             evaluations: components["schemas"]["EvaluationSettings"];
             teamRequests: components["schemas"]["TeamRequestSettings"];
+            webhooks: components["schemas"]["WebhookSettings"];
             mcp: components["schemas"]["MCPSettings"];
             answerCache?: components["schemas"]["AnswerCacheSettings"];
             costs: components["schemas"]["AdminFeatureCosts"];
@@ -5906,7 +6252,7 @@ export interface components {
             pendingDomainRequests: number;
         };
         /** @enum {string} */
-        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "team.request_new" | "team.request_decided" | "web.sync_failed" | "source.classification_lowered" | "source.documents_attention" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
+        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "team.request_new" | "team.request_decided" | "web.sync_failed" | "source.classification_lowered" | "source.documents_attention" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "webhook.paused" | "platform.webhook_paused" | "evaluation.regression";
         Notification: {
             /** Format: uuid */
             id: string;
@@ -6052,6 +6398,8 @@ export interface components {
             evaluations?: boolean;
             /** @description In-app team requests are on for the platform (the Request a team page and its entry points show) */
             teamRequests?: boolean;
+            /** @description Webhooks are on for the platform (team admins and owners see Webhooks in Team settings) */
+            webhooks?: boolean;
             /** @description The MCP server (POST /mcp) is on for the platform */
             mcp?: boolean;
             /** @description OAuth sign-in for MCP clients is in effect (experimental; its setting and the MCP server are both on) */
@@ -11423,6 +11771,104 @@ export interface components {
              */
             tokensSaved: number;
         };
+        WebhookSettings: {
+            /** @description Off by default */
+            enabled: boolean;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        WebhookSettingsUpdate: {
+            enabled: boolean;
+        };
+        WebhookEventType: {
+            /** @description For example agent.published */
+            type: string;
+            /**
+             * @description team: a team webhook receives it; platform: a platform webhook does
+             * @enum {string}
+             */
+            scope: "team" | "platform";
+            description: string;
+        };
+        WebhookDestination: {
+            /** Format: uuid */
+            id: string;
+            /** @description A host (hooks.example.edu) or a wildcard (*.example.edu) */
+            pattern: string;
+            note: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        WebhookDestinationCreate: {
+            pattern: string;
+            note?: string;
+        };
+        Webhook: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Absent for a platform webhook
+             */
+            teamId?: string | null;
+            url: string;
+            description: string;
+            events: string[];
+            /** @description The last four characters of the secret, to tell secrets apart */
+            secretHint: string;
+            enabled: boolean;
+            /**
+             * @description Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+             * @enum {string}
+             */
+            pausedReason: "" | "failing" | "gone";
+            /** @description Deliveries that gave up since the last success */
+            consecutiveFailures: number;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        WebhookInput: {
+            /** @description https, port 443, a host name an approved destination covers */
+            url: string;
+            description?: string;
+            /** @description Event types of this kind of webhook (GET /v1/webhook-events) */
+            events: string[];
+            enabled: boolean;
+        };
+        WebhookCreated: {
+            webhook: components["schemas"]["Webhook"];
+            /** @description whsec_… Shown only this once: sign-check deliveries with it (docs/webhooks.md) */
+            secret: string;
+        };
+        WebhookDelivery: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            webhookId: string;
+            /**
+             * Format: uuid
+             * @description The event's ID: the same for every delivery of it, and for a redelivery
+             */
+            eventId: string;
+            eventType: string;
+            /** @enum {string} */
+            status: "pending" | "delivered" | "failed";
+            attempts: number;
+            /** @description The receiver's last HTTP status */
+            lastStatus?: number | null;
+            /** @description A short reason; never the receiver's answer */
+            lastError: string;
+            /** Format: date-time */
+            lastAttemptAt?: string | null;
+            /** Format: date-time */
+            deliveredAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
         TeamRequestSettings: {
             /** @description Off by default */
             enabled: boolean;
@@ -11794,6 +12240,8 @@ export interface components {
         DocumentIdParam: string;
         CrawlIdParam: string;
         MigrationIdParam: string;
+        WebhookIdParam: string;
+        WebhookDeliveryIdParam: string;
         /** @description Team slug or ID */
         TeamParam: string;
         EvaluationSetIdParam: string;
@@ -21263,6 +21711,656 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    listTeamWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhooks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    createTeamWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookInput"];
+            };
+        };
+        responses: {
+            /** @description The webhook and its secret */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookCreated"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    getTeamWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    deleteTeamWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    updateTeamWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    rotateTeamWebhookSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook and its new secret */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookCreated"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    testTeamWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The delivery, queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    listTeamWebhookDeliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deliveries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    redeliverTeamWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                webhookId: components["parameters"]["WebhookIdParam"];
+                deliveryId: components["parameters"]["WebhookDeliveryIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new delivery, queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    listPlatformWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhooks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    createPlatformWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookInput"];
+            };
+        };
+        responses: {
+            /** @description The webhook and its secret */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookCreated"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    getPlatformWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    deletePlatformWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    updatePlatformWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    rotatePlatformWebhookSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook and its new secret */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookCreated"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    testPlatformWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The delivery, queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    listPlatformWebhookDeliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deliveries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    redeliverPlatformWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookId: components["parameters"]["WebhookIdParam"];
+                deliveryId: components["parameters"]["WebhookDeliveryIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new delivery, queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    listWebhookEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event types */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookEventType"][];
+                    };
+                };
+            };
+        };
+    };
+    listWebhookDestinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Destinations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDestination"][];
+                    };
+                };
+            };
+        };
+    };
+    createWebhookDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookDestinationCreate"];
+            };
+        };
+        responses: {
+            /** @description Approved */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookDestination"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    deleteWebhookDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetWebhookSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutWebhookSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WebhookSettings"];
+                    };
+                };
+            };
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];

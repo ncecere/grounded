@@ -85,6 +85,8 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       return { role: ["Role", label(roleLabels)] };
     case "platform.mcp":
       return { enabled: ["MCP server", onOff] };
+    case "platform.webhooks":
+      return { enabled: ["Webhooks", onOff] };
     case "platform.answer_cache":
       return { enabled: ["Saved answers", onOff] };
     case "platform.rerank_settings_update":

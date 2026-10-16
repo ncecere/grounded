@@ -79,7 +79,11 @@ function platformLink(e: AuditEntry): ReactElement | null {
     case "team_request":
       return <Link to="/admin/teams" search={{ tab: "requests" } as never} />;
     case "team_request_settings":
+    case "webhook_settings":
       return <Link to="/admin/settings" />;
+    case "webhook":
+    case "webhook_destination":
+      return <Link to="/admin/webhooks" />;
     case "publishable_key":
       // A widget key's agent.
       return e.parent?.exists ? <Link to="/admin/agents" search={{ record: e.parent.id } as never} /> : <Link to="/admin/agents" />;

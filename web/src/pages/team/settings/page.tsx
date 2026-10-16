@@ -1,5 +1,5 @@
 /*
- * Team settings (D1): Members · Usage & spend · API keys · Audit log ·
+ * Team settings (D1): Members · Usage & spend · API keys · Webhooks (admins and owners, v0.6.0) · Audit log ·
  * General, as pill tabs (?tab=). The first four host the pages that used to
  * be team tabs or sidebar entries; General holds the team's details and the
  * Danger zone (leave the team). The usage tab (?tab=usage) is "Usage &
@@ -8,7 +8,7 @@
  * sources page in v0.2.1; the router redirects ?tab=crawl-domains there.
  */
 import { Link } from "@tanstack/react-router";
-import { FileClock, Gauge, KeyRound, Settings, Users } from "lucide-react";
+import { FileClock, Gauge, KeyRound, Settings, Users, Webhook } from "lucide-react";
 import { PageTabs, useUrlTab } from "../../../components/page-tabs";
 import { teamSettingsTabs } from "../../../lib/tabs";
 import { terms } from "../../../lib/terms";
@@ -26,6 +26,7 @@ import { UsageTab } from "../usage";
 import { TeamAuditLog } from "./audit";
 import { GeneralTab } from "./general";
 import { MembersTab } from "./members";
+import { WebhooksTab } from "./webhooks";
 
 /** The page's description: what its tabs hold for this reader ("Members, usage and spend, API keys, the audit log and general details of …"). */
 export function settingsDescription(name: string, { role, spend }: { role?: string; spend: boolean }) {
@@ -76,6 +77,8 @@ export function TeamSettingsPage() {
             content: <UsageTab team={slug} showSpend={isManager} />,
           },
           { value: "api-keys", label: "API keys", icon: <KeyRound aria-hidden />, hidden: !role, content: <ApiKeysPage embedded /> },
+          // Team admins and owners, while a platform admin has webhooks on (editors and members never see them).
+          { value: "webhooks", label: "Webhooks", icon: <Webhook aria-hidden />, hidden: !(isManager && me.capabilities.webhooks === true), content: <WebhooksTab /> },
           {
             value: "audit",
             label: terms.auditLog,
