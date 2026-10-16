@@ -136,7 +136,7 @@ func TestNotificationInvitesSettingsAndInbox(t *testing.T) {
 func notificationSettings(t *testing.T, app *testApp, owner *session) {
 	alex := app.signIn("alex")
 	var st apitypes.NotificationSettings
-	// Admin-only events (new domain requests, break-glass approvals, profile migrations) are not listed for others.
+	// Admin-only events (new domain requests, new team requests, break-glass approvals, profile migrations) are not listed for others.
 	// Team events are listed for people with their role in some team (v0.4.2 US-14): alex is in none yet.
 	adminOnly, teamOnly := 0, 0
 	for _, d := range notify.Catalog() {
@@ -147,7 +147,7 @@ func notificationSettings(t *testing.T, app *testApp, owner *session) {
 			teamOnly++
 		}
 	}
-	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 4 ||
+	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 5 ||
 		len(st.Items) != len(notify.Catalog())-adminOnly-teamOnly {
 		t.Fatalf("settings = %d %+v", code, st)
 	}
