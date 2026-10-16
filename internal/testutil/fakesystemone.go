@@ -168,6 +168,10 @@ func (p *FakeProxy) systemOne(w http.ResponseWriter, r *http.Request) {
 			text = *st.Answer
 		}
 	}
+	if q, ok := in.Questions["route"]; ok && st.Message != nil {
+		p.routeAnswer(w, *st.Message, q)
+		return
+	}
 	if !p.admitSystemOne(w, r, st) {
 		return
 	}

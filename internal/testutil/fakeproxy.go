@@ -126,6 +126,8 @@ type FakeProxy struct {
 	citeCalls  int
 	citeDelay  time.Duration
 	scopeCalls int
+	routeCalls int
+	routeFail  int
 	scopeFail  int
 	scopeDelay time.Duration
 
