@@ -173,13 +173,6 @@ func (s *Service) giveUp(ctx context.Context, d dbgen.WebhookDelivery, h dbgen.W
 	})
 }
 
-func clip(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n]) + "…"
-	}
-	return s
-}
-
 // ---- pruning ------------------------------------------------------------------------
 
 // PruneArgs deletes old deliveries.
