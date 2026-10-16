@@ -50,6 +50,13 @@ setup("platform models, moderation and public access", async () => {
     moderationProvider: "chat_classifier",
   });
 
+  // SystemOne, with every check off by default: a test turns one on for its own agent (a router needs the scope check).
+  const systemOne = await model("e2e-systemone", { upstreamModel: "jev-latest", displayName: "E2E SystemOne", kind: "systemone" });
+  await admin.putRevised("/v1/admin/systemone", {
+    modelId: systemOne.id,
+    judging: { enabled: false, candidates: 20, mode: "per_passage", timeoutMs: 5000, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.55 } },
+  });
+
   const profiles = await admin.get<Schemas["EmbeddingProfile"][]>("/v1/admin/embedding-profiles");
   if (!profiles.some((p) => p.key === "e2e")) {
     await admin.post("/v1/admin/embedding-profiles", {
