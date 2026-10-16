@@ -428,11 +428,12 @@ func webhookSourceSyncEvents(t *testing.T, env *hookEnv) {
 	deadline := time.Now().Add(testutil.Scale(20 * time.Second))
 	for failed == nil && time.Now().Before(deadline) {
 		for _, c := range env.rx.calls() {
-			if e := envelope(t, c); e.Type == "source.sync_failed" {
+			// A may fail too when the limit lands before it starts: look for B's.
+			if e := envelope(t, c); e.Type == "source.sync_failed" && e.Data["sourceId"] == b.Id.String() {
 				failed = &e
 			}
 		}
-		time.Sleep(250 * time.Millisecond) // the API allows a person 600 requests a minute
+		time.Sleep(100 * time.Millisecond)
 	}
 	if failed == nil {
 		t.Fatalf("no source.sync_failed arrived: %d events", len(env.rx.calls()))
