@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **`TEST_TIME_SCALE` now reaches the Go integration tests.** It stretched only the web tests, so on the cluster's slower cores the Go tests' hard-coded waits (for example the 45 s wait for documents to be ready) had no extra headroom, and one of them failed there and never on GitHub. Every poll deadline goes through `testutil.Scale` (1 to 10, default 1, so CI is unchanged), and a test fails a new one that does not. Development tooling only; nothing in the product changes.
+
 ### Added
 
 - **In-app team requests** (roadmap v0.6.0, [#30](https://github.com/ncecere/grounded/issues/30)), **optional and off by default**. Anyone signed in can ask for a team (name, purpose, the classification its data needs, optionally who should own it); platform admins review the queue in Admin → Teams → Requests, and approving **creates the team in the same step** (optionally with a first agent made from a template) while declining sends a reason. A platform admin turns it on in Admin → Settings → Features, where **Who may ask…** sets an optional SSO group and how many open requests one person may have. Off, the request page disappears and new requests are refused, API included; requests already open stay in the queue, and `TEAM_REQUEST_URL` remains the fallback.

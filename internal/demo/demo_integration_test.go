@@ -161,7 +161,7 @@ func (e *env) startWorker() {
 // waitIndexed waits until the crawl finished and n documents are ready.
 func (e *env) waitIndexed(n int) {
 	e.t.Helper()
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(90 * time.Second))
 	for time.Now().Before(deadline) {
 		var ready, crawling int
 		err := e.pool.QueryRow(context.Background(), `SELECT

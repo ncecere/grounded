@@ -280,7 +280,7 @@ func TestMaintenanceModeParksAndResumesWork(t *testing.T) {
 
 func eventuallyFor(t *testing.T, d time.Duration, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(d)
+	deadline := time.Now().Add(testutil.Scale(d))
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)

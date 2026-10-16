@@ -239,7 +239,7 @@ func (env *webEnv) createWeb(t *testing.T, s *session, path, name string, cfg ma
 // waitCrawl polls a source's crawls until crawlID finishes.
 func waitCrawl(t *testing.T, s *session, sourcePath string, crawlID fmt.Stringer) apitypes.Crawl {
 	t.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(60 * time.Second))
 	for {
 		var list []apitypes.Crawl
 		if code := s.get(sourcePath+"/crawls?limit=20", &list); code != 200 {
@@ -604,7 +604,7 @@ func TestWebScheduler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
 	var list []apitypes.Crawl
 	for {
 		// The periodic scheduler job may be mid-run (and collapse this

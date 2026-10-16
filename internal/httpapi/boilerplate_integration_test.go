@@ -12,6 +12,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/ingest"
+	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // Boilerplate that main-content extraction keeps: it sits inside <main>, as
@@ -57,7 +58,7 @@ func bpSite(t *testing.T) *testSite {
 // done reports true.
 func waitBoilerplate(t *testing.T, s *session, srcPath string, done func(apitypes.SourceBoilerplate) bool) apitypes.SourceBoilerplate {
 	t.Helper()
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(90 * time.Second))
 	for {
 		var src apitypes.DataSource
 		if code := s.get(srcPath, &src); code != 200 {
@@ -128,7 +129,7 @@ func embedEvents(t *testing.T, env *ragEnv, sourceID fmt.Stringer) int {
 // the source is not inserted while one is still marked running).
 func waitNoRefreshJob(t *testing.T, env *ragEnv) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
 	for {
 		var n int
 		if err := env.app.Pool.QueryRow(context.Background(), `SELECT count(*) FROM river_job WHERE kind = 'boilerplate.refresh'

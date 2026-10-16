@@ -307,7 +307,7 @@ func getDoc(t *testing.T, s *session, docs string, id uuid.UUID) apitypes.Docume
 // limit) until cond holds.
 func waitDoc(t *testing.T, s *session, docs string, id uuid.UUID, what string, cond func(apitypes.Document) bool) apitypes.Document {
 	t.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(60 * time.Second))
 	for {
 		d := getDoc(t, s, docs, id)
 		if cond(d) {

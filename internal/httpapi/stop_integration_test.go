@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // TestStopAfterTheModelFinished (v0.4.2 US-05): a reader who presses Stop
@@ -46,7 +48,7 @@ func TestStopAfterTheModelFinished(t *testing.T) {
 		_ = res.Body.Close()
 	}()
 	// The question's check, then the answer's: the model has finished.
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(10 * time.Second))
 	for env.proxy.ModerationRequests() < before+2 {
 		if time.Now().After(deadline) {
 			t.Fatalf("the answer's moderation check never started: %d %d %v", before, env.proxy.ModerationRequests(), env.proxy.RequestLog())

@@ -267,7 +267,7 @@ func eventually(t *testing.T, what string, cond func() bool) {
 	// A ceiling, not a delay: cond usually holds within a second, but a job
 	// picked up by a River worker on a loaded 2-vCPU CI runner under -race
 	// can take well over 10 s.
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(60 * time.Second))
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)
