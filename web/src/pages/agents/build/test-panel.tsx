@@ -62,29 +62,34 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
           <Eraser aria-hidden /> Reset
         </Button>
       </div>
-      <div className={ts.testPanel}>
-        <ChatPanel
-          chat={{
-            ...chat,
-            // Save pending edits first so the test uses them.
-            send: async (message: string) => {
-              await d.flush();
-              return chat.send(message);
-            },
-          }}
-          agent={{ name: p.name || agent.name, accentColor: p.accentColor, welcomeMessage: p.welcomeMessage, starterQuestions: p.starterQuestions, description: p.description }}
-          text={text}
-          onTextChange={setText}
-          inputRef={inputRef}
-          viewer={viewer}
-          label="Draft test conversation"
-          // Editors may open the model's thinking; the chat's readers only see "Thinking…".
-          showThinking
-          errorExtra={problems.length > 0 ? <ProblemList problems={problems} onSelect={onProblem} /> : undefined}
-          onAddToEvaluations={evaluationsOn ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}
-          added={(item) => isAdded(answerKey(item))}
-        />
-      </div>
+      {d.draft.config.router ? (
+        // A router sends the question on in the asker's own conversation, which a draft test has none of (the server refuses it too).
+        <p className={ts.testNote}>A router sends each question to another agent, in the asker's own conversation with it, so it can't be tried here. Publish it, then use Chat to try it.</p>
+      ) : (
+        <div className={ts.testPanel}>
+          <ChatPanel
+            chat={{
+              ...chat,
+              // Save pending edits first so the test uses them.
+              send: async (message: string) => {
+                await d.flush();
+                return chat.send(message);
+              },
+            }}
+            agent={{ name: p.name || agent.name, accentColor: p.accentColor, welcomeMessage: p.welcomeMessage, starterQuestions: p.starterQuestions, description: p.description }}
+            text={text}
+            onTextChange={setText}
+            inputRef={inputRef}
+            viewer={viewer}
+            label="Draft test conversation"
+            // Editors may open the model's thinking; the chat's readers only see "Thinking…".
+            showThinking
+            errorExtra={problems.length > 0 ? <ProblemList problems={problems} onSelect={onProblem} /> : undefined}
+            onAddToEvaluations={evaluationsOn ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}
+            added={(item) => isAdded(answerKey(item))}
+          />
+        </div>
+      )}
       {adding && <AddToEvaluationsDialog team={slug} agentId={agent.id} agentName={agent.name} answer={adding} onClose={() => setAdding(null)} />}
     </section>
   );

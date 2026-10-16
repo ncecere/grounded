@@ -10882,7 +10882,7 @@ export interface components {
             url: string;
             sourceName?: string;
         };
-        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down */
+        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, no_agent (a router found no agent that fits), unsupported (unsupported or contradicted claims), thumbs_down */
         GapSignalCounts: {
             [key: string]: number;
         };

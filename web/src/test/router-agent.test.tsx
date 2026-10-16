@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { signalLabels } from "../pages/team/gaps/queries";
 import { ViewerHost } from "../pages/chat/viewer/host";
 import { applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
@@ -13,6 +14,10 @@ const routed: Schemas["RoutedTo"] = { agentId: "a2", name: "Parking help", slug:
 const answer = (extra: Record<string, unknown> = {}) => applyChatEvent(pendingAssistant(), "message_end", { messageId: "m1", stopReason: "stop", text: "Permits are sold online.", citations: [], ...extra });
 
 describe("a routed answer", () => {
+  it("has a plain word for the gap a router counts", () => {
+    expect(signalLabels.no_agent).toBe("No agent fits");
+  });
+
   it("keeps who answered from message_end and from a stored conversation", () => {
     expect(answer({ routedTo: routed }).routedTo).toEqual(routed);
     expect(answer().routedTo).toBeUndefined();
@@ -107,9 +112,14 @@ const routes = (current: Schemas["Agent"], extra: Record<string, Handler> = {}):
 beforeAll(() => {
   window.scrollTo = () => {};
 });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("a router's editor", () => {
   it("has Routing instead of Knowledge, Tools and Answering, and lists the agents it can reach", async () => {
+    // Below 1100 px the test chat is a drawer opened from the header.
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} }));
     mockApi(
       routes(agent({ router: true }), {
         "GET /v1/agents": () => [
@@ -131,6 +141,13 @@ describe("a router's editor", () => {
     expect(within(list).getByText("It can reach 2 agents that you can chat with.", { exact: false })).toBeInTheDocument();
     // The wording starts as the standard router wording, not the knowledge-base refusal.
     expect((screen.getByRole("textbox", { name: "When nothing fits" }) as HTMLTextAreaElement).value).toMatch(/^I couldn't find an assistant here/);
+    // Not tried in the editor (the draft has no conversation to send the question on in): the panel says so, and the header says what it routes to.
+    expect(screen.getByText("other agents")).toBeInTheDocument();
+    expect(screen.queryByText(/knowledge bases?$/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try it" }));
+    const drawer = await screen.findByRole("dialog", { name: "Try the draft" });
+    expect(await within(drawer).findByText(/can't be tried here/)).toBeInTheDocument();
+    expect(within(drawer).queryByRole("textbox")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 
