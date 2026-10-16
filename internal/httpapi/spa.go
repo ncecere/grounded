@@ -98,6 +98,9 @@ func loadIndex(assets fs.FS, built bool, opts spaOptions) []byte {
 	return renderIndex(page, opts)
 }
 
+// sharedPagePrefix is where a shared conversation opens in the app (the secret is the next segment).
+const sharedPagePrefix = "/shared/"
+
 // spaHandler serves the embedded single-page app. Existing files are served
 // directly (hashed assets are cached for a year); a missing file (a path
 // whose last segment has an extension, such as /favicon.ico) is a plain
@@ -122,6 +125,11 @@ func spaHandler(assets fs.FS, built bool, opts spaOptions) http.Handler {
 			return
 		}
 		h := w.Header()
+		if strings.HasPrefix(r.URL.Path, sharedPagePrefix) {
+			// The address holds a shared conversation's secret: not sent on to the sites its sources link to, not indexed.
+			h.Set("Referrer-Policy", "no-referrer")
+			h.Set("X-Robots-Tag", "noindex, nofollow")
+		}
 		if r.URL.Path == oauthConsentPath {
 			h.Set("Content-Security-Policy", consentCSP)
 		} else {

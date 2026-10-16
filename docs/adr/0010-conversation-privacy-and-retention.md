@@ -1,6 +1,6 @@
 # ADR-0010: Conversation privacy and retention
 
-- Status: Accepted (amended by [ADR-0024](0024-break-glass-scope-and-approval.md): break-glass can include transcripts; approval is a platform setting)
+- Status: Accepted (amended by [ADR-0024](0024-break-glass-scope-and-approval.md): break-glass can include transcripts; approval is a platform setting; amended in v0.6.0: a user can share a read-only view of their own conversation)
 - Date: 2026-09-24
 
 > **Note (2026-09-26):** The state public records law and records-management sign-off below apply to the first install; every install confirms its own retention defaults. See [ADR-0018](0018-open-source-institution-neutral.md) and [ADR-0023](0023-no-institution-data-in-the-repository.md).
@@ -38,6 +38,14 @@ Teams never see who a user is. Unique-user counts use pseudonymous IDs. Dashboar
 - Teams' editors, admins and owners see **topics**: a short label written by the team's chat model from the topic's questions, counts, signals and trend. A topic shows only once **at least 3 different askers** are in it. They never see a question's text or who asked, unless the asker shared it.
 - **Shared questions:** on a thumbs-down, the person may tick "Share this question with the team" (off by default). A shared question is shown in full to the team's editors, admins and owners and can be added to an evaluation set.
 - Platform admins and auditors see failure counts per team only. Public agent pages tell visitors that questions that can't be answered may be grouped, without their details, to improve the agent.
+
+**Amendment (v0.6.0, owner 2026-10-04, built 2026-10-16): sharing a conversation.** Transcripts still belong to the user, and the user may now **hand a read-only view of their own conversation to others, by a link, as their own deliberate act**. Nothing about who else can read transcripts changes: team admins, platform admins and (outside the break-glass rules of ADR-0024) nobody else can read one, and a share gives them no other way in (docs/specs/v0.6.0/DESIGN.md §3).
+- **A share is a pointer, not a copy.** It names a conversation and the last message it covers when it was made (a snapshot: later messages are not in it). No second copy of the transcript exists, so deleting the conversation (by the user, or by retention, which is held by a legal hold as ever) ends every share of it at once, and the user's deletion hides the share immediately, before retention purges it.
+- **Who can open it.** By default, **signed-in people who may chat with that agent** (its audience: its team, or everyone signed in, or, for a public agent, everyone signed in while public access is on). For a **public** agent the user may instead make the link **open to anyone**. The viewer reads what the user was told and could have asked the agent the same question; its sources open the same way as after asking. A share is closed when the agent is disabled, unpublished or deleted.
+- **What it shows.** The questions, the answers and their citations. Never the feedback, the model's reasoning, the steps the agent took, the search it ran, or the agent's checks. A tool's result is named but its text is not shown. The sharer's name is shown only if they tick **Show my name**.
+- **Control.** The user makes, lists and revokes their own shares; a revoked share is gone at once. A share can't be made through an API key, and the link is shown once (only its hash is kept).
+- **Not for teams.** Sharing is not audited in a team's audit log and no team count includes it (teams never see who a user is); the platform audit log records that a link was made or revoked (and whether it was open to anyone), without the agent, the conversation or its content.
+- **Costs and risks:** a link is a bearer secret: anyone who has it and meets the audience can read the transcript, and the user cannot take back what a viewer already saw or copied. The share dialog says so before the link is made. A user who shares an answer that reveals something sensitive has shared it. Viewing a share of a Sensitive or Restricted agent is written to the access log, as using it is.
 
 ## Consequences
 

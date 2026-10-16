@@ -330,6 +330,8 @@ func TestEveryEncryptedColumnIsRegistered(t *testing.T) {
 		// OAuth codes and tokens for /mcp: HMAC digests, looked up under either pepper, never re-hashed (short-lived).
 		"oauth_codes.code_hash": true, "oauth_tokens.token_hash": true, "oauth_tokens.pepper_id": true,
 		"river_job.unique_key": true,
+		// A conversation link's secret is 32 random bytes; the table keeps their plain SHA-256 (nothing to pepper or rotate).
+		"conversation_shares.token_hash": true,
 	}
 	for _, c := range keyrotation.Columns {
 		known[c.Name()] = true

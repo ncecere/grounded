@@ -78,6 +78,7 @@ const (
 	AccessLogEntryChannelMcp    AccessLogEntryChannel = "mcp"
 	AccessLogEntryChannelOpenai AccessLogEntryChannel = "openai"
 	AccessLogEntryChannelPublic AccessLogEntryChannel = "public"
+	AccessLogEntryChannelShared AccessLogEntryChannel = "shared"
 	AccessLogEntryChannelTest   AccessLogEntryChannel = "test"
 	AccessLogEntryChannelUi     AccessLogEntryChannel = "ui"
 	AccessLogEntryChannelWidget AccessLogEntryChannel = "widget"
@@ -93,6 +94,8 @@ func (e AccessLogEntryChannel) Valid() bool {
 	case AccessLogEntryChannelOpenai:
 		return true
 	case AccessLogEntryChannelPublic:
+		return true
+	case AccessLogEntryChannelShared:
 		return true
 	case AccessLogEntryChannelTest:
 		return true
@@ -3753,6 +3756,42 @@ func (e SearchResultType) Valid() bool {
 	}
 }
 
+// Defines values for ShareAudience.
+const (
+	AgentUsers ShareAudience = "agent_users"
+	Anyone     ShareAudience = "anyone"
+)
+
+// Valid indicates whether the value is a known member of the ShareAudience enum.
+func (e ShareAudience) Valid() bool {
+	switch e {
+	case AgentUsers:
+		return true
+	case Anyone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SharedMessageRole.
+const (
+	SharedMessageRoleAssistant SharedMessageRole = "assistant"
+	SharedMessageRoleUser      SharedMessageRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the SharedMessageRole enum.
+func (e SharedMessageRole) Valid() bool {
+	switch e {
+	case SharedMessageRoleAssistant:
+		return true
+	case SharedMessageRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SharedSourceStatus.
 const (
 	SharedSourceStatusActive SharedSourceStatus = "active"
@@ -4176,6 +4215,7 @@ const (
 	AdminListAccessLogParamsChannelMcp    AdminListAccessLogParamsChannel = "mcp"
 	AdminListAccessLogParamsChannelOpenai AdminListAccessLogParamsChannel = "openai"
 	AdminListAccessLogParamsChannelPublic AdminListAccessLogParamsChannel = "public"
+	AdminListAccessLogParamsChannelShared AdminListAccessLogParamsChannel = "shared"
 	AdminListAccessLogParamsChannelTest   AdminListAccessLogParamsChannel = "test"
 	AdminListAccessLogParamsChannelUi     AdminListAccessLogParamsChannel = "ui"
 	AdminListAccessLogParamsChannelWidget AdminListAccessLogParamsChannel = "widget"
@@ -4191,6 +4231,8 @@ func (e AdminListAccessLogParamsChannel) Valid() bool {
 	case AdminListAccessLogParamsChannelOpenai:
 		return true
 	case AdminListAccessLogParamsChannelPublic:
+		return true
+	case AdminListAccessLogParamsChannelShared:
 		return true
 	case AdminListAccessLogParamsChannelTest:
 		return true
@@ -6525,6 +6567,43 @@ type ConversationRetrieval struct {
 	// Judging SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped
 	Judging *RetrievalJudging `json:"judging,omitempty"`
 	Query   string            `json:"query"`
+}
+
+// ConversationShare defines model for ConversationShare.
+type ConversationShare struct {
+	// Audience agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+	Audience  ShareAudience      `json:"audience"`
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// MessageCount Questions and answers the view holds
+	MessageCount int `json:"messageCount"`
+
+	// ShowName The sharer's name is shown on the view
+	ShowName bool `json:"showName"`
+
+	// UpToSeq The last message of the snapshot
+	UpToSeq int `json:"upToSeq"`
+}
+
+// ConversationShareCreate defines model for ConversationShareCreate.
+type ConversationShareCreate struct {
+	// Audience agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+	Audience ShareAudience `json:"audience"`
+
+	// ShowName Show your display name on the view (off by default)
+	ShowName *bool `json:"showName,omitempty"`
+}
+
+// ConversationShareCreated defines model for ConversationShareCreated.
+type ConversationShareCreated struct {
+	Share ConversationShare `json:"share"`
+
+	// Token The link's secret, shown once
+	Token string `json:"token"`
+
+	// Url The link to give out (the app's address, /shared/ and the secret), shown once
+	Url string `json:"url"`
 }
 
 // ConversationToolCall defines model for ConversationToolCall.
@@ -10684,6 +10763,68 @@ type SeenGroup struct {
 	People int64 `json:"people"`
 }
 
+// ShareAudience agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+type ShareAudience string
+
+// SharedCitation defines model for SharedCitation.
+type SharedCitation struct {
+	HeadingPath []string `json:"headingPath"`
+
+	// Kind tool for an MCP tool's result, which is named and never shown
+	Kind      *string `json:"kind,omitempty"`
+	N         int     `json:"n"`
+	PageEnd   *int    `json:"pageEnd,omitempty"`
+	PageStart *int    `json:"pageStart,omitempty"`
+	Server    *string `json:"server,omitempty"`
+	Snippet   *string `json:"snippet,omitempty"`
+	Title     string  `json:"title"`
+	Tool      *string `json:"tool,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
+
+	// Url A web page's address, when the agent linked its sources
+	Url *string `json:"url,omitempty"`
+}
+
+// SharedConversation defines model for SharedConversation.
+type SharedConversation struct {
+	Agent struct {
+		AccentColor string `json:"accentColor"`
+		Description string `json:"description"`
+		Name        string `json:"name"`
+		Slug        string `json:"slug"`
+		TeamSlug    string `json:"teamSlug"`
+	} `json:"agent"`
+
+	// Audience agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+	Audience ShareAudience   `json:"audience"`
+	Messages []SharedMessage `json:"messages"`
+
+	// Owner You made this link
+	Owner    bool      `json:"owner"`
+	SharedAt time.Time `json:"sharedAt"`
+
+	// SharedBy The sharer's display name when they chose to show it, else empty
+	SharedBy string `json:"sharedBy"`
+	Title    string `json:"title"`
+}
+
+// SharedMessage defines model for SharedMessage.
+type SharedMessage struct {
+	Citations []SharedCitation   `json:"citations"`
+	CreatedAt time.Time          `json:"createdAt"`
+	ErrorCode *string            `json:"errorCode,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	Role      SharedMessageRole  `json:"role"`
+	Seq       int                `json:"seq"`
+
+	// Stopped The answer was stopped before it finished
+	Stopped *bool  `json:"stopped,omitempty"`
+	Text    string `json:"text"`
+}
+
+// SharedMessageRole defines model for SharedMessage.Role.
+type SharedMessageRole string
+
 // SharedSource A platform-shared source as teams see it (no documents)
 type SharedSource struct {
 	Classification     string             `json:"classification"`
@@ -12709,6 +12850,9 @@ type OpenaiChatCompletionsJSONRequestBody = OpenAIChatRequest
 
 // RenameConversationJSONRequestBody defines body for RenameConversation for application/json ContentType.
 type RenameConversationJSONRequestBody = ConversationUpdate
+
+// CreateConversationShareJSONRequestBody defines body for CreateConversationShare for application/json ContentType.
+type CreateConversationShareJSONRequestBody = ConversationShareCreate
 
 // UpdateNotificationSettingsJSONRequestBody defines body for UpdateNotificationSettings for application/json ContentType.
 type UpdateNotificationSettingsJSONRequestBody = NotificationSettingsUpdate

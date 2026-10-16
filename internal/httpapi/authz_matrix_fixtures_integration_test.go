@@ -48,6 +48,7 @@ type teamFix struct {
 	auditID        string
 	domainRequest  string
 	conv, message  string // the owner's conversation and its answer
+	share          string // the secret of the owner's link to that conversation (for the agent's users)
 	// An evaluation set on the knowledge base, a question and a run.
 	evalSet, evalQuestion, evalRun string
 	// A gap topic shown to editors (3 askers) and its shared question.
@@ -84,7 +85,7 @@ type matrixEnv struct {
 	seq            atomic.Int64
 }
 
-type ownObjects struct{ conv, message, notification string }
+type ownObjects struct{ conv, message, notification, share string }
 
 // ---- plumbing ------------------------------------------------------------------
 
@@ -255,11 +256,12 @@ func (e *matrixEnv) seedCommon(t *testing.T, f *teamFix, prefix string) {
 	ans := must(t, s, "POST", "/v1/agents/"+f.slug+"/"+f.agentSl+"/chat", map[string]any{"message": "What about " + topic + "?", "stream": false}, nil)
 	f.conv, f.message = field(ans, "conversationId"), field(ans, "messageId")
 	must(t, s, "PATCH", "/v1/conversations/"+f.conv, map[string]any{"title": prefix + " chat about " + topic}, nil)
+	f.share = field(must(t, s, "POST", "/v1/conversations/"+f.conv+"/shares", map[string]any{"audience": "agent_users"}, nil), "token")
 	f.auditID = field(must(t, s, "GET", base+"/audit", nil, nil), "items.0.id")
 	team := must(t, s, "GET", base, nil, nil)
 	f.id, f.name = field(team, "id"), field(team, "name")
 	f.ids = append(f.ids, f.id, f.source, f.doc, f.web, f.webDoc, f.crawl, f.kb, f.agent, f.serviceKey, f.pubKey, f.invite,
-		f.domainRequest, f.conv, f.message)
+		f.domainRequest, f.conv, f.message, f.share)
 	e.seedEvaluations(t, f, prefix)
 	f.gapTopic, f.gapShared = e.seedGapTopic(t, f, prefix)
 	f.ids = append(f.ids, f.gapTopic, f.gapShared)

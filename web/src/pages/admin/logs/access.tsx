@@ -20,7 +20,7 @@ type Entry = Schemas["AccessLogEntry"];
 type Channel = Entry["channel"];
 type Levels = ReturnType<typeof useClassificationLevels>["data"];
 
-export const channelLabels: Record<Channel, string> = { ui: "Chat page", api: "API", openai: "OpenAI API", test: "Draft test", public: "Public page", widget: "Widget", mcp: "MCP server" };
+export const channelLabels: Record<Channel, string> = { ui: "Chat page", api: "API", openai: "OpenAI API", test: "Draft test", public: "Public page", widget: "Widget", mcp: "MCP server", shared: "Shared link" };
 
 function useFacets(): Facet<Entry>[] {
   const agents = useAgentOptions();

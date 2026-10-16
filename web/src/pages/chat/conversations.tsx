@@ -1,11 +1,11 @@
 /*
  * The chat page's conversation list (a full-height panel beside the thread,
  * or a sheet on narrow screens) and each conversation's actions: rename,
- * export and delete.
+ * share, export and delete.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Download, MessageSquareOff, MoreHorizontal, Pencil, SquarePen, Trash2 } from "lucide-react";
+import { Download, MessageSquareOff, MoreHorizontal, Pencil, Share2, SquarePen, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { conversationsKey } from "../../api/queries";
@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton/skeleton";
 import { RelativeTime } from "../../components/templates/list-page";
 import { toast } from "@/components/ui/toast/toast";
 import { groupByDay } from "../../lib/group-by-day";
+import { ShareDialog } from "./share-dialog";
 import c from "./chat.module.css";
 
 type Card = Schemas["AgentCard"];
@@ -30,11 +31,12 @@ export type ConversationSummary = Schemas["Conversation"];
 /** The reader's IANA time zone ("" when the browser doesn't say). */
 const readerZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
 
-/** Rename, export and delete a conversation, from a compact "…" menu. */
+/** Rename, share, export and delete a conversation, from a compact "…" menu. */
 export function ConversationMenu({ conversation, onDeleted, label }: { conversation: ConversationSummary; onDeleted: () => void; label?: string }) {
   const qc = useQueryClient();
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const title = conversation.title || "Untitled conversation";
   // Times in the reader's zone, as the chat shows them (US-03).
   const exportHref = (format: "markdown" | "json") => `/v1/conversations/${conversation.id}/export?format=${format}&tz=${encodeURIComponent(readerZone())}`;
@@ -61,6 +63,9 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
         <MenuItem icon={<Pencil aria-hidden />} onClick={() => setRenaming(true)}>
           Rename…
         </MenuItem>
+        <MenuItem icon={<Share2 aria-hidden />} onClick={() => setSharing(true)}>
+          Share…
+        </MenuItem>
         <MenuLinkItem icon={<Download aria-hidden />} href={exportHref("markdown")} download>
           Export as Markdown
         </MenuLinkItem>
@@ -73,6 +78,7 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
         </MenuItem>
       </Menu>
       {renaming && <RenameDialog conversation={conversation} onClose={() => setRenaming(false)} />}
+      {sharing && <ShareDialog conversation={conversation} onClose={() => setSharing(false)} />}
       <AlertDialog
         open={deleting}
         onOpenChange={(o) => {
@@ -80,7 +86,7 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
           if (!o) remove.reset();
         }}
         title={`Delete “${title}”?`}
-        description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it."
+        description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it. Any link you made to it stops working."
         confirmLabel="Delete conversation"
         busy={remove.isPending}
         error={remove.error}

@@ -78,6 +78,8 @@ CROSS JOIN LATERAL (
         WHEN 'agent_template' THEN (SELECT t.name FROM agent_templates t WHERE t.id = ids.target_uuid)
         WHEN 'team_request' THEN (SELECT r.name FROM team_requests r WHERE r.id = ids.target_uuid)
         WHEN 'team_request_settings' THEN 'Team requests'
+        -- A shared conversation is never named: the platform log records that a link exists, not what it is a link to.
+        WHEN 'conversation_share' THEN 'Shared conversation'
         WHEN 'api_key' THEN (SELECT ak.name FROM api_keys ak WHERE ak.id = ids.target_uuid)
         WHEN 'model_connection' THEN (SELECT c.name FROM model_connections c WHERE c.id = ids.target_uuid)
         WHEN 'model' THEN (SELECT m.display_name FROM models m WHERE m.id = ids.target_uuid)

@@ -13,7 +13,7 @@ export type ContextPassage = Schemas["ContextPassage"];
 export type DocumentText = Schemas["DocumentText"];
 
 /** How a chat reads its answers' cited passages. */
-export type ViewerAccess = { kind: "message" } | { kind: "public"; agentId: string } | { kind: "team"; team: string };
+export type ViewerAccess = { kind: "message" } | { kind: "public"; agentId: string } | { kind: "team"; team: string } | { kind: "shared"; token: string };
 
 /** A source of an answer to show. */
 export type ViewerTarget = { item: AssistantItem; n: number };
@@ -78,6 +78,8 @@ export async function loadViewer(access: ViewerAccess, item: AssistantItem, c: C
   if (access.kind === "team") return c.chunkId ? aroundPassage(access.team, c) : snippetOnly(c);
   if (!item.id || item.status === "streaming") return snippetOnly(c);
   const path = { messageId: item.id, n: c.n };
+  // A shared conversation: the same passage, through the link, only for answers inside its snapshot.
+  if (access.kind === "shared") return fromCited(unwrap(await api.GET("/v1/shared/{token}/messages/{messageId}/sources/{n}", { params: { path: { ...path, token: access.token } } })));
   if (access.kind === "public") {
     return fromCited(unwrap(await api.GET("/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}", { params: { path: { ...path, agentId: access.agentId } } })));
   }

@@ -488,6 +488,8 @@ describe("chat page", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Delete…" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toMatch(/removed permanently under the platform's retention policy/);
+    // A person who shared it learns that the links go with it.
+    expect(dialog.textContent).toMatch(/Any link you made to it stops working/);
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete conversation" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/v1/conversations/c1")).toBe(true));
   });
