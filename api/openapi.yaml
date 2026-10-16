@@ -4143,6 +4143,101 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/LimitReachedReply" }
+  /v1/agent-templates:
+    get:
+      tags: [agents]
+      operationId: listAgentTemplates
+      summary: Agent templates, the built-in ones first (team editors, admins and owners; platform admins and auditors)
+      description: >-
+        Starting points for a new agent (v0.6.0). A template carries how an agent answers (instructions,
+        model, answering mode, safety, SystemOne checks, advanced settings, appearance and starter
+        questions), never knowledge bases, tools or an audience. 403 for anyone who cannot create an
+        agent, and for API keys.
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgentTemplate" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/agent-templates/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [admin]
+      operationId: adminUpdateAgentTemplate
+      summary: Rename a saved template or change its description (platform admins)
+      description: 409 template_builtin for a built-in template; 409 template_name_taken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentTemplateInput" }
+      responses:
+        "200":
+          description: The template
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentTemplate" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteAgentTemplate
+      summary: Delete a saved template (platform admins)
+      description: Agents already made from it are not changed. 409 template_builtin for a built-in template.
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/agents/{agentId}/save-as-template:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/AgentIdParam"
+    post:
+      tags: [agents]
+      operationId: saveAgentAsTemplate
+      summary: Save the agent's draft as a template shared with every team (platform admins who are editors, admins or owners of the team)
+      description: >-
+        Reading a team's agent configuration needs ordinary access to it (ADR-0011), so a platform admin
+        who is not on the team gets 404. The template keeps the instructions and settings, never the
+        knowledge bases, tools or audience. The team's audit log records the copy. 409
+        template_name_taken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentTemplateInput" }
+      responses:
+        "201":
+          description: The template
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentTemplate" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/agents/{agentId}:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -11860,6 +11955,24 @@ components:
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    AgentTemplate:
+      type: object
+      required: [id, name, description, builtIn, accentColor, welcomeMessage, starterQuestions, config]
+      properties:
+        id: { type: string, description: A slug for a built-in template and a UUID for a saved one }
+        name: { type: string }
+        description: { type: string }
+        builtIn: { type: boolean }
+        accentColor: { type: string }
+        welcomeMessage: { type: string }
+        starterQuestions: { type: array, items: { type: string } }
+        config: { $ref: "#/components/schemas/AgentConfig" }
+        createdAt: { type: string, format: date-time }
+    AgentTemplateInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 500 }
     AgentCreate:
       type: object
       required: [name]
@@ -11874,6 +11987,11 @@ components:
           maxItems: 6
           items: { type: string, maxLength: 200 }
         config: { $ref: "#/components/schemas/AgentConfigInput" }
+        templateId:
+          type: string
+          description: >-
+            Start from this template (GET /v1/agent-templates): its appearance and settings are the starting point and every key of
+            config replaces the template's. 404 template_not_found.
     AgentUpdate:
       type: object
       properties:

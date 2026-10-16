@@ -2634,6 +2634,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agent-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agent templates, the built-in ones first (team editors, admins and owners; platform admins and auditors)
+         * @description Starting points for a new agent (v0.6.0). A template carries how an agent answers (instructions, model, answering mode, safety, SystemOne checks, advanced settings, appearance and starter questions), never knowledge bases, tools or an audience. 403 for anyone who cannot create an agent, and for API keys.
+         */
+        get: operations["listAgentTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/agent-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved template (platform admins)
+         * @description Agents already made from it are not changed. 409 template_builtin for a built-in template.
+         */
+        delete: operations["adminDeleteAgentTemplate"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a saved template or change its description (platform admins)
+         * @description 409 template_builtin for a built-in template; 409 template_name_taken.
+         */
+        patch: operations["adminUpdateAgentTemplate"];
+        trace?: never;
+    };
+    "/v1/teams/{team}/agents/{agentId}/save-as-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the agent's draft as a template shared with every team (platform admins who are editors, admins or owners of the team)
+         * @description Reading a team's agent configuration needs ordinary access to it (ADR-0011), so a platform admin who is not on the team gets 404. The template keeps the instructions and settings, never the knowledge bases, tools or audience. The team's audit log records the copy. 409 template_name_taken.
+         */
+        post: operations["saveAgentAsTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/agents/{agentId}": {
         parameters: {
             query?: never;
@@ -8898,6 +8968,23 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        AgentTemplate: {
+            /** @description A slug for a built-in template and a UUID for a saved one */
+            id: string;
+            name: string;
+            description: string;
+            builtIn: boolean;
+            accentColor: string;
+            welcomeMessage: string;
+            starterQuestions: string[];
+            config: components["schemas"]["AgentConfig"];
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        AgentTemplateInput: {
+            name?: string;
+            description?: string;
+        };
         AgentCreate: {
             name: string;
             /** @description Defaults to one derived from the name; same rules as team slugs */
@@ -8908,6 +8995,8 @@ export interface components {
             welcomeMessage?: string;
             starterQuestions?: string[];
             config?: components["schemas"]["AgentConfigInput"];
+            /** @description Start from this template (GET /v1/agent-templates): its appearance and settings are the starting point and every key of config replaces the template's. 404 template_not_found. */
+            templateId?: string;
         };
         AgentUpdate: {
             name?: string;
@@ -16179,6 +16268,112 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
+        };
+    };
+    listAgentTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentTemplate"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteAgentTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminUpdateAgentTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description The template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentTemplate"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    saveAgentAsTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description The template */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentTemplate"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
         };
     };
     getAgent: {

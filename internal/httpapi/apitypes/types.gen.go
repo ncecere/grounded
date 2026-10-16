@@ -5086,7 +5086,10 @@ type AgentCreate struct {
 	// Slug Defaults to one derived from the name; same rules as team slugs
 	Slug             *string   `json:"slug,omitempty"`
 	StarterQuestions *[]string `json:"starterQuestions,omitempty"`
-	WelcomeMessage   *string   `json:"welcomeMessage,omitempty"`
+
+	// TemplateId Start from this template (GET /v1/agent-templates): its appearance and settings are the starting point and every key of config replaces the template's. 404 template_not_found.
+	TemplateId     *string `json:"templateId,omitempty"`
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 }
 
 // AgentInvalidResponse defines model for AgentInvalidResponse.
@@ -5217,6 +5220,29 @@ type AgentSystemOneJudging string
 
 // AgentSystemOneScope The scope check; "" follows the platform default
 type AgentSystemOneScope string
+
+// AgentTemplate defines model for AgentTemplate.
+type AgentTemplate struct {
+	AccentColor string `json:"accentColor"`
+	BuiltIn     bool   `json:"builtIn"`
+
+	// Config An agent's configuration (the draft, or a published version), with defaults applied.
+	Config      AgentConfig `json:"config"`
+	CreatedAt   *time.Time  `json:"createdAt,omitempty"`
+	Description string      `json:"description"`
+
+	// Id A slug for a built-in template and a UUID for a saved one
+	Id               string   `json:"id"`
+	Name             string   `json:"name"`
+	StarterQuestions []string `json:"starterQuestions"`
+	WelcomeMessage   string   `json:"welcomeMessage"`
+}
+
+// AgentTemplateInput defines model for AgentTemplateInput.
+type AgentTemplateInput struct {
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
 
 // AgentUpdate defines model for AgentUpdate.
 type AgentUpdate struct {
@@ -12266,6 +12292,9 @@ type CheckWidgetOriginsJSONBody struct {
 // DevLoginJSONRequestBody defines body for DevLogin for application/json ContentType.
 type DevLoginJSONRequestBody = DevLoginRequest
 
+// AdminUpdateAgentTemplateJSONRequestBody defines body for AdminUpdateAgentTemplate for application/json ContentType.
+type AdminUpdateAgentTemplateJSONRequestBody = AgentTemplateInput
+
 // AdminSetAgentShortNameJSONRequestBody defines body for AdminSetAgentShortName for application/json ContentType.
 type AdminSetAgentShortNameJSONRequestBody = ShortNameUpdate
 
@@ -12487,6 +12516,9 @@ type UpdatePublishableKeyJSONRequestBody = PublishableKeyInput
 
 // RevertAgentJSONRequestBody defines body for RevertAgent for application/json ContentType.
 type RevertAgentJSONRequestBody = AgentRevert
+
+// SaveAgentAsTemplateJSONRequestBody defines body for SaveAgentAsTemplate for application/json ContentType.
+type SaveAgentAsTemplateJSONRequestBody = AgentTemplateInput
 
 // SetAgentStatusJSONRequestBody defines body for SetAgentStatus for application/json ContentType.
 type SetAgentStatusJSONRequestBody = AgentStatusChange

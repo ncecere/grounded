@@ -155,7 +155,7 @@ func apiRoutes(d Deps) []route {
 		groups: ssogroups.New(d.Pool, d.Config.OIDC.GroupsClaim, d.Config.OIDC.Enabled()), health: healthcheck.New(d.Pool)}
 	routes := publicOpsRoutes(d)
 	for _, group := range [][]route{
-		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.chatRoutes(),
+		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.agentTemplateRoutes(), a.chatRoutes(),
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
