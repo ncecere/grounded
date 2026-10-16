@@ -86,7 +86,7 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
           if (!o) remove.reset();
         }}
         title={`Delete “${title}”?`}
-        description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it."
+        description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it. Any link you made to it stops working."
         confirmLabel="Delete conversation"
         busy={remove.isPending}
         error={remove.error}
