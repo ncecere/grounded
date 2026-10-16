@@ -74,6 +74,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/crawl-domains" />;
     case "agent":
       return <Link to="/admin/agents" search={{ record: id } as never} />;
+    case "agent_template":
+      return <Link to="/admin/agent-templates" />;
     case "publishable_key":
       // A widget key's agent.
       return e.parent?.exists ? <Link to="/admin/agents" search={{ record: e.parent.id } as never} /> : <Link to="/admin/agents" />;

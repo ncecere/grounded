@@ -1,4 +1,4 @@
-import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
+import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -22,6 +22,7 @@ export type AdminPath =
   | "/admin/parsing"
   | "/admin/limits"
   | "/admin/agents"
+  | "/admin/agent-templates"
   | "/admin/analytics"
   | "/admin/costs"
   | "/admin/moderation"
@@ -35,8 +36,8 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 24 items (MCP servers joined Models in v0.3, Reranking and
- * Settings in v0.4.2).
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 25 items (MCP servers joined Models in v0.3, Reranking and
+ * Settings in v0.4.2, Agent templates in v0.6.0).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -55,6 +56,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
     items: [
       { to: "/admin/shared-sources", label: "Shared sources", icon: icon(Share2) },
       { to: "/admin/agents", label: "Agents", icon: icon(Bot) },
+      { to: "/admin/agent-templates", label: "Agent templates", icon: icon(LayoutTemplate) },
       { to: "/admin/crawl-domains", label: terms.crawlDomains, icon: icon(Globe) },
       { to: "/admin/parsing", label: "Parsing & OCR", icon: icon(ScanText) },
     ],
@@ -186,6 +188,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
   "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings", "evaluation limits", "questions per set"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
+  "/admin/agent-templates": ["template", "starting point", "starter", "save as template", "built in", "faq", "policy explainer", "course helper"],
   "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens", "failed questions", "gap report", "gaps"],
   "/admin/costs": ["spend", "budget", "prices", "pricing", "money", "billing", "currency", "extension", "tokens"],
   "/admin/logs": ["audit log", "access log", "sensitive", "restricted", "who used", "history", "changes"],

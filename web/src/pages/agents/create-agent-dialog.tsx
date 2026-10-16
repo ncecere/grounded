@@ -2,13 +2,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, unwrap } from "../../api/client";
+import { api, unwrap, type Schemas } from "../../api/client";
 import { ApiErrorAlert } from "../../components/errors";
 import { FormDialog } from "@/components/form-dialog";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Field, Fieldset } from "@/components/ui/field/field";
-import { Input } from "@/components/ui/input/input";
+import { Input, NativeSelect } from "@/components/ui/input/input";
 import { ModelSelector } from "@/components/ui/model-selector/model-selector";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { TextLink } from "@/components/ui/text-link/text-link";
@@ -17,6 +17,7 @@ import s from "../shared.module.css";
 import { agentKey, agentsKey, useClassificationLevels, useKBs, useTeam } from "../team/common";
 import { capabilityLabels, capabilityTones, modelDescription, modelOptions } from "./build/model-section";
 import { defaultChatModel, defaultConfig, slugify, useChatModels } from "./common";
+import { useAgentTemplates } from "./templates";
 import a from "./agents.module.css";
 
 type ChatModel = NonNullable<ReturnType<typeof useChatModels>["data"]>[number];
@@ -39,6 +40,8 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
   const models = useChatModels();
   const kbs = useKBs(team);
   const levels = useClassificationLevels();
+  const templates = useAgentTemplates();
+  const [templateId, setTemplateId] = useState("");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -49,6 +52,13 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
   const shownSlug = slugEdited ? slug : slugify(name);
   // Until one is picked: the platform's first healthy model, not just the first by name (AD-02).
   const model = modelId ? models.data?.find((m) => m.id === modelId) : defaultChatModel(models.data);
+  const template = templates.data?.find((t) => t.id === templateId);
+  // A saved template may name a model; the picker shows it when the platform still offers it.
+  const pickTemplate = (id: string) => {
+    setTemplateId(id);
+    const m = templates.data?.find((t) => t.id === id)?.config.chatModelId;
+    if (m && models.data?.some((x) => x.id === m)) setModelId(m);
+  };
   const levelName = (key: string) => levels.data?.find((l) => l.key === key)?.name ?? key;
   const rankOf = (key?: string | null) => levels.data?.find((l) => l.key === key)?.rank;
   const chosen = Object.entries(picked);
@@ -70,7 +80,14 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
             name: name.trim(),
             slug: shownSlug || undefined,
             description: description.trim() || undefined,
-            config: { ...defaultConfig, chatModelId: model?.id ?? null, kbs: chosen.map(([kbId]) => ({ kbId })) },
+            // From a template: only what the person chose (the template supplies the rest); otherwise the defaults.
+            templateId: template?.id,
+            // Every key is optional to the server (absent ones take the template's, or the defaults); the generated type marks the ones with defaults required.
+            config: {
+              ...(template ? {} : defaultConfig),
+              chatModelId: model?.id ?? null,
+              kbs: chosen.map(([kbId]) => ({ kbId })),
+            } as Schemas["AgentConfigInput"],
           },
         }),
       ),
@@ -99,6 +116,21 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
       submitDisabled={models.isLoading || kbs.isLoading}
       formProps={{ noValidate: true }}
     >
+      {(templates.data?.length ?? 0) > 0 && (
+        <Field
+          label="Start from"
+          description={template ? template.description : "A template brings good instructions and settings; you can change everything."}
+        >
+          <NativeSelect value={templateId} onChange={(e) => pickTemplate(e.target.value)}>
+            <option value="">A blank agent</option>
+            {(templates.data ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      )}
       <Field label="Name" error={submitted ? errors.name : undefined}>
         <Input aria-required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
