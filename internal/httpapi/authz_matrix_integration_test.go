@@ -181,7 +181,7 @@ func (c *mctx) pickP(fixture string, fresh func(*testing.T) string) string {
 // own returns the caller's own objects, or team A's owner's.
 func (c *mctx) own() *ownObjects {
 	if c.foreign {
-		return &ownObjects{conv: c.tf.conv, message: c.tf.message}
+		return &ownObjects{conv: c.tf.conv, message: c.tf.message, share: c.tf.share}
 	}
 	return c.e.ownFor(c.t, c.who)
 }
@@ -315,11 +315,14 @@ func (e *matrixEnv) ownFor(t *testing.T, c caller) *ownObjects {
 	if e.own[c] != nil {
 		return e.own[c]
 	}
-	o := &ownObjects{conv: e.b.conv, message: e.b.message}
+	o := &ownObjects{conv: e.b.conv, message: e.b.message, share: e.b.share}
 	switch c {
 	case cAnon, cServiceKey, cPublishable, cKeyIngest, cKeyManage:
 	default:
 		o.conv, o.message = e.newConversation(t, c)
+		if signedIn.has(c) { // an API key can chat but cannot make a link, so it has the owner's secret to be refused with
+			o.share = e.newShare(t, c, o.conv)
+		}
 	}
 	if e.actors[c].csrf != "" {
 		code, raw := e.send(t, c, get("/v1/notifications"))
@@ -330,6 +333,28 @@ func (e *matrixEnv) ownFor(t *testing.T, c caller) *ownObjects {
 	}
 	e.own[c] = o
 	return o
+}
+
+// newShare has c, a signed-in person, make a link (for the agent's users) to their own conversation and returns its secret.
+func (e *matrixEnv) newShare(t *testing.T, c caller, conv string) string {
+	t.Helper()
+	code, raw := e.send(t, c, post("/v1/conversations/"+conv+"/shares", map[string]any{"audience": "agent_users"}))
+	var env struct{ Data any }
+	if code != 201 || json.Unmarshal(raw, &env) != nil || field(env.Data, "token") == "" {
+		t.Fatalf("share as %s = %d %s", c, code, raw)
+	}
+	return field(env.Data, "token")
+}
+
+// newShareID makes another link for c to their own conversation and returns its id.
+func (e *matrixEnv) newShareID(t *testing.T, c caller, conv string) string {
+	t.Helper()
+	code, raw := e.send(t, c, post("/v1/conversations/"+conv+"/shares", map[string]any{"audience": "agent_users"}))
+	var env struct{ Data any }
+	if code != 201 || json.Unmarshal(raw, &env) != nil || field(env.Data, "share.id") == "" {
+		t.Fatalf("share as %s = %d %s", c, code, raw)
+	}
+	return field(env.Data, "share.id")
 }
 
 // newConversation has c chat with team B's public agent.

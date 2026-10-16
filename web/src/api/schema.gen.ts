@@ -3345,6 +3345,99 @@ export interface paths {
         patch: operations["renameConversation"];
         trace?: never;
     };
+    "/v1/conversations/{conversationId}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The links you made to your own conversation, newest first (a signed-in session; not API keys)
+         * @description A link's secret is shown once, when it is made, so the list has no link; make a new one to get a link again.
+         */
+        get: operations["listConversationShares"];
+        put?: never;
+        /**
+         * Make a link to a read-only view of your own conversation, up to its last finished answer
+         * @description Who can open it: signed-in people who may chat with the agent (agent_users), or, for a public agent with public access on, anyone (anyone). The view shows the questions, the answers and their citations, never feedback, reasoning or the agent's steps, and your name only if showName. It is a snapshot: later messages are not in it. The link ends when you revoke it, delete the conversation (or retention removes it), or the agent is disabled, unpublished or deleted. The response holds the link once. 409 nothing_to_share (no finished answer yet), agent_unavailable, public_share_unavailable, too_many_shares (10 per conversation). 404 for anyone but the conversation's user; 403 for an API key.
+         */
+        post: operations["createConversationShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversationId}/shares/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationIdParam"];
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a link at once */
+        delete: operations["revokeConversationShare"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shared/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Open a shared conversation (a signed-in session, or no credentials for a link open to anyone)
+         * @description For people who may chat with the agent; for a link open to anyone, also anonymous visitors while the agent is public. No API keys (400 credentials_not_accepted). An anonymous caller gets 401 sign_in_required for everything else, including a secret that does not exist, so valid and invalid links cannot be told apart; a signed-in caller gets 404. Never cached and never sent as a referrer. Reading a shared answer of a Sensitive or Restricted agent is recorded in the access log (channel shared).
+         */
+        get: operations["getSharedConversation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shared/{token}/messages/{messageId}/sources/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A passage a shared answer cited, in its document's context
+         * @description The same passage the source viewer shows the person who asked, for whoever may open the share, only for a message inside the share's snapshot and only the passages it cited. The agent's checks of the claims are left out, and the whole document is never offered. Same access and 401/404 rules as the shared conversation.
+         */
+        get: operations["getSharedCitedPassage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations/{conversationId}/export": {
         parameters: {
             query?: never;
@@ -9114,6 +9207,83 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        ConversationShare: {
+            /** Format: uuid */
+            id: string;
+            audience: components["schemas"]["ShareAudience"];
+            /** @description The sharer's name is shown on the view */
+            showName: boolean;
+            /** @description The last message of the snapshot */
+            upToSeq: number;
+            /** @description Questions and answers the view holds */
+            messageCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /**
+         * @description agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+         * @enum {string}
+         */
+        ShareAudience: "agent_users" | "anyone";
+        ConversationShareCreate: {
+            audience: components["schemas"]["ShareAudience"];
+            /** @description Show your display name on the view (off by default) */
+            showName?: boolean;
+        };
+        ConversationShareCreated: {
+            share: components["schemas"]["ConversationShare"];
+            /** @description The link's secret */
+            token: string;
+            /** @description The link to give out (the app's address and /shared/ and the secret) */
+            url: string;
+        };
+        SharedCitation: {
+            n: number;
+            title: string;
+            snippet?: string;
+            headingPath: string[];
+            pageStart?: number;
+            pageEnd?: number;
+            /** @description A web page's address */
+            url?: string;
+            /** @description tool for an MCP tool's result */
+            kind?: string;
+            server?: string;
+            tool?: string;
+            truncated?: boolean;
+        };
+        SharedMessage: {
+            /** Format: uuid */
+            id: string;
+            seq: number;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            text: string;
+            citations: components["schemas"]["SharedCitation"][];
+            errorCode?: string;
+            /** @description The answer was stopped before it finished */
+            stopped?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SharedConversation: {
+            title: string;
+            agent: {
+                name: string;
+                slug: string;
+                teamSlug: string;
+                description: string;
+                accentColor: string;
+            };
+            /** @description The sharer's display name when they chose to show it, else empty */
+            sharedBy: string;
+            /** Format: date-time */
+            sharedAt: string;
+            audience: components["schemas"]["ShareAudience"];
+            /** @description You made this link */
+            owner: boolean;
+            messages: components["schemas"]["SharedMessage"][];
+        };
         AgentTemplate: {
             /** @description A slug for a built-in template and a UUID for a saved one */
             id: string;
@@ -10458,7 +10628,7 @@ export interface components {
             rank: number;
             classification: string;
             /** @enum {string} */
-            channel: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp";
+            channel: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp" | "shared";
         };
         ModerationEvent: {
             /**
@@ -17712,6 +17882,141 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
         };
     };
+    listConversationShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ok */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConversationShare"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    createConversationShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationShareCreate"];
+            };
+        };
+        responses: {
+            /** @description The link, shown once */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConversationShareCreated"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    revokeConversationShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationIdParam"];
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getSharedConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ok */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SharedConversation"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getSharedCitedPassage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ok */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CitedPassage"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
     exportConversation: {
         parameters: {
             query?: {
@@ -18582,7 +18887,7 @@ export interface operations {
                 to?: string;
                 agentId?: string;
                 userId?: string;
-                channel?: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp";
+                channel?: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp" | "shared";
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];

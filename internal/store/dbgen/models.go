@@ -280,6 +280,17 @@ type Conversation struct {
 	AnonSessionID uuid.NullUUID
 }
 
+type ConversationShare struct {
+	ID             uuid.UUID
+	ConversationID uuid.UUID
+	TokenHash      []byte
+	UpToSeq        int32
+	Audience       string
+	ShowName       bool
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
 type CostSetting struct {
 	Singleton     bool
 	Mode          string

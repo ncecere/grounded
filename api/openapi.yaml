@@ -5213,6 +5213,134 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/conversations/{conversationId}/shares:
+    parameters:
+      - $ref: "#/components/parameters/ConversationIdParam"
+    get:
+      tags: [chat]
+      operationId: listConversationShares
+      summary: The links you made to your own conversation, newest first (a signed-in session; not API keys)
+      description: A link's secret is shown once, when it is made, so the list has no link; make a new one to get a link again.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ConversationShare" } }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [chat]
+      operationId: createConversationShare
+      summary: Make a link to a read-only view of your own conversation, up to its last finished answer
+      description: >-
+        Who can open it: signed-in people who may chat with the agent (agent_users), or, for a public agent with public access on, anyone
+        (anyone). The view shows the questions, the answers and their citations, never feedback, reasoning or the agent's steps, and your name
+        only if showName. It is a snapshot: later messages are not in it. The link ends when you revoke it, delete the conversation (or
+        retention removes it), or the agent is disabled, unpublished or deleted. The response holds the link once. 409 nothing_to_share
+        (no finished answer yet), agent_unavailable, public_share_unavailable, too_many_shares (10 per conversation). 404 for anyone but the
+        conversation's user; 403 for an API key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConversationShareCreate" }
+      responses:
+        "201":
+          description: The link, shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ConversationShareCreated" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/conversations/{conversationId}/shares/{shareId}:
+    parameters:
+      - $ref: "#/components/parameters/ConversationIdParam"
+      - name: shareId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [chat]
+      operationId: revokeConversationShare
+      summary: Revoke a link at once
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/shared/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [chat]
+      operationId: getSharedConversation
+      summary: Open a shared conversation (a signed-in session, or no credentials for a link open to anyone)
+      description: >-
+        For people who may chat with the agent; for a link open to anyone, also anonymous visitors while the agent is public. No API keys
+        (400 credentials_not_accepted). An anonymous caller gets 401 sign_in_required for everything else, including a secret that does not
+        exist, so valid and invalid links cannot be told apart; a signed-in caller gets 404. Never cached and never sent as a referrer. Reading
+        a shared answer of a Sensitive or Restricted agent is recorded in the access log (channel shared).
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SharedConversation" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/shared/{token}/messages/{messageId}/sources/{n}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+      - name: messageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/CitationNumberParam"
+    get:
+      tags: [chat]
+      operationId: getSharedCitedPassage
+      summary: A passage a shared answer cited, in its document's context
+      description: >-
+        The same passage the source viewer shows the person who asked, for whoever may open the share, only for a message inside the share's
+        snapshot and only the passages it cited. The agent's checks of the claims are left out, and the whole document is never offered.
+        Same access and 401/404 rules as the shared conversation.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CitedPassage" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/conversations/{conversationId}/export:
     parameters:
       - $ref: "#/components/parameters/ConversationIdParam"
@@ -6032,7 +6160,7 @@ paths:
         - name: channel
           in: query
           required: false
-          schema: { type: string, enum: [ui, api, openai, test, public, widget, mcp] }
+          schema: { type: string, enum: [ui, api, openai, test, public, widget, mcp, shared] }
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -12187,6 +12315,79 @@ components:
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ConversationShare:
+      type: object
+      required: [id, audience, showName, upToSeq, messageCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        audience: { $ref: "#/components/schemas/ShareAudience" }
+        showName: { type: boolean, description: The sharer's name is shown on the view }
+        upToSeq: { type: integer, description: The last message of the snapshot }
+        messageCount: { type: integer, description: Questions and answers the view holds }
+        createdAt: { type: string, format: date-time }
+    ShareAudience:
+      type: string
+      enum: [agent_users, anyone]
+      description: agent_users is signed-in people who may chat with the agent; anyone needs a public agent
+    ConversationShareCreate:
+      type: object
+      required: [audience]
+      properties:
+        audience: { $ref: "#/components/schemas/ShareAudience" }
+        showName: { type: boolean, description: Show your display name on the view (off by default) }
+    ConversationShareCreated:
+      type: object
+      required: [share, token, url]
+      properties:
+        share: { $ref: "#/components/schemas/ConversationShare" }
+        token: { type: string, description: The link's secret, shown once }
+        url: { type: string, description: The link to give out (the app's address and /shared/ and the secret), shown once }
+    SharedCitation:
+      type: object
+      required: [n, title, headingPath]
+      properties:
+        n: { type: integer }
+        title: { type: string }
+        snippet: { type: string }
+        headingPath: { type: array, items: { type: string } }
+        pageStart: { type: integer }
+        pageEnd: { type: integer }
+        url: { type: string, description: A web page's address, when the agent linked its sources }
+        kind: { type: string, description: tool for an MCP tool's result, which is named and never shown }
+        server: { type: string }
+        tool: { type: string }
+        truncated: { type: boolean }
+    SharedMessage:
+      type: object
+      required: [id, seq, role, text, citations, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        seq: { type: integer }
+        role: { type: string, enum: [user, assistant] }
+        text: { type: string }
+        citations: { type: array, items: { $ref: "#/components/schemas/SharedCitation" } }
+        errorCode: { type: string }
+        stopped: { type: boolean, description: The answer was stopped before it finished }
+        createdAt: { type: string, format: date-time }
+    SharedConversation:
+      type: object
+      required: [title, agent, sharedBy, sharedAt, audience, owner, messages]
+      properties:
+        title: { type: string }
+        agent:
+          type: object
+          required: [name, slug, teamSlug, description, accentColor]
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            teamSlug: { type: string }
+            description: { type: string }
+            accentColor: { type: string }
+        sharedBy: { type: string, description: "The sharer's display name when they chose to show it, else empty" }
+        sharedAt: { type: string, format: date-time }
+        audience: { $ref: "#/components/schemas/ShareAudience" }
+        owner: { type: boolean, description: You made this link }
+        messages: { type: array, items: { $ref: "#/components/schemas/SharedMessage" } }
     AgentTemplate:
       type: object
       required: [id, name, description, builtIn, accentColor, welcomeMessage, starterQuestions, config]
@@ -13592,7 +13793,7 @@ components:
         agentVersion: { type: integer, format: int32, nullable: true, description: "null for draft test chats" }
         rank: { type: integer, format: int32 }
         classification: { type: string }
-        channel: { type: string, enum: [ui, api, openai, test, public, widget, mcp] }
+        channel: { type: string, enum: [ui, api, openai, test, public, widget, mcp, shared] }
     ModerationEvent:
       type: object
       required: [id, at, agentId, agentName, agentSlug, teamSlug, agentDeleted, channel, audience, stage, decision, topCategory, score, categories, downgraded, provider, calibrated, latencyMs]
