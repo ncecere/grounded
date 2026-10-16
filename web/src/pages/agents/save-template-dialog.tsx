@@ -47,7 +47,7 @@ export function SaveTemplateDialog({ agent, onClose }: { agent: Agent; onClose: 
     >
       <Alert tone="warning" title="Everyone who makes an agent can read the instructions">
         The template keeps this agent's instructions, model, answering mode, safety and SystemOne settings, advanced settings, appearance and starter questions, as last saved.
-        It never keeps the knowledge bases, the tools or who may use the agent. {agent.teamSlug}'s audit log records the copy.
+        It never keeps the knowledge bases, the tools or who may use the agent. The team's audit log records the copy.
       </Alert>
       <Field label="Template name" error={submitted || taken ? nameError : undefined}>
         <Input

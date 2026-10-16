@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { areaOf, entryTitle, targetTypeLabel } from "../components/audit/labels";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
@@ -263,5 +264,18 @@ describe("Save as template…", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Save as a template" })).toBeNull());
     const sent = calls.filter((c) => c.method === "POST" && c.url.endsWith("/save-as-template")).at(-1)!;
     expect(sent.body).toEqual({ name: "Registrar helper", description: "" });
+  });
+});
+
+describe("audit log wording", () => {
+  it("names the template actions, their area and their target in words", () => {
+    const entry = (action: string) => ({ action, after: null, targetLabel: "Registrar helper" });
+    expect(entryTitle(entry("agent_template.create"))).toBe("Saved an agent as a template: Registrar helper");
+    expect(entryTitle(entry("agent_template.update"))).toBe("Changed an agent template: Registrar helper");
+    expect(entryTitle(entry("agent_template.delete"))).toBe("Deleted an agent template: Registrar helper");
+    // Its own area, apart from Agents (the "agent." prefix does not reach "agent_template.").
+    expect(areaOf("agent_template.create")).toBe("Agent templates");
+    expect(areaOf("agent.create")).toBe("Agents");
+    expect(targetTypeLabel("agent_template")).toBe("Agent template");
   });
 });
