@@ -71,6 +71,8 @@ export function ShareDialog({ conversation, onClose }: { conversation: Conversat
         </Alert>
       ) : (
         <>
+          {/* The new link first: the dialog is taller than a short window, and the link is shown only once. */}
+          {made && <CopyField label="Your link" name="link" value={made.url} description="Copy it now: it is shown only once. To get a link again, make a new one." />}
           <Alert tone="warning" title="Anyone who opens the link can read this conversation">
             They see your questions, the answers and their sources, up to the last answer now. They never see your feedback, the model's reasoning or what the agent did to answer. You can't take
             back what someone has already read, so share it only with people you trust with what it says.
@@ -101,11 +103,6 @@ export function ShareDialog({ conversation, onClose }: { conversation: Conversat
               <Link2 aria-hidden /> Create link
             </Button>
           </div>
-          {made && (
-            <>
-              <CopyField label="Your link" name="link" value={made.url} description="Copy it now: it is shown only once. To get a link again, make a new one." />
-            </>
-          )}
         </>
       )}
       <h3>Links you made</h3>

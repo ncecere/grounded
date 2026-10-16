@@ -12340,8 +12340,8 @@ components:
       required: [share, token, url]
       properties:
         share: { $ref: "#/components/schemas/ConversationShare" }
-        token: { type: string, description: The link's secret, shown once }
-        url: { type: string, description: The link to give out (the app's address and /shared/ and the secret), shown once }
+        token: { type: string, description: "The link's secret, shown once" }
+        url: { type: string, description: "The link to give out (the app's address, /shared/ and the secret), shown once" }
     SharedCitation:
       type: object
       required: [n, title, headingPath]
@@ -12352,8 +12352,8 @@ components:
         headingPath: { type: array, items: { type: string } }
         pageStart: { type: integer }
         pageEnd: { type: integer }
-        url: { type: string, description: A web page's address, when the agent linked its sources }
-        kind: { type: string, description: tool for an MCP tool's result, which is named and never shown }
+        url: { type: string, description: "A web page's address, when the agent linked its sources" }
+        kind: { type: string, description: "tool for an MCP tool's result, which is named and never shown" }
         server: { type: string }
         tool: { type: string }
         truncated: { type: boolean }

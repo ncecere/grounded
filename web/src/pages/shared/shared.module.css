@@ -1,7 +1,7 @@
 /* A shared conversation: a minimal page outside the app shell, one header bar and a reading column. */
 .shell {
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
   flex-direction: column;
   background: var(--color-bg);
   color: var(--color-text);
@@ -39,12 +39,38 @@
 .main {
   display: flex;
   width: 100%;
-  max-width: 62rem;
+  max-width: 75rem;
+  min-height: 0;
   flex: 1;
   flex-direction: column;
   gap: var(--space-4);
   margin-inline: auto;
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* At least this tall, and the rest of the window when there is more: the conversation and a source scroll inside it. */
+.stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 0 26rem;
+  flex-direction: column;
 }
 
 .title {
@@ -60,14 +86,14 @@
   color: var(--color-text-muted);
 }
 
+/* Positioned, so the source cards' absolutely placed parts (their links and hidden labels) stay inside the pane that scrolls. */
 .thread {
+  position: relative;
   display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.footer {
-  display: flex;
-  justify-content: flex-start;
-  padding-block: var(--space-4);
+  overflow-y: auto;
+  padding-inline-end: var(--space-2);
 }

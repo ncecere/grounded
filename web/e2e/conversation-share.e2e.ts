@@ -45,7 +45,8 @@ test("share a conversation: make a link, a team member reads it, others cannot, 
   await test.step("a member of the agent's team reads it, source and all, read only", async () => {
     await member.goto(path);
     await expect(member.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(member.getByText("How much is a student parking permit?")).toBeVisible();
+    // The question is the page's title and the first message.
+    await expect(member.getByRole("article", { name: "You said" })).toContainText("How much is a student parking permit?");
     const answer = member.getByRole("article", { name: "Parking helper said" });
     await expect(answer).toContainText(handbook.answer);
     await expect(member.getByText(/read-only copy of the conversation as it was when it was shared/)).toBeVisible();
@@ -57,6 +58,8 @@ test("share a conversation: make a link, a team member reads it, others cannot, 
     await answer.getByRole("button", { name: "Used 1 source" }).click();
     await answer.getByRole("button", { name: /^Show source 1: / }).click();
     await expect(member.getByText("Cited passage").first()).toBeVisible();
+    // The conversation and the source scroll in their own panes: the page itself never grows past the window.
+    expect(await member.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
     await a11y(member, "a shared conversation: a source opens");
   });
 

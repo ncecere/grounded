@@ -109,24 +109,29 @@ export function SharedPage() {
         )}
       </Bar>
       <main className={c.main}>
-        <h1 className={c.title}>{view.title || "Shared conversation"}</h1>
-        <p className={c.meta}>
-          With {view.agent.name}
-          {view.sharedBy ? ` · shared by ${view.sharedBy}` : ""} · <Time value={view.sharedAt} format="datetime" />
-        </p>
+        <div className={c.head}>
+          <div className={c.heading}>
+            <h1 className={c.title}>{view.title || "Shared conversation"}</h1>
+            <p className={c.meta}>
+              With {view.agent.name}
+              {view.sharedBy ? ` · shared by ${view.sharedBy}` : ""} · <Time value={view.sharedAt} format="datetime" />
+            </p>
+          </div>
+          <Button render={<Link to="/a/$team/$agent" params={{ team: view.agent.teamSlug, agent: view.agent.slug }} />}>
+            <MessageSquare aria-hidden /> Ask {view.agent.name}
+          </Button>
+        </div>
         <Alert tone="info" title="A shared conversation">
           {view.owner ? "You shared this conversation. " : ""}This is a read-only copy of the conversation as it was when it was shared. Later messages are not in it, and it has no feedback or
           reasoning.
         </Alert>
-        <ViewerHost access={{ kind: "shared", token }} items={items}>
-          <section aria-label={`Shared conversation with ${view.agent.name}`} className={c.thread}>
-            <ChatMessages items={items} agent={agent} />
-          </section>
-        </ViewerHost>
-        <div className={c.footer}>
-          <Button render={<Link to="/a/$team/$agent" params={{ team: view.agent.teamSlug, agent: view.agent.slug }} />}>
-            <MessageSquare aria-hidden /> Ask {view.agent.name}
-          </Button>
+        {/* A bounded stage: the conversation and an open source each scroll in their own pane, as in the chat. */}
+        <div className={c.stage}>
+          <ViewerHost access={{ kind: "shared", token }} items={items}>
+            <section aria-label={`Shared conversation with ${view.agent.name}`} className={c.thread}>
+              <ChatMessages items={items} agent={agent} />
+            </section>
+          </ViewerHost>
         </div>
       </main>
     </div>
