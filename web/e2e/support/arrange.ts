@@ -45,7 +45,11 @@ export async function chatModel(api: Api) {
 }
 
 /** An upload source with the handbook (or docs) indexed, a KB over it, and a published agent. */
-export async function publishedAgent(api: Api, team: string, opts: { name: string; audience?: Schemas["Audience"]; docs?: { name: string; body: string }[] }) {
+export async function publishedAgent(
+  api: Api,
+  team: string,
+  opts: { name: string; audience?: Schemas["Audience"]; docs?: { name: string; body: string }[]; description?: string; config?: Record<string, unknown> },
+) {
   const base = `/v1/teams/${team}`;
   const docs = opts.docs ?? [handbook];
   const src = await api.post<Schemas["DataSource"]>(`${base}/sources`, { name: `${opts.name} files`, classification: "open" });
@@ -58,8 +62,9 @@ export async function publishedAgent(api: Api, team: string, opts: { name: strin
   const model = await chatModel(api);
   const agent = await api.post<Schemas["Agent"]>(`${base}/agents`, {
     name: opts.name,
+    description: opts.description ?? "",
     welcomeMessage: "Ask me about parking.",
-    config: { chatModelId: model.id, kbs: [{ kbId: kb.id }], instructions: "Be brief.", audience: opts.audience ?? "team" },
+    config: { chatModelId: model.id, kbs: [{ kbId: kb.id }], instructions: "Be brief.", audience: opts.audience ?? "team", ...opts.config },
   });
   await api.post(`${base}/agents/${agent.id}/publish`, { note: "E2E" }, { expect: 201 });
   return { source: src, kb, agent };

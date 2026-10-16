@@ -692,9 +692,11 @@ func (e CaptchaInfoProvider) Valid() bool {
 
 // Defines values for ChatEventMessageEndNoContextReason.
 const (
-	JudgedOut  ChatEventMessageEndNoContextReason = "judged_out"
-	OutOfScope ChatEventMessageEndNoContextReason = "out_of_scope"
-	SmallTalk  ChatEventMessageEndNoContextReason = "small_talk"
+	JudgedOut        ChatEventMessageEndNoContextReason = "judged_out"
+	NoAgent          ChatEventMessageEndNoContextReason = "no_agent"
+	OutOfScope       ChatEventMessageEndNoContextReason = "out_of_scope"
+	RouteUnavailable ChatEventMessageEndNoContextReason = "route_unavailable"
+	SmallTalk        ChatEventMessageEndNoContextReason = "small_talk"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventMessageEndNoContextReason enum.
@@ -702,7 +704,11 @@ func (e ChatEventMessageEndNoContextReason) Valid() bool {
 	switch e {
 	case JudgedOut:
 		return true
+	case NoAgent:
+		return true
 	case OutOfScope:
+		return true
+	case RouteUnavailable:
 		return true
 	case SmallTalk:
 		return true
@@ -4754,7 +4760,7 @@ type AdminGapTeam struct {
 	Name      string `json:"name"`
 	Questions int32  `json:"questions"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, no_agent (a router found no agent that fits), unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts    `json:"signals"`
 	Slug    string             `json:"slug"`
 	TeamId  openapi_types.UUID `json:"teamId"`
@@ -5093,6 +5099,12 @@ type AgentCard struct {
 	Id    openapi_types.UUID `json:"id"`
 	Name  string             `json:"name"`
 
+	// Routable Routers may send questions to this agent (set only when true)
+	Routable *bool `json:"routable,omitempty"`
+
+	// Router The agent is a router (set only when true)
+	Router *bool `json:"router,omitempty"`
+
 	// ShortName The /a/{short} address, if a platform admin assigned one
 	ShortName        *string     `json:"shortName"`
 	Slug             string      `json:"slug"`
@@ -5147,9 +5159,15 @@ type AgentConfig struct {
 	Rerank *bool `json:"rerank,omitempty"`
 
 	// RerankTopN Passages each reranked search keeps, for judging or the model
-	RerankTopN       *int          `json:"rerankTopN,omitempty"`
-	RetrievalMode    RetrievalMode `json:"retrievalMode"`
-	StrictlyGrounded bool          `json:"strictlyGrounded"`
+	RerankTopN    *int          `json:"rerankTopN,omitempty"`
+	RetrievalMode RetrievalMode `json:"retrievalMode"`
+
+	// Routable Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both
+	Routable *bool `json:"routable,omitempty"`
+
+	// Router The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published
+	Router           *bool `json:"router,omitempty"`
+	StrictlyGrounded bool  `json:"strictlyGrounded"`
 
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
@@ -5204,9 +5222,15 @@ type AgentConfigInput struct {
 	Rerank *bool `json:"rerank,omitempty"`
 
 	// RerankTopN Passages each reranked search keeps, for judging or the model
-	RerankTopN       *int           `json:"rerankTopN,omitempty"`
-	RetrievalMode    *RetrievalMode `json:"retrievalMode,omitempty"`
-	StrictlyGrounded *bool          `json:"strictlyGrounded,omitempty"`
+	RerankTopN    *int           `json:"rerankTopN,omitempty"`
+	RetrievalMode *RetrievalMode `json:"retrievalMode,omitempty"`
+
+	// Routable Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both
+	Routable *bool `json:"routable,omitempty"`
+
+	// Router The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published
+	Router           *bool `json:"router,omitempty"`
+	StrictlyGrounded *bool `json:"strictlyGrounded,omitempty"`
 
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
@@ -5992,18 +6016,21 @@ type ChatEventMessageEnd struct {
 	MessageId openapi_types.UUID `json:"messageId"`
 	NoContext bool               `json:"noContext"`
 
-	// NoContextReason judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call.
+	// NoContextReason judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call. no_agent: a router found no agent that fits the question. route_unavailable: a router could not choose (the SystemOne scope check is off or failed).
 	NoContextReason *ChatEventMessageEndNoContextReason `json:"noContextReason,omitempty"`
 	Refused         bool                                `json:"refused"`
-	StopReason      StopReason                          `json:"stopReason"`
-	Text            string                              `json:"text"`
+
+	// RoutedTo A router sent the question to this agent: it answered, in the asker's own conversation with it
+	RoutedTo   *RoutedTo  `json:"routedTo,omitempty"`
+	StopReason StopReason `json:"stopReason"`
+	Text       string     `json:"text"`
 
 	// Uncited Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
 	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
 	Usage   ChatUsage          `json:"usage"`
 }
 
-// ChatEventMessageEndNoContextReason judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call.
+// ChatEventMessageEndNoContextReason judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call. no_agent: a router found no agent that fits the question. route_unavailable: a router could not choose (the SystemOne scope check is off or failed).
 type ChatEventMessageEndNoContextReason string
 
 // ChatEventMessageStart SSE event message_start
@@ -6537,8 +6564,11 @@ type ConversationMessage struct {
 	Refused *bool `json:"refused,omitempty"`
 
 	// Retrieval The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0
-	Retrieval  *ConversationRetrieval  `json:"retrieval,omitempty"`
-	Role       ConversationMessageRole `json:"role"`
+	Retrieval *ConversationRetrieval  `json:"retrieval,omitempty"`
+	Role      ConversationMessageRole `json:"role"`
+
+	// RoutedTo A router sent the question to this agent: it answered, in the asker's own conversation with it
+	RoutedTo   *RoutedTo               `json:"routedTo,omitempty"`
 	Seq        int32                   `json:"seq"`
 	StopReason *StopReason             `json:"stopReason,omitempty"`
 	Text       string                  `json:"text"`
@@ -7933,7 +7963,7 @@ type GapSharedQuestion struct {
 	Question           string             `json:"question"`
 }
 
-// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
+// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, no_agent (a router found no agent that fits), unsupported (unsupported or contradicted claims), thumbs_down
 type GapSignalCounts map[string]int32
 
 // GapTopic defines model for GapTopic.
@@ -7963,7 +7993,7 @@ type GapTopic struct {
 	// Shared Questions their askers shared
 	Shared int32 `json:"shared"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, no_agent (a router found no agent that fits), unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts `json:"signals"`
 
 	// SinceClosed Questions that joined a closed topic since it closed (0 while open)
@@ -10701,6 +10731,21 @@ type RetrieveResult struct {
 
 // Revision Increases on every change. Send it back in If-Match.
 type Revision = int64
+
+// RoutedTo A router sent the question to this agent: it answered, in the asker's own conversation with it
+type RoutedTo struct {
+	AgentId openapi_types.UUID `json:"agentId"`
+
+	// ConversationId The asker's conversation with that agent, to carry on there
+	ConversationId *openapi_types.UUID `json:"conversationId,omitempty"`
+
+	// Gone The agent has been removed since
+	Gone     *bool  `json:"gone,omitempty"`
+	Name     string `json:"name"`
+	Slug     string `json:"slug"`
+	TeamName string `json:"teamName"`
+	TeamSlug string `json:"teamSlug"`
+}
 
 // ScopeTotals SystemOne scope checks over the range, from the content-free records (all zero when nothing was checked)
 type ScopeTotals struct {

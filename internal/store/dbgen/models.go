@@ -736,6 +736,7 @@ type MessageEvent struct {
 	Cached           bool
 	CacheEntryID     uuid.NullUUID
 	TokensSaved      int32
+	Routing          json.RawMessage
 }
 
 type Model struct {

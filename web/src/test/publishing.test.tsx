@@ -383,9 +383,9 @@ describe("agent editor sharing", () => {
     await waitFor(() => expect(within(group).getByText(/You can't publish to it: A platform admin must set a public moderation policy/)).toBeInTheDocument());
     expect(within(group).getByRole("radio", { name: /Public/ })).toBeChecked();
     expect(within(group).getByRole("radio", { name: /Signed-in users/ })).not.toHaveAttribute("data-disabled");
-    // Audience, then Links, then the Widget (the draft is Public).
+    // Audience, then Routers (whether routers may send people here), then Links, then the Widget (the draft is Public).
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings.slice(-3)).toEqual(["Audience", "Links", "Widget"]);
+    expect(headings.slice(-4)).toEqual(["Audience", "Routers", "Links", "Widget"]);
     expect(await axe(container, { iframes: false })).toHaveNoViolations();
   });
 

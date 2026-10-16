@@ -155,8 +155,10 @@ type MessageView struct {
 	Uncited []UncitedSentence `json:"uncited,omitempty"`
 	// Claims: the answer's citations were checked by v0.2.1 or later
 	// (claimverdicts.go); answers checked before have per-marker verdicts only.
-	Claims    []Claim   `json:"claims,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
+	Claims []Claim `json:"claims,omitempty"`
+	// RoutedTo: a router sent the question to this agent (router.go).
+	RoutedTo  *RoutedView `json:"routedTo,omitempty"`
+	CreatedAt time.Time   `json:"createdAt"`
 }
 
 // ConversationView is a conversation with its transcript.
@@ -215,6 +217,7 @@ func (s *Service) conversationView(ctx context.Context, c dbgen.Conversation) (C
 		return v, err
 	}
 	v.Messages = messageViews(rows)
+	s.attachRouting(ctx, rows, v.Messages)
 	return v, nil
 }
 

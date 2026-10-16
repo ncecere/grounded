@@ -80,6 +80,8 @@ func (ru *run) refuseWithoutModel(ctx context.Context) (Answer, error) {
 	text := ru.cfg.RefusalMessage
 	if ru.noContextReason == NoContextOutOfScope {
 		text = OutOfScopeMessage(ru.agent.Name)
+	} else if t := ru.routerRefusal(); t != "" {
+		text = t
 	}
 	st := &loopState{}
 	ru.startAnswer(st)

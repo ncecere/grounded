@@ -884,12 +884,12 @@ INSERT INTO message_events (team_id, agent_id, agent_version_id, message_id, cha
                             latency_ms, first_token_ms, input_tokens, output_tokens, reasoning_tokens,
                             hit_count, top_similarity, no_context, refused, tool_calls, cited_document_ids,
                             stop_reason, error_code, pseudonymous_user, moderation_input, moderation_output, judging,
-                            citations, scope, cached, cache_entry_id, tokens_saved)
+                            citations, scope, cached, cache_entry_id, tokens_saved, routing)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12,
         $13, $14, $15, $16, $17, $18,
         $19, $20, $21, $22, $23, $24,
-        $25, $26, $27, $28, $29)
+        $25, $26, $27, $28, $29, $30)
 `
 
 type InsertMessageEventParams struct {
@@ -922,6 +922,7 @@ type InsertMessageEventParams struct {
 	Cached           bool
 	CacheEntryID     uuid.NullUUID
 	TokensSaved      int32
+	Routing          json.RawMessage
 }
 
 // ---- analytics events and access log ------------------------------------------------
@@ -956,6 +957,7 @@ func (q *Queries) InsertMessageEvent(ctx context.Context, arg InsertMessageEvent
 		arg.Cached,
 		arg.CacheEntryID,
 		arg.TokensSaved,
+		arg.Routing,
 	)
 	return err
 }
@@ -1300,7 +1302,8 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 
 const listMessages = `-- name: ListMessages :many
 SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, m.retrieval, e.feedback, e.feedback_reason, coalesce(e.feedback_shared, false)::bool AS feedback_shared, e.citations AS citation_check,
-       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
+       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context,
+       e.routing AS routing
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
 ORDER BY m.seq
@@ -1327,6 +1330,7 @@ type ListMessagesRow struct {
 	CitationCheck   json.RawMessage
 	AnswerRefused   bool
 	AnswerNoContext bool
+	Routing         json.RawMessage
 }
 
 // citation_check is the answer's content-free citation check record (NULL:
@@ -1361,6 +1365,7 @@ func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([
 			&i.CitationCheck,
 			&i.AnswerRefused,
 			&i.AnswerNoContext,
+			&i.Routing,
 		); err != nil {
 			return nil, err
 		}

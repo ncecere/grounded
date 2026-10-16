@@ -182,7 +182,7 @@ func (ru *run) messageEvent(ans *Answer, messageID, modelID uuid.NullUUID, laten
 	}
 	ev.ModerationInput, ev.ModerationOutput = ru.moderationRecords()
 	ev.Judging = ru.judgingJSON(ans)
-	ev.Citations, ev.Scope = ru.citationsJSON(), ru.scopeJSON()
+	ev.Citations, ev.Scope, ev.Routing = ru.citationsJSON(), ru.scopeJSON(), ru.routingJSON()
 	if ru.cacheHitNow() { // served from the answer cache (cache.go)
 		ev.Cached, ev.CacheEntryID, ev.TokensSaved = true, uuid.NullUUID{UUID: ru.cache.entryID, Valid: true}, int32(ru.cache.tokens)
 	}

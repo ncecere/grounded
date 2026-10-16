@@ -39,6 +39,7 @@ const shareTokenLen = 43
 var (
 	errNoShare        = apperr.NotFound("share_not_found", "Shared conversation not found")
 	errNothingToShare = apperr.Conflict("nothing_to_share", "This conversation has no finished answer to share yet")
+	errRoutedShare    = apperr.Conflict("not_shareable", "This conversation holds answers from other agents, sent by a router, whose audience may differ, so it can't be shared. Open the agent's own conversation (Continue there) and share that.")
 	errTooManyShares  = apperr.Conflict("too_many_shares", "This conversation has as many links as allowed: revoke one first")
 	errShareNeedsUser = apperr.Forbidden("Only people signed in can share a conversation, and not through an API key")
 	errAgentNotShared = apperr.Conflict("agent_unavailable", "This agent is not available now, so its conversations can't be shared")
@@ -159,6 +160,11 @@ func (s *Service) CreateShare(ctx context.Context, a authz.Actor, conversationID
 		}
 		if seq == 0 {
 			return errNothingToShare
+		}
+		if routed, err := s.hasRoutedAnswers(ctx, conversationID, seq); err != nil {
+			return err
+		} else if routed {
+			return errRoutedShare
 		}
 		if n, err := q.CountConversationShares(ctx, conversationID); err != nil {
 			return err

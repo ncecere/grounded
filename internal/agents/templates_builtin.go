@@ -116,6 +116,25 @@ var builtInTemplates = []Template{
 			c.RefusalMessage = "I couldn't find that in the internal documents. Try asking the team that owns the area."
 		}),
 	},
+	{
+		ID:             "front-door",
+		Name:           "Front door (router)",
+		Description:    "Answers nothing itself: sends each question to the best agent the person may chat with, and shows which one answered.",
+		BuiltIn:        true,
+		WelcomeMessage: "Ask your question and I'll find the assistant that can answer it.",
+		StarterQuestions: []string{
+			"Who can help me with this?",
+			"Where do I start?",
+		},
+		Config: templateConfig(func(c *Config) {
+			c.Router = true
+			c.Instructions = `You are the front door to several assistants. You answer nothing yourself: each question is sent to the assistant that covers it, and that assistant answers.
+
+- When someone only greets you or says thanks, reply in a sentence or two and invite them to ask their question.
+- Do not state facts, give instructions or guess where a question belongs: the assistants do that.`
+			c.RefusalMessage = DefaultNoAgent
+		}),
+	},
 }
 
 // templateConfig builds a built-in template's configuration from the defaults (no model, knowledge bases, tools or audience change).

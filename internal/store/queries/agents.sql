@@ -225,7 +225,8 @@ RETURNING *;
 -- citation_check is the answer's content-free citation check record (NULL:
 -- not checked), and answer_refused and answer_no_context its analytics flags.
 SELECT m.*, e.feedback, e.feedback_reason, coalesce(e.feedback_shared, false)::bool AS feedback_shared, e.citations AS citation_check,
-       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
+       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context,
+       e.routing AS routing
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
 ORDER BY m.seq;
@@ -242,12 +243,12 @@ INSERT INTO message_events (team_id, agent_id, agent_version_id, message_id, cha
                             latency_ms, first_token_ms, input_tokens, output_tokens, reasoning_tokens,
                             hit_count, top_similarity, no_context, refused, tool_calls, cited_document_ids,
                             stop_reason, error_code, pseudonymous_user, moderation_input, moderation_output, judging,
-                            citations, scope, cached, cache_entry_id, tokens_saved)
+                            citations, scope, cached, cache_entry_id, tokens_saved, routing)
 VALUES (@team_id, @agent_id, @agent_version_id, @message_id, @channel, @audience_type, @model_id,
         @latency_ms, @first_token_ms, @input_tokens, @output_tokens, @reasoning_tokens,
         @hit_count, @top_similarity, @no_context, @refused, @tool_calls, @cited_document_ids,
         @stop_reason, @error_code, @pseudonymous_user, @moderation_input, @moderation_output, @judging,
-        @citations, @scope, @cached, @cache_entry_id, @tokens_saved);
+        @citations, @scope, @cached, @cache_entry_id, @tokens_saved, @routing);
 
 -- name: SetMessageFeedback :execrows
 UPDATE message_events SET feedback = @feedback, feedback_reason = @feedback_reason, feedback_shared = @feedback_shared, feedback_at = now()

@@ -92,6 +92,29 @@ describe("New agent: Start from", () => {
     expect(body.config.kbs).toEqual([{ kbId: "kb1" }]);
   });
 
+  it("a router template has no knowledge bases to choose, and none is sent (a router answers from other agents)", async () => {
+    const front: Schemas["AgentTemplate"] = { ...faq, id: "front-door", name: "Front door (router)", description: "Sends each question to the best agent.", config: { ...baseConfig, router: true } };
+    const calls = mockApi(routes("none", { "GET /v1/agent-templates": () => [faq, front], "POST /v1/teams/registrar/agents": () => createdAgent }));
+    renderApp("/teams/registrar/agents");
+    await userEvent.click(await screen.findByRole("button", { name: "New agent" }));
+    const dialog = await screen.findByRole("dialog", { name: "New agent" });
+    const start = await within(dialog).findByRole("combobox", { name: "Start from" });
+    // An ordinary template still asks.
+    await userEvent.selectOptions(start, "Service desk FAQ");
+    expect(await within(dialog).findByRole("checkbox", { name: /Registrar help/ })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /Registrar help/ }));
+    await userEvent.selectOptions(start, "Front door (router)");
+    expect(within(dialog).queryByRole("checkbox", { name: /Registrar help/ })).toBeNull();
+    expect(dialog).toHaveTextContent("A router has no knowledge bases");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Door");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create agent" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url === "/v1/teams/registrar/agents")).toBe(true));
+    const body = calls.find((c) => c.method === "POST" && c.url === "/v1/teams/registrar/agents")!.body as { templateId?: string; config: Record<string, unknown> };
+    expect(body.templateId).toBe("front-door");
+    // The knowledge base ticked for the earlier template is not sent with the router.
+    expect(body.config.kbs).toEqual([]);
+  });
+
   it("a blank agent sends the defaults and no template; a saved template's model is picked when the platform still offers it", async () => {
     const calls = mockApi(routes("none", { "POST /v1/teams/registrar/agents": () => createdAgent }));
     renderApp("/teams/registrar/agents");

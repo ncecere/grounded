@@ -11996,6 +11996,8 @@ components:
         rerank: { type: boolean, description: "Rerank searches with the platform's rerank model (when one is set); absent in configurations saved before v0.4 (on)" }
         rerankTopN: { type: integer, minimum: 1, maximum: 20, description: "Passages each reranked search keeps, for judging or the model" }
         followUpSuggestions: { type: boolean, description: "Suggest up to 3 follow-up questions under an answer with citations (docs/follow-ups.md); absent in configurations saved before v0.4.1 (on)" }
+        routable: { type: boolean, description: "Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both" }
+        router: { type: boolean, description: "The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published" }
     AgentConfigInput:
       type: object
       description: >-
@@ -12038,6 +12040,8 @@ components:
         rerank: { type: boolean, default: true, description: "Rerank searches with the platform's rerank model (docs/v0.4.0.md §3); it only applies once a platform admin sets one" }
         rerankTopN: { type: integer, minimum: 1, maximum: 20, default: 6, description: "Passages each reranked search keeps, for judging or the model" }
         followUpSuggestions: { type: boolean, default: true, description: "Suggest up to 3 follow-up questions the retrieved passages answer, under an answer with citations (docs/follow-ups.md): a small chat-model call after the answer, metered as chat tokens" }
+        routable: { type: boolean, default: false, description: "Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both" }
+        router: { type: boolean, default: false, description: "The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published" }
     AgentSystemOne:
       type: object
       description: >-
@@ -12526,6 +12530,8 @@ components:
         citationMode: { $ref: "#/components/schemas/CitationMode" }
         status: { $ref: "#/components/schemas/AgentStatus" }
         audience: { $ref: "#/components/schemas/Audience" }
+        routable: { type: boolean, description: "Routers may send questions to this agent (set only when true)" }
+        router: { type: boolean, description: "The agent is a router (set only when true)" }
         group:
           type: string
           enum: [team, organisation, public]
@@ -13252,16 +13258,19 @@ components:
         usage: { $ref: "#/components/schemas/ChatUsage" }
         refused: { type: boolean }
         noContext: { type: boolean }
+        routedTo: { $ref: "#/components/schemas/RoutedTo" }
         noContextReason:
           type: string
-          enum: [judged_out, small_talk, out_of_scope]
+          enum: [judged_out, small_talk, out_of_scope, no_agent, route_unavailable]
           description: >-
             judged_out: SystemOne judging dropped every candidate, so a strictly
             grounded agent refused without calling the chat model. small_talk:
             the scope check found small talk, answered without retrieval.
             out_of_scope: the scope check found the question outside the
             agent's subject, and a strictly grounded agent refused without
-            retrieval or a chat-model call.
+            retrieval or a chat-model call. no_agent: a router found no agent
+            that fits the question. route_unavailable: a router could not
+            choose (the SystemOne scope check is off or failed).
         uncited:
           type: array
           description: >-
@@ -13391,6 +13400,18 @@ components:
     FeedbackReason:
       type: string
       enum: [incorrect, not_helpful, missing_sources, wrong_sources, outdated, harmful_or_unsafe, other]
+    RoutedTo:
+      type: object
+      description: "A router sent the question to this agent: it answered, in the asker's own conversation with it"
+      required: [agentId, name, slug, teamSlug, teamName]
+      properties:
+        agentId: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        conversationId: { type: string, format: uuid, description: "The asker's conversation with that agent, to carry on there" }
+        gone: { type: boolean, description: "The agent has been removed since" }
     ConversationMessage:
       type: object
       required: [id, seq, role, text, createdAt]
@@ -13416,6 +13437,7 @@ components:
         feedback: { $ref: "#/components/schemas/FeedbackRating" }
         feedbackReason: { $ref: "#/components/schemas/FeedbackReason" }
         feedbackShared: { type: boolean, description: "The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md)" }
+        routedTo: { $ref: "#/components/schemas/RoutedTo" }
         refused: { type: boolean, description: "The answer is the agent's refusal (nothing in its sources answers the question, or it's out of scope): the chat offers the agent's starter questions under it, as it did live" }
         uncited:
           type: array
@@ -14050,7 +14072,7 @@ components:
         sourceName: { type: string }
     GapSignalCounts:
       type: object
-      description: "Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down"
+      description: "Questions per signal: no_context, refused, judged_out, out_of_scope, no_agent (a router found no agent that fits), unsupported (unsupported or contradicted claims), thumbs_down"
       additionalProperties: { type: integer, format: int32 }
     GapTopic:
       type: object

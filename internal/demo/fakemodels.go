@@ -59,6 +59,7 @@ func NewPacedFakeModels(apiKey string, wordDelay time.Duration) http.Handler {
 		}})
 	})
 	mux.HandleFunc("POST /v1/embeddings", fakeEmbeddings)
+	mux.HandleFunc("POST /v1/systemone", fakeSystemOne) // fakemodels_systemone.go
 	mux.HandleFunc("POST /v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		fakeCompletions(w, r, wordDelay)
 	})

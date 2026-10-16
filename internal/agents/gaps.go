@@ -48,6 +48,9 @@ const GapSimilarity = 0.8
 // is uncited sentences counts as answered well (and may be saved); the
 // chat and the claim-check analytics still show them.
 func (ru *run) gapSignals(ans *Answer) []string {
+	if ru.routeRec != nil {
+		return ru.routeGapSignals(ans)
+	}
 	if ans.ErrorCode != "" || ans.Moderation != nil || ans.noContextReason == NoContextSmallTalk {
 		return nil
 	}

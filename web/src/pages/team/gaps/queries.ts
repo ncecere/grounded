@@ -40,6 +40,7 @@ export const signalLabels: Record<string, string> = {
   refused: "Refused",
   judged_out: "No relevant passage",
   out_of_scope: "Out of scope",
+  no_agent: "No agent fits", // a router found no agent for the question
   unsupported: "Unsupported claims",
   thumbs_down: "Thumbs-down",
 };
