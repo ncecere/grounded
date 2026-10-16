@@ -105,6 +105,7 @@ CROSS JOIN LATERAL (
         WHEN 'document' THEN (SELECT COALESCE(NULLIF(d.title, ''), NULLIF(d.filename, ''), d.url) FROM documents d WHERE d.id = ids.target_uuid)
         WHEN 'knowledge_base' THEN (SELECT kb.name FROM knowledge_bases kb WHERE kb.id = ids.target_uuid)
         WHEN 'agent' THEN (SELECT ag.name FROM agents ag WHERE ag.id = ids.target_uuid AND ag.deleted_at IS NULL)
+        WHEN 'agent_template' THEN (SELECT t.name FROM agent_templates t WHERE t.id = ids.target_uuid)
         WHEN 'api_key' THEN (SELECT ak.name FROM api_keys ak WHERE ak.id = ids.target_uuid)
         WHEN 'model_connection' THEN (SELECT c.name FROM model_connections c WHERE c.id = ids.target_uuid)
         WHEN 'model' THEN (SELECT m.display_name FROM models m WHERE m.id = ids.target_uuid)

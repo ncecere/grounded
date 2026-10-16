@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -18,6 +19,17 @@ func (env *agentEnv) templates(t *testing.T, s *session) []apitypes.AgentTemplat
 		t.Fatalf("list templates = %d", code)
 	}
 	return list
+}
+
+// templateAuditLabel is how the platform audit log names a template now, and whether it still exists.
+func templateAuditLabel(t *testing.T, admin *session, action, id string) (string, bool) {
+	t.Helper()
+	e := findAudit(t, auditPage(t, admin, "/v1/admin/audit", url.Values{"limit": {"200"}}), action, id)
+	label := ""
+	if e.TargetLabel != nil {
+		label = *e.TargetLabel
+	}
+	return label, e.TargetExists
 }
 
 func findTemplate(list []apitypes.AgentTemplate, name string) *apitypes.AgentTemplate {
@@ -187,6 +199,11 @@ func TestSaveAsTemplateAndManage(t *testing.T) {
 		t.Errorf("the team's audit log has %d entries for the copy", n)
 	}
 
+	// The audit log names the template as it is now (the target types are checked against ListAudit's labels by internal/audit).
+	if label, exists := templateAuditLabel(t, env.admin, "agent_template.create", tm.Id); label != "Registrar helper" || !exists {
+		t.Errorf("audit label after saving = %q exists=%v", label, exists)
+	}
+
 	// Names are unique, ignoring case, and the built-in names are taken.
 	for _, name := range []string{"registrar HELPER", "service desk faq", ""} {
 		code, e = env.admin.call("POST", save, map[string]any{"name": name}, nil, nil)
@@ -232,6 +249,9 @@ func TestSaveAsTemplateAndManage(t *testing.T) {
 	if renamed.Name != "Registrar v2" || renamed.Description != "Short answers." || renamed.Config.Instructions != tm.Config.Instructions {
 		t.Errorf("renamed = %+v", renamed)
 	}
+	if label, exists := templateAuditLabel(t, env.admin, "agent_template.update", tm.Id); label != "Registrar v2" || !exists {
+		t.Errorf("audit label after renaming = %q exists=%v, want the new name", label, exists)
+	}
 	code, e = env.admin.call("PATCH", path, map[string]any{"name": "Service Desk FAQ"}, nil, nil)
 	mustCode(t, "rename onto a built-in name", code, e, 409, "template_name_taken")
 	code, e = env.admin.call("PATCH", "/v1/admin/agent-templates/"+"3f0e1d2c-0000-4000-8000-000000000000", map[string]any{"name": "X"}, nil, nil)
@@ -240,6 +260,9 @@ func TestSaveAsTemplateAndManage(t *testing.T) {
 	// Delete: the agents made from it keep their own copy.
 	code, e = env.admin.call("DELETE", path, nil, nil, nil)
 	mustCode(t, "delete", code, e, 200, "")
+	if _, exists := templateAuditLabel(t, env.admin, "agent_template.delete", tm.Id); exists {
+		t.Error("the audit log says a deleted template still exists")
+	}
 	if findTemplate(env.templates(t, env.editor), "Registrar v2") != nil {
 		t.Error("a deleted template is still listed")
 	}
