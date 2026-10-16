@@ -252,3 +252,33 @@ func BudgetEvent(t TeamRef, n BudgetNotice) Event {
 }
 
 func day(t time.Time) string { return t.UTC().Format("2 January 2006") }
+
+// webhookPausedWhy is the reason a webhook paused, in a sentence.
+func webhookPausedWhy(reason string) string {
+	if reason == "gone" {
+		return "the receiver answered that it is gone (410)"
+	}
+	return "its deliveries failed several times in a row"
+}
+
+// WebhookPausedEvent: a team's webhook stopped sending; it reaches the team's admins and owners.
+func WebhookPausedEvent(t TeamRef, webhookID uuid.UUID, host, reason string) Event {
+	return Event{
+		Type: WebhookPaused, TeamID: t.ID, Link: t.path("/settings?tab=webhooks"),
+		Title: fmt.Sprintf("Webhook paused: %s (%s)", host, t.Name),
+		Body: fmt.Sprintf("The webhook to %s in %s stopped sending because %s. Fix the receiver, then turn the webhook back on under Team settings, Webhooks.",
+			host, t.Name, webhookPausedWhy(reason)),
+		Data: map[string]any{"team": t.Slug, "webhookId": webhookID, "reason": reason},
+	}
+}
+
+// PlatformWebhookPausedEvent: a platform-wide webhook stopped sending; it reaches the platform admins.
+func PlatformWebhookPausedEvent(admins []uuid.UUID, webhookID uuid.UUID, host, reason string) Event {
+	return Event{
+		Type: PlatformWebhookPaused, Users: admins, Link: "/admin/webhooks",
+		Title: fmt.Sprintf("Platform webhook paused: %s", host),
+		Body: fmt.Sprintf("The platform webhook to %s stopped sending because %s. Fix the receiver, then turn it back on under Admin, Webhooks.",
+			host, webhookPausedWhy(reason)),
+		Data: map[string]any{"webhookId": webhookID, "reason": reason},
+	}
+}

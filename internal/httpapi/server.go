@@ -47,6 +47,7 @@ import (
 	"github.com/ncecere/grounded/internal/teamrequests"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/web"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Deps are the dependencies shared by handlers.
@@ -102,6 +103,8 @@ type Deps struct {
 	Evaluations *evals.Service
 	// TeamRequests handles in-app requests for a team (v0.6.0, E3).
 	TeamRequests *teamrequests.Service
+	// Webhooks sends signed, retried events to other systems (v0.6.0, F3).
+	Webhooks *webhooks.Service
 	// MCP registers MCP servers and approves their tools (docs/mcp-client.md).
 	MCP *mcpclient.Service
 	// OAuth is the authorization server for /mcp (experimental, docs/mcp.md).
@@ -158,7 +161,7 @@ func apiRoutes(d Deps) []route {
 		groups: ssogroups.New(d.Pool, d.Config.OIDC.GroupsClaim, d.Config.OIDC.Enabled()), health: healthcheck.New(d.Pool)}
 	routes := publicOpsRoutes(d)
 	for _, group := range [][]route{
-		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.agentTemplateRoutes(), a.teamRequestRoutes(), a.shareRoutes(), a.chatRoutes(),
+		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.agentTemplateRoutes(), a.teamRequestRoutes(), a.webhookRoutes(), a.shareRoutes(), a.chatRoutes(),
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),

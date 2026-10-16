@@ -5,7 +5,7 @@
  * read-only with the reason.
  */
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Cable, ClipboardCheck, DatabaseZap, KeyRound, UsersRound } from "lucide-react";
+import { BookOpen, Cable, ClipboardCheck, DatabaseZap, KeyRound, UsersRound, Webhook } from "lucide-react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "../overview/answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "../overview/evaluations-switch";
@@ -13,6 +13,7 @@ import { experimental, FeatureList, fromQuery, off, on, type Row } from "../over
 import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "../overview/mcp-switch";
 import { OAuthSwitch, oauthDocsUrl, oauthFeature, useOAuthSave } from "../overview/oauth-switch";
 import { TeamRequestsSwitch, teamRequestsText, useTeamRequestSettings } from "../overview/team-requests-switch";
+import { WebhooksSwitch, useWebhookSettings, webhooksText } from "../overview/webhooks-switch";
 import o from "../overview/overview.module.css";
 
 export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
@@ -21,6 +22,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   const oauth = useOAuthSave(mcp);
   const cache = useAnswerCacheSetting();
   const teamRequests = useTeamRequestSettings();
+  const webhooks = useWebhookSettings();
   const rows: Row[] = [
     fromQuery(
       evaluations.settings,
@@ -45,6 +47,18 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
         link: <Link to="/admin/teams" search={{ tab: "requests" }} />,
       },
       (d) => ({ state: d.enabled ? on : off, description: teamRequestsText(d) }),
+    ),
+    fromQuery(
+      webhooks.settings,
+      {
+        id: "webhooks",
+        icon: <Webhook />,
+        title: "Webhooks",
+        control: <WebhooksSwitch setting={webhooks} isAdmin={isAdmin} />,
+        action: "Approved destinations",
+        link: <Link to="/admin/webhooks" />,
+      },
+      (d) => ({ state: d.enabled ? on : off, description: webhooksText(d.enabled) }),
     ),
     fromQuery(
       mcp.settings,
@@ -82,6 +96,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   const errors: [unknown, string][] = [
     [evaluations.save.error, "Couldn't change evaluations"],
     [teamRequests.save.error, "Couldn't change team requests"],
+    [webhooks.save.error, "Couldn't change webhooks"],
     [mcp.save.error, "Couldn't change the MCP server"],
     [oauth.error, "Couldn't change OAuth sign-in"],
     [cache.save.error, "Couldn't change saved answers"],

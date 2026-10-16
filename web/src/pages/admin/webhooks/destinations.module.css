@@ -1,0 +1,21 @@
+/* Admin → Webhooks › Approved destinations. Semantic tokens only. */
+.rules {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.addRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 40rem) {
+  .addRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

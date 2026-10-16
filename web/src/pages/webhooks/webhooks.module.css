@@ -1,0 +1,15 @@
+/* Webhooks: the list's event chips, addresses and codes. Semantic tokens only. */
+.mono {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.url {
+  overflow-wrap: anywhere;
+}

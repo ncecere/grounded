@@ -33,6 +33,7 @@ import (
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/teams"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Agent statuses.
@@ -53,6 +54,8 @@ type Service struct {
 	// Notify tells team admins when the platform disables an agent, and
 	// owners when an agent is published beyond the team (nil: nobody).
 	Notify *notify.Service
+	// Webhooks hears of published agents and ratings (nil: nobody).
+	Webhooks *webhooks.Service
 	// Moderation checks questions and answers (nil: nothing is moderated).
 	Moderation *moderation.Service
 	// SystemOne judges retrieved passages when a SystemOne model is

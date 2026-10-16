@@ -2,6 +2,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
 import { teamRequestSettingsQuery } from "./team-requests-switch";
+import { webhookSettingsQuery } from "../../webhooks/api";
 
 export const overviewQuery = () => ({
   queryKey: ["admin", "overview"],
@@ -97,6 +98,7 @@ export const featuresQuery = (qc: QueryClient) => ({
     const f = unwrap(await api.GET("/v1/admin/features"));
     qc.setQueryData(evaluationSettingsQuery().queryKey, f.evaluations);
     qc.setQueryData(teamRequestSettingsQuery().queryKey, f.teamRequests);
+    qc.setQueryData(webhookSettingsQuery().queryKey, f.webhooks);
     qc.setQueryData(mcpSettingsQuery().queryKey, f.mcp);
     if (f.answerCache) qc.setQueryData(answerCacheSettingsQuery().queryKey, f.answerCache);
     return f;

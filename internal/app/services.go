@@ -49,6 +49,7 @@ import (
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/vectorstore"
 	"github.com/ncecere/grounded/internal/web"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Services are the domain services shared by the API and worker.
@@ -92,6 +93,8 @@ type Services struct {
 	Evaluations *evals.Service
 	// TeamRequests handles in-app requests for a team (v0.6.0, E3).
 	TeamRequests *teamrequests.Service
+	// Webhooks sends signed, retried events to other systems (v0.6.0, F3).
+	Webhooks *webhooks.Service
 	// Costs prices usage, reports spend and enforces budgets (E2).
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
@@ -255,6 +258,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
 	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
+	wireWebhooks(s, box, jobsClient)
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache
 	return s, nil
@@ -317,6 +321,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
 			evals.Register(w, s.Evaluations)
+			webhooks.Register(w, s.Webhooks)
 			registerHealth(w, cfg, pool, s, log)
 			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check,
 				SystemOne: s.SystemOne.PlatformClient, Log: log})
@@ -341,6 +346,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			profilemig.SweepPeriodic(),
 			profilemig.CleanupPeriodic(),
 			notifyPeriodic(),
+			webhooks.PrunePeriodic(),
 			breakglass.Periodic(),
 			retention.Periodic(),
 			costs.RollupPeriodic(),

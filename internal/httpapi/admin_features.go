@@ -49,6 +49,11 @@ func (a *api) featureSettings(ctx context.Context, actor authz.Actor, out *apity
 		return err
 	}
 	out.TeamRequests = toAPITeamRequestSettings(tr)
+	wh, err := a.Webhooks.Settings(ctx, actor)
+	if err != nil {
+		return err
+	}
+	out.Webhooks = toAPIWebhookSettings(wh)
 	mcp, err := a.Platform.MCPSettings(ctx, actor)
 	if err != nil {
 		return err

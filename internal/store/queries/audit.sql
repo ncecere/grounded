@@ -78,6 +78,9 @@ CROSS JOIN LATERAL (
         WHEN 'agent_template' THEN (SELECT t.name FROM agent_templates t WHERE t.id = ids.target_uuid)
         WHEN 'team_request' THEN (SELECT r.name FROM team_requests r WHERE r.id = ids.target_uuid)
         WHEN 'team_request_settings' THEN 'Team requests'
+        WHEN 'webhook' THEN (SELECT w.url FROM webhooks w WHERE w.id = ids.target_uuid)
+        WHEN 'webhook_destination' THEN (SELECT d.pattern FROM webhook_destinations d WHERE d.id = ids.target_uuid)
+        WHEN 'webhook_settings' THEN 'Webhooks'
         -- A shared conversation is never named: the platform log records that a link exists, not what it is a link to.
         WHEN 'conversation_share' THEN 'Shared conversation'
         WHEN 'api_key' THEN (SELECT ak.name FROM api_keys ak WHERE ak.id = ids.target_uuid)

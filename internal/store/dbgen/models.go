@@ -1250,3 +1250,51 @@ type WebFrontier struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
+
+type Webhook struct {
+	ID                  uuid.UUID
+	TeamID              uuid.NullUUID
+	URL                 string
+	Description         string
+	Events              []string
+	SecretCipher        []byte
+	SecretHint          string
+	Enabled             bool
+	PausedReason        string
+	ConsecutiveFailures int32
+	CreatedBy           uuid.NullUUID
+	Revision            int64
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+type WebhookDelivery struct {
+	ID            uuid.UUID
+	WebhookID     uuid.UUID
+	EventID       uuid.UUID
+	EventType     string
+	Payload       json.RawMessage
+	Status        string
+	Attempts      int32
+	LastStatus    *int32
+	LastError     string
+	LastAttemptAt *time.Time
+	DeliveredAt   *time.Time
+	CreatedAt     time.Time
+}
+
+type WebhookDestination struct {
+	ID        uuid.UUID
+	Pattern   string
+	Note      string
+	CreatedBy uuid.NullUUID
+	CreatedAt time.Time
+}
+
+type WebhookSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}

@@ -66,6 +66,8 @@ tags:
       Public agents for anonymous visitors: profiles, anonymous sessions and
       chat, the widget loader and the embed page (docs/phase4-publishing.md
       §5-§7). No other API is available anonymously.
+  - name: webhooks
+    description: Signed, retried events for other systems (v0.6.0)
 paths:
   /healthz:
     get:
@@ -8155,6 +8157,503 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [webhooks]
+      operationId: listTeamWebhooks
+      summary: "Team's webhooks, oldest first"
+      responses:
+        "200":
+          description: Webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Webhook" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [webhooks]
+      operationId: createTeamWebhook
+      summary: Make a webhook; its secret is in the answer and is shown only this once
+      description: >-
+        The address must be https on port 443 with a host name an approved destination covers (400 destination_not_approved); at least one event of
+        this kind of webhook; at most 10 per team and 10 for the platform (409 too_many_webhooks). 409 webhooks_off while a platform admin has
+        webhooks turned off.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "201":
+          description: The webhook and its secret
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookCreated" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks/{webhookId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/WebhookIdParam"
+    get:
+      tags: [webhooks]
+      operationId: getTeamWebhook
+      summary: One webhook (never its secret)
+      responses:
+        "200":
+          description: The webhook
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [webhooks]
+      operationId: updateTeamWebhook
+      summary: Change a webhook (If-Match); turning it on again clears what paused it
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [webhooks]
+      operationId: deleteTeamWebhook
+      summary: Delete a webhook and its delivery log
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks/{webhookId}/rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/WebhookIdParam"
+    post:
+      tags: [webhooks]
+      operationId: rotateTeamWebhookSecret
+      summary: Replace the secret at once; the new one is in the answer and is shown only this once
+      responses:
+        "200":
+          description: The webhook and its new secret
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookCreated" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks/{webhookId}/test:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/WebhookIdParam"
+    post:
+      tags: [webhooks]
+      operationId: testTeamWebhook
+      summary: Send a test event (webhook.test), whatever the webhook subscribes to
+      responses:
+        "202":
+          description: The delivery, queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks/{webhookId}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/WebhookIdParam"
+    get:
+      tags: [webhooks]
+      operationId: listTeamWebhookDeliveries
+      summary: The last 50 deliveries, newest first (kept for 14 days)
+      responses:
+        "200":
+          description: Deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/WebhookIdParam"
+      - $ref: "#/components/parameters/WebhookDeliveryIdParam"
+    post:
+      tags: [webhooks]
+      operationId: redeliverTeamWebhook
+      summary: Send a delivery's event again (the same event ID and body), as a new delivery
+      responses:
+        "202":
+          description: The new delivery, queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks:
+    get:
+      tags: [webhooks]
+      operationId: listPlatformWebhooks
+      summary: "Platform's webhooks, oldest first"
+      responses:
+        "200":
+          description: Webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Webhook" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [webhooks]
+      operationId: createPlatformWebhook
+      summary: Make a webhook; its secret is in the answer and is shown only this once
+      description: >-
+        The address must be https on port 443 with a host name an approved destination covers (400 destination_not_approved); at least one event of
+        this kind of webhook; at most 10 per team and 10 for the platform (409 too_many_webhooks). 409 webhooks_off while a platform admin has
+        webhooks turned off.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "201":
+          description: The webhook and its secret
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookCreated" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks/{webhookId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookIdParam"
+    get:
+      tags: [webhooks]
+      operationId: getPlatformWebhook
+      summary: One webhook (never its secret)
+      responses:
+        "200":
+          description: The webhook
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [webhooks]
+      operationId: updatePlatformWebhook
+      summary: Change a webhook (If-Match); turning it on again clears what paused it
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [webhooks]
+      operationId: deletePlatformWebhook
+      summary: Delete a webhook and its delivery log
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks/{webhookId}/rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/WebhookIdParam"
+    post:
+      tags: [webhooks]
+      operationId: rotatePlatformWebhookSecret
+      summary: Replace the secret at once; the new one is in the answer and is shown only this once
+      responses:
+        "200":
+          description: The webhook and its new secret
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookCreated" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks/{webhookId}/test:
+    parameters:
+      - $ref: "#/components/parameters/WebhookIdParam"
+    post:
+      tags: [webhooks]
+      operationId: testPlatformWebhook
+      summary: Send a test event (webhook.test), whatever the webhook subscribes to
+      responses:
+        "202":
+          description: The delivery, queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks/{webhookId}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/WebhookIdParam"
+    get:
+      tags: [webhooks]
+      operationId: listPlatformWebhookDeliveries
+      summary: The last 50 deliveries, newest first (kept for 14 days)
+      responses:
+        "200":
+          description: Deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver:
+    parameters:
+      - $ref: "#/components/parameters/WebhookIdParam"
+      - $ref: "#/components/parameters/WebhookDeliveryIdParam"
+    post:
+      tags: [webhooks]
+      operationId: redeliverPlatformWebhook
+      summary: Send a delivery's event again (the same event ID and body), as a new delivery
+      responses:
+        "202":
+          description: The new delivery, queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDelivery" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/webhook-events:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookEvents
+      summary: The events a webhook can subscribe to (people signing in; not API keys)
+      responses:
+        "200":
+          description: Event types
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookEventType" }
+  /v1/webhook-destinations:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookDestinations
+      summary: The approved destination host patterns (people signing in; not API keys), so a team admin can choose an address
+      responses:
+        "200":
+          description: Destinations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDestination" }
+  /v1/admin/webhook-destinations:
+    post:
+      tags: [webhooks]
+      operationId: createWebhookDestination
+      summary: Approve a destination host pattern (platform admins; audited)
+      description: >-
+        A host such as hooks.example.edu, or *.example.edu for it and its subdomains. Private, loopback, link-local and cloud metadata addresses
+        are refused (400 blocked_address); 409 destination_exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookDestinationCreate" }
+      responses:
+        "201":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDestination" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/webhook-destinations/{destinationId}:
+    parameters:
+      - name: destinationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [webhooks]
+      operationId: deleteWebhookDestination
+      summary: "Withdraw an approval: webhooks to that host stop at once (platform admins; audited)"
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/settings/webhooks:
+    get:
+      tags: [admin]
+      operationId: adminGetWebhookSettings
+      summary: Whether webhooks are on (platform admins and auditors)
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutWebhookSettings
+      summary: Turn webhooks on or off (platform admins; audited)
+      description: >-
+        Off by default. Off means no new webhooks, no events recorded and nothing sent (409 webhooks_off); what exists is kept.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
 components:
   headers:
     ETag:
@@ -8233,6 +8732,16 @@ components:
       schema: { type: string, format: uuid }
     MigrationIdParam:
       name: migrationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WebhookIdParam:
+      name: webhookId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WebhookDeliveryIdParam:
+      name: deliveryId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -8877,10 +9386,11 @@ components:
         ok: { type: boolean }
     AdminFeatures:
       type: object
-      required: [evaluations, teamRequests, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
+      required: [evaluations, teamRequests, webhooks, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
       properties:
         evaluations: { $ref: "#/components/schemas/EvaluationSettings" }
         teamRequests: { $ref: "#/components/schemas/TeamRequestSettings" }
+        webhooks: { $ref: "#/components/schemas/WebhookSettings" }
         mcp: { $ref: "#/components/schemas/MCPSettings" }
         answerCache: { $ref: "#/components/schemas/AnswerCacheSettings" }
         costs: { $ref: "#/components/schemas/AdminFeatureCosts" }
@@ -9277,6 +9787,8 @@ components:
         - breakglass.decided
         - platform.profile_migration
         - kb.profile_changed
+        - webhook.paused
+        - platform.webhook_paused
         - evaluation.regression
     Notification:
       type: object
@@ -9428,6 +9940,9 @@ components:
         teamRequests:
           type: boolean
           description: In-app team requests are on for the platform (the Request a team page and its entry points show)
+        webhooks:
+          type: boolean
+          description: Webhooks are on for the platform (team admins and owners see Webhooks in Team settings)
         mcp:
           type: boolean
           description: The MCP server (POST /mcp) is on for the platform
@@ -14627,6 +15142,87 @@ components:
         hits: { type: integer, format: int64, description: Answers served from the answer cache }
         hitRate: { type: number, format: double, nullable: true, description: Of answers }
         tokensSaved: { type: integer, format: int64, description: "Model tokens the original answers spent, not spent again" }
+    WebhookSettings:
+      type: object
+      required: [enabled, revision, updatedAt]
+      properties:
+        enabled: { type: boolean, description: Off by default }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time }
+    WebhookSettingsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    WebhookEventType:
+      type: object
+      required: [type, scope, description]
+      properties:
+        type: { type: string, description: "For example agent.published" }
+        scope: { type: string, enum: [team, platform], description: "team: a team webhook receives it; platform: a platform webhook does" }
+        description: { type: string }
+    WebhookDestination:
+      type: object
+      required: [id, pattern, note, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        pattern: { type: string, description: "A host (hooks.example.edu) or a wildcard (*.example.edu)" }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+    WebhookDestinationCreate:
+      type: object
+      required: [pattern]
+      properties:
+        pattern: { type: string, minLength: 1, maxLength: 253 }
+        note: { type: string, maxLength: 200 }
+    Webhook:
+      type: object
+      required: [id, url, description, events, secretHint, enabled, pausedReason, consecutiveFailures, revision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid, nullable: true, description: "Absent for a platform webhook" }
+        url: { type: string }
+        description: { type: string }
+        events: { type: array, items: { type: string } }
+        secretHint: { type: string, description: "The last four characters of the secret, to tell secrets apart" }
+        enabled: { type: boolean }
+        pausedReason:
+          type: string
+          enum: ["", failing, gone]
+          description: 'Why Grounded stopped sending: failing (five deliveries in a row gave up) or gone (the receiver answered 410). The webhook is turned off, and the reason stays until it is turned on again'
+        consecutiveFailures: { type: integer, description: Deliveries that gave up since the last success }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WebhookInput:
+      type: object
+      required: [url, events, enabled]
+      properties:
+        url: { type: string, maxLength: 2048, description: "https, port 443, a host name an approved destination covers" }
+        description: { type: string, maxLength: 200 }
+        events: { type: array, minItems: 1, items: { type: string }, description: "Event types of this kind of webhook (GET /v1/webhook-events)" }
+        enabled: { type: boolean }
+    WebhookCreated:
+      type: object
+      required: [webhook, secret]
+      properties:
+        webhook: { $ref: "#/components/schemas/Webhook" }
+        secret: { type: string, description: "whsec_… Shown only this once: sign-check deliveries with it (docs/webhooks.md)" }
+    WebhookDelivery:
+      type: object
+      required: [id, webhookId, eventId, eventType, status, attempts, lastError, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        webhookId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid, description: "The event's ID: the same for every delivery of it, and for a redelivery" }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, delivered, failed] }
+        attempts: { type: integer }
+        lastStatus: { type: integer, nullable: true, description: The receiver's last HTTP status }
+        lastError: { type: string, description: "A short reason; never the receiver's answer" }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
     TeamRequestSettings:
       type: object
       required: [enabled, maxOpen, allowedGroup, revision, updatedAt]

@@ -1,4 +1,4 @@
-import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
+import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet, Webhook } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -27,6 +27,7 @@ export type AdminPath =
   | "/admin/costs"
   | "/admin/moderation"
   | "/admin/public-access"
+  | "/admin/webhooks"
   | "/admin/maintenance"
   | "/admin/settings"
   | "/admin/retention"
@@ -36,8 +37,8 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 25 items (MCP servers joined Models in v0.3, Reranking and
- * Settings in v0.4.2, Agent templates in v0.6.0).
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 26 items (MCP servers joined Models in v0.3, Reranking and
+ * Settings in v0.4.2, Agent templates and Webhooks in v0.6.0).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -100,6 +101,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
   {
     label: "Operations",
     items: [
+      { to: "/admin/webhooks", label: "Webhooks", icon: icon(Webhook) },
       { to: "/admin/maintenance", label: "Maintenance", icon: icon(Wrench) },
       // The platform's general settings and feature switches, with links to the areas that keep their own (AD-39).
       { to: "/admin/settings", label: "Settings", icon: icon(Settings) },
@@ -197,6 +199,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
     "checked paragraphs", "buffer", "stream", "retract", "stream then retract",
   ],
   "/admin/public-access": ["public", "anonymous", "widget", "embed", "captcha", "turnstile", "switch"],
+  "/admin/webhooks": ["webhook", "events", "notify", "callback", "http", "destinations", "approved destinations", "signing", "secret", "deliveries", "hooks", "integration"],
   "/admin/maintenance": ["maintenance mode", "pause", "ingestion", "downtime", "upgrade", "freeze"],
   "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period", "legal holds"],
   "/admin/break-glass": ["emergency access", "read team content", "transcripts", "approval", "investigate"],

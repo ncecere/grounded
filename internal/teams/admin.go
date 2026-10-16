@@ -14,6 +14,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 var errAdminOnly = apperr.Forbidden("Only platform admins can do this")
@@ -105,6 +106,10 @@ func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a a
 	e := a.Audit("team.create", "team", t.ID.String())
 	e.TeamID, e.After = t.ID, teamSnapshot(t)
 	if err := audit.Record(ctx, q, e); err != nil {
+		return Summary{}, AddResult{}, err
+	}
+	if err := s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventTeamCreated, Data: map[string]any{
+		"teamId": t.ID, "slug": t.Slug, "name": t.Name, "maxClassification": t.MaxClassification}}); err != nil {
 		return Summary{}, AddResult{}, err
 	}
 	owner, err := s.addOrInvite(ctx, q, tx, a, t, in.OwnerEmail, authz.RoleOwner, "team.owner_assign")

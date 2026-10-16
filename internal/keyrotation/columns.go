@@ -19,6 +19,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/mcpclient"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Column is one column of internal/secrets ciphertexts, in a table keyed by
@@ -41,4 +42,5 @@ func (c Column) col() string   { return pgx.Identifier{c.Column}.Sanitize() }
 var Columns = []Column{
 	{Table: "model_connections", Column: "api_key_ciphertext", AAD: catalog.ConnectionAAD},
 	{Table: "mcp_servers", Column: "auth_value_cipher", AAD: mcpclient.ServerAAD},
+	{Table: "webhooks", Column: "secret_cipher", AAD: webhooks.SecretAAD},
 }
