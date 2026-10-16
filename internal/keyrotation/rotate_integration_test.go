@@ -46,6 +46,15 @@ var seeders = map[string]func(ctx context.Context, pool *pgxpool.Pool, id uuid.U
 			VALUES ($1, $2, 'https://gateway.example.edu/v1', $3, 'x')`, id, "conn-"+id.String(), ct)
 		return err
 	},
+	// A webhook always has a secret (the column is NOT NULL): no row without one.
+	"webhooks.secret_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
+		if ct == nil {
+			return nil
+		}
+		_, err := pool.Exec(ctx, `INSERT INTO webhooks (id, url, events, secret_cipher, secret_hint)
+			VALUES ($1, 'https://hooks.example.edu/x', ARRAY['team.created'], $2, 'abcd')`, id, ct)
+		return err
+	},
 	"mcp_servers.auth_value_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
 		name := any(nil)
 		if ct != nil {

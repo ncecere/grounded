@@ -138,7 +138,7 @@ func (env *hookEnv) waitStatus(t *testing.T, s *session, hookPath, status string
 		if time.Now().After(deadline) {
 			t.Fatalf("no delivery reached %s: %+v", status, env.deliveries(t, s, hookPath))
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // the API allows a person 600 requests a minute
 	}
 }
 
@@ -303,7 +303,7 @@ func (env *hookEnv) waitFailed(t *testing.T, s *session, hookPath string) {
 		if time.Now().After(deadline) {
 			t.Fatalf("deliveries did not settle: %+v", d)
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // the API allows a person 600 requests a minute
 	}
 }
 
@@ -432,7 +432,7 @@ func webhookSourceSyncEvents(t *testing.T, env *hookEnv) {
 				failed = &e
 			}
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // the API allows a person 600 requests a minute
 	}
 	if failed == nil {
 		t.Fatalf("no source.sync_failed arrived: %d events", len(env.rx.calls()))
