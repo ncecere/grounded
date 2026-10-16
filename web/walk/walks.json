@@ -71,6 +71,10 @@
   },
   {
    "persona": "admin",
+   "path": "/teams/demo/settings?tab=webhooks"
+  },
+  {
+   "persona": "admin",
    "path": "/admin"
   },
   {
@@ -80,6 +84,10 @@
   {
    "persona": "admin",
    "path": "/admin/agent-templates"
+  },
+  {
+   "persona": "admin",
+   "path": "/admin/webhooks"
   },
   {
    "persona": "admin",
