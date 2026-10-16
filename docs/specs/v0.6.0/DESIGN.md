@@ -1,6 +1,6 @@
 # v0.6.0 design notes: service desk building blocks
 
-Status: **being built** (owner, 2026-10-15: no separate spec gate; one item at a time, each verified on the cluster before the next). The scope and the main decisions are in [`../../v0.6.0.md`](../../v0.6.0.md); this file records what each item turned out to be, and the choices made while building it. Order: agent templates, team requests, conversation sharing, router agent, webhooks.
+Status: **built and released in v0.6.0** (2026-10-16; [`releases/v0.6.0.md`](../../releases/v0.6.0.md)). The owner's working mode (2026-10-15): no separate spec gate; one item at a time, each verified on the cluster before the next. The scope and the main decisions are in [`../../v0.6.0.md`](../../v0.6.0.md); this file records what each item turned out to be, and the choices made while building it. Order: agent templates, team requests, conversation sharing, router agent, webhooks.
 
 ## 1. Agent templates (C4, [#27](https://github.com/ncecere/grounded/issues/27))
 

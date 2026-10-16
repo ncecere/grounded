@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-15. **v0.5.0 is released** (2026-10-15: the index preview and an opt-in chunker), on top of **v0.4.4** (2026-10-14, beta fixes), **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, and the rest of "better knowledge in" (§ L): parent/child retrieval, contextual chunks, tables, fuzzy boilerplate and the content health report, now that the index preview can judge them; and measuring chunker v2 on a real knowledge base. No v0.4.5 is planned.
+Status: refreshed 2026-10-16. **v0.6.0 is released** (2026-10-16: webhooks, agent templates, a router agent, conversation sharing and in-app team requests), on top of **v0.5.0** (2026-10-15: the index preview and an opt-in chunker), **v0.4.4** (2026-10-14, beta fixes), **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15), v0.6.0 (2026-10-16); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, and the rest of "better knowledge in" (§ L): parent/child retrieval, contextual chunks, tables, fuzzy boilerplate and the content health report, now that the index preview can judge them; and measuring chunker v2 on a real knowledge base. No v0.4.5 is planned.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -177,6 +177,18 @@ The first release of "better knowledge in" ([`releases/v0.5.0.md`](releases/v0.5
 
 **Open follow-ups:** measuring chunker v2 on a real knowledge base (preview it on the docs-site one with the 96-question set, [#25](https://github.com/ncecere/grounded/issues/25)); a cost estimate before a preview starts (it needs the candidate profile); the OCR image's network egress ([issue #77](https://github.com/ncecere/grounded/issues/77)).
 
+## Done in v0.6.0 (released 2026-10-16)
+
+"Service desk building blocks" ([`releases/v0.6.0.md`](releases/v0.6.0.md)). Five migrations (schema 53), no new setting; webhooks and team requests are off until a platform admin turns them on.
+
+| ID | What shipped | Docs |
+|---|---|---|
+| F3 | **Webhooks** ([#26](https://github.com/ncecere/grounded/issues/26)): signed, retried events (a source synced or failed, an agent published, an answer rated; a team created or requested) to hosts a platform admin approved, with IDs and summaries only. | [`webhooks.md`](webhooks.md), [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §5 |
+| C4 | **Agent templates** ([#27](https://github.com/ncecere/grounded/issues/27)): six built in and any a platform admin saves; how an agent answers, never what from or who for. | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §1 |
+| C5 | **Router agent** ([#28](https://github.com/ncecere/grounded/issues/28)): a front door that sends each question to the best agent the person could chat with themselves, and says which answered. | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §4 |
+| C12 | **Conversation sharing** ([#29](https://github.com/ncecere/grounded/issues/29)): a read-only, revocable snapshot of your own conversation ([ADR-0010](adr/0010-conversation-privacy-and-retention.md) amended). | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §3 |
+| E3 | **In-app team requests** ([#30](https://github.com/ncecere/grounded/issues/30)), optional. | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §2 |
+
 ## L. Release plan (owner, 2026-10-04)
 
 | Version | Theme | Items |
@@ -184,7 +196,7 @@ The first release of "better knowledge in" ([`releases/v0.5.0.md`](releases/v0.5
 | **v0.4.3** | Security patch (released 2026-10-11) | Go 1.26.9 and golang.org/x/net v0.60.0: 13 advisories that `govulncheck` flagged ([`releases/v0.4.3.md`](releases/v0.4.3.md)) |
 | **v0.4.4** | Beta fixes (released 2026-10-14) | A16, G22, E18 and the OCR image on Debian 13 ([`releases/v0.4.4.md`](releases/v0.4.4.md)); what beta testers report goes to the next release |
 | **v0.5.0** | **Better knowledge in** (owner chose theme A; released 2026-10-15) | **Index preview** and **chunker v2, opt-in** ([`releases/v0.5.0.md`](releases/v0.5.0.md)). **Left for the releases after it** (each a change to what is indexed, to be judged with the index preview): **parent/child retrieval** (A5); **contextual chunks**, opt-in per source with a cost estimate (A4); **content health report** (B8); **fuzzy boilerplate** (A11); **tables** kept structured (A10, first half); and C15 (a section that mixes procedures), which needs example pages |
-| **v0.6.0** | **Service desk building blocks** ([`v0.6.0.md`](v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
+| **v0.6.0** | **Service desk building blocks** (released 2026-10-16; [`v0.6.0.md`](v0.6.0.md), [`releases/v0.6.0.md`](releases/v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
 | **v0.7.0** | **Adoption by other installs** ([`v0.7.0.md`](v0.7.0.md)) | **Helm chart** (F5); **configuration as code** (D4); **bitop-ui docs site and registry** (F11); **accessibility statement and model cards** (E8) |
 | **v0.8.0** | **Identity and compliance** ([`v0.8.0.md`](v0.8.0.md)) | E4 SCIM, E5 audit export and SIEM, B7 PII scanning at ingest, E17 per-agent budgets, E13 audience in usage, E16 auditors see read-only facts |
 | v0.9.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
@@ -241,15 +253,15 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 | C1 ★ **Done** (v0.3.0 M1, M3) | **MCP support** | (a) Expose each KB or agent as an MCP server: **done** as `POST /mcp` with the `search` and `ask` tools, API keys with the `mcp` scope ([`mcp.md`](mcp.md)), and experimental OAuth sign-in behind a platform setting (M5). (b) Let agents call admin-approved external MCP tools: **done** (M3, [`mcp-client.md`](mcp-client.md)): Admin → Models → MCP servers with per-tool approval and a classification ceiling, Build → Tools, results cited as sources and verified, `mcp_calls` metering, MCP servers in stored health. | M | High | a tool approval policy |
 | C2 **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | **Unanswered-questions and gap report** | Cluster questions that got no context, refusals or thumbs-down, without showing content (ADR-0010). Tells teams what to add. | M | High | privacy review |
 | C3 **Not planned** (owner, 2026-10-04: no ticketing integration for now) | **Human handoff and ticketing** | Create a ticket (webhook, or ServiceNow/Jira/TeamDynamix adapters) with the transcript, with the user's consent. | M | High for service desks | F3 |
-| C4 | **Agent templates** | "Service desk FAQ", "Policy explainer" and others, with good defaults. | S | Medium | — |
-| C5 | **Router agent** | One front-door agent routes each question to the best specialised agent. It could use SystemOne's scope check. | M | Medium–High | — |
+| C4 **Done** (v0.6.0) | **Agent templates** | "Service desk FAQ", "Policy explainer" and others, with good defaults. | S | Medium | — |
+| C5 **Done** (v0.6.0) | **Router agent** | One front-door agent routes each question to the best specialised agent. It could use SystemOne's scope check. | M | Medium–High | — |
 | C6 | **Voice** | Speech to text and text to speech in the chat and the widget, through models the gateway serves. | M | Medium (accessibility) | — |
 | C7 | **Image input** | Users attach a screenshot for vision-capable models. | M | Medium | a vision model |
 | C8 **Done** (v0.4.1) | **Follow-up suggestions** | 2–3 grounded follow-up questions after each answer: **done** (v0.4.1 M1, [`follow-ups.md`](follow-ups.md)): up to 3 chips under an answer with citations, from a separate small call after it, moderated, saved with saved answers, on by default (Build → Advanced). | S | Medium | — |
 | C9 **Partly done** | **Reasoning display and answer-length presets** | Per-agent control. **Done:** reasoning effort per agent (v0.3.0) and per audience, with Off (v0.4.0); "Thinking…" for readers and the reasoning panel for editors in Try it, in order with tool steps (v0.4.1); a maximum answer length in tokens (Build → Advanced). **Open:** answer-length presets (short / normal / detailed) instead of a token number. | S | Medium | — |
 | C10 | **Structured outputs and forms** | Agents return checklists, forms or JSON. | M | Medium | — |
 | C11 | **Version A/B tests** | Split traffic between two published versions. | M | Medium | — |
-| C12 | **Conversation sharing** | A read-only, revocable snapshot of your own conversation. | S | Medium | — |
+| C12 **Done** (v0.6.0) | **Conversation sharing** | A read-only, revocable snapshot of your own conversation. | S | Medium | — |
 | C13 **Done** (v0.2.0) | **Agent Settings tab, KB primary action** | Sources and KBs have a Settings tab with a Danger zone; agents keep name and address in Appearance and Disable/Delete in the "…" menu. A new, empty KB has no "Attach source" in its header. Make the three detail pages match. | S | Medium | — |
 | C14 **Done** (v0.2.0) | **KB results per search vs the agent's** | A KB's Retrieval settings say agents use the same settings, but a new agent shows its own "results per search" (6) and records it in the version. Say which wins, or make the agent inherit until overridden. | S | Medium | — |
 | C15 **New** | **Content that mixes procedures** | Reviews found transcript answers mixing in the apostille procedure, because one crawled chunk combines both. Detect and split mixed sections at chunking, or let an agent's instructions rank special-case procedures lower. | M | Medium | — |
@@ -269,7 +281,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 |---|---|---|---|---|---|
 | E1 **Done** (v0.2.0) | **SSO group → team mapping** | Team membership and roles from IdP groups (OIDC claims or SCIM). | M | High | — |
 | E2 **Done** (v0.2.0) | **Cost reporting and chargeback** | Tokens and requests per team, agent and model, priced from admin-entered prices, with budgets and alerts. Prices must be configurable per unit, because some gateways report embedding tokens as characters. | M | High | — |
-| E3 | **In-app team requests** | A form with admin review, replacing the external link. | S | Medium | — |
+| E3 **Done** (v0.6.0) | **In-app team requests** | A form with admin review, replacing the external link. | S | Medium | — |
 | E4 | **SCIM provisioning** | Create users from the IdP, and suspend them when they leave. | M | Medium–High | E1 |
 | E5 | **Audit export and SIEM streaming** | Splunk, Elastic, syslog; signed daily exports. | S | Medium | — |
 | E7 **Done** | **Production safety checks** | Refuse to start outside loopback dev with the example `ENCRYPTION_KEY` or `API_KEY_PEPPER` from `.env.example`, or with `DEV_AUTH` on. Warn on an empty allowlist or on missing moderation for public agents. Add a `grounded doctor` command and admin page. The 2026-09-27 secret scan found the dev install using the example keys. **Done** (Phase 5 M2): warnings on the admin Overview. | S | High | — |
@@ -291,7 +303,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 |---|---|---|---|---|---|
 | F1 **Done** (v0.3.0 M4) | **OpenTelemetry tracing** | HTTP → retrieval → model calls, with per-stage timings for admins. **Done** ([`operations/tracing.md`](operations/tracing.md)): off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set; one answer is one trace across HTTP, retrieval, model calls (token counts, time to first token), SystemOne, agent turns and MCP tool calls; trace context through HTTP, MCP `_meta` (both ways) and River job metadata; `trace_id` in log lines; never content. Per-stage timings inside the product and dashboard trace links are not done. | M | Medium–High | — |
 | F2 | **Partitioned vector tables** | Hash-partition `emb_<profile>` before millions of chunks. | M | High at scale | P2 |
-| F3 | **Webhooks** | Signed, retried events (source synced, crawl failed, agent published, feedback). | M | Medium | — |
+| F3 **Done** (v0.6.0) | **Webhooks** | Signed, retried events (source synced, crawl failed, agent published, feedback). | M | Medium | — |
 | F4 | **Second vector store** | Qdrant or pgvectorscale behind the interface. | L | Low for now | only if F2 isn't enough |
 | F5 | **Helm chart** | Alongside Kustomize. | S | Medium (adoption) | P1 |
 | F6 **Done** | **Demo mode and seed data** | `grounded demo` seeds a neutral sample team, sources, a KB and agents over a public documentation site. Useful for evaluations, screenshots and the public README, and it replaces the dev instance's hand-built data. | S | Medium–High (adoption) | — |

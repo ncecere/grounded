@@ -4,7 +4,7 @@ Grounded has two install-wide secrets:
 
 | Secret | What it protects | How it rotates |
 |---|---|---|
-| `ENCRYPTION_KEY` | Secrets stored in the database, today the model connections' API keys (AES-256-GCM, `internal/secrets`) | `grounded rotate-keys` re-encrypts every stored value with the new key. Until then the server reads with both keys. |
+| `ENCRYPTION_KEY` | Secrets stored in the database: the model connections' API keys, the MCP servers' credentials and the webhooks' signing secrets (AES-256-GCM, `internal/secrets`) | `grounded rotate-keys` re-encrypts every stored value with the new key. Until then the server reads with both keys. |
 | `API_KEY_PEPPER` | API keys (`rag_…`) and widget keys (`pk_…`), stored only as HMAC digests | Digests can't be recomputed without the key, so each key is re-hashed with the new pepper **the next time it is used**, while the old pepper is kept as `API_KEY_PEPPER_PREVIOUS`. |
 
 Other secrets (`OIDC_CLIENT_SECRET`, `SMTP_PASSWORD`, `TURNSTILE_SECRET_KEY`, S3 and database passwords) aren't stored by Grounded. Change them where they're issued and in your secret store.
