@@ -137,7 +137,7 @@ func (s *Service) send(ctx context.Context, h dbgen.Webhook, d dbgen.WebhookDeli
 	status, err := s.Client.Post(ctx, h.URL, header, d.Payload)
 	switch {
 	case err != nil:
-		return 0, clip(err.Error(), 300)
+		return 0, describe(err)
 	case status >= 200 && status < 300:
 		return status, ""
 	}

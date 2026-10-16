@@ -158,6 +158,28 @@ describe("Admin → Webhooks › Approved destinations", () => {
     expect(other).not.toHaveAttribute("aria-invalid", "true");
   });
 
+  it("sends the corrected pattern after the server refused the first (the old error does not block the form)", async () => {
+    let n = 0;
+    const { calls } = adminSetup("platform_admin", {
+      extra: {
+        "POST /v1/admin/webhook-destinations": (b) =>
+          ++n === 1 ? Reply.error(400, "blocked_address", "Webhooks are never sent to private addresses") : { id: "d9", pattern: (b as { pattern: string }).pattern, note: "", createdAt: "2026-10-16T10:00:00Z" },
+      },
+    });
+    renderApp("/admin/webhooks");
+    const field = await screen.findByRole("textbox", { name: /Host pattern/ }, slow);
+    await userEvent.type(field, "10.0.0.1");
+    await userEvent.click(screen.getByRole("button", { name: "Approve destination" }));
+    expect(await screen.findByText(/never sent to private addresses/)).toBeInTheDocument();
+    await userEvent.clear(field);
+    expect(screen.queryByText(/never sent to private addresses/)).toBeNull();
+    await userEvent.type(field, "hooks.example.org");
+    await userEvent.click(screen.getByRole("button", { name: "Approve destination" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "POST" && c.url === "/v1/admin/webhook-destinations")).toHaveLength(2));
+    expect((calls.filter((c) => c.method === "POST").at(-1)!.body as { pattern: string }).pattern).toBe("hooks.example.org");
+    await waitFor(() => expect(field).toHaveValue(""));
+  });
+
   it("removes a destination only after confirmation, saying what stops", async () => {
     const { calls } = adminSetup("platform_admin");
     renderApp("/admin/webhooks");

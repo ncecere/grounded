@@ -105,12 +105,12 @@ export function WebhookDialog({ scope, webhook, onClose, onCreated }: Props) {
           )
         }
       >
-        <Input aria-required type="url" inputMode="url" autoComplete="off" spellCheck={false} maxLength={2048} placeholder="https://hooks.example.edu/grounded" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <Input aria-required type="url" inputMode="url" autoComplete="off" spellCheck={false} maxLength={2048} placeholder="https://hooks.example.edu/grounded" value={url} onChange={(e) => (setUrl(e.target.value), save.reset())} />
       </Field>
       <Field label="Description" labelHint="Optional" description="What this webhook is for, in one line. Up to 200 characters." error={onField("description")}>
-        <Input maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Input maxLength={200} value={description} onChange={(e) => (setDescription(e.target.value), save.reset())} />
       </Field>
-      <CheckboxGroup legend="Events" description="The events this webhook hears. Choose at least one." error={eventsError} value={chosen} onValueChange={(v) => setChosen(v as string[])}>
+      <CheckboxGroup legend="Events" description="The events this webhook hears. Choose at least one." error={eventsError} value={chosen} onValueChange={(v) => (setChosen(v as string[]), save.reset())}>
         {choices.map((e) => (
           <Checkbox key={e.type} value={e.type} label={e.type} description={e.description} />
         ))}

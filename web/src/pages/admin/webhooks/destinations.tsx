@@ -58,10 +58,10 @@ function AddDestination() {
       <Stack gap={4}>
         <div className={d.addRow}>
           <Field label="Host pattern" description="A host name, or *.example.edu for that host and its subdomains." error={patternError}>
-            <Input aria-required autoComplete="off" spellCheck={false} maxLength={253} placeholder="hooks.example.edu" value={pattern} onChange={(e) => setPattern(e.target.value)} />
+            <Input aria-required autoComplete="off" spellCheck={false} maxLength={253} placeholder="hooks.example.edu" value={pattern} onChange={(e) => (setPattern(e.target.value), add.reset())} />
           </Field>
           <Field label="Note" labelHint="Optional" description="Who asked for it, or why." error={code === "invalid_note" ? message : undefined}>
-            <Input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+            <Input maxLength={200} value={note} onChange={(e) => (setNote(e.target.value), add.reset())} />
           </Field>
         </div>
         {!patternCodes.includes(code) && code !== "invalid_note" && <ApiErrorAlert error={add.error} />}

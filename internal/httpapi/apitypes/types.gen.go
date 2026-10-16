@@ -11720,7 +11720,7 @@ type Webhook struct {
 	Events              []string           `json:"events"`
 	Id                  openapi_types.UUID `json:"id"`
 
-	// PausedReason Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+	// PausedReason Why Grounded stopped sending: failing (five deliveries in a row gave up) or gone (the receiver answered 410). The webhook is turned off, and the reason stays until it is turned on again
 	PausedReason WebhookPausedReason `json:"pausedReason"`
 
 	// Revision Increases on every change. Send it back in If-Match.
@@ -11735,7 +11735,7 @@ type Webhook struct {
 	Url       string              `json:"url"`
 }
 
-// WebhookPausedReason Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+// WebhookPausedReason Why Grounded stopped sending: failing (five deliveries in a row gave up) or gone (the receiver answered 410). The webhook is turned off, and the reason stays until it is turned on again
 type WebhookPausedReason string
 
 // WebhookCreated defines model for WebhookCreated.

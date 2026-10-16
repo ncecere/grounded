@@ -11,12 +11,11 @@ export const pausedText: Record<Paused, string> = {
 };
 
 /**
- * The reason a webhook is paused, or undefined. A webhook that gave up on failures stays "turned on" until someone edits it, so switching
- * it off by hand makes it Off, not Paused; a "gone" one is turned off by the server and stays Paused until it is turned on again.
+ * The reason a webhook is paused, or undefined. The server turns a webhook off when it pauses it and keeps the reason until someone turns it
+ * on again, so any reason means paused (even if it was then also switched off by hand).
  */
-export function pausedReason(w: Pick<Webhook, "enabled" | "pausedReason">): Paused | undefined {
-  if (!w.pausedReason) return undefined;
-  return w.enabled || w.pausedReason === "gone" ? w.pausedReason : undefined;
+export function pausedReason(w: Pick<Webhook, "pausedReason">): Paused | undefined {
+  return w.pausedReason || undefined;
 }
 
 export function WebhookStatusBadge({ webhook }: { webhook: Webhook }) {

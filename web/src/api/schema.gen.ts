@@ -11819,7 +11819,7 @@ export interface components {
             secretHint: string;
             enabled: boolean;
             /**
-             * @description Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+             * @description Why Grounded stopped sending: failing (five deliveries in a row gave up) or gone (the receiver answered 410). The webhook is turned off, and the reason stays until it is turned on again
              * @enum {string}
              */
             pausedReason: "" | "failing" | "gone";

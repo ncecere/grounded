@@ -704,6 +704,24 @@ func webhookRotateRedeliverAndAudit(t *testing.T, env *hookEnv) {
 	}
 }
 
+// The delivery log is read by the people who manage the webhook: a failed delivery says what kind of failure it was, never the resolver's or the
+// receiver's address.
+func webhookErrorsNameNoAddress(t *testing.T, env *hookEnv) {
+	svc := env.app.Svc.Webhooks
+	keep := svc.Client
+	t.Cleanup(func() { svc.Client = keep })
+	svc.Client = webhooks.NewClient(webhooks.ClientConfig{Timeout: 2 * time.Second, Lookup: func(context.Context, string) ([]netip.Addr, error) {
+		return nil, &net.DNSError{Err: "no such host", Name: "hooks.example.com", Server: "10.96.0.10:53", IsNotFound: true}
+	}})
+	c := env.make(t, env.tadmin, env.base, "nodns", "agent.published")
+	path := env.base + "/webhooks/" + c.Webhook.Id.String()
+	mustCode(t, "test event", firstOf(env.tadmin.call("POST", path+"/test", nil, nil, nil)), "", 202, "")
+	d := env.waitStatus(t, env.tadmin, path, "failed")
+	if d.LastStatus != nil || !strings.Contains(d.LastError, "could not be resolved") || strings.Contains(d.LastError, "10.96") || strings.Contains(d.LastError, "lookup") {
+		t.Errorf("last error = %q (status %v)", d.LastError, d.LastStatus)
+	}
+}
+
 // A webhook keeps its delivery log for 14 days.
 func webhookPrunesOldDeliveries(t *testing.T, env *hookEnv) {
 	c := env.make(t, env.tadmin, env.base, "prune", "agent.published")
@@ -746,6 +764,7 @@ func TestWebhookDelivery(t *testing.T) {
 		"the switch off records nothing":           webhookSwitchOffRecordsNothingAndKeepsWhatExists,
 		"the outbox follows the transaction":       webhookOutboxFollowsTheTransaction,
 		"old deliveries are pruned":                webhookPrunesOldDeliveries,
+		"errors name no address":                   webhookErrorsNameNoAddress,
 	} {
 		t.Run(name, func(t *testing.T) { env.reset(t); fn(t, env) })
 	}

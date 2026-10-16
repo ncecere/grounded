@@ -66,7 +66,7 @@ describe("the list", () => {
     setup([
       hook({ events: ["agent.published", "source.synced"] }),
       hook({ id: "w2", url: "https://b.example.org/hook", description: "", enabled: false, secretHint: "cd34" }),
-      hook({ id: "w3", url: "https://c.example.org/hook", pausedReason: "failing", consecutiveFailures: 5, secretHint: "ef56" }),
+      hook({ id: "w3", url: "https://c.example.org/hook", pausedReason: "failing", enabled: false, consecutiveFailures: 5, secretHint: "ef56" }),
       hook({ id: "w4", url: "https://d.example.org/hook", pausedReason: "gone", enabled: false, secretHint: "0a78" }),
       hook({ id: "w5", url: "https://e.example.org/hook", pausedReason: "failing", enabled: false, secretHint: "1b90" }),
     ]);
@@ -81,9 +81,8 @@ describe("the list", () => {
     expect(within(table).getByRole("row", { name: /b\.example\.org/ })).toHaveTextContent("Off");
     expect(within(table).getByRole("row", { name: /c\.example\.org/ })).toHaveTextContent("Paused: failing");
     expect(within(table).getByRole("row", { name: /d\.example\.org/ })).toHaveTextContent("Paused: gone");
-    // Turned off by hand after it gave up: Off, not Paused.
-    expect(within(table).getByRole("row", { name: /e\.example\.org/ })).toHaveTextContent("Off");
-    expect(within(table).getByRole("row", { name: /e\.example\.org/ })).not.toHaveTextContent("Paused");
+    // The server turns a webhook off when it pauses it and keeps the reason until it is turned on again: switched off by hand too, it is still Paused.
+    expect(within(table).getByRole("row", { name: /e\.example\.org/ })).toHaveTextContent("Paused: failing");
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -184,6 +183,23 @@ describe("making a webhook", () => {
     expect(screen.getByRole("dialog", { name: "New webhook" })).toBeInTheDocument();
   });
 
+  it("sends the corrected address after the server refused the first (the old error does not block the dialog)", async () => {
+    let n = 0;
+    const { calls } = setup([], "owner", { reject: () => (++n === 1 ? Reply.error(400, "destination_not_approved", "That host is not an approved destination") : undefined) });
+    const dialog = await open();
+    const address = within(dialog).getByRole("textbox", { name: /Address/ });
+    await userEvent.type(address, "https://hooks.other.org/x");
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /agent\.published/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create webhook" }));
+    expect(await within(dialog).findByText("That host is not an approved destination")).toBeInTheDocument();
+    await userEvent.clear(address);
+    expect(within(dialog).queryByText("That host is not an approved destination")).toBeNull();
+    await userEvent.type(address, url);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create webhook" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(2));
+    expect(await screen.findByRole("dialog", { name: "Webhook created" })).toBeInTheDocument();
+  });
+
   it.each([
     ["no_events", "Choose at least one event"],
     ["invalid_event", "“team.created” is not an event of this kind of webhook"],
@@ -213,7 +229,7 @@ describe("making a webhook", () => {
 
 describe("changing a webhook", () => {
   it("saves with the webhook's revision, starts from what it has, and a paused one is started again by saving it turned on", async () => {
-    const { calls } = setup([hook({ pausedReason: "failing", consecutiveFailures: 5 })]);
+    const { calls } = setup([hook({ pausedReason: "failing", enabled: false, consecutiveFailures: 5 })]);
     renderApp("/teams/registrar/settings?tab=webhooks");
     await rowMenu();
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit…" }));
@@ -227,6 +243,10 @@ describe("changing a webhook", () => {
     await userEvent.clear(description);
     await userEvent.type(description, "Moved to the new receiver");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /source\.synced/ }));
+    // It is off: saving as it is would leave it paused, so the person turns it on.
+    const on = within(dialog).getByRole("switch", { name: "Turned on" });
+    expect(on).not.toBeChecked();
+    await userEvent.click(on);
     await userEvent.click(within(dialog).getByRole("button", { name: "Save webhook" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit webhook" })).toBeNull());
     const sent = calls.find((c) => c.method === "PATCH")!;

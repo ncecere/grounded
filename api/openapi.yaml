@@ -15189,7 +15189,7 @@ components:
         pausedReason:
           type: string
           enum: ["", failing, gone]
-          description: 'Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)'
+          description: 'Why Grounded stopped sending: failing (five deliveries in a row gave up) or gone (the receiver answered 410). The webhook is turned off, and the reason stays until it is turned on again'
         consecutiveFailures: { type: integer, description: Deliveries that gave up since the last success }
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
