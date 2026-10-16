@@ -104,6 +104,7 @@ type agentBody struct {
 	WelcomeMessage   *string         `json:"welcomeMessage"`
 	StarterQuestions *[]string       `json:"starterQuestions"`
 	Config           json.RawMessage `json:"config"`
+	TemplateID       *string         `json:"templateId"`
 }
 
 func (b agentBody) profile() agents.Profile {
@@ -125,7 +126,7 @@ func (a *api) createAgent(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid_name", "Name is required")
 		return
 	}
-	v, err := a.Agents.Create(r.Context(), a.actor(r), r.PathValue("team"), agents.CreateInput{Profile: in.profile(), Config: in.Config})
+	v, err := a.Agents.Create(r.Context(), a.actor(r), r.PathValue("team"), agents.CreateInput{Profile: in.profile(), Config: in.Config, TemplateID: deref(in.TemplateID, "")})
 	if failed(w, r, err) {
 		return
 	}

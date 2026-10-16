@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Agent templates** (roadmap v0.6.0, [#27](https://github.com/ncecere/grounded/issues/27)). A new agent can start from a template: **Start from** in New agent offers five built-in templates (service desk FAQ, policy explainer, course helper, public website assistant, internal knowledge assistant) and any a platform admin saved. A template carries how an agent answers (instructions, model, answering mode, safety and SystemOne settings, advanced settings, appearance, starter questions), never knowledge bases, tools or an audience, so it cannot make an agent public.
+  - A platform admin who is an editor, admin or owner of an agent's team saves it with **Save as template…** (agent "…" menu); the team's audit log records the copy. Admin → **Agent templates** lists, views, renames and deletes saved templates. Platform admins have no default access to a team's agent configuration (ADR-0011), so saving needs ordinary access to it.
+  - API: `GET /v1/agent-templates`, `POST /v1/teams/{team}/agents/{agentId}/save-as-template`, `PATCH` and `DELETE /v1/admin/agent-templates/{templateId}`; `templateId` on `POST /v1/teams/{team}/agents`. One additive migration (`00049_agent_templates.sql`). Design: [`docs/specs/v0.6.0/DESIGN.md`](docs/specs/v0.6.0/DESIGN.md).
+
 ## [0.5.0] - 2026-10-15
 
 The first release of "better knowledge in": **try new indexing settings on a knowledge base and compare before switching** (the index preview), and an **opt-in chunker** that merges short sections. It also fixes unnamed option lists in every picker, a menu that closed itself while a list reloaded, and a delay in cleaning up after a discarded migration. Three migrations (the schema moves from 45 to 48). Parent/child retrieval, contextual chunks, tables, fuzzy boilerplate and the content health report are not in this release; see [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md).

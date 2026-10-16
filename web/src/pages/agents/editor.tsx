@@ -9,7 +9,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { BarChart3, ClipboardCheck, Hammer, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
+import { BarChart3, ClipboardCheck, Hammer, LayoutTemplate, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
@@ -25,6 +25,7 @@ import { useSearchParams } from "@/lib/url-search";
 import s from "../shared.module.css";
 import { ReadOnlyNotice } from "../team/access";
 import { ArchivedNotice, PageSkeleton } from "../team/layout";
+import { useIsPlatformAdmin } from "../admin/hooks";
 import { agentQuery, useTeam } from "../team/common";
 import { AnalyticsTab } from "./analytics/tab";
 import { AppearanceTab } from "./appearance";
@@ -34,6 +35,7 @@ import { type Agent, AgentStatusBadge, ProblemList, focusField, problemTarget, u
 import { useAgentDraft } from "./draft";
 import { DeleteAgent, StatusDialog } from "./editor-dialogs";
 import { ChatButton, EditorAlerts, PublishAction, SaveIndicator, secondaryActions } from "./editor-header";
+import { SaveTemplateDialog } from "./save-template-dialog";
 import { publishBlocked } from "./publish-state";
 import { AgentSettingsTab } from "./settings";
 import { ShareTab } from "./share/share-tab";
@@ -84,6 +86,8 @@ function Editor({ agent }: { agent: Agent }) {
   const [publishing, setPublishing] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const platformAdmin = useIsPlatformAdmin();
   const live = current.status === "active" && Boolean(current.published);
   const evaluationsOn = useEvaluationsOn();
   const history = useHistoryParam();
@@ -158,6 +162,8 @@ function Editor({ agent }: { agent: Agent }) {
             disabledReason: "Only a platform admin can enable it",
             hidden: !isManager,
           },
+          // Platform admins who can edit this agent only: a template shares its instructions with every team.
+          { label: "Save as template…", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true), hidden: !platformAdmin },
           { label: "Delete agent…", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting(true), hidden: !isManager },
         ]}
         notices={
@@ -218,6 +224,7 @@ function Editor({ agent }: { agent: Agent }) {
       {revert.dialog}
       {publishing && <PublishDialog agent={current} d={d} onClose={() => setPublishing(false)} onProblem={goToField} />}
       {statusOpen && <StatusDialog agent={current} d={d} onClose={() => setStatusOpen(false)} />}
+      {savingTemplate && <SaveTemplateDialog agent={current} onClose={() => setSavingTemplate(false)} />}
       <DeleteAgent agent={current} open={deleting} onOpenChange={setDeleting} />
     </>
   );

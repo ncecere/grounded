@@ -79,6 +79,10 @@
   },
   {
    "persona": "admin",
+   "path": "/admin/agent-templates"
+  },
+  {
+   "persona": "admin",
    "path": "/admin/users"
   },
   {

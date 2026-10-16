@@ -91,6 +91,19 @@ type AgentShortName struct {
 	CreatedAt time.Time
 }
 
+type AgentTemplate struct {
+	ID               uuid.UUID
+	Name             string
+	Description      string
+	AccentColor      string
+	WelcomeMessage   string
+	StarterQuestions []string
+	Config           json.RawMessage
+	CreatedBy        uuid.NullUUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type AgentTool struct {
 	VersionID uuid.UUID
 	ToolID    uuid.UUID

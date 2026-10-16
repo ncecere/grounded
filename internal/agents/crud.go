@@ -70,10 +70,13 @@ type Profile struct {
 }
 
 // CreateInput creates an agent. Slug defaults to one derived from the name;
-// Config (optional) is the initial draft.
+// Config (optional) is the initial draft. TemplateID (optional) starts the
+// agent from a template (templates.go): its appearance and configuration are
+// the starting point, and every key of Config replaces the template's.
 type CreateInput struct {
 	Profile
-	Config json.RawMessage
+	Config     json.RawMessage
+	TemplateID string
 }
 
 var slugJunk = regexp.MustCompile(`[^a-z0-9]+`)
@@ -165,6 +168,21 @@ func slugTaken() error {
 	return apperr.Conflict("slug_taken", "This team already has an agent with that slug")
 }
 
+// templateStart is what a new agent starts from: the template's look and wording and its configuration with the request's keys over it, or
+// nothing and the request's own configuration when there is no template. A template's description is about the template ("Answers common
+// questions…"), not the agent, so it is not copied.
+func (s *Service) templateStart(ctx context.Context, in CreateInput) (profileFields, json.RawMessage, error) {
+	if in.TemplateID == "" {
+		return profileFields{}, in.Config, nil
+	}
+	tmpl, err := s.findTemplate(ctx, in.TemplateID)
+	if err != nil {
+		return profileFields{}, nil, err
+	}
+	start := profileFields{accent: tmpl.AccentColor, welcome: tmpl.WelcomeMessage, starters: tmpl.StarterQuestions}
+	return start, overlayConfig(tmpl.Config, in.Config), nil
+}
+
 // Create adds an agent with a draft (editors). The audience grant is team.
 func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in CreateInput) (View, error) {
 	acc, err := s.teamAccess(ctx, a, teamRef, authz.RoleEditor)
@@ -175,7 +193,11 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	if !explicitSlug {
 		in.Slug = nil
 	}
-	pf, err := applyProfile(profileFields{}, in.Profile)
+	start, raw, err := s.templateStart(ctx, in)
+	if err != nil {
+		return View{}, err
+	}
+	pf, err := applyProfile(start, in.Profile)
 	if err != nil {
 		return View{}, err
 	}
@@ -183,8 +205,8 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 		pf.slug = slugFromName(pf.name)
 	}
 	cfg := DefaultConfig()
-	if len(bytes.TrimSpace(in.Config)) > 0 && string(bytes.TrimSpace(in.Config)) != "null" {
-		if cfg, err = ParseConfig(in.Config); err != nil {
+	if len(bytes.TrimSpace(raw)) > 0 && string(bytes.TrimSpace(raw)) != "null" {
+		if cfg, err = ParseConfig(raw); err != nil {
 			return View{}, err
 		}
 	}
@@ -219,6 +241,12 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 		}
 		e := a.Audit("agent.create", "agent", out.ID.String())
 		e.TeamID, e.After = acc.Team.ID, agentSnapshot(out)
+		if in.TemplateID != "" {
+			if e.Metadata == nil {
+				e.Metadata = map[string]any{}
+			}
+			e.Metadata["templateId"] = in.TemplateID
+		}
 		return audit.Record(ctx, q, e)
 	})
 	if err != nil {

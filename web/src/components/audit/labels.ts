@@ -19,6 +19,9 @@ const actionLabels: Record<string, string> = {
   "agent.publishable_key_revoke": "Revoked widget key",
   "agent.publishable_key_pepper_rehash": "Re-hashed widget key with the new pepper",
   "agent.short_name": "Changed agent short name",
+  "agent_template.create": "Saved an agent as a template",
+  "agent_template.update": "Changed an agent template",
+  "agent_template.delete": "Deleted an agent template",
   "apikey.create": "Created API key",
   "apikey.revoke": "Revoked API key",
   "apikey.contact_change": "Changed API key contact",
@@ -215,6 +218,7 @@ export function actionLabel(action: string, entry?: Pick<AuditEntry, "after"> & 
  */
 export const actionGroups: { prefix: string; label: string; platform?: boolean }[] = [
   { prefix: "agent.", label: "Agents" },
+  { prefix: "agent_template.", label: "Agent templates" },
   { prefix: "apikey.", label: "API keys" },
   { prefix: "source.", label: "Data sources" },
   { prefix: "document.", label: "Documents" },
@@ -315,6 +319,7 @@ export function actedHow(e: ActedFields): string | undefined {
 
 export const targetTypeLabels: Record<string, string> = {
   agent: "Agent",
+  agent_template: "Agent template",
   api_key: "API key",
   break_glass_session: "Break-glass session",
   break_glass_settings: "Break-glass settings",
