@@ -9232,9 +9232,9 @@ export interface components {
         };
         ConversationShareCreated: {
             share: components["schemas"]["ConversationShare"];
-            /** @description The link's secret */
+            /** @description The link's secret, shown once */
             token: string;
-            /** @description The link to give out (the app's address and /shared/ and the secret) */
+            /** @description The link to give out (the app's address, /shared/ and the secret), shown once */
             url: string;
         };
         SharedCitation: {
@@ -9244,9 +9244,9 @@ export interface components {
             headingPath: string[];
             pageStart?: number;
             pageEnd?: number;
-            /** @description A web page's address */
+            /** @description A web page's address, when the agent linked its sources */
             url?: string;
-            /** @description tool for an MCP tool's result */
+            /** @description tool for an MCP tool's result, which is named and never shown */
             kind?: string;
             server?: string;
             tool?: string;

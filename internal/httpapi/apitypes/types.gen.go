@@ -6599,10 +6599,10 @@ type ConversationShareCreate struct {
 type ConversationShareCreated struct {
 	Share ConversationShare `json:"share"`
 
-	// Token The link's secret
+	// Token The link's secret, shown once
 	Token string `json:"token"`
 
-	// Url The link to give out (the app's address and /shared/ and the secret)
+	// Url The link to give out (the app's address, /shared/ and the secret), shown once
 	Url string `json:"url"`
 }
 
@@ -10770,7 +10770,7 @@ type ShareAudience string
 type SharedCitation struct {
 	HeadingPath []string `json:"headingPath"`
 
-	// Kind tool for an MCP tool's result
+	// Kind tool for an MCP tool's result, which is named and never shown
 	Kind      *string `json:"kind,omitempty"`
 	N         int     `json:"n"`
 	PageEnd   *int    `json:"pageEnd,omitempty"`
@@ -10781,7 +10781,7 @@ type SharedCitation struct {
 	Tool      *string `json:"tool,omitempty"`
 	Truncated *bool   `json:"truncated,omitempty"`
 
-	// Url A web page's address
+	// Url A web page's address, when the agent linked its sources
 	Url *string `json:"url,omitempty"`
 }
 
