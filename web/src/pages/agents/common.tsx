@@ -121,6 +121,8 @@ export const defaultConfig: AgentConfigInput = {
   rerank: true,
   rerankTopN: 6,
   followUpSuggestions: true,
+  routable: false,
+  router: false,
 };
 
 /** A draft config ready to send: the server rejects unknown fields; optional values are cleared with null / "". */
@@ -153,6 +155,9 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     rerankTopN: c.rerankTopN ?? 6,
     // Follow-up suggestions (docs/follow-ups.md); absent in configurations saved before v0.4.1: on.
     followUpSuggestions: c.followUpSuggestions ?? true,
+    // Routers (docs/specs/v0.6.0/DESIGN.md §4); absent in configurations saved before v0.6: off.
+    routable: c.routable ?? false,
+    router: c.router ?? false,
   };
 }
 

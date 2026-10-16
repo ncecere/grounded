@@ -19,6 +19,7 @@ import { AdvancedSection } from "./advanced-section";
 import { AnsweringSection } from "./answering-section";
 import cf from "./build.module.css";
 import { KnowledgeSection, ModelSection } from "./model-section";
+import { RoutingSection } from "./routing-section";
 import { SafetySection } from "./safety-section";
 import { type BuildSection, FieldValidity, type SectionProps, fieldPlace } from "./section";
 import { sectionSummary } from "./summaries";
@@ -32,6 +33,7 @@ const sentence = (text?: string) => (text ? asSentence(text) : undefined);
 const titles: Record<BuildSection, string> = {
   instructions: "Instructions",
   model: "Model",
+  routing: "Routing",
   knowledge: "Knowledge",
   tools: "Tools",
   answering: "Answering",
@@ -79,6 +81,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
   const content: Record<BuildSection, ReactNode> = {
     instructions: <InstructionsSection {...section} />,
     model: <ModelSection {...section} />,
+    routing: <RoutingSection {...section} agentId={d.base.id} />,
     knowledge: <KnowledgeSection {...section} />,
     tools: <ToolsSection {...section} />,
     answering: <AnsweringSection {...section} />,
@@ -86,7 +89,9 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
     systemone: <SystemOneChecks c={c} set={d.setConfig} errorFor={section.errorFor} />,
     advanced: <AdvancedSection {...section} />,
   };
-  const shown = (Object.keys(titles) as BuildSection[]).filter((k) => k !== "systemone" || s1);
+  // A router sends each question to another agent: it has no knowledge, tools or answering rules of its own.
+  const router = Boolean(c.router);
+  const shown = (Object.keys(titles) as BuildSection[]).filter((k) => (k !== "systemone" || s1) && (router ? !["knowledge", "tools", "answering"].includes(k) : k !== "routing"));
 
   return (
     <FieldValidity.Provider value={d.reportInvalid}>

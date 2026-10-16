@@ -20,6 +20,7 @@ import type { Agent } from "../common";
 import type { AgentDraft } from "../draft";
 import { AudienceSection } from "./audience";
 import { KeysList } from "./keys";
+import { RoutersCard } from "./routers";
 import { type Sharing, sharingQuery } from "./sharing";
 import { type WidgetPosition, embedSnippet } from "./snippet";
 import sh from "./share.module.css";
@@ -38,6 +39,7 @@ export function ShareTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
           <Card title="Audience" description="Who can chat with the agent. It's part of the draft, so a change takes effect when you publish.">
             <AudienceSection d={d} sharing={sharing.data} published={published} />
           </Card>
+          {!d.draft.config.router && <RoutersCard d={d} />}
           <LinksCard sharing={sharing.data} published={published} />
           {sharing.data.audience === "public" || d.draft.config.audience === "public" ? (
             <Card title="Widget" description="A chat button that opens the agent in a panel, on the sites you allow.">

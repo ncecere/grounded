@@ -82,8 +82,10 @@ export type AssistantItem = {
   /** Read back from a stored conversation: a refusal's reason isn't stored, so it gets the starters without the note. */
   restored?: boolean;
   noContext?: boolean;
-  /** Why nothing was retrieved: judged_out, small_talk or out_of_scope (SystemOne). */
-  noContextReason?: "judged_out" | "small_talk" | "out_of_scope";
+  /** Why nothing was retrieved: judged_out, small_talk or out_of_scope (SystemOne), or what a router could not do. */
+  noContextReason?: "judged_out" | "small_talk" | "out_of_scope" | "no_agent" | "route_unavailable";
+  /** A router sent the question to this agent, which answered. */
+  routedTo?: Schemas["RoutedTo"];
   /** message_end arrived while the stream is still open: citations are being checked. */
   ended?: boolean;
   /** message_end said citations_checked follows: the answer isn't final until then. */
@@ -214,6 +216,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
         refused: Boolean(d.refused),
         noContext: Boolean(d.noContext),
         noContextReason: (str(d.noContextReason) || undefined) as AssistantItem["noContextReason"],
+        routedTo: d.routedTo && typeof d.routedTo === "object" ? (d.routedTo as Schemas["RoutedTo"]) : undefined,
         ended: true,
         citationsPending: d.citationsPending === true && !item.moderation,
         usage: d.usage as ChatUsage | undefined,
@@ -270,6 +273,7 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       feedback: m.feedback ? { rating: m.feedback, reason: m.feedbackReason, shared: m.feedbackShared } : undefined,
       moderation,
       refused: m.refused === true && !moderation,
+      routedTo: m.routedTo,
       restored: true,
     };
   });

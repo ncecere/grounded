@@ -72,6 +72,8 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
     }
     case "model":
       return c.chatModelId ? (model?.displayName ?? "Unavailable model") : "No model chosen";
+    case "routing":
+      return "Sends each question to the best agent the person may chat with";
     case "knowledge": {
       if (c.kbs.length === 0) return "No knowledge bases: the agent can't answer yet";
       const names = c.kbs.map((k) => kbName(k.kbId) ?? "Deleted knowledge base").join(", ");

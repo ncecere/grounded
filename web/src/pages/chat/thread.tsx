@@ -27,6 +27,7 @@ import { verificationLabel } from "@/lib/systemone";
 import { citedSoFar, copyText, displayText } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
+import { AnsweredBy } from "./answered-by";
 import { Feedback, FollowUps, Notes, Steps, isAnswer } from "./notes";
 import { waitingText } from "./progress";
 import { revealSource } from "./reveal";
@@ -189,6 +190,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
             </LazyResponse>
           )
         )}
+        {item.routedTo && <AnsweredBy routed={item.routedTo} canContinue={viewer?.access.kind === "message"} />}
         <Notes item={item} onRetry={onRetry} starters={agent.starterQuestions} onStarter={onStarter} />
         {streaming && item.ended && item.citations.length > 0 && (
           <p className={c.waiting}>
