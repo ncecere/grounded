@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **`TEST_TIME_SCALE` now reaches the Go integration tests.** It stretched only the web tests, so on the cluster's slower cores the Go tests' hard-coded waits (for example the 45 s wait for documents to be ready) had no extra headroom, and one of them failed there and never on GitHub. Every poll deadline goes through `testutil.Scale` (1 to 10, default 1, so CI is unchanged), and a test fails a new one that does not. Development tooling only; nothing in the product changes.
+
 ### Added
 
 - **Share a conversation** (roadmap v0.6.0, [#29](https://github.com/ncecere/grounded/issues/29)). **Share…** in a conversation's menu makes a link to a **read-only snapshot** of your own conversation: your questions, the answers and their citations, up to the last finished answer. It is for the people who can chat with the agent (after they sign in), or, for a public agent, anyone with the link. It never shows your feedback, the model's reasoning or what the agent did, and shows your name only if you tick **Show my name**. You revoke it any time; it also ends when the conversation is deleted or retention removes it, and when the agent is disabled, unpublished or deleted. The link is shown once. This amends [ADR-0010](docs/adr/0010-conversation-privacy-and-retention.md): transcripts still belong to the user, and sharing is their own act.

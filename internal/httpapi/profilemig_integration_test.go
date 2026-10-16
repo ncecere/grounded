@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
+	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // migEnv is a RAG platform with three embedding profiles: the default
@@ -158,7 +159,7 @@ func (env *migEnv) migration(t *testing.T, id uuid.UUID) apitypes.ProfileMigrati
 
 func (env *migEnv) wait(t *testing.T, id uuid.UUID, what string, done func(apitypes.ProfileMigration) bool) apitypes.ProfileMigration {
 	t.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(60 * time.Second))
 	for {
 		m := env.migration(t, id)
 		if done(m) {
@@ -233,7 +234,7 @@ func anyHit(hits []apitypes.RetrieveHit, text string) bool {
 
 func eventuallyTrue(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(45 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(45 * time.Second))
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out: %s", what)

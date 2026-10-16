@@ -135,7 +135,7 @@ func docxBytes(t *testing.T, heading, body string) []byte {
 // waitForDocuments polls until no document is pending/queued/processing.
 func (s *session) waitForDocuments(t *testing.T, path string) []apitypes.Document {
 	t.Helper()
-	deadline := time.Now().Add(45 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(45 * time.Second))
 	for {
 		var page apitypes.DocumentPage
 		if code := s.get(path+"?limit=200", &page); code != 200 {

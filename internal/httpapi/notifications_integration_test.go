@@ -48,7 +48,7 @@ func titles(p apitypes.NotificationPage, typ string) []string {
 // mailTo waits for an email to addr whose subject contains subject.
 func mailTo(t *testing.T, sink *testutil.SMTPSink, addr, subject string) testutil.Parsed {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
 	for {
 		for _, m := range sink.Messages() {
 			if len(m.To) == 1 && m.To[0] == addr {
