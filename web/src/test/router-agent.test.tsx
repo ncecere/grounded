@@ -157,7 +157,7 @@ describe("a router's editor", () => {
     expect(problemTarget("draft.router")).toEqual({ id: "agent-field-router", label: "Routing" });
     expect(container.querySelector("#agent-field-router")).not.toBeNull();
     // Not tried in the editor (the draft has no conversation to send the question on in): the panel says so, and the header says what it routes to.
-    expect(screen.getByText("other agents")).toBeInTheDocument();
+    expect(screen.getByText("routes to other agents")).toBeInTheDocument();
     expect(screen.queryByText(/knowledge bases?$/)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Try it" }));
     const drawer = await screen.findByRole("dialog", { name: "Try the draft" });

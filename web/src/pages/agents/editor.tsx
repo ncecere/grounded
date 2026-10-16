@@ -148,7 +148,7 @@ function Editor({ agent }: { agent: Agent }) {
         facts={[
           { label: "Audience", value: current.published ? audienceLabel(current.audience) : `${audienceLabel(c.audience)} (when published)` },
           { label: "Model", value: c.chatModelId ? (model?.displayName ?? (models.isLoading ? undefined : "Unavailable model")) : "No model" },
-          { label: c.router ? "Routes to" : "Knowledge", value: c.router ? "other agents" : `${c.kbs.length} knowledge base${c.kbs.length === 1 ? "" : "s"}` },
+          { label: c.router ? "Routes to" : "Knowledge", value: c.router ? "routes to other agents" : `${c.kbs.length} knowledge base${c.kbs.length === 1 ? "" : "s"}` },
           { label: "Updated", value: <>Updated <RelativeTime value={current.updatedAt} /></> },
         ]}
         secondaryActions={secondaryActions(current, live, tab === "build" && !wide ? () => setTestOpen(true) : undefined)}
