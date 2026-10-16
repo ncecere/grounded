@@ -3,6 +3,7 @@ export const targetTypeLabels: Record<string, string> = {
   agent: "Agent",
   agent_template: "Agent template",
   team_request: "Team request",
+  conversation_share: "Shared conversation",
   team_request_settings: "Team request settings",
   api_key: "API key",
   break_glass_session: "Break-glass session",

@@ -74,7 +74,7 @@ const pages = {
   groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
   oauth: () => import("./pages/oauth/routes"),
-  account: () => import("./pages/account/routes"), teamRequests: () => import("./pages/team-requests/page"),
+  account: () => import("./pages/account/routes"), teamRequests: () => import("./pages/team-requests/page"), sharedConversation: () => import("./pages/shared/page"),
 };
 const lazy = lazyRouteComponent;
 
@@ -383,8 +383,8 @@ const appTree = appRoute.addChildren([
 /** The OAuth consent page (docs/mcp.md): behind sign-in, outside the app's shell. */
 const OAuthConsentPage = lazy(pages.oauth, "OAuthConsentPage");
 const oauthConsentRoute = createRoute({ getParentRoute: () => rootRoute, path: "oauth/consent", component: () => <SessionGate><OAuthConsentPage /></SessionGate> });
-
-export const routeTree = rootRoute.addChildren([appTree, embedRoute, oauthConsentRoute]);
+const sharedRoute = createRoute({ getParentRoute: () => rootRoute, path: "shared/$token", component: lazy(pages.sharedConversation, "SharedPage") }); // outside the session gate: the page handles it
+export const routeTree = rootRoute.addChildren([appTree, embedRoute, sharedRoute, oauthConsentRoute]);
 
 export const router = createRouter({
   routeTree,
