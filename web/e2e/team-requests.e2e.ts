@@ -39,6 +39,8 @@ test("team requests: turn on, ask, approve with a first agent, decline with a re
 
     await test.step("the user finds the request page from the workspace switcher and asks", async () => {
       await person.goto("/");
+      await expect(person.getByRole("heading", { level: 1 })).toBeVisible();
+      await a11y(person, "home");
       await person.getByRole("button", { name: /Current workspace/ }).click();
       await person.getByRole("menuitem", { name: "Request a new team" }).click();
       await expect(person.getByRole("heading", { level: 1, name: "Request a team" })).toBeVisible();
@@ -98,8 +100,11 @@ test("team requests: turn on, ask, approve with a first agent, decline with a re
       await a11y(person, "request a team: decided");
       await table.getByRole("link", { name: new RegExp(`Open ${approved}`) }).click();
       await expect(person).toHaveURL(new RegExp(`/teams/${slug}`));
+      await expect(person.getByRole("heading", { level: 1 })).toBeVisible();
+      await a11y(person, "the new team");
       await person.goto(`/teams/${slug}/agents`);
       await expect(person.getByRole("table", { name: "Agents" }).getByRole("row", { name: /Service desk FAQ/ })).toBeVisible();
+      await a11y(person, "the new team's agents");
     });
 
     await test.step("turning the feature off says so on the user's page and keeps their history", async () => {
