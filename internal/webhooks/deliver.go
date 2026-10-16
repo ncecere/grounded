@@ -36,13 +36,11 @@ func (DeliverArgs) InsertOpts() river.InsertOpts { return river.InsertOpts{MaxAt
 type DeliverWorker struct {
 	river.WorkerDefaults[DeliverArgs]
 	S *Service
-	// Backoff overrides the retry delay (tests).
-	Backoff func(attempt int) time.Duration
 }
 
 func (w *DeliverWorker) NextRetry(job *river.Job[DeliverArgs]) time.Time {
-	if w.Backoff != nil {
-		return time.Now().Add(w.Backoff(job.Attempt))
+	if w.S.RetryBackoff != nil {
+		return time.Now().Add(w.S.RetryBackoff(job.Attempt))
 	}
 	return time.Now().Add(backoff[min(max(job.Attempt-1, 0), len(backoff)-1)])
 }
@@ -107,10 +105,13 @@ func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) e
 	}
 	switch {
 	case status >= 200 && status < 300:
-		if err := s.q.MarkWebhookDelivered(bg, d.ID); err != nil {
-			return err
-		}
-		return s.q.ResetWebhookFailures(bg, h.ID)
+		// Together: nobody sees a delivered delivery with the old count of deliveries that gave up.
+		return store.InTx(bg, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+			if err := q.ResetWebhookFailures(bg, h.ID); err != nil {
+				return err
+			}
+			return q.MarkWebhookDelivered(bg, d.ID)
+		})
 	case status == http.StatusGone:
 		return s.giveUp(bg, d, h, true)
 	case job.Attempt >= job.MaxAttempts:

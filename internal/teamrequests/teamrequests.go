@@ -25,6 +25,7 @@ import (
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Statuses of a request.
@@ -49,7 +50,9 @@ type Service struct {
 	Agents *agents.Service
 	// Notify tells platform admins of a new request and the person who asked of the decision (nil: nobody).
 	Notify *notify.Service
-	q      *dbgen.Queries
+	// Webhooks hears of new requests (nil: nobody).
+	Webhooks *webhooks.Service
+	q        *dbgen.Queries
 }
 
 // New returns a Service.
@@ -297,6 +300,11 @@ func (s *Service) Ask(ctx context.Context, a authz.Actor, in RequestInput) (Requ
 		}
 		admins, err := q.ActivePlatformAdminIDs(ctx)
 		if err != nil {
+			return err
+		}
+		// The webhook gets the request's ID, its name and classification: never its purpose or who asked.
+		if err := s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventTeamRequestCreated, Data: map[string]any{
+			"requestId": out.ID, "name": name, "classification": in.Classification}}); err != nil {
 			return err
 		}
 		who, _ := q.GetTeamRequestRequesterName(ctx, a.UserID)

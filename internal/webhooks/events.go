@@ -50,7 +50,7 @@ type EventType struct {
 
 // Catalog is every event type, in the order the UI lists them.
 var Catalog = []EventType{
-	{Type: EventSourceSynced, Scope: ScopeTeam, Description: "A web source finished syncing: how many pages were added, changed and removed"},
+	{Type: EventSourceSynced, Scope: ScopeTeam, Description: "A web source finished syncing: how many pages were fetched, changed and removed"},
 	{Type: EventSourceSyncFailed, Scope: ScopeTeam, Description: "A web source's sync failed: a short reason"},
 	{Type: EventAgentPublished, Scope: ScopeTeam, Description: "An agent was published: the agent, the version and its audience"},
 	{Type: EventFeedbackSubmitted, Scope: ScopeTeam, Description: "Someone rated an answer: the agent, the message, the rating and the reason, never the question, the answer or who"},

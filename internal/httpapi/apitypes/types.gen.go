@@ -2885,6 +2885,7 @@ const (
 	NotificationTypeEvaluationRegression        NotificationType = "evaluation.regression"
 	NotificationTypeKbProfileChanged            NotificationType = "kb.profile_changed"
 	NotificationTypePlatformProfileMigration    NotificationType = "platform.profile_migration"
+	NotificationTypePlatformWebhookPaused       NotificationType = "platform.webhook_paused"
 	NotificationTypeSourceClassificationLowered NotificationType = "source.classification_lowered"
 	NotificationTypeSourceDocumentsAttention    NotificationType = "source.documents_attention"
 	NotificationTypeTeamBudgetExhausted         NotificationType = "team.budget_exhausted"
@@ -2898,6 +2899,7 @@ const (
 	NotificationTypeWebDomainRequest            NotificationType = "web.domain_request"
 	NotificationTypeWebDomainRequestNew         NotificationType = "web.domain_request_new"
 	NotificationTypeWebSyncFailed               NotificationType = "web.sync_failed"
+	NotificationTypeWebhookPaused               NotificationType = "webhook.paused"
 )
 
 // Valid indicates whether the value is a known member of the NotificationType enum.
@@ -2920,6 +2922,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypeKbProfileChanged:
 		return true
 	case NotificationTypePlatformProfileMigration:
+		return true
+	case NotificationTypePlatformWebhookPaused:
 		return true
 	case NotificationTypeSourceClassificationLowered:
 		return true
@@ -2946,6 +2950,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypeWebDomainRequestNew:
 		return true
 	case NotificationTypeWebSyncFailed:
+		return true
+	case NotificationTypeWebhookPaused:
 		return true
 	default:
 		return false
@@ -4107,6 +4113,66 @@ func (e WebSchedule) Valid() bool {
 	}
 }
 
+// Defines values for WebhookPausedReason.
+const (
+	WebhookPausedReasonEmpty   WebhookPausedReason = ""
+	WebhookPausedReasonFailing WebhookPausedReason = "failing"
+	WebhookPausedReasonGone    WebhookPausedReason = "gone"
+)
+
+// Valid indicates whether the value is a known member of the WebhookPausedReason enum.
+func (e WebhookPausedReason) Valid() bool {
+	switch e {
+	case WebhookPausedReasonEmpty:
+		return true
+	case WebhookPausedReasonFailing:
+		return true
+	case WebhookPausedReasonGone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookDeliveryStatus.
+const (
+	WebhookDeliveryStatusDelivered WebhookDeliveryStatus = "delivered"
+	WebhookDeliveryStatusFailed    WebhookDeliveryStatus = "failed"
+	WebhookDeliveryStatusPending   WebhookDeliveryStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the WebhookDeliveryStatus enum.
+func (e WebhookDeliveryStatus) Valid() bool {
+	switch e {
+	case WebhookDeliveryStatusDelivered:
+		return true
+	case WebhookDeliveryStatusFailed:
+		return true
+	case WebhookDeliveryStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookEventTypeScope.
+const (
+	WebhookEventTypeScopePlatform WebhookEventTypeScope = "platform"
+	WebhookEventTypeScopeTeam     WebhookEventTypeScope = "team"
+)
+
+// Valid indicates whether the value is a known member of the WebhookEventTypeScope enum.
+func (e WebhookEventTypeScope) Valid() bool {
+	switch e {
+	case WebhookEventTypeScopePlatform:
+		return true
+	case WebhookEventTypeScopeTeam:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorKindParam.
 const (
 	AuditActorKindParamGroupMapping AuditActorKindParam = "group_mapping"
@@ -4745,6 +4811,7 @@ type AdminFeatures struct {
 	Setup        AdminSetupState     `json:"setup"`
 	SystemOne    SystemOneSettings   `json:"systemOne"`
 	TeamRequests TeamRequestSettings `json:"teamRequests"`
+	Webhooks     WebhookSettings     `json:"webhooks"`
 }
 
 // AdminGapCounts defines model for AdminGapCounts.
@@ -5901,6 +5968,9 @@ type Capabilities struct {
 
 	// TeamRequests In-app team requests are on for the platform (the Request a team page and its entry points show)
 	TeamRequests *bool `json:"teamRequests,omitempty"`
+
+	// Webhooks Webhooks are on for the platform (team admins and owners see Webhooks in Team settings)
+	Webhooks *bool `json:"webhooks,omitempty"`
 }
 
 // CappedTeam defines model for CappedTeam.
@@ -11640,6 +11710,122 @@ type WebMode string
 // WebSchedule defines model for WebSchedule.
 type WebSchedule string
 
+// Webhook defines model for Webhook.
+type Webhook struct {
+	// ConsecutiveFailures Deliveries that gave up since the last success
+	ConsecutiveFailures int                `json:"consecutiveFailures"`
+	CreatedAt           time.Time          `json:"createdAt"`
+	Description         string             `json:"description"`
+	Enabled             bool               `json:"enabled"`
+	Events              []string           `json:"events"`
+	Id                  openapi_types.UUID `json:"id"`
+
+	// PausedReason Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+	PausedReason WebhookPausedReason `json:"pausedReason"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision Revision `json:"revision"`
+
+	// SecretHint The last four characters of the secret, to tell secrets apart
+	SecretHint string `json:"secretHint"`
+
+	// TeamId Absent for a platform webhook
+	TeamId    *openapi_types.UUID `json:"teamId,omitempty"`
+	UpdatedAt time.Time           `json:"updatedAt"`
+	Url       string              `json:"url"`
+}
+
+// WebhookPausedReason Why it stopped although it was turned on: failing (five deliveries in a row gave up) or gone (the receiver answered 410)
+type WebhookPausedReason string
+
+// WebhookCreated defines model for WebhookCreated.
+type WebhookCreated struct {
+	// Secret whsec_… Shown only this once: sign-check deliveries with it (docs/webhooks.md)
+	Secret  string  `json:"secret"`
+	Webhook Webhook `json:"webhook"`
+}
+
+// WebhookDelivery defines model for WebhookDelivery.
+type WebhookDelivery struct {
+	Attempts    int        `json:"attempts"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	DeliveredAt *time.Time `json:"deliveredAt,omitempty"`
+
+	// EventId The event's ID: the same for every delivery of it, and for a redelivery
+	EventId       openapi_types.UUID `json:"eventId"`
+	EventType     string             `json:"eventType"`
+	Id            openapi_types.UUID `json:"id"`
+	LastAttemptAt *time.Time         `json:"lastAttemptAt,omitempty"`
+
+	// LastError A short reason; never the receiver's answer
+	LastError string `json:"lastError"`
+
+	// LastStatus The receiver's last HTTP status
+	LastStatus *int                  `json:"lastStatus,omitempty"`
+	Status     WebhookDeliveryStatus `json:"status"`
+	WebhookId  openapi_types.UUID    `json:"webhookId"`
+}
+
+// WebhookDeliveryStatus defines model for WebhookDelivery.Status.
+type WebhookDeliveryStatus string
+
+// WebhookDestination defines model for WebhookDestination.
+type WebhookDestination struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Note      string             `json:"note"`
+
+	// Pattern A host (hooks.example.edu) or a wildcard (*.example.edu)
+	Pattern string `json:"pattern"`
+}
+
+// WebhookDestinationCreate defines model for WebhookDestinationCreate.
+type WebhookDestinationCreate struct {
+	Note    *string `json:"note,omitempty"`
+	Pattern string  `json:"pattern"`
+}
+
+// WebhookEventType defines model for WebhookEventType.
+type WebhookEventType struct {
+	Description string `json:"description"`
+
+	// Scope team: a team webhook receives it; platform: a platform webhook does
+	Scope WebhookEventTypeScope `json:"scope"`
+
+	// Type For example agent.published
+	Type string `json:"type"`
+}
+
+// WebhookEventTypeScope team: a team webhook receives it; platform: a platform webhook does
+type WebhookEventTypeScope string
+
+// WebhookInput defines model for WebhookInput.
+type WebhookInput struct {
+	Description *string `json:"description,omitempty"`
+	Enabled     bool    `json:"enabled"`
+
+	// Events Event types of this kind of webhook (GET /v1/webhook-events)
+	Events []string `json:"events"`
+
+	// Url https, port 443, a host name an approved destination covers
+	Url string `json:"url"`
+}
+
+// WebhookSettings defines model for WebhookSettings.
+type WebhookSettings struct {
+	// Enabled Off by default
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// WebhookSettingsUpdate defines model for WebhookSettingsUpdate.
+type WebhookSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
 // WidgetCheck defines model for WidgetCheck.
 type WidgetCheck struct {
 	AccentColor *string `json:"accentColor,omitempty"`
@@ -11786,6 +11972,12 @@ type TeamParam = string
 
 // UserIdParam defines model for UserIdParam.
 type UserIdParam = openapi_types.UUID
+
+// WebhookDeliveryIdParam defines model for WebhookDeliveryIdParam.
+type WebhookDeliveryIdParam = openapi_types.UUID
+
+// WebhookIdParam defines model for WebhookIdParam.
+type WebhookIdParam = openapi_types.UUID
 
 // AgentConfigErrorReply defines model for AgentConfigErrorReply.
 type AgentConfigErrorReply = AgentConfigErrorResponse
@@ -12240,6 +12432,12 @@ type AdminPutTeamRequestSettingsParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutWebhookSettingsParams defines parameters for AdminPutWebhookSettings.
+type AdminPutWebhookSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminUpdateSharedSourceParams defines parameters for AdminUpdateSharedSource.
 type AdminUpdateSharedSourceParams struct {
 	// Preview Return the ClassificationImpact of the requested classification without changing anything
@@ -12370,6 +12568,12 @@ type AdminListUsersParams struct {
 
 // AdminUpdateUserParams defines parameters for AdminUpdateUser.
 type AdminUpdateUserParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// UpdatePlatformWebhookParams defines parameters for UpdatePlatformWebhook.
+type UpdatePlatformWebhookParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
@@ -12699,6 +12903,12 @@ type GetTeamSpendParams struct {
 	To   *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
 }
 
+// UpdateTeamWebhookParams defines parameters for UpdateTeamWebhook.
+type UpdateTeamWebhookParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // CheckWidgetOriginsJSONBody defines parameters for CheckWidgetOrigins.
 type CheckWidgetOriginsJSONBody struct {
 	Origins []string `json:"origins"`
@@ -12842,6 +13052,9 @@ type AdminPutPublicAccessJSONRequestBody = PublicAccessUpdate
 // AdminPutTeamRequestSettingsJSONRequestBody defines body for AdminPutTeamRequestSettings for application/json ContentType.
 type AdminPutTeamRequestSettingsJSONRequestBody = TeamRequestSettingsUpdate
 
+// AdminPutWebhookSettingsJSONRequestBody defines body for AdminPutWebhookSettings for application/json ContentType.
+type AdminPutWebhookSettingsJSONRequestBody = WebhookSettingsUpdate
+
 // AdminCreateSharedSourceJSONRequestBody defines body for AdminCreateSharedSource for application/json ContentType.
 type AdminCreateSharedSourceJSONRequestBody = DataSourceCreate
 
@@ -12886,6 +13099,15 @@ type AdminAssignOwnerJSONRequestBody = OwnerAssign
 
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = UserUpdate
+
+// CreateWebhookDestinationJSONRequestBody defines body for CreateWebhookDestination for application/json ContentType.
+type CreateWebhookDestinationJSONRequestBody = WebhookDestinationCreate
+
+// CreatePlatformWebhookJSONRequestBody defines body for CreatePlatformWebhook for application/json ContentType.
+type CreatePlatformWebhookJSONRequestBody = WebhookInput
+
+// UpdatePlatformWebhookJSONRequestBody defines body for UpdatePlatformWebhook for application/json ContentType.
+type UpdatePlatformWebhookJSONRequestBody = WebhookInput
 
 // ChatJSONRequestBody defines body for Chat for application/json ContentType.
 type ChatJSONRequestBody = ChatRequest
@@ -13027,6 +13249,12 @@ type UpdateDocumentJSONRequestBody = DocumentUpdate
 
 // MapSiteJSONRequestBody defines body for MapSite for application/json ContentType.
 type MapSiteJSONRequestBody = MapRequest
+
+// CreateTeamWebhookJSONRequestBody defines body for CreateTeamWebhook for application/json ContentType.
+type CreateTeamWebhookJSONRequestBody = WebhookInput
+
+// UpdateTeamWebhookJSONRequestBody defines body for UpdateTeamWebhook for application/json ContentType.
+type UpdateTeamWebhookJSONRequestBody = WebhookInput
 
 // CheckWidgetOriginsJSONRequestBody defines body for CheckWidgetOrigins for application/json ContentType.
 type CheckWidgetOriginsJSONRequestBody CheckWidgetOriginsJSONBody

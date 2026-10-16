@@ -100,6 +100,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	}
 	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
 	deps.TeamRequests = svc.TeamRequests
+	deps.Webhooks = svc.Webhooks
 	deps.Gaps = svc.Gaps
 	deps.AnswerCache = svc.AnswerCache
 	svc.Limits.OnBackendError = metrics.RateLimitErrors.Inc

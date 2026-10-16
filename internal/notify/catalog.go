@@ -61,6 +61,9 @@ const (
 	// EvaluationRegression: an automatic evaluation run scored worse
 	// (docs/evaluations.md §4).
 	EvaluationRegression Type = "evaluation.regression"
+	// Webhooks (v0.6.0, F3): a webhook stopped sending, because deliveries kept failing or the receiver said it is gone.
+	WebhookPaused         Type = "webhook.paused"
+	PlatformWebhookPaused Type = "platform.webhook_paused"
 )
 
 // Def describes an event type.
@@ -104,6 +107,8 @@ var catalog = []Def{
 	{Type: BreakGlassDecided, Label: "Break-glass request decided", Description: "Another platform admin approved or denied your break-glass request, or it lapsed (platform admins).", PlatformAdmins: true},
 	{Type: ProfileMigration, Label: "Profile migration switched, ready to switch, or needs attention", Description: "A knowledge base switched to another embedding profile, a previewed index is ready to switch, or documents failed to move (platform admins).", PlatformAdmins: true},
 	{Type: KBProfileChanged, Label: "Knowledge base changed embedding profile", Description: "A knowledge base in a team where you're an admin or owner moved to another embedding profile, or back.", TeamRole: authz.RoleAdmin},
+	{Type: WebhookPaused, Label: "Webhook paused", Description: "A webhook in a team where you're an admin or owner stopped sending: its deliveries kept failing, or the receiver said it is gone.", TeamRole: authz.RoleAdmin},
+	{Type: PlatformWebhookPaused, Label: "Platform webhook paused", Description: "A platform-wide webhook stopped sending: its deliveries kept failing, or the receiver said it is gone (platform admins).", PlatformAdmins: true},
 	{Type: EvaluationRegression, Label: "Evaluation scores dropped", Description: "An automatic evaluation run in a team where you're an editor, admin or owner found questions that newly fail, or recall fell by more than 5 points.", TeamRole: authz.RoleEditor},
 }
 

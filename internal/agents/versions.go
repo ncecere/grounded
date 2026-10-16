@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Publish snapshots the draft into a new immutable version after strict
@@ -84,6 +85,10 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 			return err
 		}
 		if err := s.notifyPublished(ctx, tx, a, acc.Team, cur, audience, previous, ver.Version); err != nil {
+			return err
+		}
+		if err := s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventAgentPublished, TeamID: acc.Team.ID, Data: map[string]any{
+			"agentId": id, "agentName": cur.Name, "agentSlug": cur.Slug, "version": ver.Version, "audience": audience}}); err != nil {
 			return err
 		}
 		if s.OnPublished != nil {

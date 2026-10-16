@@ -38,6 +38,8 @@ type Service struct {
 	// OnPaused tells the people who manage a webhook that it stopped sending (the app wires notifications; nil: nobody).
 	OnPaused func(ctx context.Context, tx pgx.Tx, w Webhook, reason string) error
 	Now      func() time.Time
+	// RetryBackoff overrides the wait before retry n, 1-based (tests).
+	RetryBackoff func(attempt int) time.Duration
 
 	q *dbgen.Queries
 }

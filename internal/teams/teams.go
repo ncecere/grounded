@@ -24,6 +24,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // InviteTTL is how long an email invite stays valid.
@@ -72,6 +73,8 @@ type Service struct {
 	q    *dbgen.Queries
 	// Notify records invites and membership changes (nil: none).
 	Notify *notify.Service
+	// Webhooks hears of new teams (nil: nobody).
+	Webhooks *webhooks.Service
 }
 
 func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool, q: dbgen.New(pool)} }

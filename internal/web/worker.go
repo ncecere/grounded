@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Queue is the River queue for crawl jobs; its worker count
@@ -316,12 +317,32 @@ func (s *Service) fail(ctx context.Context, id uuid.UUID, team uuid.NullUUID, st
 		if err != nil || n == 0 || status != CrawlFailed || !team.Valid {
 			return err
 		}
+		if err := s.emitSyncFailed(bg, q, tx, id, msg); err != nil {
+			return err
+		}
 		return s.notifySyncFailed(bg, q, tx, id, msg)
 	})
 	if err == nil {
 		s.Promote(ctx, team)
 	}
 	return err
+}
+
+// emitSyncFailed tells webhooks a team source's sync failed: the source, the run and a short reason.
+func (s *Service) emitSyncFailed(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, crawlID uuid.UUID, msg string) error {
+	cr, err := q.GetCrawl(ctx, crawlID)
+	if err != nil {
+		return err
+	}
+	src, err := q.GetSource(ctx, cr.SourceID)
+	if err != nil {
+		return err
+	}
+	if r := []rune(msg); len(r) > 200 {
+		msg = string(r[:200]) + "…"
+	}
+	return s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventSourceSyncFailed, TeamID: src.TeamID.UUID, Data: map[string]any{
+		"sourceId": src.ID, "sourceName": src.Name, "crawlId": crawlID, "error": msg}})
 }
 
 func (s *Service) notifySyncFailed(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, crawlID uuid.UUID, msg string) error {
@@ -366,27 +387,8 @@ func (r *run) finish(ctx context.Context, reason string) error {
 				return err
 			}
 		}
-		// Stale pages are removed only after a complete run that reached the
-		// site: a run where no page was fetched (robots.txt or the site
-		// temporarily down, the host no longer allowed) deletes nothing.
-		// A page re-fetch saw only its page: it removes nothing.
-		reached := cur.PagesChanged+cur.PagesUnchanged > 0
-		if !truncated && !cur.Truncated && reached && cur.Trigger != TriggerPage {
-			if deleted, err = q.DeleteUnseenDocuments(ctx, dbgen.DeleteUnseenDocumentsParams{
-				SourceID: r.src.ID, CrawlID: uuid.NullUUID{UUID: cur.ID, Valid: true},
-			}); err != nil {
-				return err
-			}
-			// Their stored files go when the deleted-files retention says
-			// (docs/operations/retention.md).
-			for _, d := range deleted {
-				if err := retention.RecordDeletedFiles(ctx, q, retention.DeletedContent{
-					TeamID: r.src.TeamID, SourceID: r.src.ID, DocumentID: uuid.NullUUID{UUID: d.ID, Valid: true},
-					Prefix: ingest.DocumentPrefix(r.src.TeamID, r.src.ID, d.ID), CreatedAt: d.CreatedAt,
-				}); err != nil {
-					return err
-				}
-			}
+		if deleted, err = r.deleteStale(ctx, q, cur, truncated); err != nil {
+			return err
 		}
 		if _, err := q.FinishCrawl(ctx, dbgen.FinishCrawlParams{ID: cur.ID, Status: CrawlCompleted, DocumentsDeleted: int32(len(deleted))}); err != nil {
 			return err
@@ -405,6 +407,9 @@ func (r *run) finish(ctx context.Context, reason string) error {
 		if cur.Trigger == TriggerPage {
 			return nil // not a sync: the schedule and last sync stay
 		}
+		if err := r.emitSynced(ctx, tx, cur, len(deleted), truncated); err != nil {
+			return err
+		}
 		// The schedule comes from the current configuration, which may
 		// have changed during the run.
 		schedule := r.cfg.Schedule
@@ -422,6 +427,42 @@ func (r *run) finish(ctx context.Context, reason string) error {
 	}
 	s.Promote(ctx, r.src.TeamID)
 	return nil
+}
+
+// deleteStale removes the pages a complete run did not see, and records their stored files for deletion. Stale pages are removed only after a
+// complete run that reached the site: a run where no page was fetched (robots.txt or the site temporarily down, the host no longer allowed) deletes
+// nothing, and a page re-fetch saw only its page.
+func (r *run) deleteStale(ctx context.Context, q *dbgen.Queries, cur dbgen.WebCrawl, truncated bool) ([]dbgen.DeleteUnseenDocumentsRow, error) {
+	reached := cur.PagesChanged+cur.PagesUnchanged > 0
+	if truncated || cur.Truncated || !reached || cur.Trigger == TriggerPage {
+		return nil, nil
+	}
+	deleted, err := q.DeleteUnseenDocuments(ctx, dbgen.DeleteUnseenDocumentsParams{
+		SourceID: r.src.ID, CrawlID: uuid.NullUUID{UUID: cur.ID, Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Their stored files go when the deleted-files retention says (docs/operations/retention.md).
+	for _, d := range deleted {
+		if err := retention.RecordDeletedFiles(ctx, q, retention.DeletedContent{
+			TeamID: r.src.TeamID, SourceID: r.src.ID, DocumentID: uuid.NullUUID{UUID: d.ID, Valid: true},
+			Prefix: ingest.DocumentPrefix(r.src.TeamID, r.src.ID, d.ID), CreatedAt: d.CreatedAt,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return deleted, nil
+}
+
+// emitSynced tells webhooks a team source finished syncing: the source, the run and what it did, never the pages.
+func (r *run) emitSynced(ctx context.Context, tx pgx.Tx, cur dbgen.WebCrawl, deleted int, truncated bool) error {
+	if !r.src.TeamID.Valid {
+		return nil
+	}
+	return r.s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventSourceSynced, TeamID: r.src.TeamID.UUID, Data: map[string]any{
+		"sourceId": r.src.ID, "sourceName": r.src.Name, "crawlId": cur.ID, "pagesFetched": cur.PagesFetched, "pagesChanged": cur.PagesChanged,
+		"pagesUnchanged": cur.PagesUnchanged, "pagesFailed": cur.PagesFailed, "documentsDeleted": deleted, "truncated": truncated || cur.Truncated}})
 }
 
 // deletePrefix removes stored files after the database change committed. A

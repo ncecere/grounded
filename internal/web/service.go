@@ -28,6 +28,7 @@ import (
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 // Service holds the dependencies for web sources.
@@ -45,6 +46,8 @@ type Service struct {
 	// Notify tells people about decided domain requests and failed syncs
 	// (nil: nobody).
 	Notify *notify.Service
+	// Webhooks hears of finished and failed syncs (nil: nobody).
+	Webhooks *webhooks.Service
 	// Maintenance pauses crawling while maintenance mode is on (nil: never;
 	// maintenance.go).
 	Maintenance *platform.MaintenanceGate

@@ -147,7 +147,7 @@ func notificationSettings(t *testing.T, app *testApp, owner *session) {
 			teamOnly++
 		}
 	}
-	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 5 ||
+	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 6 ||
 		len(st.Items) != len(notify.Catalog())-adminOnly-teamOnly {
 		t.Fatalf("settings = %d %+v", code, st)
 	}

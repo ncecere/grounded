@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 var errNoConversation = apperr.NotFound(conversationNotFoundCode, "Conversation not found")
@@ -477,8 +478,28 @@ func (s *Service) recordFeedback(ctx context.Context, messageID uuid.UUID, ratin
 		if n == 0 {
 			return errNoMessage
 		}
-		return afterFeedback(ctx, tx, messageID, rating, reason, share, asker)
+		if err := afterFeedback(ctx, tx, messageID, rating, reason, share, asker); err != nil {
+			return err
+		}
+		return s.emitFeedback(ctx, tx, messageID, rating, reason)
 	})
+}
+
+// emitFeedback tells webhooks a rating was given: the agent, the message, the rating and the reason, never the question, the answer, a comment
+// or who. Taking a rating back says nothing.
+func (s *Service) emitFeedback(ctx context.Context, tx pgx.Tx, messageID uuid.UUID, rating string, reason *string) error {
+	if rating == FeedbackNone {
+		return nil
+	}
+	var teamID, agentID uuid.UUID
+	if err := tx.QueryRow(ctx, `SELECT team_id, agent_id FROM message_events WHERE message_id = $1`, messageID).Scan(&teamID, &agentID); err != nil {
+		return err
+	}
+	data := map[string]any{"agentId": agentID, "messageId": messageID, "rating": rating}
+	if reason != nil {
+		data["reason"] = *reason
+	}
+	return s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventFeedbackSubmitted, TeamID: teamID, Data: data})
 }
 
 // afterFeedback evicts a thumbs-down answer from the answer cache, so the

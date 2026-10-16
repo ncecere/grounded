@@ -64,7 +64,9 @@ func TestClientDeliversToAPublicAddress(t *testing.T) {
 func TestClientRefusesWhatTheCrawlerRefuses(t *testing.T) {
 	for _, host := range []string{"10.0.0.5", "127.0.0.1", "169.254.169.254", "192.168.1.1", "100.64.0.1", "::1", "fd00::1", "fe80::1", "0.0.0.0"} {
 		c, _, dials := serve(t, func(http.ResponseWriter, *http.Request) { t.Error("the receiver was reached") }, ClientConfig{
-			Lookup: func(context.Context, string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr(host)}, nil },
+			Lookup: func(context.Context, string) ([]netip.Addr, error) {
+				return []netip.Addr{netip.MustParseAddr(host)}, nil
+			},
 		})
 		_, err := c.Post(t.Context(), "https://example.com/hook", nil, nil)
 		if !errors.Is(err, ErrBlockedAddress) || dials.Load() != 0 {
@@ -76,7 +78,9 @@ func TestClientRefusesWhatTheCrawlerRefuses(t *testing.T) {
 // One private answer among public ones refuses the host: a name that sometimes resolves inside is not safe to send to.
 func TestClientRefusesAHostWithAnyPrivateAnswer(t *testing.T) {
 	c, _, dials := serve(t, func(http.ResponseWriter, *http.Request) { t.Error("the receiver was reached") }, ClientConfig{
-		Lookup: func(context.Context, string) ([]netip.Addr, error) { return []netip.Addr{publicIP, netip.MustParseAddr("10.1.2.3")}, nil },
+		Lookup: func(context.Context, string) ([]netip.Addr, error) {
+			return []netip.Addr{publicIP, netip.MustParseAddr("10.1.2.3")}, nil
+		},
 	})
 	if _, err := c.Post(t.Context(), "https://example.com/hook", nil, nil); !errors.Is(err, ErrBlockedAddress) || dials.Load() != 0 {
 		t.Errorf("Post = %v after %d dials", err, dials.Load())
@@ -127,7 +131,9 @@ func TestClientReadsLittleOfALargeAnswerAndGivesUpOnASlowOne(t *testing.T) {
 func TestClientAllowPrivateIsForTests(t *testing.T) {
 	c, _, _ := serve(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }, ClientConfig{
 		AllowPrivate: true,
-		Lookup:       func(context.Context, string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil },
+		Lookup: func(context.Context, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
+		},
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, network, address)
 		},
