@@ -82,8 +82,16 @@ func toAPICard(c agents.Card) apitypes.AgentCard {
 		Id: ag.ID, TeamSlug: c.TeamSlug, TeamName: c.TeamName, Slug: ag.Slug, Name: ag.Name, Description: ag.Description,
 		AccentColor: ag.AccentColor, WelcomeMessage: ag.WelcomeMessage, StarterQuestions: nonNilStrings(ag.StarterQuestions),
 		CitationMode: apitypes.CitationMode(c.CitationMode), Status: apitypes.AgentStatus(ag.Status),
-		Audience: apitypes.Audience(c.Audience), ShortName: c.ShortName, Group: (*apitypes.AgentCardGroup)(nonEmpty(c.Group)),
+		Audience: apitypes.Audience(c.Audience), ShortName: c.ShortName, Group: (*apitypes.AgentCardGroup)(nonEmpty(c.Group)), Routable: truePtr(c.Routable), Router: truePtr(c.Router),
 	}
+}
+
+// truePtr is nil for false: the card says so only when it is true.
+func truePtr(b bool) *bool {
+	if !b {
+		return nil
+	}
+	return &b
 }
 
 // nonEmpty is nil for "".

@@ -51,7 +51,7 @@ var (
 // left out until someone decides it belongs (TestTemplateConfigClassifiesEveryField fails until then).
 //
 // Left out on purpose: the knowledge bases and their filters (what it answers from), the tools (which are credentials of an MCP server)
-// and the audience (a template must never make an agent public or open to everyone).
+// the audience (a template must never make an agent public or open to everyone) and whether routers may reach it.
 func TemplateConfig(c Config) Config {
 	t := DefaultConfig()
 	t.Instructions = c.Instructions
@@ -61,6 +61,7 @@ func TemplateConfig(c Config) Config {
 	t.StrictlyGrounded, t.RefusalMessage, t.CitationMode, t.QueryRewrite = c.StrictlyGrounded, c.RefusalMessage, c.CitationMode, c.QueryRewrite
 	t.Moderation, t.SystemOne = c.Moderation, c.SystemOne
 	t.Rerank, t.RerankTopN, t.FollowUpSuggestions = c.Rerank, c.RerankTopN, c.FollowUpSuggestions
+	t.Router = c.Router // a router is how an agent answers; being reachable through routers is who may reach it (left out, like the audience)
 	return t
 }
 

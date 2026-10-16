@@ -14,6 +14,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/systemone"
 )
 
 // Card is an agent's public profile.
@@ -29,6 +30,9 @@ type Card struct {
 	// organisation or public.
 	Group     string
 	ShortName *string
+	// Routable and Router are the published version's routing settings, and Subject a summary of its instructions (router.go).
+	Routable, Router bool
+	Subject          string
 }
 
 // DirectoryFilter narrows the directory.
@@ -69,7 +73,8 @@ func (s *Service) Directory(ctx context.Context, a authz.Actor, f DirectoryFilte
 		c := Card{Agent: agentFromDirectoryRow(r), TeamSlug: r.TeamSlug, TeamName: r.TeamName, CitationMode: CitationSnippetLink,
 			Audience: r.Audience, Group: r.GroupKey, ShortName: r.ShortName}
 		if v, err := s.q.GetAgentVersion(ctx, r.PublishedVersionID.UUID); err == nil {
-			c.CitationMode = DecodeConfig(v.Config).CitationMode
+			cfg := DecodeConfig(v.Config)
+			c.CitationMode, c.Routable, c.Router, c.Subject = cfg.CitationMode, cfg.Routable, cfg.Router, systemone.Summary(cfg.Instructions)
 		}
 		out = append(out, c)
 	}

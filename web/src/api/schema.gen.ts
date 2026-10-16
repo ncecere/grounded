@@ -8851,6 +8851,10 @@ export interface components {
             rerankTopN?: number;
             /** @description Suggest up to 3 follow-up questions under an answer with citations (docs/follow-ups.md); absent in configurations saved before v0.4.1 (on) */
             followUpSuggestions?: boolean;
+            /** @description Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both */
+            routable?: boolean;
+            /** @description The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published */
+            router?: boolean;
         };
         /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. */
         AgentConfigInput: {
@@ -8902,6 +8906,16 @@ export interface components {
              * @default true
              */
             followUpSuggestions: boolean;
+            /**
+             * @description Routers may send questions to this agent (docs/specs/v0.6.0/DESIGN.md §4): off by default. Only the people a router asks could use the agent themselves are ever sent to it. An agent is routable or a router, not both
+             * @default false
+             */
+            routable: boolean;
+            /**
+             * @description The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published
+             * @default false
+             */
+            router: boolean;
         };
         /** @description The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only. */
         AgentSystemOne: {
@@ -9378,6 +9392,10 @@ export interface components {
             citationMode: components["schemas"]["CitationMode"];
             status: components["schemas"]["AgentStatus"];
             audience: components["schemas"]["Audience"];
+            /** @description Routers may send questions to this agent (set only when true) */
+            routable?: boolean;
+            /** @description The agent is a router (set only when true) */
+            router?: boolean;
             /**
              * @description Directory only: team (one of your teams), organisation (all signed-in users) or public
              * @enum {string}
@@ -9997,11 +10015,12 @@ export interface components {
             usage: components["schemas"]["ChatUsage"];
             refused: boolean;
             noContext: boolean;
+            routedTo?: components["schemas"]["RoutedTo"];
             /**
-             * @description judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call.
+             * @description judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call. no_agent: a router found no agent that fits the question. route_unavailable: a router could not choose (the SystemOne scope check is off or failed).
              * @enum {string}
              */
-            noContextReason?: "judged_out" | "small_talk" | "out_of_scope";
+            noContextReason?: "judged_out" | "small_talk" | "out_of_scope" | "no_agent" | "route_unavailable";
             /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
             /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's claims with their verdicts (docs/systemone.md §3). */
@@ -10089,6 +10108,22 @@ export interface components {
         FeedbackRating: "up" | "down" | "none";
         /** @enum {string} */
         FeedbackReason: "incorrect" | "not_helpful" | "missing_sources" | "wrong_sources" | "outdated" | "harmful_or_unsafe" | "other";
+        /** @description A router sent the question to this agent: it answered, in the asker's own conversation with it */
+        RoutedTo: {
+            /** Format: uuid */
+            agentId: string;
+            name: string;
+            slug: string;
+            teamSlug: string;
+            teamName: string;
+            /**
+             * Format: uuid
+             * @description The asker's conversation with that agent, to carry on there
+             */
+            conversationId?: string;
+            /** @description The agent has been removed since */
+            gone?: boolean;
+        };
         ConversationMessage: {
             /** Format: uuid */
             id: string;
@@ -10112,6 +10147,7 @@ export interface components {
             feedbackReason?: components["schemas"]["FeedbackReason"];
             /** @description The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md) */
             feedbackShared?: boolean;
+            routedTo?: components["schemas"]["RoutedTo"];
             /** @description The answer is the agent's refusal (nothing in its sources answers the question, or it's out of scope): the chat offers the agent's starter questions under it, as it did live */
             refused?: boolean;
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */

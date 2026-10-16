@@ -103,7 +103,9 @@ func (s *Service) evaluate(ctx context.Context, q *dbgen.Queries, team dbgen.Tea
 func (s *Service) strictProblems(ctx context.Context, q *dbgen.Queries, team dbgen.Team, c Config, audience string) ([]Problem, policy, error) {
 	var probs []Problem
 	add := func(field, msg string) { probs = append(probs, Problem{Field: field, Problem: msg}) }
-	if len(c.KBs) == 0 {
+	if c.Router {
+		probs = append(probs, s.routerProblems(ctx, c)...)
+	} else if len(c.KBs) == 0 {
 		add("kbs", "Choose at least one knowledge base")
 	}
 	// KBs must exist and belong to the team.

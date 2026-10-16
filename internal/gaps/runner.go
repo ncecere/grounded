@@ -118,9 +118,10 @@ type pending struct {
 // pendingSQL lists questions without a vector in their agent's profile
 // (captured without one, or whose profile was deleted): the question's
 // profile, else the lowest profile ID among the published version's
-// knowledge bases (as the chat pipeline picks it, internal/agents gaps.go).
+// knowledge bases (as the chat pipeline picks it, internal/agents gaps.go), else the platform's default profile (a
+// router has no knowledge bases).
 const pendingSQL = `
-SELECT q.id, q.team_id, q.agent_id, coalesce(q.profile_id, p.profile_id), q.question, t.slug, a.slug
+SELECT q.id, q.team_id, q.agent_id, coalesce(q.profile_id, p.profile_id, dp.id), q.question, t.slug, a.slug
 FROM gap_questions q
 JOIN agents a ON a.id = q.agent_id
 JOIN teams t ON t.id = q.team_id
@@ -129,7 +130,8 @@ LEFT JOIN LATERAL (
     SELECT kb.embedding_profile_id AS profile_id FROM agent_version_kbs avk JOIN knowledge_bases kb ON kb.id = avk.kb_id
     WHERE avk.version_id = a.published_version_id ORDER BY kb.embedding_profile_id LIMIT 1
 ) p ON true
-WHERE (q.embedding IS NULL OR q.profile_id IS NULL) AND coalesce(q.profile_id, p.profile_id) IS NOT NULL
+LEFT JOIN embedding_profiles dp ON dp.is_default AND dp.status = 'active'
+WHERE (q.embedding IS NULL OR q.profile_id IS NULL) AND coalesce(q.profile_id, p.profile_id, dp.id) IS NOT NULL
 ORDER BY q.agent_id, q.created_at
 LIMIT $1`
 

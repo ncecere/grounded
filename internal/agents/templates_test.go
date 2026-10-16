@@ -12,7 +12,7 @@ import (
 )
 
 // What a template deliberately does not carry from an agent's configuration (templates.go: TemplateConfig). Every other field is carried.
-var templateLeavesOut = []string{"KBs", "Filters", "Audience", "Tools"}
+var templateLeavesOut = []string{"KBs", "Filters", "Audience", "Tools", "Routable"}
 
 // mutate changes v to a value that differs from its current one, so a field that is copied can be told from one that is reset.
 func mutate(v reflect.Value) {
@@ -112,8 +112,8 @@ func TestTemplateConfigDropsWhatItMust(t *testing.T) {
 var accentRE = regexp.MustCompile(`^(#[0-9a-f]{6})?$`)
 
 func TestBuiltInTemplatesAreValid(t *testing.T) {
-	if len(builtInTemplates) != 5 {
-		t.Fatalf("%d built-in templates, the design has five", len(builtInTemplates))
+	if len(builtInTemplates) != 6 {
+		t.Fatalf("%d built-in templates, the design has six", len(builtInTemplates))
 	}
 	ids, names := map[string]bool{}, map[string]bool{}
 	for _, tm := range builtInTemplates {

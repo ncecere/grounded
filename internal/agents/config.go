@@ -94,6 +94,11 @@ type Config struct {
 	// answer with citations (docs/follow-ups.md): on by default, and for
 	// configurations saved before v0.4.1 (owner decision, 2026-10-02).
 	FollowUpSuggestions bool `json:"followUpSuggestions"`
+	// Routable lets routers send questions to this agent (off by default; router.go). Router makes the agent a
+	// router: it answers nothing itself, it sends each question to the best routable agent the asker may chat with.
+	// An agent is one or the other.
+	Routable bool `json:"routable"`
+	Router   bool `json:"router"`
 }
 
 // configInput is Config with every field optional, so absent fields take
@@ -121,6 +126,8 @@ type configInput struct {
 	Rerank             *bool                `json:"rerank"`
 	RerankTopN         *int                 `json:"rerankTopN"`
 	FollowUps          *bool                `json:"followUpSuggestions"`
+	Routable           *bool                `json:"routable"`
+	Router             *bool                `json:"router"`
 }
 
 // Problem is one reason a configuration is invalid.
@@ -329,6 +336,11 @@ func (c *Config) normalizeAnswer(in configInput, p *problems) {
 	}
 	setIf(&c.QueryRewrite, in.QueryRewrite)
 	setIf(&c.FollowUpSuggestions, in.FollowUps)
+	setIf(&c.Routable, in.Routable)
+	setIf(&c.Router, in.Router)
+	if c.Routable && c.Router {
+		p.bad("routable", "A router can't also be reached through routers: it would send questions to itself and to other routers")
+	}
 	setIf(&c.Audience, in.Audience)
 	if !authz.ValidAudience(c.Audience) {
 		p.bad("audience", "Audience must be team, all_authenticated or public")

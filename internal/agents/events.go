@@ -123,6 +123,8 @@ type (
 		Usage      llm.Usage  `json:"usage"`
 		Refused    bool       `json:"refused"`
 		NoContext  bool       `json:"noContext"`
+		// RoutedTo: a router sent the question to this agent, which answered (router.go).
+		RoutedTo *RoutedView `json:"routedTo,omitempty"`
 		// NoContextReason is judged_out when judging dropped every
 		// candidate of a strict agent (no chat-model call), small_talk when
 		// the scope check answered small talk without retrieval, and
@@ -419,5 +421,5 @@ func stepOutcome(isError bool, d toolDetails) (errText, result string) {
 func (ru *run) sendEnd(ans Answer) {
 	ru.out.send(Event{"message_end", MessageEndEvent{MessageID: ans.MessageID, StopReason: ans.StopReason, Text: ans.Text,
 		Citations: ans.Citations, Usage: ans.Usage, Refused: ans.Refused, NoContext: ans.NoContext,
-		NoContextReason: ans.noContextReason, Uncited: ans.Uncited, Claims: ans.Claims, CitationsPending: ans.citePending}})
+		NoContextReason: ans.noContextReason, Uncited: ans.Uncited, Claims: ans.Claims, CitationsPending: ans.citePending, RoutedTo: ans.routedTo}})
 }

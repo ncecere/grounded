@@ -2,7 +2,6 @@ package agents
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,7 +19,6 @@ import (
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/moderation"
-	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/tracing"
@@ -117,7 +115,9 @@ type Answer struct {
 	Moderation *ModerationEvent
 	// noContextReason is judged_out when judging dropped everything.
 	noContextReason string
-	toolCalls       int
+	// routedTo is the agent a router sent the question to (router.go), for message_end.
+	routedTo  *RoutedView
+	toolCalls int
 	// storedCode is the stored message's error code when it differs from
 	// ErrorCode (moderation notices).
 	storedCode string
@@ -189,7 +189,9 @@ type run struct {
 	citeChanged bool
 	answeredAt  time.Time
 	scope       *systemone.ScopePlan
-	scopeRec    *ScopeRecord
+	// routeRec is a router's routing decision (router.go); nil for every other answer.
+	routeRec *RoutingRecord
+	scopeRec *ScopeRecord
 
 	anon *AnonCaller // an anonymous visitor (public and widget channels)
 
@@ -250,37 +252,6 @@ func (s *Service) Chat(ctx context.Context, a authz.Actor, req ChatRequest, emit
 		}
 	}
 	return ru.execute(ctx, emit)
-}
-
-// checkCaller decides whether the caller is stateless (service keys and the
-// OpenAI-compatible endpoint send prior turns in history; users' conversations
-// are stored) and checks the history it sent.
-func checkCaller(a authz.Actor, req ChatRequest) (bool, []HistoryMessage, error) {
-	stateless := req.Stateless || (a.Key != nil && !a.Key.Personal()) || a.UserID == uuid.Nil
-	if stateless && req.ConversationID != nil {
-		return false, nil, apperr.Invalid("conversation_not_allowed",
-			"This caller is stateless (service key or OpenAI-compatible endpoint): send prior turns in history instead of conversationId")
-	}
-	if !stateless && len(req.History) > 0 {
-		return false, nil, apperr.Invalid("history_not_allowed", "Conversations are stored for you: send conversationId instead of history")
-	}
-	hist, err := checkHistory(req.History)
-	if err != nil {
-		return false, nil, err
-	}
-	return stateless, hist, nil
-}
-
-// continuedConversation loads the conversation a user continues: it must be
-// theirs and belong to the agent.
-func (s *Service) continuedConversation(ctx context.Context, a authz.Actor, agentID, id uuid.UUID) (*dbgen.Conversation, error) {
-	c, err := s.q.GetConversation(ctx, id)
-	if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && (!ownedBy(c.UserID, a.UserID) || c.AgentID != agentID)) {
-		return nil, apperr.NotFound(conversationNotFoundCode, "Conversation not found")
-	} else if err != nil {
-		return nil, err
-	}
-	return &c, nil
 }
 
 // TestChat runs the draft configuration (editors). Nothing is stored except
@@ -385,6 +356,9 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err e
 // agent loop and the checks of the answer.
 func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	s := ru.s
+	if ru.cfg.Router && !ru.persist && ru.anon == nil {
+		return Answer{}, errRouterNeedsConversation
+	}
 	ru.started = time.Now()
 	ru.out = &streamer{emit: emit, gone: func() bool { return ctx.Err() != nil }}
 	ru.meter = &systemone.Meter{}
@@ -405,7 +379,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		return Answer{}, err
 	}
 	ru.retr = newRetriever(s.KBs, resolvedKBs, ru.cfg, ru.userTag())
-	ru.lookupCache(ctx) // the answer cache (cache.go)
+	ru.lookupCache(ctx) // the answer cache (cache.go); never for a router, which has no knowledge bases (cacheCandidate)
 	if !ru.cacheHitNow() {
 		ru.retr.planRerank(ctx, ru.cfg)
 		ru.planSystemOne(ctx)
@@ -420,6 +394,10 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		return ru.replayCached(ctx)
 	}
 
+	if ru.cfg.Router { // a router answers nothing itself (router.go)
+		_ = ru.planModeration(ctx) // only for the effort of its small-talk replies
+		return ru.routeAnswer(ctx)
+	}
 	if err := ru.planModeration(ctx); err != nil {
 		return ru.failBeforeStart(ctx, err)
 	}
