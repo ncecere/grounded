@@ -189,17 +189,43 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	if err != nil {
 		return View{}, err
 	}
+	var out dbgen.Agent
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+		out, err = s.insertDraft(ctx, q, a, acc.Team.ID, in)
+		return err
+	})
+	if err != nil {
+		return View{}, err
+	}
+	return s.view(ctx, out, acc.Team, true)
+}
+
+// CreateStarterTx makes a team's first agent, named after the template and made from it, inside the caller's transaction (approving a team request can start the new
+// team with one, internal/teamrequests). The actor is the platform admin who approved: they are not on the team, so this does not go
+// through the team access checks, and it is not an API of its own.
+func (s *Service) CreateStarterTx(ctx context.Context, q *dbgen.Queries, a authz.Actor, teamID uuid.UUID, templateID string) (uuid.UUID, error) {
+	tmpl, err := s.findTemplate(ctx, templateID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	ag, err := s.insertDraft(ctx, q, a, teamID, CreateInput{Profile: Profile{Name: &tmpl.Name}, TemplateID: templateID})
+	return ag.ID, err
+}
+
+// insertDraft adds an agent with a draft to a team inside a transaction: the template (if any) and the request make the profile and the
+// configuration, the team's agent limit is checked, the slug is made free, the audience is the team, and it is audited.
+func (s *Service) insertDraft(ctx context.Context, q *dbgen.Queries, a authz.Actor, teamID uuid.UUID, in CreateInput) (dbgen.Agent, error) {
 	explicitSlug := in.Slug != nil && strings.TrimSpace(*in.Slug) != ""
 	if !explicitSlug {
 		in.Slug = nil
 	}
 	start, raw, err := s.templateStart(ctx, in)
 	if err != nil {
-		return View{}, err
+		return dbgen.Agent{}, err
 	}
 	pf, err := applyProfile(start, in.Profile)
 	if err != nil {
-		return View{}, err
+		return dbgen.Agent{}, err
 	}
 	if !explicitSlug {
 		pf.slug = slugFromName(pf.name)
@@ -207,52 +233,43 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	cfg := DefaultConfig()
 	if len(bytes.TrimSpace(raw)) > 0 && string(bytes.TrimSpace(raw)) != "null" {
 		if cfg, err = ParseConfig(raw); err != nil {
-			return View{}, err
+			return dbgen.Agent{}, err
 		}
 	}
-	var out dbgen.Agent
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		if s.Limits != nil {
-			if err := s.Limits.LockUsage(ctx, q, acc.Team.ID); err != nil {
-				return err
-			}
-			if err := s.Limits.CheckResources(ctx, q, acc.Team.ID, limits.Need{Agents: 1}); err != nil {
-				return err
-			}
+	if s.Limits != nil {
+		if err := s.Limits.LockUsage(ctx, q, teamID); err != nil {
+			return dbgen.Agent{}, err
 		}
-		slug, err := freeSlug(ctx, q, acc.Team.ID, pf.slug, explicitSlug)
-		if err != nil {
-			return err
+		if err := s.Limits.CheckResources(ctx, q, teamID, limits.Need{Agents: 1}); err != nil {
+			return dbgen.Agent{}, err
 		}
-		out, err = q.InsertAgent(ctx, dbgen.InsertAgentParams{
-			TeamID: acc.Team.ID, Slug: slug, Name: pf.name, Description: pf.description, AccentColor: pf.accent,
-			WelcomeMessage: pf.welcome, StarterQuestions: pf.starters, Draft: cfg.JSON(),
-			CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
-		})
-		if apperr.IsUniqueViolation(err, "agents_team_slug_key") {
-			return slugTaken()
-		} else if err != nil {
-			return err
-		}
-		if err := q.InsertAudienceGrant(ctx, dbgen.InsertAudienceGrantParams{
-			AgentID: out.ID, PrincipalType: authz.AudienceTeam, CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
-		}); err != nil {
-			return err
-		}
-		e := a.Audit("agent.create", "agent", out.ID.String())
-		e.TeamID, e.After = acc.Team.ID, agentSnapshot(out)
-		if in.TemplateID != "" {
-			if e.Metadata == nil {
-				e.Metadata = map[string]any{}
-			}
-			e.Metadata["templateId"] = in.TemplateID
-		}
-		return audit.Record(ctx, q, e)
-	})
+	}
+	slug, err := freeSlug(ctx, q, teamID, pf.slug, explicitSlug)
 	if err != nil {
-		return View{}, err
+		return dbgen.Agent{}, err
 	}
-	return s.view(ctx, out, acc.Team, true)
+	creator := uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
+	out, err := q.InsertAgent(ctx, dbgen.InsertAgentParams{
+		TeamID: teamID, Slug: slug, Name: pf.name, Description: pf.description, AccentColor: pf.accent,
+		WelcomeMessage: pf.welcome, StarterQuestions: pf.starters, Draft: cfg.JSON(), CreatedBy: creator,
+	})
+	if apperr.IsUniqueViolation(err, "agents_team_slug_key") {
+		return dbgen.Agent{}, slugTaken()
+	} else if err != nil {
+		return dbgen.Agent{}, err
+	}
+	if err := q.InsertAudienceGrant(ctx, dbgen.InsertAudienceGrantParams{AgentID: out.ID, PrincipalType: authz.AudienceTeam, CreatedBy: creator}); err != nil {
+		return dbgen.Agent{}, err
+	}
+	e := a.Audit("agent.create", "agent", out.ID.String())
+	e.TeamID, e.After = teamID, agentSnapshot(out)
+	if in.TemplateID != "" {
+		if e.Metadata == nil {
+			e.Metadata = map[string]any{}
+		}
+		e.Metadata["templateId"] = in.TemplateID
+	}
+	return out, audit.Record(ctx, q, e)
 }
 
 // freeSlug returns base, or base with a numeric suffix when the team

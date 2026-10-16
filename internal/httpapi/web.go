@@ -102,7 +102,11 @@ func (a *api) adminGetAttention(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	httpx.JSON(w, http.StatusOK, apitypes.AdminAttention{PendingDomainRequests: n})
+	teamReqs, err := a.TeamRequests.PendingCount(r.Context(), a.actor(r))
+	if failed(w, r, err) {
+		return
+	}
+	httpx.JSON(w, http.StatusOK, apitypes.AdminAttention{PendingDomainRequests: n, PendingTeamRequests: teamReqs})
 }
 
 func (a *api) adminReviewDomainRequest(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ type Call = Parameters<Handler>[1];
 
 const defaults: Record<string, () => unknown> = {
   "GET /v1/admin/settings/evaluations": () => ({ enabled: false, revision: 1, updatedAt: null }),
+  "GET /v1/admin/settings/team-requests": () => ({ enabled: false, maxOpen: 2, allowedGroup: "", revision: 1, updatedAt: "2026-10-15T10:00:00Z" }),
   "GET /v1/admin/settings/mcp": () => ({ enabled: false, revision: 1, updatedAt: null }),
   "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }),
   "GET /v1/admin/costs/budgets": () => ({ items: [] }),
@@ -38,6 +39,7 @@ export function featuresFrom(routes: Record<string, Handler>, call: Call): Schem
   const rerankModel = models.find((m) => m.id === rerank.modelId);
   return {
     evaluations: get("GET /v1/admin/settings/evaluations"),
+    teamRequests: get("GET /v1/admin/settings/team-requests"),
     mcp: get("GET /v1/admin/settings/mcp"),
     costs: {
       settings: get("GET /v1/admin/costs/settings"),

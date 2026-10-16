@@ -4,7 +4,7 @@ import { AppLayout } from "./components/layout/shell";
 import { NotFoundState } from "./components/not-found";
 import { publicRef } from "./pages/public/session";
 import {
-  adminTeamTabs,
+  adminTeamTabs, adminTeamsTabs,
   analyticsTabs,
   costTabs,
   breakGlassTabs,
@@ -74,7 +74,7 @@ const pages = {
   groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
   oauth: () => import("./pages/oauth/routes"),
-  account: () => import("./pages/account/routes"),
+  account: () => import("./pages/account/routes"), teamRequests: () => import("./pages/team-requests/page"),
 };
 const lazy = lazyRouteComponent;
 
@@ -188,7 +188,7 @@ const notificationsRoute = createRoute({
 const notificationSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/notifications", component: lazy(pages.notifications, "NotificationSettingsPage") });
 const connectedAppsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/connected-apps", component: lazy(pages.oauth, "ConnectedAppsPage") });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/profile", component: lazy(pages.account, "ProfilePage") });
-const myKeysRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/api-keys", component: lazy(pages.account, "MyKeysPage") });
+const myKeysRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/api-keys", component: lazy(pages.account, "MyKeysPage") }); const teamRequestsRoute = createRoute({ getParentRoute: () => appRoute, path: "team-requests", component: lazy(pages.teamRequests, "TeamRequestsPage") });
 const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "teams/$team", component: lazy(pages.teamLayout, "TeamLayout") });
 type Page = ReturnType<typeof lazyRouteComponent>;
 
@@ -332,7 +332,7 @@ const appTree = appRoute.addChildren([
     agentDirectoryRoute,
     conversationsRoute,
     conversationRoute,
-    notificationsRoute, notificationSettingsRoute, connectedAppsRoute, profileRoute, myKeysRoute,
+    notificationsRoute, notificationSettingsRoute, connectedAppsRoute, profileRoute, myKeysRoute, teamRequestsRoute,
     chatByIdRoute,
     chatByShortRoute,
     chatRoute,
@@ -353,7 +353,7 @@ const appTree = appRoute.addChildren([
     adminRoute.addChildren([
       adminIndexRoute,
       admin("users", lazy(pages.people, "AdminUsersPage")), admin("users/$userId", lazy(pages.people, "AdminUserPage")),
-      admin("teams", lazy(pages.people, "AdminTeamsPage")), adminTabs("teams/$team", adminTeamTabs, lazy(pages.people, "AdminTeamPage")),
+      adminTabs("teams", adminTeamsTabs, lazy(pages.people, "AdminTeamsPage")), adminTabs("teams/$team", adminTeamTabs, lazy(pages.people, "AdminTeamPage")),
       admin("group-mapping", lazy(pages.groupMapping, "GroupMappingPage")),
       admin("classifications", lazy(pages.policy, "ClassificationsPage")),
       admin("connections", lazy(pages.models, "ConnectionsPage")),

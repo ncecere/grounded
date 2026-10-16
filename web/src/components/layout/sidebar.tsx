@@ -149,7 +149,7 @@ function AdminNav() {
             key={item.to}
             icon={item.icon}
             label={item.label}
-            trailing={item.to === "/admin/crawl-domains" ? <PendingRequestsBadge /> : undefined}
+            trailing={item.to === "/admin/crawl-domains" ? <PendingRequestsBadge field="pendingDomainRequests" noun="domain request" /> : item.to === "/admin/teams" ? <PendingRequestsBadge field="pendingTeamRequests" noun="team request" /> : undefined}
             render={<Link to={item.to} activeOptions={{ exact: item.exact ?? false }} />}
           />
         ))}
@@ -157,20 +157,20 @@ function AdminNav() {
   ));
 }
 
-/** The count of pending domain requests, beside Crawl domains in the admin sidebar (docs/ui-review P-16). */
-function PendingRequestsBadge() {
+/** The count of pending domain requests beside Crawl domains (docs/ui-review P-16), and of team requests beside Teams (v0.6.0). */
+function PendingRequestsBadge({ field, noun }: { field: "pendingDomainRequests" | "pendingTeamRequests"; noun: string }) {
   const attention = useQuery({
     queryKey: ["admin", "attention"],
     queryFn: async () => unwrap(await api.GET("/v1/admin/attention")),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });
-  const n = attention.data?.pendingDomainRequests ?? 0;
+  const n = attention.data?.[field] ?? 0;
   if (n === 0) return null;
   return (
     <Badge size="sm" tone="info">
       {n}
-      <VisuallyHidden> pending domain {n === 1 ? "request" : "requests"}</VisuallyHidden>
+      <VisuallyHidden> pending {noun}{n === 1 ? "" : "s"}</VisuallyHidden>
     </Badge>
   );
 }

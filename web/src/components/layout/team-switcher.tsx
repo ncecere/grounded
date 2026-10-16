@@ -45,7 +45,13 @@ export function TeamSwitcher({ me, active }: { me: Me; active: ActiveTeam }) {
           </span>
         </MenuHeader>
       )}
-      {me.teams.length === 0 && help.link && (
+      {/* In-app requests are for everyone while a platform admin has them on; the outside links only for people without a team. */}
+      {help.link && "to" in help.link && (
+        <MenuLinkItem render={<Link to={help.link.to} />} icon={<Plus aria-hidden />}>
+          {help.link.label}
+        </MenuLinkItem>
+      )}
+      {me.teams.length === 0 && help.link && "href" in help.link && (
         <MenuLinkItem href={help.link.href} target="_blank" rel="noreferrer" icon={help.link.label === "Get help" ? <LifeBuoy aria-hidden /> : <Plus aria-hidden />}>
           {help.link.label}
         </MenuLinkItem>

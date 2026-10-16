@@ -91,6 +91,10 @@
   },
   {
    "persona": "admin",
+   "path": "/admin/teams?tab=requests"
+  },
+  {
+   "persona": "admin",
    "path": "/admin/connections"
   },
   {
@@ -200,6 +204,10 @@
   {
    "persona": "user",
    "path": "/settings/connected-apps"
+  },
+  {
+   "persona": "user",
+   "path": "/team-requests"
   }
  ],
  "allow": [

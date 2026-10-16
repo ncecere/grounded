@@ -36,6 +36,7 @@ func (a *api) getMe(w http.ResponseWriter, r *http.Request) {
 			PlatformAdmin:   id.IsPlatformAdmin(),
 			PlatformAuditor: id.IsPlatformAuditor(),
 			Evaluations:     ptrTo(a.evaluationsOn(r.Context())),
+			TeamRequests:    ptrTo(a.teamRequestsOn(r.Context())),
 			Mcp:             ptrTo(a.mcpOn(r.Context())),
 			McpOAuth:        ptrTo(a.oauthOn(r.Context())),
 		},

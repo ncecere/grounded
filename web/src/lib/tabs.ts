@@ -21,6 +21,8 @@ export const kbTabs = ["overview", "sources", "try", "evaluations", "settings"] 
 export const evaluationSetTabs = ["questions", "runs", "settings"] as const;
 /** The team's Gaps page (docs/gaps.md). */
 export const gapTabs = ["open", "closed", "settings"] as const;
+/** Admin → Teams (v0.6.0): the teams, and the requests people made for one. */
+export const adminTeamsTabs = ["teams", "requests"] as const;
 export const adminTeamTabs = ["overview", "members", "group-mapping", "limits", "settings"] as const;
 export const limitTabs = ["resources", "ingestion", "queries", "public", "evaluations"] as const;
 export const notificationTabs = ["all", "unread"] as const;

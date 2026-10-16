@@ -5,7 +5,7 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert, UsersRound } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -63,6 +63,18 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       description: "Teams can't crawl these hosts until a platform admin approves them.",
       action: isAdmin ? "Review" : "View requests",
       link: <Link to="/admin/crawl-domains" />,
+      tone: "warning",
+    });
+  }
+  const teamRequests = attention.data?.pendingTeamRequests ?? 0;
+  if (teamRequests > 0) {
+    rows.push({
+      id: "team-requests",
+      icon: <UsersRound />,
+      title: `${plural(teamRequests, "team request", "team requests")} waiting for review`,
+      description: "People asked for a team. They are told when a platform admin decides.",
+      action: isAdmin ? "Review" : "View requests",
+      link: <Link to="/admin/teams" search={{ tab: "requests" }} />,
       tone: "warning",
     });
   }

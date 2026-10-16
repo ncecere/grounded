@@ -4941,6 +4941,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/settings/team-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether in-app team requests are on, and their limits (platform admins and auditors) */
+        get: operations["adminGetTeamRequestSettings"];
+        /**
+         * Turn in-app team requests on or off, and set who may ask and how many open requests a person may have (platform admins; audited)
+         * @description Off by default. Off hides the request form and refuses new requests (403 team_requests_off); requests already open stay in the review queue until decided. allowedGroup is one SSO group the person must be in ("" lets anyone signed in ask).
+         */
+        put: operations["adminPutTeamRequestSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/team-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your team requests, and whether you can ask for a team now (people signing in; not API keys) */
+        get: operations["listMyTeamRequests"];
+        put?: never;
+        /**
+         * Ask for a team
+         * @description 403 team_requests_off while the feature is off, 403 not_allowed_to_request when an SSO group is required and you are not in it, 409 too_many_open_requests at the limit. Platform admins are told.
+         */
+        post: operations["createTeamRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/team-requests/{requestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw your own pending request (404 for anyone else's, or one already decided) */
+        post: operations["withdrawTeamRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/team-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The review queue, pending first (platform admins and auditors) */
+        get: operations["adminListTeamRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/team-requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        /** One request (platform admins and auditors) */
+        get: operations["adminGetTeamRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/team-requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a pending request and create the team (platform admins)
+         * @description One step: the team is created with the requester (or the person they named) as owner and the request is decided; a failure (409 slug_taken, 404 template_not_found, 409 request_already_decided) leaves the request pending and no team behind. starterTemplateId also starts the team with one agent made from that template.
+         */
+        post: operations["adminApproveTeamRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/team-requests/{requestId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline a pending request with a reason the person who asked will read (platform admins) */
+        post: operations["adminDeclineTeamRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/settings/answer-cache": {
         parameters: {
             query?: never;
@@ -5280,6 +5418,7 @@ export interface components {
         };
         AdminFeatures: {
             evaluations: components["schemas"]["EvaluationSettings"];
+            teamRequests: components["schemas"]["TeamRequestSettings"];
             mcp: components["schemas"]["MCPSettings"];
             answerCache?: components["schemas"]["AnswerCacheSettings"];
             costs: components["schemas"]["AdminFeatureCosts"];
@@ -5664,12 +5803,17 @@ export interface components {
         AdminAttention: {
             /**
              * Format: int64
+             * @description Team requests waiting for a decision
+             */
+            pendingTeamRequests: number;
+            /**
+             * Format: int64
              * @description Domain requests waiting for review (pending, and not already covered by the platform allowlist)
              */
             pendingDomainRequests: number;
         };
         /** @enum {string} */
-        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "source.documents_attention" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
+        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "team.request_new" | "team.request_decided" | "web.sync_failed" | "source.classification_lowered" | "source.documents_attention" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
         Notification: {
             /** Format: uuid */
             id: string;
@@ -5813,6 +5957,8 @@ export interface components {
             platformAuditor: boolean;
             /** @description Evaluations are on for the platform (the tabs show for team editors and above) */
             evaluations?: boolean;
+            /** @description In-app team requests are on for the platform (the Request a team page and its entry points show) */
+            teamRequests?: boolean;
             /** @description The MCP server (POST /mcp) is on for the platform */
             mcp?: boolean;
             /** @description OAuth sign-in for MCP clients is in effect (experimental; its setting and the MCP server are both on) */
@@ -11070,6 +11216,100 @@ export interface components {
              * @description Model tokens the original answers spent, not spent again
              */
             tokensSaved: number;
+        };
+        TeamRequestSettings: {
+            /** @description Off by default */
+            enabled: boolean;
+            /** @description Pending requests one person may have */
+            maxOpen: number;
+            /** @description An SSO group the person must be in to ask ("" lets anyone signed in ask) */
+            allowedGroup: string;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TeamRequestSettingsUpdate: {
+            enabled: boolean;
+            maxOpen: number;
+            allowedGroup: string;
+        };
+        /** @enum {string} */
+        TeamRequestStatus: "pending" | "approved" | "declined" | "withdrawn";
+        TeamRequest: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            purpose: string;
+            /** @description Who should own the team ("" is the requester) */
+            ownerEmail: string;
+            /** @description The highest classification the team's data will need */
+            classification: string;
+            status: components["schemas"]["TeamRequestStatus"];
+            /** @description The reviewer's reason for a declined request */
+            decisionReason: string;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** @description The team an approval created ("" otherwise) */
+            teamSlug: string;
+            teamName: string;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TeamRequestsOverview: {
+            enabled: boolean;
+            canAsk: boolean;
+            /**
+             * @description Why you cannot ask now
+             * @enum {string}
+             */
+            blocked: "" | "off" | "group" | "limit";
+            maxOpen: number;
+            openCount: number;
+            items: components["schemas"]["TeamRequest"][];
+        };
+        TeamRequestCreate: {
+            name: string;
+            purpose: string;
+            /** @description Who should own the team; the requester when empty */
+            ownerEmail?: string;
+            /** @description The highest classification the team's data will need */
+            classification: string;
+        };
+        AdminTeamRequest: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            purpose: string;
+            ownerEmail: string;
+            classification: string;
+            status: components["schemas"]["TeamRequestStatus"];
+            decisionReason: string;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            teamSlug: string;
+            teamName: string;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            requesterId: string;
+            requesterEmail: string;
+            requesterName: string;
+            deciderEmail: string;
+        };
+        TeamRequestApprove: {
+            /** @description The team's address (same rules as team slugs); the request has none */
+            slug: string;
+            /** @description Keeps the requested name when empty */
+            name?: string;
+            /** @description Keeps the requested classification when empty */
+            maxClassification?: string;
+            /** @description Also start the team with one agent made from this agent template (GET /v1/agent-templates) */
+            starterTemplateId?: string;
+        };
+        TeamRequestDecline: {
+            reason: string;
         };
         EvaluationSettings: {
             /** @description On by default; off hides the tabs and answers 404 on the evaluation API */
@@ -20312,6 +20552,261 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetTeamRequestSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamRequestSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutTeamRequestSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequestSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamRequestSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    listMyTeamRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Your requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamRequestsOverview"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    createTeamRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamRequest"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    withdrawTeamRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListTeamRequests: {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "declined" | "withdrawn";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requests (at most 200) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminTeamRequest"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetTeamRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminTeamRequest"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminApproveTeamRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequestApprove"];
+            };
+        };
+        responses: {
+            /** @description The decided request */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminTeamRequest"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeclineTeamRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequestDecline"];
+            };
+        };
+        responses: {
+            /** @description The decided request */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminTeamRequest"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
         };

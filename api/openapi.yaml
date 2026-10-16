@@ -7712,6 +7712,231 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/settings/team-requests:
+    get:
+      tags: [admin]
+      operationId: adminGetTeamRequestSettings
+      summary: Whether in-app team requests are on, and their limits (platform admins and auditors)
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamRequestSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutTeamRequestSettings
+      summary: Turn in-app team requests on or off, and set who may ask and how many open requests a person may have (platform admins; audited)
+      description: >-
+        Off by default. Off hides the request form and refuses new requests (403 team_requests_off); requests already open stay in the review
+        queue until decided. allowedGroup is one SSO group the person must be in ("" lets anyone signed in ask).
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamRequestSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamRequestSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/team-requests:
+    get:
+      tags: [team-requests]
+      operationId: listMyTeamRequests
+      summary: Your team requests, and whether you can ask for a team now (people signing in; not API keys)
+      responses:
+        "200":
+          description: Your requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamRequestsOverview" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [team-requests]
+      operationId: createTeamRequest
+      summary: Ask for a team
+      description: >-
+        403 team_requests_off while the feature is off, 403 not_allowed_to_request when an SSO group is required and you are not in it, 409
+        too_many_open_requests at the limit. Platform admins are told.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamRequestCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamRequest" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/team-requests/{requestId}/withdraw:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [team-requests]
+      operationId: withdrawTeamRequest
+      summary: Withdraw your own pending request (404 for anyone else's, or one already decided)
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/team-requests:
+    get:
+      tags: [admin, team-requests]
+      operationId: adminListTeamRequests
+      summary: The review queue, pending first (platform admins and auditors)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [pending, approved, declined, withdrawn] }
+      responses:
+        "200":
+          description: Requests (at most 200)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminTeamRequest" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/team-requests/{requestId}:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin, team-requests]
+      operationId: adminGetTeamRequest
+      summary: One request (platform admins and auditors)
+      responses:
+        "200":
+          description: The request
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminTeamRequest" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/team-requests/{requestId}/approve:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [admin, team-requests]
+      operationId: adminApproveTeamRequest
+      summary: Approve a pending request and create the team (platform admins)
+      description: >-
+        One step: the team is created with the requester (or the person they named) as owner and the request is decided; a failure (409
+        slug_taken, 404 template_not_found, 409 request_already_decided) leaves the request pending and no team behind. starterTemplateId
+        also starts the team with one agent made from that template.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamRequestApprove" }
+      responses:
+        "200":
+          description: The decided request
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminTeamRequest" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/team-requests/{requestId}/decline:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [admin, team-requests]
+      operationId: adminDeclineTeamRequest
+      summary: Decline a pending request with a reason the person who asked will read (platform admins)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamRequestDecline" }
+      responses:
+        "200":
+          description: The decided request
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminTeamRequest" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/settings/answer-cache:
     get:
       tags: [admin]
@@ -8524,9 +8749,10 @@ components:
         ok: { type: boolean }
     AdminFeatures:
       type: object
-      required: [evaluations, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
+      required: [evaluations, teamRequests, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
       properties:
         evaluations: { $ref: "#/components/schemas/EvaluationSettings" }
+        teamRequests: { $ref: "#/components/schemas/TeamRequestSettings" }
         mcp: { $ref: "#/components/schemas/MCPSettings" }
         answerCache: { $ref: "#/components/schemas/AnswerCacheSettings" }
         costs: { $ref: "#/components/schemas/AdminFeatureCosts" }
@@ -8895,8 +9121,9 @@ components:
         fix: { type: string, description: What to do about it }
     AdminAttention:
       type: object
-      required: [pendingDomainRequests]
+      required: [pendingDomainRequests, pendingTeamRequests]
       properties:
+        pendingTeamRequests: { type: integer, format: int64, description: Team requests waiting for a decision }
         pendingDomainRequests: { type: integer, format: int64, description: "Domain requests waiting for review (pending, and not already covered by the platform allowlist)" }
     NotificationType:
       type: string
@@ -8906,6 +9133,8 @@ components:
         - team.membership
         - web.domain_request
         - web.domain_request_new
+        - team.request_new
+        - team.request_decided
         - web.sync_failed
         - source.classification_lowered
         - source.documents_attention
@@ -9068,6 +9297,9 @@ components:
         evaluations:
           type: boolean
           description: Evaluations are on for the platform (the tabs show for team editors and above)
+        teamRequests:
+          type: boolean
+          description: In-app team requests are on for the platform (the Request a team page and its entry points show)
         mcp:
           type: boolean
           description: The MCP server (POST /mcp) is on for the platform
@@ -14172,6 +14404,92 @@ components:
         hits: { type: integer, format: int64, description: Answers served from the answer cache }
         hitRate: { type: number, format: double, nullable: true, description: Of answers }
         tokensSaved: { type: integer, format: int64, description: "Model tokens the original answers spent, not spent again" }
+    TeamRequestSettings:
+      type: object
+      required: [enabled, maxOpen, allowedGroup, revision, updatedAt]
+      properties:
+        enabled: { type: boolean, description: Off by default }
+        maxOpen: { type: integer, minimum: 1, maximum: 20, description: Pending requests one person may have }
+        allowedGroup: { type: string, description: 'An SSO group the person must be in to ask ("" lets anyone signed in ask)' }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time }
+    TeamRequestSettingsUpdate:
+      type: object
+      required: [enabled, maxOpen, allowedGroup]
+      properties:
+        enabled: { type: boolean }
+        maxOpen: { type: integer, minimum: 1, maximum: 20 }
+        allowedGroup: { type: string, maxLength: 256 }
+    TeamRequestStatus:
+      type: string
+      enum: [pending, approved, declined, withdrawn]
+    TeamRequest:
+      type: object
+      required: [id, name, purpose, ownerEmail, classification, status, decisionReason, teamSlug, teamName, revision, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        purpose: { type: string }
+        ownerEmail: { type: string, description: 'Who should own the team ("" is the requester)' }
+        classification: { type: string, description: The highest classification the team's data will need }
+        status: { $ref: "#/components/schemas/TeamRequestStatus" }
+        decisionReason: { type: string, description: The reviewer's reason for a declined request }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        teamSlug: { type: string, description: 'The team an approval created ("" otherwise)' }
+        teamName: { type: string }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+    TeamRequestsOverview:
+      type: object
+      required: [enabled, canAsk, blocked, maxOpen, openCount, items]
+      properties:
+        enabled: { type: boolean }
+        canAsk: { type: boolean }
+        blocked: { type: string, enum: ["", off, group, limit], description: Why you cannot ask now }
+        maxOpen: { type: integer }
+        openCount: { type: integer }
+        items: { type: array, items: { $ref: "#/components/schemas/TeamRequest" } }
+    TeamRequestCreate:
+      type: object
+      required: [name, purpose, classification]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        purpose: { type: string, minLength: 1, maxLength: 1000 }
+        ownerEmail: { type: string, description: Who should own the team; the requester when empty }
+        classification: { type: string, description: The highest classification the team's data will need }
+    AdminTeamRequest:
+      type: object
+      required: [id, name, purpose, ownerEmail, classification, status, decisionReason, teamSlug, teamName, revision, createdAt, requesterId, requesterEmail, requesterName, deciderEmail]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        purpose: { type: string }
+        ownerEmail: { type: string }
+        classification: { type: string }
+        status: { $ref: "#/components/schemas/TeamRequestStatus" }
+        decisionReason: { type: string }
+        decidedAt: { type: string, format: date-time, nullable: true }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        requesterId: { type: string, format: uuid }
+        requesterEmail: { type: string }
+        requesterName: { type: string }
+        deciderEmail: { type: string }
+    TeamRequestApprove:
+      type: object
+      required: [slug]
+      properties:
+        slug: { type: string, description: The team's address (same rules as team slugs); the request has none }
+        name: { type: string, maxLength: 100, description: Keeps the requested name when empty }
+        maxClassification: { type: string, description: Keeps the requested classification when empty }
+        starterTemplateId: { type: string, description: 'Also start the team with one agent made from this agent template (GET /v1/agent-templates)' }
+    TeamRequestDecline:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
     EvaluationSettings:
       type: object
       required: [enabled, revision, updatedAt]

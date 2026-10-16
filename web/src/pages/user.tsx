@@ -94,7 +94,7 @@ function YourTeams({ me }: { me: Me }) {
           description={`Teams build data sources, knowledge bases and agents. ${help.text}`}
           action={
             help.link ? (
-              <Button variant="secondary" render={<a href={help.link.href} target="_blank" rel="noreferrer" />}>
+              <Button variant="secondary" render={"to" in help.link ? <Link to={help.link.to} /> : <a href={help.link.href} target="_blank" rel="noreferrer" />}>
                 {help.link.label}
               </Button>
             ) : undefined

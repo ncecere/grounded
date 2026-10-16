@@ -104,6 +104,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 		BreakGlass: svc.BreakGlass,
 	}
 	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
+	deps.TeamRequests = svc.TeamRequests
 	deps.Gaps = svc.Gaps
 	deps.AnswerCache = svc.AnswerCache
 

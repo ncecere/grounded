@@ -1,26 +1,33 @@
 /*
  * Admin → Teams (A7): every team as a ListPage (status facet and search in
  * the URL, filtered by the server) with Agents, Sources and Storage, so large
- * teams stand out.
+ * teams stand out. The Requests tab (v0.6.0, E3) is the queue of in-app team
+ * requests, with the count of those waiting.
  */
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus, Users, UsersRound } from "lucide-react";
-import { useState } from "react";
+import { Inbox, Plus, Users, UsersRound } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
+import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { PersonCell } from "@/components/person-cell";
 import { ListPage, useListFilters } from "@/components/templates/list-page";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
+import { Stack } from "@/components/ui/layout/layout";
+import { PageHeader } from "@/components/ui/page-header/page-header";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { formatStorage as formatBytes } from "@/lib/format";
+import { adminTeamsTabs } from "@/lib/tabs";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
+import { adminTeamRequestsQuery } from "../../team-requests/common";
 import s from "../../shared.module.css";
 import { one, useDebounced, useIsPlatformAdmin } from "../hooks";
 import { TeamStatusBadge } from "./common";
 import { CreateTeamDialog } from "./create-team-dialog";
+import { TeamRequestsTab } from "./team-requests";
 
 type Summary = Schemas["TeamSummary"];
 
@@ -82,10 +89,8 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
   ];
 }
 
-export function AdminTeamsPage() {
-  const isAdmin = useIsPlatformAdmin();
+function TeamsList({ create }: { create: ReactNode }) {
   const levels = useClassificationLevels();
-  const [creating, setCreating] = useState(false);
   const { values, query } = useListFilters(facets);
   const q = useDebounced(query.trim());
   const status = one(values, "status") as Schemas["TeamStatus"] | "";
@@ -96,18 +101,10 @@ export function AdminTeamsPage() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = teams.data?.pages.flatMap((p) => p.items) ?? [];
-  const create = isAdmin && (
-    <Button onClick={() => setCreating(true)}>
-      <Plus aria-hidden /> Create team
-    </Button>
-  );
   return (
     <>
       <ListPage<Summary>
         id="admin-teams"
-        title="Teams"
-        description="Teams own data sources, knowledge bases and agents. Only platform admins create teams."
-        primaryAction={create}
         caption="Teams"
         columns={columns(levels.data)}
         data={items}
@@ -127,7 +124,38 @@ export function AdminTeamsPage() {
         empty={{ icon: <UsersRound />, title: q || status ? "No teams match." : "No teams yet.", action: create || undefined }}
         tableProps={{ facetCounts: false, loadMore: { hasMore: Boolean(teams.hasNextPage), loading: teams.isFetchingNextPage, onLoadMore: () => void teams.fetchNextPage() } }}
       />
-      <CreateTeamDialog open={creating} onOpenChange={setCreating} />
     </>
+  );
+}
+
+export function AdminTeamsPage() {
+  const isAdmin = useIsPlatformAdmin();
+  const [tab, setTab] = useUrlTab(adminTeamsTabs);
+  const [creating, setCreating] = useState(false);
+  const requests = useQuery(adminTeamRequestsQuery());
+  const waiting = (requests.data ?? []).filter((r) => r.status === "pending").length;
+  const create = isAdmin && (
+    <Button onClick={() => setCreating(true)}>
+      <Plus aria-hidden /> Create team
+    </Button>
+  );
+  return (
+    <Stack gap={6} className={s.page}>
+      <PageHeader
+        title="Teams"
+        description="Teams own data sources, knowledge bases and agents. Platform admins create teams, or approve the requests people make."
+        actions={create || undefined}
+      />
+      <PageTabs
+        label="Team sections"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          { value: "teams", label: "Teams", icon: <UsersRound aria-hidden />, content: <TeamsList create={create} /> },
+          { value: "requests", label: "Requests", icon: <Inbox aria-hidden />, count: waiting || undefined, content: <TeamRequestsTab /> },
+        ]}
+      />
+      <CreateTeamDialog open={creating} onOpenChange={setCreating} />
+    </Stack>
   );
 }

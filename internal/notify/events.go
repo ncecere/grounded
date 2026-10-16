@@ -110,6 +110,42 @@ func DomainRequestNewEvent(t TeamRef, admins []uuid.UUID, requestID uuid.UUID, p
 	}
 }
 
+// TeamRequestNewEvent: someone asked for a team; it reaches the platform admins.
+func TeamRequestNewEvent(admins []uuid.UUID, requestID uuid.UUID, name, requester, purpose string) Event {
+	who := strings.TrimSpace(requester)
+	if who == "" {
+		who = "Someone"
+	}
+	if r := []rune(purpose); len(r) > 300 {
+		purpose = string(r[:300]) + "…"
+	}
+	return Event{
+		Type: TeamRequestNew, Users: admins, Link: "/admin/teams?tab=requests",
+		Title: fmt.Sprintf("New team request: %s", name),
+		Body:  fmt.Sprintf("%s asked for a team called %s.\n\nPurpose: %s\n\nReview it under Admin, Teams, Requests.", who, name, purpose),
+		Data:  map[string]any{"requestId": requestID},
+	}
+}
+
+// TeamRequestDecidedEvent: a platform admin approved or declined a team request; it reaches the person who asked. An approved one links to
+// the team; a declined one carries the reviewer's reason.
+func TeamRequestDecidedEvent(requester, requestID uuid.UUID, name, decision, reason, teamSlug string) Event {
+	word, link := "declined", "/team-requests"
+	body := fmt.Sprintf("Your request for a team called %s was declined.", name)
+	if decision == "approve" {
+		word, link = "approved", "/teams/"+teamSlug
+		body = fmt.Sprintf("Your request for a team called %s was approved. The team is ready.", name)
+	}
+	if reason = strings.TrimSpace(reason); reason != "" {
+		body += "\n\nNote from the reviewer: " + reason
+	}
+	return Event{
+		Type: TeamRequestDecided, Users: []uuid.UUID{requester}, Link: link,
+		Title: fmt.Sprintf("Team request %s: %s", word, name), Body: body,
+		Data: map[string]any{"requestId": requestID, "decision": decision},
+	}
+}
+
 // SyncFailedEvent: a web source's sync (crawl run) failed.
 func SyncFailedEvent(t TeamRef, sourceID uuid.UUID, sourceName string, crawlID uuid.UUID, reason string) Event {
 	return Event{
