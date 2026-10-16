@@ -21,7 +21,7 @@ test("agent templates: start from one, save one, rename and delete it", async ({
     await editor.getByRole("button", { name: "New agent" }).first().click();
     const dialog = editor.getByRole("dialog", { name: "New agent" });
     const start = dialog.getByRole("combobox", { name: "Start from" });
-    await expect(start.getByRole("option")).toHaveText(["A blank agent", "Service desk FAQ", "Policy explainer", "Course helper", "Public website assistant", "Internal knowledge assistant"]);
+    await expect(start.getByRole("option")).toHaveText(["A blank agent", "Service desk FAQ", "Policy explainer", "Course helper", "Public website assistant", "Internal knowledge assistant", "Front door (router)"]);
     await start.selectOption({ label: "Service desk FAQ" });
     await expect(dialog).toContainText("Answers common how-do-I questions");
     await dialog.getByLabel("Name").fill("Template agent");

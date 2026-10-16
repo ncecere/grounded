@@ -32,6 +32,7 @@ test("a router sends the question to the right agent, names it, and continues th
     await owner.goto(`/teams/${team}/agents/${router.id}?tab=share`);
     await expect(owner.getByRole("heading", { name: "Audience" })).toBeVisible();
     await expect(owner.getByRole("switch", { name: "Can be reached through routers" })).toHaveCount(0);
+    await a11y(owner, "a router's Share tab");
     await owner.goto(`/teams/${team}/agents/${parking.id}?tab=share`);
     await expect(owner.getByRole("switch", { name: "Can be reached through routers" })).toBeChecked();
     await a11y(owner, "Share: Routers");
