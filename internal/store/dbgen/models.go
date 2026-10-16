@@ -1117,6 +1117,33 @@ type TeamMember struct {
 	UpdatedAt time.Time
 }
 
+type TeamRequest struct {
+	ID             uuid.UUID
+	RequesterID    uuid.UUID
+	Name           string
+	Purpose        string
+	OwnerEmail     string
+	Classification string
+	Status         string
+	DecisionReason string
+	DecidedBy      uuid.NullUUID
+	DecidedAt      *time.Time
+	TeamID         uuid.NullUUID
+	Revision       int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type TeamRequestSetting struct {
+	Singleton    bool
+	Enabled      bool
+	MaxOpen      int32
+	AllowedGroup string
+	Revision     int64
+	UpdatedBy    uuid.NullUUID
+	UpdatedAt    time.Time
+}
+
 type UsageDaily struct {
 	Day      pgtype.Date
 	Kind     string

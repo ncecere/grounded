@@ -44,6 +44,11 @@ func (a *api) featureSettings(ctx context.Context, actor authz.Actor, out *apity
 		return err
 	}
 	out.Evaluations = apitypes.EvaluationSettings{Enabled: ev.Enabled, Revision: ev.Revision, UpdatedAt: ev.UpdatedAt}
+	tr, err := a.TeamRequests.Settings(ctx, actor)
+	if err != nil {
+		return err
+	}
+	out.TeamRequests = toAPITeamRequestSettings(tr)
 	mcp, err := a.Platform.MCPSettings(ctx, actor)
 	if err != nil {
 		return err

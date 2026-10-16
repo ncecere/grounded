@@ -63,6 +63,25 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in CreateInput) (Su
 	if !a.IsPlatformAdmin() {
 		return Summary{}, AddResult{}, errAdminOnly
 	}
+	var (
+		sum   Summary
+		owner AddResult
+	)
+	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		var err error
+		sum, owner, err = s.CreateTx(ctx, q, tx, a, in)
+		return err
+	})
+	return sum, owner, err
+}
+
+// CreateTx is Create inside the caller's transaction: approving a team
+// request (internal/teamrequests) decides the request and creates the team
+// in one step, so a failure leaves neither.
+func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, in CreateInput) (Summary, AddResult, error) {
+	if !a.IsPlatformAdmin() {
+		return Summary{}, AddResult{}, errAdminOnly
+	}
 	in.Slug = strings.ToLower(strings.TrimSpace(in.Slug))
 	in.Name = strings.TrimSpace(in.Name)
 	if err := ValidateSlug(in.Slug); err != nil {
@@ -71,34 +90,28 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in CreateInput) (Su
 	if err := validateTeamFields(in.Name, in.Description); err != nil {
 		return Summary{}, AddResult{}, err
 	}
-	var (
-		sum   Summary
-		owner AddResult
-	)
-	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		if err := checkClassification(ctx, q, in.MaxClassification); err != nil {
-			return err
-		}
-		t, err := q.InsertTeam(ctx, dbgen.InsertTeamParams{
-			Slug: in.Slug, Name: in.Name, Description: in.Description,
-			MaxClassification: in.MaxClassification, CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: true},
-		})
-		if apperr.IsUniqueViolation(err, "teams_slug_key") {
-			return apperr.Conflict("slug_taken", "A team with that slug already exists")
-		} else if err != nil {
-			return err
-		}
-		e := a.Audit("team.create", "team", t.ID.String())
-		e.TeamID, e.After = t.ID, teamSnapshot(t)
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
-		}
-		if owner, err = s.addOrInvite(ctx, q, tx, a, t, in.OwnerEmail, authz.RoleOwner, "team.owner_assign"); err != nil {
-			return err
-		}
-		sum, err = summary(ctx, q, t)
-		return err
+	if err := checkClassification(ctx, q, in.MaxClassification); err != nil {
+		return Summary{}, AddResult{}, err
+	}
+	t, err := q.InsertTeam(ctx, dbgen.InsertTeamParams{
+		Slug: in.Slug, Name: in.Name, Description: in.Description,
+		MaxClassification: in.MaxClassification, CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: true},
 	})
+	if apperr.IsUniqueViolation(err, "teams_slug_key") {
+		return Summary{}, AddResult{}, apperr.Conflict("slug_taken", "A team with that slug already exists")
+	} else if err != nil {
+		return Summary{}, AddResult{}, err
+	}
+	e := a.Audit("team.create", "team", t.ID.String())
+	e.TeamID, e.After = t.ID, teamSnapshot(t)
+	if err := audit.Record(ctx, q, e); err != nil {
+		return Summary{}, AddResult{}, err
+	}
+	owner, err := s.addOrInvite(ctx, q, tx, a, t, in.OwnerEmail, authz.RoleOwner, "team.owner_assign")
+	if err != nil {
+		return Summary{}, AddResult{}, err
+	}
+	sum, err := summary(ctx, q, t)
 	return sum, owner, err
 }
 

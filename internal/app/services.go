@@ -45,6 +45,7 @@ import (
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
+	"github.com/ncecere/grounded/internal/teamrequests"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/vectorstore"
 	"github.com/ncecere/grounded/internal/web"
@@ -89,6 +90,8 @@ type Services struct {
 
 	// Evaluations runs evaluation sets (docs/evaluations.md).
 	Evaluations *evals.Service
+	// TeamRequests handles in-app requests for a team (v0.6.0, E3).
+	TeamRequests *teamrequests.Service
 	// Costs prices usage, reports spend and enforces budgets (E2).
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
@@ -251,6 +254,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
 	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
 	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
+	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache
 	return s, nil

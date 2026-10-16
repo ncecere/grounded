@@ -28,11 +28,14 @@ type Type string
 
 // Events (the table in docs/phase4-publishing.md §8).
 const (
-	TeamInvited           Type = "team.invited"
-	InviteExpiring        Type = "team.invite_expiring"
-	MembershipChanged     Type = "team.membership"
-	DomainRequestDecided  Type = "web.domain_request"
-	DomainRequestNew      Type = "web.domain_request_new"
+	TeamInvited          Type = "team.invited"
+	InviteExpiring       Type = "team.invite_expiring"
+	MembershipChanged    Type = "team.membership"
+	DomainRequestDecided Type = "web.domain_request"
+	DomainRequestNew     Type = "web.domain_request_new"
+	// Team requests (v0.6.0, E3): admins hear of a new request, the person who asked hears the decision.
+	TeamRequestNew        Type = "team.request_new"
+	TeamRequestDecided    Type = "team.request_decided"
 	SyncFailed            Type = "web.sync_failed"
 	ClassificationLowered Type = "source.classification_lowered"
 	// DocumentsAttention: a platform admin asked a team's owners to look at
@@ -85,6 +88,8 @@ var catalog = []Def{
 	{Type: MembershipChanged, Label: "Added to a team or role changed", Description: "You were added to a team, or your role in a team changed."},
 	{Type: DomainRequestDecided, Label: "Domain request decided", Description: "A platform admin approved, denied or revoked your crawl domain request."},
 	{Type: DomainRequestNew, Label: "New domain request", Description: "A team asked to crawl a domain that isn't on the allowlist (platform admins).", PlatformAdmins: true},
+	{Type: TeamRequestNew, Label: "New team request", Description: "Someone asked for a new team (platform admins).", PlatformAdmins: true},
+	{Type: TeamRequestDecided, Label: "Team request decided", Description: "A platform admin approved or declined your request for a team."},
 	{Type: SyncFailed, Label: "Web source sync failed", Description: "A web source sync failed in a team where you're an editor, admin or owner.", TeamRole: authz.RoleEditor},
 	{Type: ClassificationLowered, Label: "Source classification lowered", Description: "A data source's classification was lowered in a team you own.", Mandatory: true, TeamRole: authz.RoleOwner},
 	{Type: DocumentsAttention, Label: "Documents need attention", Description: "A platform admin asked you to look at documents that failed or need OCR in a data source of a team you own.", Mandatory: true, TeamRole: authz.RoleOwner},

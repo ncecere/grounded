@@ -2884,6 +2884,8 @@ const (
 	NotificationTypeTeamInviteExpiring          NotificationType = "team.invite_expiring"
 	NotificationTypeTeamInvited                 NotificationType = "team.invited"
 	NotificationTypeTeamMembership              NotificationType = "team.membership"
+	NotificationTypeTeamRequestDecided          NotificationType = "team.request_decided"
+	NotificationTypeTeamRequestNew              NotificationType = "team.request_new"
 	NotificationTypeWebDomainRequest            NotificationType = "web.domain_request"
 	NotificationTypeWebDomainRequestNew         NotificationType = "web.domain_request_new"
 	NotificationTypeWebSyncFailed               NotificationType = "web.sync_failed"
@@ -2925,6 +2927,10 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypeTeamInvited:
 		return true
 	case NotificationTypeTeamMembership:
+		return true
+	case NotificationTypeTeamRequestDecided:
+		return true
+	case NotificationTypeTeamRequestNew:
 		return true
 	case NotificationTypeWebDomainRequest:
 		return true
@@ -3864,6 +3870,54 @@ func (e SystemOneStatusCitationsMode) Valid() bool {
 	}
 }
 
+// Defines values for TeamRequestStatus.
+const (
+	TeamRequestStatusApproved  TeamRequestStatus = "approved"
+	TeamRequestStatusDeclined  TeamRequestStatus = "declined"
+	TeamRequestStatusPending   TeamRequestStatus = "pending"
+	TeamRequestStatusWithdrawn TeamRequestStatus = "withdrawn"
+)
+
+// Valid indicates whether the value is a known member of the TeamRequestStatus enum.
+func (e TeamRequestStatus) Valid() bool {
+	switch e {
+	case TeamRequestStatusApproved:
+		return true
+	case TeamRequestStatusDeclined:
+		return true
+	case TeamRequestStatusPending:
+		return true
+	case TeamRequestStatusWithdrawn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TeamRequestsOverviewBlocked.
+const (
+	TeamRequestsOverviewBlockedEmpty TeamRequestsOverviewBlocked = ""
+	TeamRequestsOverviewBlockedGroup TeamRequestsOverviewBlocked = "group"
+	TeamRequestsOverviewBlockedLimit TeamRequestsOverviewBlocked = "limit"
+	TeamRequestsOverviewBlockedOff   TeamRequestsOverviewBlocked = "off"
+)
+
+// Valid indicates whether the value is a known member of the TeamRequestsOverviewBlocked enum.
+func (e TeamRequestsOverviewBlocked) Valid() bool {
+	switch e {
+	case TeamRequestsOverviewBlockedEmpty:
+		return true
+	case TeamRequestsOverviewBlockedGroup:
+		return true
+	case TeamRequestsOverviewBlockedLimit:
+		return true
+	case TeamRequestsOverviewBlockedOff:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TeamRole.
 const (
 	TeamRoleAdmin  TeamRole = "admin"
@@ -4311,6 +4365,30 @@ func (e AdminListSharedDocumentsParamsKind) Valid() bool {
 	}
 }
 
+// Defines values for AdminListTeamRequestsParamsStatus.
+const (
+	AdminListTeamRequestsParamsStatusApproved  AdminListTeamRequestsParamsStatus = "approved"
+	AdminListTeamRequestsParamsStatusDeclined  AdminListTeamRequestsParamsStatus = "declined"
+	AdminListTeamRequestsParamsStatusPending   AdminListTeamRequestsParamsStatus = "pending"
+	AdminListTeamRequestsParamsStatusWithdrawn AdminListTeamRequestsParamsStatus = "withdrawn"
+)
+
+// Valid indicates whether the value is a known member of the AdminListTeamRequestsParamsStatus enum.
+func (e AdminListTeamRequestsParamsStatus) Valid() bool {
+	switch e {
+	case AdminListTeamRequestsParamsStatusApproved:
+		return true
+	case AdminListTeamRequestsParamsStatusDeclined:
+		return true
+	case AdminListTeamRequestsParamsStatusPending:
+		return true
+	case AdminListTeamRequestsParamsStatusWithdrawn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ExportConversationParamsFormat.
 const (
 	ExportConversationParamsFormatJson     ExportConversationParamsFormat = "json"
@@ -4551,6 +4629,9 @@ type AdminAgentStatusChangeStatus string
 type AdminAttention struct {
 	// PendingDomainRequests Domain requests waiting for review (pending, and not already covered by the platform allowlist)
 	PendingDomainRequests int64 `json:"pendingDomainRequests"`
+
+	// PendingTeamRequests Team requests waiting for a decision
+	PendingTeamRequests int64 `json:"pendingTeamRequests"`
 }
 
 // AdminFailedIngest defines model for AdminFailedIngest.
@@ -4613,8 +4694,9 @@ type AdminFeatures struct {
 	RerankModel *AdminFeatureModel `json:"rerankModel,omitempty"`
 
 	// Setup What the Overview's "Set up this install" checklist needs
-	Setup     AdminSetupState   `json:"setup"`
-	SystemOne SystemOneSettings `json:"systemOne"`
+	Setup        AdminSetupState     `json:"setup"`
+	SystemOne    SystemOneSettings   `json:"systemOne"`
+	TeamRequests TeamRequestSettings `json:"teamRequests"`
 }
 
 // AdminGapCounts defines model for AdminGapCounts.
@@ -4743,6 +4825,28 @@ type AdminSetupState struct {
 
 	// Teams Teams (0 or 1: whether any exists)
 	Teams int `json:"teams"`
+}
+
+// AdminTeamRequest defines model for AdminTeamRequest.
+type AdminTeamRequest struct {
+	Classification string             `json:"classification"`
+	CreatedAt      time.Time          `json:"createdAt"`
+	DecidedAt      *time.Time         `json:"decidedAt,omitempty"`
+	DeciderEmail   string             `json:"deciderEmail"`
+	DecisionReason string             `json:"decisionReason"`
+	Id             openapi_types.UUID `json:"id"`
+	Name           string             `json:"name"`
+	OwnerEmail     string             `json:"ownerEmail"`
+	Purpose        string             `json:"purpose"`
+	RequesterEmail string             `json:"requesterEmail"`
+	RequesterId    openapi_types.UUID `json:"requesterId"`
+	RequesterName  string             `json:"requesterName"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision Revision          `json:"revision"`
+	Status   TeamRequestStatus `json:"status"`
+	TeamName string            `json:"teamName"`
+	TeamSlug string            `json:"teamSlug"`
 }
 
 // AdminWarning A setting that is allowed but deserves attention (DESIGN.md §16). Settings that are unsafe in production stop Grounded from starting instead.
@@ -5728,6 +5832,9 @@ type Capabilities struct {
 	McpOAuth        *bool `json:"mcpOAuth,omitempty"`
 	PlatformAdmin   bool  `json:"platformAdmin"`
 	PlatformAuditor bool  `json:"platformAuditor"`
+
+	// TeamRequests In-app team requests are on for the platform (the Request a team page and its entry points show)
+	TeamRequests *bool `json:"teamRequests,omitempty"`
 }
 
 // CappedTeam defines model for CappedTeam.
@@ -11038,6 +11145,102 @@ type TeamRef struct {
 	Slug string             `json:"slug"`
 }
 
+// TeamRequest defines model for TeamRequest.
+type TeamRequest struct {
+	// Classification The highest classification the team's data will need
+	Classification string     `json:"classification"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	DecidedAt      *time.Time `json:"decidedAt,omitempty"`
+
+	// DecisionReason The reviewer's reason for a declined request
+	DecisionReason string             `json:"decisionReason"`
+	Id             openapi_types.UUID `json:"id"`
+	Name           string             `json:"name"`
+
+	// OwnerEmail Who should own the team ("" is the requester)
+	OwnerEmail string `json:"ownerEmail"`
+	Purpose    string `json:"purpose"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision Revision          `json:"revision"`
+	Status   TeamRequestStatus `json:"status"`
+	TeamName string            `json:"teamName"`
+
+	// TeamSlug The team an approval created ("" otherwise)
+	TeamSlug string `json:"teamSlug"`
+}
+
+// TeamRequestApprove defines model for TeamRequestApprove.
+type TeamRequestApprove struct {
+	// MaxClassification Keeps the requested classification when empty
+	MaxClassification *string `json:"maxClassification,omitempty"`
+
+	// Name Keeps the requested name when empty
+	Name *string `json:"name,omitempty"`
+
+	// Slug The team's address (same rules as team slugs); the request has none
+	Slug string `json:"slug"`
+
+	// StarterTemplateId Also start the team with one agent made from this agent template (GET /v1/agent-templates)
+	StarterTemplateId *string `json:"starterTemplateId,omitempty"`
+}
+
+// TeamRequestCreate defines model for TeamRequestCreate.
+type TeamRequestCreate struct {
+	// Classification The highest classification the team's data will need
+	Classification string `json:"classification"`
+	Name           string `json:"name"`
+
+	// OwnerEmail Who should own the team; the requester when empty
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
+	Purpose    string  `json:"purpose"`
+}
+
+// TeamRequestDecline defines model for TeamRequestDecline.
+type TeamRequestDecline struct {
+	Reason string `json:"reason"`
+}
+
+// TeamRequestSettings defines model for TeamRequestSettings.
+type TeamRequestSettings struct {
+	// AllowedGroup An SSO group the person must be in to ask ("" lets anyone signed in ask)
+	AllowedGroup string `json:"allowedGroup"`
+
+	// Enabled Off by default
+	Enabled bool `json:"enabled"`
+
+	// MaxOpen Pending requests one person may have
+	MaxOpen int `json:"maxOpen"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// TeamRequestSettingsUpdate defines model for TeamRequestSettingsUpdate.
+type TeamRequestSettingsUpdate struct {
+	AllowedGroup string `json:"allowedGroup"`
+	Enabled      bool   `json:"enabled"`
+	MaxOpen      int    `json:"maxOpen"`
+}
+
+// TeamRequestStatus defines model for TeamRequestStatus.
+type TeamRequestStatus string
+
+// TeamRequestsOverview defines model for TeamRequestsOverview.
+type TeamRequestsOverview struct {
+	// Blocked Why you cannot ask now
+	Blocked   TeamRequestsOverviewBlocked `json:"blocked"`
+	CanAsk    bool                        `json:"canAsk"`
+	Enabled   bool                        `json:"enabled"`
+	Items     []TeamRequest               `json:"items"`
+	MaxOpen   int                         `json:"maxOpen"`
+	OpenCount int                         `json:"openCount"`
+}
+
+// TeamRequestsOverviewBlocked Why you cannot ask now
+type TeamRequestsOverviewBlocked string
+
 // TeamRole defines model for TeamRole.
 type TeamRole string
 
@@ -11845,6 +12048,12 @@ type AdminPutPublicAccessParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutTeamRequestSettingsParams defines parameters for AdminPutTeamRequestSettings.
+type AdminPutTeamRequestSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminUpdateSharedSourceParams defines parameters for AdminUpdateSharedSource.
 type AdminUpdateSharedSourceParams struct {
 	// Preview Return the ClassificationImpact of the requested classification without changing anything
@@ -11908,6 +12117,26 @@ type AdminListSharedDocumentPassagesParams struct {
 
 // AdminPutSystemOneParams defines parameters for AdminPutSystemOne.
 type AdminPutSystemOneParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminListTeamRequestsParams defines parameters for AdminListTeamRequests.
+type AdminListTeamRequestsParams struct {
+	Status *AdminListTeamRequestsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// AdminListTeamRequestsParamsStatus defines parameters for AdminListTeamRequests.
+type AdminListTeamRequestsParamsStatus string
+
+// AdminApproveTeamRequestParams defines parameters for AdminApproveTeamRequest.
+type AdminApproveTeamRequestParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminDeclineTeamRequestParams defines parameters for AdminDeclineTeamRequest.
+type AdminDeclineTeamRequestParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
@@ -12424,6 +12653,9 @@ type AdminPutMCPSettingsJSONRequestBody = MCPSettingsUpdate
 // AdminPutPublicAccessJSONRequestBody defines body for AdminPutPublicAccess for application/json ContentType.
 type AdminPutPublicAccessJSONRequestBody = PublicAccessUpdate
 
+// AdminPutTeamRequestSettingsJSONRequestBody defines body for AdminPutTeamRequestSettings for application/json ContentType.
+type AdminPutTeamRequestSettingsJSONRequestBody = TeamRequestSettingsUpdate
+
 // AdminCreateSharedSourceJSONRequestBody defines body for AdminCreateSharedSource for application/json ContentType.
 type AdminCreateSharedSourceJSONRequestBody = DataSourceCreate
 
@@ -12441,6 +12673,12 @@ type AdminUpdateSharedDocumentJSONRequestBody = DocumentUpdate
 
 // AdminPutSystemOneJSONRequestBody defines body for AdminPutSystemOne for application/json ContentType.
 type AdminPutSystemOneJSONRequestBody = SystemOneSettingsInput
+
+// AdminApproveTeamRequestJSONRequestBody defines body for AdminApproveTeamRequest for application/json ContentType.
+type AdminApproveTeamRequestJSONRequestBody = TeamRequestApprove
+
+// AdminDeclineTeamRequestJSONRequestBody defines body for AdminDeclineTeamRequest for application/json ContentType.
+type AdminDeclineTeamRequestJSONRequestBody = TeamRequestDecline
 
 // AdminCreateTeamJSONRequestBody defines body for AdminCreateTeam for application/json ContentType.
 type AdminCreateTeamJSONRequestBody = TeamCreate
@@ -12495,6 +12733,9 @@ type SetPublicMessageFeedbackJSONRequestBody = Feedback
 
 // CreatePublicSessionJSONRequestBody defines body for CreatePublicSession for application/json ContentType.
 type CreatePublicSessionJSONRequestBody = PublicSessionCreate
+
+// CreateTeamRequestJSONRequestBody defines body for CreateTeamRequest for application/json ContentType.
+type CreateTeamRequestJSONRequestBody = TeamRequestCreate
 
 // CreateAgentJSONRequestBody defines body for CreateAgent for application/json ContentType.
 type CreateAgentJSONRequestBody = AgentCreate
