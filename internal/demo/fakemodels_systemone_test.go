@@ -31,6 +31,7 @@ func TestFakeSystemOneRoutesByWords(t *testing.T) {
 	opts := map[string]string{
 		"agent_1":    `The assistant "Parking help" of Transport. It helps with: Student parking permits and decals.`,
 		"agent_2":    `The assistant "Housing help" of Residence. It helps with: Residence halls and move-in dates.`,
+		"agent_3":    `The assistant "Go testing help" of Demo. It helps with: Writing and running tests, benchmarks and fuzzing in Go.`,
 		"small_talk": "only small talk", "none": "nothing fits",
 	}
 	route := map[string]any{"route": map[string]any{"type": "choice", "criteria": opts}}
@@ -38,7 +39,8 @@ func TestFakeSystemOneRoutesByWords(t *testing.T) {
 		{"Where do I buy a parking permit?", "agent_1"},
 		{"When can I move into the residence halls?", "agent_2"},
 		{"Who won the football game?", "none"},
-		{"Parking or housing?", "agent_1"}, // a tie: the first agent
+		{"Parking or housing?", "agent_1"},                    // a tie: the first agent
+		{"How do I write a benchmark test in Go?", "agent_3"}, // plurals and endings: benchmark, benchmarks; write, writing
 		{"Hello!", "small_talk"},
 	} {
 		got := askSystemOne(t, map[string]any{"message": c.message}, route)["route"]["choice"]

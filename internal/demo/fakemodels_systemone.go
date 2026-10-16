@@ -122,8 +122,18 @@ func fakeWords(s string) map[string]bool {
 	out := map[string]bool{}
 	for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) }) {
 		if len(w) >= 4 && !fakeStop[w] {
-			out[w] = true
+			out[fakeStem(w)] = true
 		}
 	}
 	return out
+}
+
+// fakeStem crudely drops a plural or an ending, so "benchmarks", "writing" and "write" match "benchmark" and "writ".
+func fakeStem(w string) string {
+	for _, suf := range []string{"ing", "ed", "es", "s", "e"} {
+		if strings.HasSuffix(w, suf) && len(w)-len(suf) >= 3 {
+			return strings.TrimSuffix(w, suf)
+		}
+	}
+	return w
 }

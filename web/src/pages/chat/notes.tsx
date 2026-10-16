@@ -92,7 +92,10 @@ export const isAnswer = (item: AssistantItem) => !item.moderation && item.status
 
 /** What a refusal says about itself, then what else the agent can answer (its starter questions). */
 const refusalNote = (item: AssistantItem) =>
-  item.noContextReason === "out_of_scope" || item.restored ? undefined : "The agent searched its sources and found nothing that answers this.";
+  // A router searched nothing: its own words are the whole refusal.
+  ["out_of_scope", "no_agent", "route_unavailable"].includes(item.noContextReason ?? "") || item.restored
+    ? undefined
+    : "The agent searched its sources and found nothing that answers this.";
 
 type NotesProps = {
   item: AssistantItem;

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { signalLabels } from "../pages/team/gaps/queries";
+import { problemTarget } from "../pages/agents/common";
 import { ViewerHost } from "../pages/chat/viewer/host";
 import { applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
@@ -56,6 +57,17 @@ describe("a routed answer", () => {
     );
     expect(await screen.findByText(/Answered by/)).toHaveTextContent("Parking help (removed since)");
     expect(screen.queryByRole("link", { name: "Continue there" })).toBeNull();
+  });
+
+  it("a router's refusal does not claim it searched its sources", async () => {
+    const refusal = { ...answer({ refused: true, noContext: true, noContextReason: "no_agent", text: "I couldn't find an assistant here that covers that." }), status: "done" as const };
+    const ordinary = { ...answer({ refused: true, noContext: true, text: "I couldn't find that." }), status: "done" as const };
+    const first = renderBare(<ChatMessages items={[refusal]} agent={{ name: "Front door" }} />);
+    expect(await screen.findByText(/couldn't find an assistant here/)).toBeInTheDocument();
+    expect(screen.queryByText(/searched its sources/)).toBeNull();
+    first.unmount();
+    renderBare(<ChatMessages items={[ordinary]} agent={{ name: "Helper" }} />);
+    expect(await screen.findByText(/searched its sources and found nothing/)).toBeInTheDocument();
   });
 
   it("says nothing about routing on an ordinary answer", async () => {
@@ -141,6 +153,9 @@ describe("a router's editor", () => {
     expect(within(list).getByText("It can reach 2 agents that you can chat with.", { exact: false })).toBeInTheDocument();
     // The wording starts as the standard router wording, not the knowledge-base refusal.
     expect((screen.getByRole("textbox", { name: "When nothing fits" }) as HTMLTextAreaElement).value).toMatch(/^I couldn't find an assistant here/);
+    // A publish problem about routing points here, by name.
+    expect(problemTarget("draft.router")).toEqual({ id: "agent-field-router", label: "Routing" });
+    expect(container.querySelector("#agent-field-router")).not.toBeNull();
     // Not tried in the editor (the draft has no conversation to send the question on in): the panel says so, and the header says what it routes to.
     expect(screen.getByText("other agents")).toBeInTheDocument();
     expect(screen.queryByText(/knowledge bases?$/)).toBeNull();

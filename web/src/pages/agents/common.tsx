@@ -88,6 +88,8 @@ export function problemTarget(field: string): { id: string; label: string } {
     moderation: "Moderation",
     audience: "Audience",
     tools: "Tools",
+    router: "Routing",
+    routable: "Routers",
     rerankTopN: "Passages kept after reranking",
     published: "Published version",
   };

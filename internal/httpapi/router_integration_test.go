@@ -392,3 +392,23 @@ func TestPublicRouterReachesOnlyPublicAgents(t *testing.T) {
 		t.Errorf("routing = %+v", rec)
 	}
 }
+
+func TestFrontDoorTemplateMakesARouter(t *testing.T) {
+	env := newRouterEnv(t)
+	parking := env.target(t, "Parking help", "Parking permits, decals and campus transportation.", nil)
+
+	// From the built-in template, with no knowledge bases: a router, ready to publish, and it routes.
+	var ag apitypes.Agent
+	code, e := env.editor.call("POST", env.base+"/agents", map[string]any{"name": "Door", "templateId": "front-door", "config": map[string]any{"chatModelId": env.chat.Id, "kbs": []any{}}}, &ag, nil)
+	mustCode(t, "create from the template", code, e, 201, "")
+	if ag.Draft.Router == nil || !*ag.Draft.Router || (ag.Draft.Routable != nil && *ag.Draft.Routable) || len(ag.Draft.Kbs) != 0 {
+		t.Fatalf("draft = router %v, routable %v, %d knowledge bases", ag.Draft.Router, ag.Draft.Routable, len(ag.Draft.Kbs))
+	}
+	if code, raw := env.publish(env.editor, ag); code != 201 {
+		t.Fatalf("publish the router from the template = %d %s", code, raw)
+	}
+	env.end(t, env.member, ag.Slug, "", "Where do students buy a parking permit?")
+	if rec := env.routing(t, ag); rec.Decision != "routed" || rec.AgentID == nil || *rec.AgentID != parking.Id {
+		t.Errorf("routing = %+v", rec)
+	}
+}

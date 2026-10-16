@@ -61,7 +61,9 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
   };
   const levelName = (key: string) => levels.data?.find((l) => l.key === key)?.name ?? key;
   const rankOf = (key?: string | null) => levels.data?.find((l) => l.key === key)?.rank;
-  const chosen = Object.entries(picked);
+  // A router answers from other agents, not from knowledge bases of its own: it has none (and publishing refuses them).
+  const router = Boolean(template?.config.router);
+  const chosen = router ? [] : Object.entries(picked);
   const tooSensitive = chosen.filter(([id]) => {
     const kb = kbs.data?.find((k) => k.id === id);
     const r = rankOf(kb?.effectiveClassification);
@@ -134,10 +136,14 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
       <Field label="Name" error={submitted ? errors.name : undefined}>
         <Input aria-required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Fieldset legend="Knowledge bases" description="What the agent answers from (up to 5). Each is searched with its own results per search; you can override them in Build.">
-        <KnowledgeBasePicker picked={picked} onChange={setPicked} levelName={levelName} />
-        {errors.kbs && <p className={s.dangerText}>{errors.kbs}</p>}
-      </Fieldset>
+      {router ? (
+        <p className={s.note}>A router has no knowledge bases: it sends each question to an agent that has. Teams choose which of their agents it can reach, under Share.</p>
+      ) : (
+        <Fieldset legend="Knowledge bases" description="What the agent answers from (up to 5). Each is searched with its own results per search; you can override them in Build.">
+          <KnowledgeBasePicker picked={picked} onChange={setPicked} levelName={levelName} />
+          {errors.kbs && <p className={s.dangerText}>{errors.kbs}</p>}
+        </Fieldset>
+      )}
       <ModelPicker model={model} onChange={setModelId} levelName={levelName} />
       <div className={s.grid2}>
         <Field label="Address" labelHint="Optional" description={`Chat link: /a/${team}/${shownSlug || "…"}`} error={errors.slug}>

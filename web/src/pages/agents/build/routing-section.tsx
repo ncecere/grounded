@@ -19,7 +19,7 @@ export function RoutingSection({ c, set, errorFor, agentId }: SectionProps & { a
   const reach = (directory.data ?? []).filter((x) => x.routable && !x.router && x.id !== agentId);
   const custom = c.refusalMessage && !/^I couldn't find an answer to that in the sources I have\.?$/.test(c.refusalMessage);
   return (
-    <div className={a.stack}>
+    <div id="agent-field-router" className={a.stack}>
       <p className={s.note}>
         This agent answers nothing itself. Each question goes to the best of the agents below that the person asking could chat with themselves, and the answer shows which agent gave it, with a link to carry on there.
       </p>
