@@ -38,6 +38,7 @@ func TestFakeSystemOneRoutesByWords(t *testing.T) {
 		{"Where do I buy a parking permit?", "agent_1"},
 		{"When can I move into the residence halls?", "agent_2"},
 		{"Who won the football game?", "none"},
+		{"Parking or housing?", "agent_1"}, // a tie: the first agent
 		{"Hello!", "small_talk"},
 	} {
 		got := askSystemOne(t, map[string]any{"message": c.message}, route)["route"]["choice"]
