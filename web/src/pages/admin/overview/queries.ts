@@ -1,6 +1,7 @@
 /* The admin Overview's queries (A1). Each part of the page loads on its own, so one failure doesn't hide the rest. */
 import type { QueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
+import { teamRequestSettingsQuery } from "./team-requests-switch";
 
 export const overviewQuery = () => ({
   queryKey: ["admin", "overview"],
@@ -95,6 +96,7 @@ export const featuresQuery = (qc: QueryClient) => ({
   queryFn: async () => {
     const f = unwrap(await api.GET("/v1/admin/features"));
     qc.setQueryData(evaluationSettingsQuery().queryKey, f.evaluations);
+    qc.setQueryData(teamRequestSettingsQuery().queryKey, f.teamRequests);
     qc.setQueryData(mcpSettingsQuery().queryKey, f.mcp);
     if (f.answerCache) qc.setQueryData(answerCacheSettingsQuery().queryKey, f.answerCache);
     return f;

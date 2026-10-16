@@ -5,13 +5,14 @@
  * read-only with the reason.
  */
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Cable, ClipboardCheck, DatabaseZap, KeyRound } from "lucide-react";
+import { BookOpen, Cable, ClipboardCheck, DatabaseZap, KeyRound, UsersRound } from "lucide-react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "../overview/answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "../overview/evaluations-switch";
 import { experimental, FeatureList, fromQuery, off, on, type Row } from "../overview/features";
 import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "../overview/mcp-switch";
 import { OAuthSwitch, oauthDocsUrl, oauthFeature, useOAuthSave } from "../overview/oauth-switch";
+import { TeamRequestsSwitch, teamRequestsText, useTeamRequestSettings } from "../overview/team-requests-switch";
 import o from "../overview/overview.module.css";
 
 export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
@@ -19,6 +20,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   const mcp = useMCPSetting();
   const oauth = useOAuthSave(mcp);
   const cache = useAnswerCacheSetting();
+  const teamRequests = useTeamRequestSettings();
   const rows: Row[] = [
     fromQuery(
       evaluations.settings,
@@ -31,6 +33,18 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
         link: <Link to="/admin/limits" search={{ tab: "evaluations" }} />,
       },
       (d) => ({ state: d.enabled ? on : off, description: evaluationsText(d.enabled) }),
+    ),
+    fromQuery(
+      teamRequests.settings,
+      {
+        id: "team-requests",
+        icon: <UsersRound />,
+        title: "Team requests",
+        control: <TeamRequestsSwitch setting={teamRequests} isAdmin={isAdmin} />,
+        action: "Review requests",
+        link: <Link to="/admin/teams" search={{ tab: "requests" }} />,
+      },
+      (d) => ({ state: d.enabled ? on : off, description: teamRequestsText(d) }),
     ),
     fromQuery(
       mcp.settings,
@@ -67,6 +81,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   ];
   const errors: [unknown, string][] = [
     [evaluations.save.error, "Couldn't change evaluations"],
+    [teamRequests.save.error, "Couldn't change team requests"],
     [mcp.save.error, "Couldn't change the MCP server"],
     [oauth.error, "Couldn't change OAuth sign-in"],
     [cache.save.error, "Couldn't change saved answers"],

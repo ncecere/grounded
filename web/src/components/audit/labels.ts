@@ -20,6 +20,11 @@ const actionLabels: Record<string, string> = {
   "agent.publishable_key_pepper_rehash": "Re-hashed widget key with the new pepper",
   "agent.short_name": "Changed agent short name",
   "agent_template.create": "Saved an agent as a template",
+  "team_request.create": "Asked for a team",
+  "team_request.withdraw": "Withdrew a team request",
+  "team_request.approve": "Approved a team request",
+  "team_request.decline": "Declined a team request",
+  "platform.team_requests": "Changed the team request settings",
   "agent_template.update": "Changed an agent template",
   "agent_template.delete": "Deleted an agent template",
   "apikey.create": "Created API key",
@@ -219,6 +224,7 @@ export function actionLabel(action: string, entry?: Pick<AuditEntry, "after"> & 
 export const actionGroups: { prefix: string; label: string; platform?: boolean }[] = [
   { prefix: "agent.", label: "Agents" },
   { prefix: "agent_template.", label: "Agent templates" },
+  { prefix: "team_request.", label: "Team requests" },
   { prefix: "apikey.", label: "API keys" },
   { prefix: "source.", label: "Data sources" },
   { prefix: "document.", label: "Documents" },
@@ -317,50 +323,7 @@ export function actedHow(e: ActedFields): string | undefined {
   return actedVia(e) ?? (e.actor.kind === "user" ? "Signed in" : undefined);
 }
 
-export const targetTypeLabels: Record<string, string> = {
-  agent: "Agent",
-  agent_template: "Agent template",
-  api_key: "API key",
-  break_glass_session: "Break-glass session",
-  break_glass_settings: "Break-glass settings",
-  conversation: "Conversation",
-  classification: "Classification",
-  crawl_allowlist: "Allowed domain",
-  crawl_domain_request: "Domain request",
-  cost_settings: "Cost settings",
-  data_source: "Data source",
-  document: "Document",
-  embedding_profile: "Embedding profile",
-  knowledge_base: "Knowledge base",
-  legal_hold: "Legal hold",
-  maintenance_mode: "Maintenance mode",
-  mcp_settings: "MCP server setting",
-  answer_cache_settings: "Saved answers setting",
-  mcp_server: "MCP server",
-  mcp_tool: "MCP tool",
-  oauth_grant: "Connected app",
-  oauth_client: "Registered app",
-  model: "Model",
-  model_connection: "Model connection",
-  moderation_policy: "Moderation policy",
-  parsing_settings: "Parsing settings",
-  platform_keys: "Key rotation",
-  platform_limits: "Platform limits",
-  platform_settings: "Platform setting",
-  publishable_key: "Widget key",
-  retention: "Retention run",
-  retention_settings: "Retention settings",
-  sso_group_rule: "SSO group rule",
-  evaluation_run: "Evaluation run",
-  evaluation_set: "Evaluation set",
-  gap_settings: "Gap report settings",
-  evaluation_settings: "Evaluations setting",
-  systemone_settings: "SystemOne settings",
-  rerank_settings: "Reranking settings",
-  team: "Team",
-  team_invite: "Invite",
-  user: "User",
-};
+export { targetTypeLabel, targetTypeLabels } from "./target-type-labels";
 
 /**
  * Target types the action already names: platform settings ("Turned OAuth sign-in for MCP clients on") and a retention
@@ -380,7 +343,6 @@ export function entryTitle(e: Pick<AuditEntry, "action" | "after" | "targetLabel
 }
 
 
-export const targetTypeLabel = (type: string) => targetTypeLabels[type] ?? type.replace(/_/g, " ");
 
 const uuidRE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
