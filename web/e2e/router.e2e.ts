@@ -53,6 +53,7 @@ test("a router sends the question to the right agent, names it, and continues th
     await expect(member).toHaveURL(new RegExp(`/a/${team}/${parking.slug}\\?c=`));
     await expect(member.getByRole("article", { name: "Parking helper said" })).toContainText(handbook.answer);
     await expect(member.getByRole("article", { name: "You said" })).toContainText("How much is a student parking permit?");
+    await a11y(member, "the conversation continued with the answering agent");
   });
 
   await test.step("a question nobody covers gets the router's own words", async () => {
