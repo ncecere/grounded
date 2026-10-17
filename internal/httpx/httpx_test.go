@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -186,5 +187,68 @@ func TestDecodeGivesUpOnABodyThatStalls(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("a body that arrived in time, answered slowly: %d, want 200", res.StatusCode)
+	}
+}
+
+// A body that is valid JSON but does not fit (an unknown field, the wrong type) says so and names the field, instead of "not valid JSON" (QA pass
+// v0.6.0, #115). The code stays invalid_json: clients match on it.
+func TestDecodeNamesTheProblem(t *testing.T) {
+	type nested struct {
+		Count int `json:"count"`
+	}
+	type body struct {
+		Name  string   `json:"name"`
+		Limit int      `json:"limit"`
+		Ratio float64  `json:"ratio"`
+		On    bool     `json:"on"`
+		Tags  []string `json:"tags"`
+		Inner nested   `json:"inner"`
+	}
+	cases := []struct {
+		name, in string
+		want     []string // all must appear in the message
+		never    []string
+	}{
+		{"unknown field", `{"name":"a","kbIds":[1]}`, []string{`Unknown field "kbIds"`}, nil},
+		{"text where a number goes", `{"limit":"5"}`, []string{`"limit"`, "a whole number"}, []string{"int", "Go"}},
+		{"number where text goes", `{"name":5}`, []string{`"name"`, "text"}, nil},
+		{"text where true or false goes", `{"on":"yes"}`, []string{`"on"`, "true or false"}, nil},
+		{"object where a list goes", `{"tags":{}}`, []string{`"tags"`, "a list"}, nil},
+		{"a nested field is named with its path", `{"inner":{"count":"x"}}`, []string{`"inner.count"`, "a whole number"}, nil},
+		{"broken JSON", `{"name":`, []string{"not valid JSON"}, nil},
+		{"syntax error", `{name: 1}`, []string{"not valid JSON"}, nil},
+		{"empty body", ``, []string{"empty"}, nil},
+		{"a very long unknown field name is cut", `{"` + strings.Repeat("x", 500) + `":1}`, []string{"Unknown field"}, []string{strings.Repeat("x", 100)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest("POST", "/", strings.NewReader(tc.in))
+			r.Header.Set("Content-Type", "application/json")
+			var b body
+			if Decode(w, r, &b) {
+				t.Fatal("accepted")
+			}
+			var env struct {
+				Error struct{ Code, Message string }
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+				t.Fatalf("not an error envelope: %s", w.Body)
+			}
+			msg := env.Error.Message
+			if w.Code != http.StatusBadRequest || env.Error.Code != "invalid_json" {
+				t.Fatalf("want 400 invalid_json, got %d %s", w.Code, w.Body)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(msg, want) {
+					t.Errorf("message %s lacks %q", msg, want)
+				}
+			}
+			for _, bad := range tc.never {
+				if strings.Contains(msg, bad) {
+					t.Errorf("message %s holds %q", msg, bad)
+				}
+			}
+		})
 	}
 }

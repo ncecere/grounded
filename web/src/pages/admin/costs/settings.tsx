@@ -14,7 +14,7 @@ import { Field } from "@/components/ui/field/field";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { costSettingsQuery, type CostMode, type CostSettings, modeDescriptions, modeLabels } from "@/lib/costs";
+import { costSettingsQuery, type CostMode, forgetTeamSpend, type CostSettings, modeDescriptions, modeLabels } from "@/lib/costs";
 import { adminOnly } from "@/lib/terms";
 import { useCurrentUser } from "@/session";
 
@@ -76,6 +76,7 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
       qc.setQueryData(costSettingsQuery().queryKey, st);
       qc.invalidateQueries({ queryKey: ["admin", "costs"] });
       qc.invalidateQueries({ queryKey: ["admin", "team"] });
+      forgetTeamSpend(qc);
       setForm(settingsForm(st));
       setSubmitted(false);
       toast.success("Cost settings saved", modeLabels[st.mode]);

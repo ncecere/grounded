@@ -31,7 +31,7 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
     await expect(share).toHaveAttribute("aria-checked", "true");
     await a11y(member, "thumbs-down menu");
     const sent = member.waitForRequest((r) => r.url().includes("/feedback") && r.method() === "POST");
-    await member.getByRole("menuitem", { name: "Missing sources" }).click();
+    await member.getByRole("menuitemradio", { name: "Missing sources" }).click();
     expect((await sent).postDataJSON()).toEqual({ rating: "down", reason: "missing_sources", share: true });
     await expect(member.getByText("Thanks for the feedback")).toBeVisible();
     // Focus stays on the button after choosing a reason (aud-4).

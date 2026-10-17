@@ -1,18 +1,23 @@
 /* An answer's citation chips and marks (citations.tsx). */
 
 /*
- * The chip stays small in the text, but its hit area is at least 24 x 24 px
- * (WCAG 2.5.8): a transparent box around it takes the taps.
+ * The chip looks as before (a 20 x 18 px pill), but the button itself is at least 24 x 24 px (WCAG 2.5.8; a
+ * pseudo-element around it is not part of the button's box, so tools measured 20 x 18): a transparent border
+ * makes up the difference, the background stays inside it, and the negative margins keep the line and the
+ * spacing as they were. The selector is button.chip to win over bitop-ui's .chip whatever the load order.
  */
-.chip {
-  position: relative;
+button.chip {
+  box-sizing: border-box;
+  min-width: 1.625rem;
+  height: 1.5rem;
+  margin-block: -0.1875rem;
+  margin-inline: 0 -0.125rem;
+  border: 0.1875rem solid transparent;
+  background-clip: padding-box;
 
-  &::after {
-    content: "";
-    position: absolute;
-    inset: -0.1875rem -0.125rem;
-    min-width: 1.5rem;
-    min-height: 1.5rem;
+  /* The ring hugs the pill, not the larger button. */
+  &:focus-visible {
+    outline-offset: -0.125rem;
   }
 }
 
@@ -131,7 +136,7 @@
 
   /* The punctuation sits right after the chip, without the chip's outer margin (US-10). */
   & > button:last-of-type {
-    margin-inline-end: 0;
+    margin-inline-end: -0.1875rem;
   }
 }
 

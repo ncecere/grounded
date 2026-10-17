@@ -128,6 +128,9 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
+		if in.KeepDescription {
+			in.Description = cur.Description
+		}
 		if in, err = s.normalize(ctx, q, sc, in); err != nil {
 			return err
 		}

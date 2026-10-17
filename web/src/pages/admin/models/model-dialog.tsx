@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { familyLabels, providerHints, providerLabels, type GuardrailFamily, type ModerationProvider } from "@/lib/moderation";
 import { useFormState } from "@/lib/use-form-state";
+import { keyProblem } from "@/lib/validation";
 import s from "../../shared.module.css";
 import { useClassifications } from "../hooks";
 import { connectionTestQuery, kindLabels, type Connection, type Model, type ModelKind } from "./common";
@@ -197,8 +198,8 @@ function SourceFields({ model, connections, form, set, listId, suggested, connec
       <Field label="Upstream model ID" description={suggested ? "Suggestions come from the connection." : "The model ID the proxy expects."}>
         <Input required list={listId} value={form.upstreamModel} onChange={(e) => set("upstreamModel", e.target.value)} />
       </Field>
-      <Field label="Key" description="Stable platform name, from the display name until you type one. Can't be changed later." disabled={!!model}>
-        <Input required disabled={!!model} pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => set("key", e.target.value)} />
+      <Field label="Key" description="Stable platform name, from the display name until you type one. Can't be changed later." disabled={!!model} validate={(v) => keyProblem(String(v ?? ""))}>
+        <Input disabled={!!model} value={form.key} onChange={(e) => set("key", e.target.value)} />
       </Field>
     </>
   );

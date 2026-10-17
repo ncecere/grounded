@@ -12,11 +12,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -143,6 +145,54 @@ func IsBodyTimeout(err error) bool {
 	return errors.As(err, &ne) && ne.Timeout()
 }
 
+// decodeProblem says what is wrong with a body that did not decode, naming the field when there is one and never a Go type: an unknown field,
+// a value of the wrong kind, a body that is empty or not JSON. The code stays invalid_json (clients match on it).
+func decodeProblem(err error) string {
+	var syntax *json.SyntaxError
+	var typed *json.UnmarshalTypeError
+	switch {
+	case errors.Is(err, io.EOF):
+		return "The request body is empty: send a JSON object"
+	case errors.As(err, &syntax) || errors.Is(err, io.ErrUnexpectedEOF):
+		return "The request body is not valid JSON"
+	case errors.As(err, &typed) && typed.Field != "":
+		return fmt.Sprintf("Field %q must be %s", clip(typed.Field, 80), jsonKind(typed.Type))
+	case strings.HasPrefix(err.Error(), "json: unknown field "): // encoding/json has no typed error for it
+		return "Unknown field " + strconv.Quote(clip(strings.Trim(strings.TrimPrefix(err.Error(), "json: unknown field "), `"`), 60))
+	}
+	return "The request body does not fit this operation: check its fields"
+}
+
+// jsonKind names what a Go type holds, as a person sending JSON would say it.
+func jsonKind(t reflect.Type) string {
+	if t == nil {
+		return "a different kind of value"
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return "text"
+	case reflect.Bool:
+		return "true or false"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "a whole number"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.Slice, reflect.Array:
+		return "a list"
+	case reflect.Struct, reflect.Map:
+		return "an object"
+	}
+	return "a different kind of value"
+}
+
+// clip cuts s to n characters, so a long field name sent by a client is never echoed whole.
+func clip(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
+}
+
 // Decode reads exactly one JSON object into dst, rejecting unknown fields.
 // On failure it writes a 400 and returns false.
 func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
@@ -171,7 +221,7 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		Error(w, http.StatusBadRequest, "invalid_json", "Request body is not valid JSON for this operation")
+		Error(w, http.StatusBadRequest, "invalid_json", decodeProblem(err))
 		return false
 	}
 	if dec.Decode(&struct{}{}) != io.EOF {

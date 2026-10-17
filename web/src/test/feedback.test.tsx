@@ -52,7 +52,7 @@ describe("feedback", () => {
     await userEvent.click(share);
     expect(share).toHaveAttribute("aria-checked", "true");
     expect(bodies).toEqual([]);
-    await userEvent.click(screen.getByRole("menuitem", { name: "Missing sources" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Missing sources" }));
     await waitFor(() => expect(bodies).toEqual([{ rating: "down", reason: "missing_sources", share: true }]));
   });
 

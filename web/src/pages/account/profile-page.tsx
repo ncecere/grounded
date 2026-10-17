@@ -54,7 +54,7 @@ export function ProfilePage() {
         ) : (
           <ul className={a.rows}>
             {teams.map((t) => (
-              <li key={t.id} className={a.row}>
+              <li key={t.id} className={a.teamRow}>
                 <span className={a.rowMain}>
                   <TextLink render={<Link to="/teams/$team" params={{ team: t.slug }} />}>{t.name}</TextLink>
                   {t.status === "archived" && <Badge size="sm">Archived</Badge>}

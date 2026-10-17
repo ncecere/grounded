@@ -437,11 +437,15 @@ func (s *Service) Approve(ctx context.Context, a authz.Actor, id uuid.UUID, in A
 		if class == "" {
 			class = cur.Classification
 		}
-		owner := cur.OwnerEmail
+		owner, otherOwner := cur.OwnerEmail, ""
 		if owner == "" {
 			if owner, err = q.GetTeamRequestRequesterEmail(ctx, cur.RequesterID); err != nil {
 				return err
 			}
+		} else if asker, err := q.GetTeamRequestRequesterEmail(ctx, cur.RequesterID); err != nil {
+			return err
+		} else if !strings.EqualFold(asker, owner) {
+			otherOwner = owner // the asker named someone else: they are told, and are not on the team
 		}
 		if team, _, err = s.Teams.CreateTx(ctx, q, tx, a, teams.CreateInput{
 			Slug: in.Slug, Name: name, Description: cur.Purpose, MaxClassification: class, OwnerEmail: owner,
@@ -465,7 +469,7 @@ func (s *Service) Approve(ctx context.Context, a authz.Actor, id uuid.UUID, in A
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
-		return s.Notify.Emit(ctx, tx, notify.TeamRequestDecidedEvent(cur.RequesterID, id, name, "approve", "", team.Team.Slug).By(a.UserID))
+		return s.Notify.Emit(ctx, tx, notify.TeamRequestDecidedEvent(cur.RequesterID, id, name, "approve", "", team.Team.Slug, otherOwner).By(a.UserID))
 	})
 	if err != nil {
 		return AdminRequest{}, err
@@ -505,7 +509,7 @@ func (s *Service) Decline(ctx context.Context, a authz.Actor, id uuid.UUID, reas
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
-		return s.Notify.Emit(ctx, tx, notify.TeamRequestDecidedEvent(cur.RequesterID, id, cur.Name, "decline", reason, "").By(a.UserID))
+		return s.Notify.Emit(ctx, tx, notify.TeamRequestDecidedEvent(cur.RequesterID, id, cur.Name, "decline", reason, "", "").By(a.UserID))
 	})
 	if err != nil {
 		return AdminRequest{}, err

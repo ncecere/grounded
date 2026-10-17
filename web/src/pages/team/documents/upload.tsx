@@ -65,27 +65,37 @@ export function uploadFiles({
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded);
     };
-    xhr.onload = () => {
-      let body: { data?: UploadResult[]; error?: { code?: string; message?: string; details?: Record<string, unknown> } } | undefined;
+    // The API's error from what the server answered (any non-2xx status, or a 429 the browser reports as an error).
+    const failure = () => {
+      let body: { error?: { code?: string; message?: string; details?: Record<string, unknown> } } | undefined;
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
         body = undefined;
       }
-      if (xhr.status >= 200 && xhr.status < 300 && Array.isArray(body?.data)) {
-        resolve(body.data);
-      } else {
-        reject(
-          new ApiError(
-            xhr.status,
-            body?.error?.code ?? `http_${xhr.status}`,
-            body?.error?.message ?? (xhr.status === 413 ? "The upload is too large." : `Upload failed (${xhr.status})`),
-            body?.error?.details,
-          ),
-        );
-      }
+      const limited = xhr.status === 429;
+      const wait = Number(xhr.getResponseHeader("Retry-After"));
+      return new ApiError(
+        xhr.status,
+        body?.error?.code ?? (limited ? "rate_limited" : `http_${xhr.status}`),
+        body?.error?.message ?? (xhr.status === 413 ? "The upload is too large." : limited ? "Too many requests. Try again shortly." : `Upload failed (${xhr.status})`),
+        body?.error?.details,
+        Number.isFinite(wait) && wait > 0 ? wait : undefined,
+      );
     };
-    xhr.onerror = () => reject(new ApiError(0, "network_error", "The upload failed. Check your connection and try again."));
+    xhr.onload = () => {
+      let data: unknown;
+      try {
+        data = JSON.parse(xhr.responseText)?.data;
+      } catch {
+        data = undefined;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && Array.isArray(data)) resolve(data as UploadResult[]);
+      else reject(failure());
+    };
+    // A server that answers 429 before it reads the files can make the browser report a network error: when it
+    // still says 429, that is the cause (the rate limit, with its Retry-After), not the connection.
+    xhr.onerror = () => reject(xhr.status === 429 ? failure() : new ApiError(0, "network_error", "The upload failed. Check your connection and try again."));
     xhr.send(form);
   });
 }

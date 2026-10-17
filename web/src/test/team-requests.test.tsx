@@ -121,6 +121,29 @@ describe("Request a team (the person's page)", () => {
   });
 });
 
+describe("the way into an approved team", () => {
+  it("offers Open team only when the person owns it, and says who does when they named someone else (#136)", async () => {
+    const approved = (id: string, name: string, ownerEmail: string) =>
+      req({ id, name, status: "approved", teamSlug: id, teamName: name, ownerEmail, decidedAt: "2026-10-14T09:00:00Z" });
+    mockApi({
+      ...shellRoutes("none"),
+      "GET /v1/team-requests": () =>
+        mineOf({ items: [approved("own", "Mine", ""), approved("named-me", "Named me", "Una@Example.edu"), approved("other", "Casey's", "casey@localhost")] }),
+    });
+    renderApp("/team-requests");
+    const table = await screen.findByRole("table", { name: "Your team requests" }, { timeout: scaled(5000) });
+    const row = async (name: RegExp) => within(table).findByRole("row", { name });
+    expect(await row(/Mine/)).toHaveTextContent("Open Mine");
+    expect(await row(/Named me/)).toHaveTextContent("Open Named me"); // their own address, in any case
+    const other = await row(/Casey's/);
+    expect(other).toHaveTextContent("Owned by casey@localhost");
+    expect(within(other).queryByRole("link", { name: /Open Casey's/ })).toBeNull();
+    // The row menu (its only item for an approved request is Open team) is there for their own team and absent for the other.
+    expect(within(await row(/Mine/)).getByRole("button")).toBeInTheDocument();
+    expect(within(other).queryByRole("button")).toBeNull();
+  });
+});
+
 describe("entry points", () => {
   it("Home offers the in-app page to someone without a team while it is on, and the outside link while it is off", async () => {
     mockApi({ ...shellRoutes("none"), "GET /v1/me": () => noTeamMe(true), "GET /v1/auth/config": () => ({ oidcEnabled: false, devAuthEnabled: true, loginUrl: "/auth/login", teamRequestUrl: "https://forms.example.edu/team", devAccounts: [] }) });

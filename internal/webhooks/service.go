@@ -40,6 +40,8 @@ type Service struct {
 	Now      func() time.Time
 	// RetryBackoff overrides the wait before retry n, 1-based (tests).
 	RetryBackoff func(attempt int) time.Duration
+	// OffSnooze is how long a delivery waits while webhooks are switched off (0: five minutes); tests shorten it.
+	OffSnooze time.Duration
 
 	q *dbgen.Queries
 }
@@ -127,8 +129,14 @@ func (s *Service) manage(ctx context.Context, a authz.Actor, teamRef string, wri
 	if !authz.RoleAtLeast(role, authz.RoleAdmin) {
 		return scope{}, apperr.Forbidden("Only team admins and owners manage webhooks")
 	}
+	if write && team.Status != teamActive {
+		return scope{}, apperr.Conflict("team_archived", "This team is archived and read-only")
+	}
 	return scope{team: team}, nil
 }
+
+// teamActive is the status of a team that can be changed (teams.StatusActive; this package cannot import teams, which emits its events).
+const teamActive = "active"
 
 // load finds a webhook of the scope (404 when it is another scope's).
 func (s *Service) load(ctx context.Context, q *dbgen.Queries, sc scope, id uuid.UUID, lock bool) (dbgen.Webhook, error) {
@@ -149,8 +157,10 @@ func (s *Service) load(ctx context.Context, q *dbgen.Queries, sc scope, id uuid.
 type Input struct {
 	URL         string
 	Description string
-	Events      []string
-	Enabled     bool
+	// KeepDescription leaves the description as it is on an update that did not mention one.
+	KeepDescription bool
+	Events          []string
+	Enabled         bool
 }
 
 // normalize checks an input for scope sc and returns it cleaned: the address is https on the default port, a host name an approved

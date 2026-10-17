@@ -34,7 +34,7 @@ const columns = (health: (id: string) => HealthCheck | undefined): DataTableColu
     sortable: true,
     rowHeader: true,
     hideable: false,
-    cell: (c) => <CellText primary={c.name} secondary={<span className={s.mono}>{c.baseUrl}</span>} />,
+    cell: (c) => <CellText wrap="anywhere" primary={c.name} secondary={<span className={s.mono}>{c.baseUrl}</span>} />,
   },
   {
     id: "key",

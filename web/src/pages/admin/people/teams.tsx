@@ -55,6 +55,7 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
       cell: ({ team }) => (
         <PersonCell name={team.name} shape="square">
           <CellText
+            wrap="anywhere"
             primary={<TextLink render={<Link to="/admin/teams/$team" params={{ team: team.slug }} />}>{team.name}</TextLink>}
             secondary={<span className={s.mono}>{team.slug}</span>}
           />

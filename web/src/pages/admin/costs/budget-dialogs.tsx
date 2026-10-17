@@ -14,7 +14,7 @@ import { Field } from "@/components/ui/field/field";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError, modeLabels, monthLabel, overrideLabels, useCostSettings } from "@/lib/costs";
+import { amountError, forgetTeamSpend, modeLabels, monthLabel, overrideLabels, useCostSettings } from "@/lib/costs";
 import { formatMoney } from "@/lib/format";
 import c from "./costs.module.css";
 
@@ -37,6 +37,7 @@ function useSaved(team: string, onClose: () => void, title: string) {
   return (tb: TeamBudget) => {
     qc.setQueryData(teamBudgetQuery(team).queryKey, tb);
     qc.invalidateQueries({ queryKey: ["admin", "costs"] });
+    forgetTeamSpend(qc);
     toast.success(title, tb.teamName);
     onClose();
   };
