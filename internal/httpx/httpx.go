@@ -117,6 +117,32 @@ func JSONHasNUL(b []byte) bool {
 	return false
 }
 
+// BodyReadTimeout is how long a client has, once its headers are in, to send a JSON body (at most MaxBodyBytes). A client that sends part of
+// a body and stops would otherwise hold its connection and a goroutine open for as long as it likes (the server has a header timeout, and no
+// write timeout because chat streams).
+var BodyReadTimeout = 30 * time.Second
+
+// ReadBody reads a request body of at most limit bytes, giving the client BodyReadTimeout to send it. The deadline is lifted again as soon
+// as the body has been read, so nothing later (a long chat stream) can meet it. (net/http also clears it when it starts watching for a
+// disconnect, but not on every path; this is the safeguard.)
+func ReadBody(w http.ResponseWriter, r *http.Request, limit int64) ([]byte, error) {
+	rc := http.NewResponseController(w)
+	_ = rc.SetReadDeadline(time.Now().Add(BodyReadTimeout))
+	defer func() { _ = rc.SetReadDeadline(time.Time{}) }()
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
+	if IsBodyTimeout(err) {
+		// Close after the answer: left open, the server would first wait for the rest of the body it will never get.
+		w.Header().Set("Connection", "close")
+	}
+	return raw, err
+}
+
+// IsBodyTimeout reports a body that did not arrive within BodyReadTimeout.
+func IsBodyTimeout(err error) bool {
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
+}
+
 // Decode reads exactly one JSON object into dst, rejecting unknown fields.
 // On failure it writes a 400 and returns false.
 func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
@@ -124,11 +150,15 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 		Error(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Send application/json")
 		return false
 	}
-	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxBodyBytes))
+	raw, err := ReadBody(w, r, MaxBodyBytes)
 	if err != nil {
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
 			Error(w, http.StatusRequestEntityTooLarge, "body_too_large", "Request body is too large")
+			return false
+		}
+		if IsBodyTimeout(err) {
+			Error(w, http.StatusRequestTimeout, "request_timeout", "The request body took too long to arrive")
 			return false
 		}
 		Error(w, http.StatusBadRequest, "invalid_json", "Request body could not be read")

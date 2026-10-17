@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -174,11 +173,15 @@ func (a *api) openaiChatCompletions(w http.ResponseWriter, r *http.Request) {
 // don't support (client tools, n > 1).
 func readOpenAIRequest(w http.ResponseWriter, r *http.Request) (openaiRequest, bool) {
 	var in openaiRequest
-	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxOpenAIBody))
+	raw, err := httpx.ReadBody(w, r, maxOpenAIBody)
 	if err != nil {
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
 			openaiError(w, http.StatusRequestEntityTooLarge, "body_too_large", "Request body is too large")
+			return in, false
+		}
+		if httpx.IsBodyTimeout(err) {
+			openaiError(w, http.StatusRequestTimeout, "request_timeout", "The request body took too long to arrive")
 			return in, false
 		}
 		openaiError(w, http.StatusBadRequest, "invalid_json", "Could not read the request body")
