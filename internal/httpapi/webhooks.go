@@ -76,10 +76,6 @@ func toAPIWebhookDestination(d webhooks.Destination) apitypes.WebhookDestination
 	return apitypes.WebhookDestination{Id: d.ID, Pattern: d.Pattern, Note: d.Note, CreatedAt: d.CreatedAt}
 }
 
-func webhookInput(in apitypes.WebhookInput) webhooks.Input {
-	return webhooks.Input{URL: in.Url, Description: deref(in.Description, ""), Events: in.Events, Enabled: in.Enabled}
-}
-
 // team is the {team} of a team route ("" on a platform route).
 func team(r *http.Request) string { return r.PathValue("team") }
 
@@ -89,11 +85,15 @@ func (a *api) listWebhooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) createWebhook(w http.ResponseWriter, r *http.Request) {
-	var in apitypes.WebhookInput
-	if !httpx.Decode(w, r, &in) {
+	var body webhookBody
+	if !httpx.Decode(w, r, &body) {
 		return
 	}
-	c, err := a.Webhooks.Create(r.Context(), a.actor(r), team(r), webhookInput(in))
+	in, ok := body.input(w)
+	if !ok {
+		return
+	}
+	c, err := a.Webhooks.Create(r.Context(), a.actor(r), team(r), in)
 	if failed(w, r, err) {
 		return
 	}
@@ -117,11 +117,15 @@ func (a *api) updateWebhook(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	in, rev, ok := decodeRevised[apitypes.WebhookInput](w, r)
+	body, rev, ok := decodeRevised[webhookBody](w, r)
 	if !ok {
 		return
 	}
-	h, err := a.Webhooks.Update(r.Context(), a.actor(r), team(r), id, webhookInput(in), rev)
+	in, ok := body.input(w)
+	if !ok {
+		return
+	}
+	h, err := a.Webhooks.Update(r.Context(), a.actor(r), team(r), id, in, rev)
 	if failed(w, r, err) {
 		return
 	}

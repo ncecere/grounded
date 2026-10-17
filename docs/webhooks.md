@@ -10,7 +10,7 @@ Design: [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §5 (roadmap F3). Cod
 - **Team admins and owners** create webhooks for their team (**Team settings → Webhooks**). Editors and members don't see them.
 - **Platform admins** also create **platform webhooks** (**Admin → Webhooks**) for platform events.
 
-Everything is audited (the team's audit log for team webhooks, the platform's for the rest). Turning webhooks off stops recording and sending; what exists is kept.
+Everything is audited (the team's audit log for team webhooks, the platform's for the rest). Turning webhooks off stops recording and sending; what exists is kept, and a delivery that was waiting to be retried waits too and goes on within five minutes of turning webhooks on again.
 
 ## Where they are sent
 

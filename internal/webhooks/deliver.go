@@ -47,12 +47,19 @@ func (w *DeliverWorker) NextRetry(job *river.Job[DeliverArgs]) time.Time {
 
 func (w *DeliverWorker) Timeout(*river.Job[DeliverArgs]) time.Duration { return time.Minute }
 
-// notSent says why a delivery must not be sent at all, whatever the receiver would answer: webhooks are off, the webhook is turned off or
-// paused, or its host is no longer an approved destination. "" means send it.
-func (s *Service) notSent(ctx context.Context, h dbgen.Webhook) (string, error) {
-	if on, err := s.Enabled(ctx); err != nil || !on {
-		return "webhooks are turned off", err
+// offSnooze is how long a delivery waits, unsent, while the platform switch is off; turning it on again resumes deliveries within this time.
+const offSnooze = 5 * time.Minute
+
+func (s *Service) offFor() time.Duration {
+	if s.OffSnooze > 0 {
+		return s.OffSnooze
 	}
+	return offSnooze
+}
+
+// notSent says why a delivery must not be sent at all, whatever the receiver would answer: the webhook is turned off or paused, or its host
+// is no longer an approved destination. "" means send it. (The platform switch is not here: deliveries wait for it, see Work.)
+func (s *Service) notSent(ctx context.Context, h dbgen.Webhook) (string, error) {
 	if !h.Enabled {
 		return "the webhook is turned off", nil
 	}
@@ -88,6 +95,12 @@ func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) e
 		return err
 	}
 	bg := context.WithoutCancel(ctx)
+	// Webhooks switched off: nothing is sent and nothing is lost. The delivery waits (it keeps its attempts) and goes on when they are on again.
+	if on, err := s.Enabled(ctx); err != nil {
+		return err
+	} else if !on {
+		return river.JobSnooze(s.offFor())
+	}
 	if why, err := s.notSent(ctx, h); err != nil {
 		return err
 	} else if why != "" {

@@ -89,7 +89,8 @@ func destinationOf(r dbgen.WebhookDestination) Destination {
 	return Destination{ID: r.ID, Pattern: r.Pattern, Note: r.Note, CreatedAt: r.CreatedAt}
 }
 
-// Destinations lists the approved patterns: anyone signed in (a team admin needs them to choose an address), never a key.
+// Destinations lists the approved patterns: anyone signed in (a team admin needs them to choose an address), never a key. The note ("who asked
+// for it, or why") is free text for platform staff and is left out for everyone else.
 func (s *Service) Destinations(ctx context.Context, a authz.Actor) ([]Destination, error) {
 	if a.Delegated() {
 		return nil, apperr.Forbidden("Destinations are for people signing in")
@@ -98,6 +99,9 @@ func (s *Service) Destinations(ctx context.Context, a authz.Actor) ([]Destinatio
 	out := make([]Destination, len(rows))
 	for i, r := range rows {
 		out[i] = destinationOf(r)
+		if !a.CanReadPlatform() {
+			out[i].Note = ""
+		}
 	}
 	return out, err
 }
