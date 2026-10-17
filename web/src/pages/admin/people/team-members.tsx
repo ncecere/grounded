@@ -9,7 +9,7 @@ import { UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ssoGroup } from "@/components/member-list";
-import { InviteList } from "@/components/members";
+import { InviteList, invitesKey } from "@/components/members";
 import { Stack } from "@/components/ui/layout/layout";
 import { PersonCell } from "@/components/person-cell";
 import { roleLabels } from "@/components/roles";
@@ -24,6 +24,7 @@ import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field, Form } from "@/components/ui/field/field";
 import { toast } from "@/components/ui/toast/toast";
 import { managedBySso } from "@/lib/terms";
+import { emailProblem } from "@/lib/validation";
 import { useDebounced } from "../hooks";
 
 type Member = Schemas["Member"];
@@ -93,8 +94,6 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
   );
 }
 
-const emailRE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /** Signed-in users matching the typed text, plus "Invite <address>" when it's a new email. */
 function useOwnerOptions(text: string): ComboboxOption[] {
   const q = useDebounced(text.trim(), 250);
@@ -104,7 +103,7 @@ function useOwnerOptions(text: string): ComboboxOption[] {
   });
   const list: ComboboxOption[] = (users.data?.items ?? []).map((u) => ({ value: u.email, label: u.displayName || u.email, hint: u.displayName ? u.email : undefined }));
   const typed = text.trim().toLowerCase();
-  if (emailRE.test(typed) && !list.some((o) => o.value.toLowerCase() === typed)) list.push({ value: typed, label: `Invite ${typed}`, hint: "New person" });
+  if (typed && emailProblem(typed) === undefined && !list.some((o) => o.value.toLowerCase() === typed)) list.push({ value: typed, label: `Invite ${typed}`, hint: "New person" });
   return list;
 }
 
@@ -120,6 +119,8 @@ function AssignOwnerDialog({ team, onClose }: { team: string; onClose: () => voi
     onSuccess: () => {
       toast.success("Owner assigned", email ?? undefined);
       void qc.invalidateQueries({ queryKey: ["admin"] });
+      // An invited address shows under Open invites, whose key is not under "admin".
+      void qc.invalidateQueries({ queryKey: invitesKey(team) });
       onClose();
     },
   });

@@ -47,9 +47,18 @@ export function rangeWindow(values: FilterValues, id = "range"): { from?: string
   return { from: start.toISOString(), to: end.toISOString() };
 }
 
-/** Quotes a CSV field when needed (RFC 4180). */
+/** A spreadsheet runs a cell that starts with one of these as a formula (OWASP, CSV injection). */
+const formulaStart = /^[=+\-@\t\r]/;
+
+/**
+ * Quotes a CSV field when needed (RFC 4180). A text cell that starts with a formula
+ * character gets a leading single quote, which Excel and Sheets show as plain text.
+ * Only text is prefixed: a number cell (-5) is written as the number and stays one,
+ * and an object is written as JSON, which starts with { or [.
+ */
 export const csvField = (v: unknown) => {
-  const s = v === null || v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v);
+  const text = v === null || v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v);
+  const s = typeof v === "string" && formulaStart.test(v) ? `'${text}` : text;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 

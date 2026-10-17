@@ -8,7 +8,7 @@ import { type ReactNode, useState } from "react";
 import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Undo2, Wrench } from "lucide-react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
-import { Menu, MenuCheckboxItem, MenuGroup, MenuItem, MenuSeparator } from "@/components/ui/menu/menu";
+import { Menu, MenuCheckboxItem, MenuItem, MenuRadioGroup, MenuRadioItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { MessageAction } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import { toast } from "@/components/ui/toast/toast";
@@ -268,13 +268,19 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
           Share this question with the team
         </MenuCheckboxItem>
         <MenuSeparator />
-        <MenuGroup label="What was wrong?">
+        {/* The reason already given is checked (menuitemradio, aria-checked, a dot): the menu says what was chosen. */}
+        <MenuRadioGroup
+          label="What was wrong?"
+          value={rating === "down" ? (item.feedback?.reason ?? "") : ""}
+          onValueChange={(v) => submit({ rating: "down", reason: v as FeedbackReason, share })}
+        >
           {feedbackReasons.map((r) => (
-            <MenuItem key={r.value} onClick={() => submit({ rating: "down", reason: r.value, share })}>
+            // Choosing one saves and closes the menu, as it did when these were plain items (focus returns to the thumb).
+            <MenuRadioItem key={r.value} value={r.value} closeOnClick>
               {r.label}
-            </MenuItem>
+            </MenuRadioItem>
           ))}
-        </MenuGroup>
+        </MenuRadioGroup>
         {rating === "down" && (
           <>
             <MenuSeparator />

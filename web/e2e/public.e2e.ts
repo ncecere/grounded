@@ -117,7 +117,7 @@ test("the public page: a visitor rates an answer, with a reason and the share ti
   await share.click();
   await a11y(page, "public feedback menu");
   const saved = page.waitForResponse((r) => r.url().includes("/v1/public/agents/") && r.url().endsWith("/feedback"));
-  await page.getByRole("menuitem", { name: "Missing sources" }).click();
+  await page.getByRole("menuitemradio", { name: "Missing sources" }).click();
   const res = await saved;
   expect(res.status()).toBe(200);
   expect(((await res.json()) as { data: { shared: boolean; rating: string } }).data).toMatchObject({ rating: "down", shared: true });

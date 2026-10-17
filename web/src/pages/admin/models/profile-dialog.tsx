@@ -18,6 +18,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { useFormState } from "@/lib/use-form-state";
+import { keyProblem } from "@/lib/validation";
 import { useLevelName } from "../../team/common";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
@@ -135,8 +136,8 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
           }}
         />
       </Field>
-      <Field label="Key" description="Filled in from the name. Can't be changed later.">
-        <Input required pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => (setKeyTyped(true), set("key", e.target.value))} />
+      <Field label="Key" description="Filled in from the name. Can't be changed later." validate={(v) => keyProblem(String(v ?? ""))}>
+        <Input value={form.key} onChange={(e) => (setKeyTyped(true), set("key", e.target.value))} />
       </Field>
       <Field label="Embedding model" description={selected ? `${selected.dimensions != null ? `${selected.dimensions.toLocaleString()} dimensions; allowed` : "Allowed"} up to ${levelName(selected.maxClassification)}` : undefined}>
         <NativeSelect value={selected?.id ?? ""} onChange={(e) => set("modelId", e.target.value)}>

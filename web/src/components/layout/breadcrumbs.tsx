@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Home, KeyRound, MessageSquare, MessagesSquare, Plug, Shield, User } from "lucide-react";
+import { Bell, Boxes, Compass, Home, KeyRound, MessageSquare, MessagesSquare, Plug, Shield, User, UsersRound } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
@@ -87,6 +87,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   if (routeId === "/app/conversations") return [{ label: terms.conversations, icon: icon(MessagesSquare) }];
   // The page sets the conversation's title as the tail.
   if (routeId === "/app/conversations/$conversationId") return [{ label: terms.conversations, icon: icon(MessagesSquare), render: <Link to="/conversations" /> }];
+  if (routeId === "/app/team-requests") return [{ label: "Team requests", icon: icon(UsersRound) }];
   if (routeId === "/app/notifications") return [{ label: "Notifications", icon: icon(Bell) }];
   if (routeId === "/app/settings/notifications")
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];
@@ -108,7 +109,9 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
       { label: team.data?.team.name ?? <VisuallyHidden>Team</VisuallyHidden>, icon: icon(Boxes), render: <Link to="/teams/$team" params={{ team: slug }} /> },
     ];
     const sub = routeId.slice("/app/teams/$team".length);
-    if (sub === "/" || sub === "") crumbs.push({ label: "Overview" });
+    // The team's own page (its index route). The team layout alone (sub "") matched an unknown address under the
+    // team: the not-found page adds its own tail, so no "Overview" crumb for a page that isn't Overview.
+    if (sub === "/") crumbs.push({ label: "Overview" });
     else if (sub === "/sources") crumbs.push({ label: "Data sources" });
     else if (sub === "/sources/$sourceId")
       crumbs.push(

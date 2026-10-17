@@ -98,7 +98,9 @@ export function TeamRequestsPage() {
           }
         }}
         title={`Withdraw "${withdrawing?.name ?? "this request"}"?`}
-        description="The platform admins will no longer see it. You can ask again afterwards."
+        // "Ask again" only where asking is possible: not while requests are off or the person's account may not ask. A full
+        // limit is no obstacle, since withdrawing frees a place.
+        description={`The platform admins will no longer see it.${m && m.blocked !== "off" && m.blocked !== "group" ? " You can ask again afterwards." : ""}`}
         confirmLabel="Withdraw request"
         busy={withdraw.isPending}
         error={withdraw.error}
