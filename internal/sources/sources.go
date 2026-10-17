@@ -106,6 +106,9 @@ var Platform = Owner{platform: true}
 type scope struct {
 	team *dbgen.Team // nil for the platform
 	role string      // team role; "" for the platform
+	// key is the API key acting, if any: one restricted to some knowledge
+	// bases reaches only the sources those use.
+	key *authz.KeyGrant
 }
 
 func (sc scope) teamID() uuid.NullUUID {
@@ -176,7 +179,7 @@ func (s *Service) accessFor(ctx context.Context, a authz.Actor, o Owner, write b
 			return scope{}, apperr.Conflict("team_archived", "This team is archived and read-only")
 		}
 	}
-	return scope{team: &acc.Team, role: acc.Role}, nil
+	return scope{team: &acc.Team, role: acc.Role, key: a.Key}, nil
 }
 
 // breakGlassScope answers a non-member: a read under the actor's break-glass
@@ -212,6 +215,15 @@ func (s *Service) source(ctx context.Context, q *dbgen.Queries, sc scope, id uui
 	}
 	if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && src.TeamID != sc.teamID()) {
 		return src, errNoSource
+	}
+	if err == nil {
+		ok, kerr := s.keyAllows(ctx, sc, src.ID)
+		if kerr != nil {
+			return src, kerr
+		}
+		if !ok {
+			return src, errNoSource // outside the key's knowledge bases: it does not exist for this key
+		}
 	}
 	return src, err
 }
@@ -296,6 +308,9 @@ func (s *Service) List(ctx context.Context, a authz.Actor, o Owner) ([]Summary, 
 		srcs, err = s.q.ListTeamSources(ctx, sc.teamID())
 	}
 	if err != nil {
+		return nil, err
+	}
+	if srcs, err = s.keyFilter(ctx, sc, srcs); err != nil {
 		return nil, err
 	}
 	return s.summaries(ctx, srcs, true)
