@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,5 +99,25 @@ func TestOpenAIRequestRefusesNUL(t *testing.T) {
 	r = httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"agent:t/a","messages":[{"role":"user","content":"ok"}]}`))
 	if _, ok := readOpenAIRequest(rec, r); !ok {
 		t.Fatalf("a plain request was refused: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// An OpenAI client reads error.type; an internal failure on the OpenAI-compatible endpoints has the same four fields as any other error there
+// (QA pass v0.6.0, #116).
+func TestOpenAIInternalErrorHasTheOpenAIShape(t *testing.T) {
+	rec := httptest.NewRecorder()
+	openaiFail(rec, httptest.NewRequest("GET", "/v1/models", nil), errors.New("the database fell over"))
+	var env struct{ Error map[string]any }
+	if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
+		t.Fatalf("not JSON: %s", rec.Body)
+	}
+	if rec.Code != http.StatusInternalServerError || env.Error["type"] != "api_error" || env.Error["code"] != "internal" || env.Error["message"] == "" {
+		t.Fatalf("an internal failure = %d %s, want 500 with type api_error, code internal and a message", rec.Code, rec.Body)
+	}
+	if _, ok := env.Error["param"]; !ok {
+		t.Errorf("the error has no param field: %s", rec.Body)
+	}
+	if strings.Contains(rec.Body.String(), "database") {
+		t.Errorf("the error leaks the cause: %s", rec.Body)
 	}
 }
