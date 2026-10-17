@@ -12,6 +12,35 @@ import (
 	"github.com/google/uuid"
 )
 
+const agentPublishedKBIDs = `-- name: AgentPublishedKBIDs :many
+SELECT DISTINCT (kb->>'kbId')::uuid AS kb_id
+FROM agents a
+JOIN agent_versions v ON v.id = a.published_version_id
+CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(v.config->'kbs') = 'array' THEN v.config->'kbs' ELSE '[]'::jsonb END) kb
+WHERE a.id = ANY($1::uuid[]) AND a.deleted_at IS NULL
+`
+
+// The knowledge bases the published versions of some agents answer from: an agent-restricted key reaches only these.
+func (q *Queries) AgentPublishedKBIDs(ctx context.Context, agentIds []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, agentPublishedKBIDs, agentIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var kb_id uuid.UUID
+		if err := rows.Scan(&kb_id); err != nil {
+			return nil, err
+		}
+		items = append(items, kb_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAPIKey = `-- name: GetAPIKey :one
 SELECT id, team_id, kind, user_id, name, prefix, secret_hash, scopes, kb_ids, expires_at, last_used_at, revoked_at, created_by, created_at, agent_ids, pepper_id FROM api_keys WHERE id = $1
 `

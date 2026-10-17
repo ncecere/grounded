@@ -50,6 +50,11 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string) ([]Vi
 		if keyHides(a, ag.ID) {
 			continue
 		}
+		if hidden, err := s.keyHidesByKBs(ctx, a, ag); err != nil {
+			return nil, err
+		} else if hidden {
+			continue
+		}
 		v, err := s.view(ctx, ag, acc.Team, false)
 		if err != nil {
 			return nil, err

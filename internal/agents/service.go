@@ -141,7 +141,34 @@ func (s *Service) loadVisible(ctx context.Context, a authz.Actor, teamID, id uui
 	if keyHides(a, id) {
 		return dbgen.Agent{}, errNoAgent
 	}
-	return s.loadAgent(ctx, s.q, teamID, id, false)
+	ag, err := s.loadAgent(ctx, s.q, teamID, id, false)
+	if err != nil {
+		return ag, err
+	}
+	if hidden, err := s.keyHidesByKBs(ctx, a, ag); err != nil {
+		return ag, err
+	} else if hidden {
+		return dbgen.Agent{}, errNoAgent
+	}
+	return ag, nil
+}
+
+// keyHidesByKBs reports an agent that a key limited to some knowledge bases (and to no agents) may not see: one that answers from, or is being
+// edited to answer from, a knowledge base outside them. A key restricted to agents sees those agents whatever their drafts say: its knowledge
+// bases are theirs (authz.KeyGrant).
+func (s *Service) keyHidesByKBs(ctx context.Context, a authz.Actor, ag dbgen.Agent) (bool, error) {
+	if a.Key == nil || len(a.Key.AgentIDs) > 0 || !a.Key.KBsLimited() {
+		return false, nil
+	}
+	ids := DecodeConfig(ag.Draft).KBIDs()
+	if ag.PublishedVersionID.Valid {
+		pv, err := s.q.GetAgentVersion(ctx, ag.PublishedVersionID.UUID)
+		if err != nil {
+			return false, err
+		}
+		ids = append(ids, DecodeConfig(pv.Config).KBIDs()...)
+	}
+	return !keyAllowsKBs(a.Key, ids), nil
 }
 
 func (s *Service) loadAgent(ctx context.Context, q *dbgen.Queries, teamID, id uuid.UUID, lock bool) (dbgen.Agent, error) {
