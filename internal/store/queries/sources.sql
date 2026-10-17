@@ -6,6 +6,11 @@ RETURNING *;
 -- name: GetSource :one
 SELECT * FROM data_sources WHERE id = $1;
 
+-- Whether a source feeds any of the knowledge bases (an API key restricted to
+-- some knowledge bases reaches only the sources they use).
+-- name: SourceInKBs :one
+SELECT EXISTS (SELECT 1 FROM kb_sources WHERE source_id = @source_id AND kb_id = ANY(@kb_ids::uuid[]));
+
 -- name: LockSource :one
 SELECT * FROM data_sources WHERE id = $1 FOR UPDATE;
 
