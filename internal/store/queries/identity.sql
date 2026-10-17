@@ -5,7 +5,8 @@ ON CONFLICT (oidc_issuer, oidc_subject) DO UPDATE
 SET email         = EXCLUDED.email,
     display_name  = EXCLUDED.display_name,
     claims        = EXCLUDED.claims,
-    last_login_at = now(),
+    -- Only an active account signs in: a suspended one's refused attempt is not a login.
+    last_login_at = CASE WHEN users.status = 'active' THEN now() ELSE users.last_login_at END,
     updated_at    = now()
 RETURNING *;
 
