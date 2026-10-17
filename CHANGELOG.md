@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **API keys act within what they were given.** A key with only the `mcp` scope could read the team's sources, documents, knowledge bases and agents over the REST API although it is for `/mcp` only; it now gets `403 missing_scope` there (it still works on `/mcp`). A key restricted to some knowledge bases could read the sources and documents of the others; outside its knowledge bases a source now does not exist for it. A personal key kept its ingest or manage power after its owner was demoted in the team; it now never acts above its owner's current role. (#110, #111, #112)
+
 ## [0.6.0] - 2026-10-16
 
 "Service desk building blocks": **webhooks**, **agent templates**, a **router agent**, **conversation sharing** and **in-app team requests** (webhooks and team requests off until a platform admin turns them on). Five additive migrations (the schema moves from version 48 to 53), no new setting. Release notes, with how to upgrade and the known limitations: [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md).
