@@ -30,8 +30,18 @@ function stepTitle(step: SearchStep, question?: string) {
   if (step.name) return `Used ${step.title || step.name}`;
   const asked = question?.trim();
   const joined = Boolean(asked && step.query && step.query !== asked && step.query.endsWith(` ${asked}`));
-  const q = joined ? `“${asked}” with your earlier question` : step.query ? `“${step.query}”` : "the knowledge base";
+  const quoted = (s: string) => `“${clip(s)}”`;
+  const q = joined ? `${quoted(asked!)} with your earlier question` : step.query ? quoted(step.query) : "the knowledge base";
   return step.kind === "retrieval" ? `Searched the knowledge base for ${q}` : `Searched: ${q}`;
+}
+
+/** The most of a question a step's header prints: a header is a line or two, not the whole 8000 characters (#125). */
+const HEADER_CHARS = 120;
+
+/** `s` cut to HEADER_CHARS characters (not UTF-16 units, so an emoji is never split) with an ellipsis; the step's panel has it all. */
+function clip(s: string) {
+  const chars = Array.from(s);
+  return chars.length > HEADER_CHARS ? `${chars.slice(0, HEADER_CHARS).join("").trimEnd()}…` : s;
 }
 
 /** A search's result in words: "5 results", or the judged counts. */
