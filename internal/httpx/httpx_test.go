@@ -1,16 +1,20 @@
 package httpx
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClientIP(t *testing.T) {
@@ -134,6 +138,55 @@ func TestDecodeRefusesNUL(t *testing.T) {
 	}
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"invalid_text"`) {
 		t.Fatalf("want 400 invalid_text, got %d %s", w.Code, w.Body)
+	}
+}
+
+// A client that sends part of a body and stops gets a 408 after BodyReadTimeout, instead of holding the connection (and a goroutine) forever
+// (QA pass v0.6.0, #118). A body that arrives in time is unaffected, and the deadline does not outlive the body: a handler that keeps
+// answering for longer than the timeout (a chat stream) is not cut off.
+func TestDecodeGivesUpOnABodyThatStalls(t *testing.T) {
+	old := BodyReadTimeout
+	BodyReadTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { BodyReadTimeout = old })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var v map[string]any
+		if !Decode(w, r, &v) {
+			return
+		}
+		select { // answering takes longer than the timeout, and a stream watches whether the client is still there
+		case <-time.After(900 * time.Millisecond):
+			w.WriteHeader(http.StatusOK)
+		case <-r.Context().Done():
+			w.WriteHeader(StatusClientClosedRequest)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	// Stalls after ten bytes of a hundred.
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	start := time.Now()
+	fmt.Fprint(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{\"a\":\"bcd")
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil || !strings.HasPrefix(status, "HTTP/1.1 408") {
+		t.Fatalf("a stalled body: status %q, err %v after %s; want a 408", status, err, time.Since(start))
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("the 408 took %s", took)
+	}
+
+	// A complete body is read, and the answer may take longer than the timeout.
+	res, err := http.Post(srv.URL, "application/json", strings.NewReader(`{"a":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("a body that arrived in time, answered slowly: %d, want 200", res.StatusCode)
 	}
 }
 

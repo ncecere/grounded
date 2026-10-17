@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
-	"io"
 	"mime"
 	"net/http"
 	"strconv"
@@ -307,7 +306,7 @@ func (a *api) oauthRevoke(w http.ResponseWriter, r *http.Request) {
 // can't use a metadata document: public clients only.
 func (a *api) oauthRegister(w http.ResponseWriter, r *http.Request) {
 	var in oauth.ClientMetadata
-	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxOAuthBody))
+	raw, err := httpx.ReadBody(w, r, maxOAuthBody)
 	if err == nil && httpx.JSONHasNUL(raw) {
 		oauthJSONError(w, http.StatusBadRequest, "invalid_client_metadata", httpx.NULMessage)
 		return
