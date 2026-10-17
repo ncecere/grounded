@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Webhooks, five fixes.** Updating a webhook without `enabled` no longer switches it off and clears its description: `url`, `events` and `enabled` are required (a missing one is named, `400 invalid_webhook`), and a description you do not mention stays. An archived team's webhooks are read-only like its agents (create, change, rotate the secret, send a test and delete answer `409 team_archived`). Deliveries waiting to be retried when webhooks are switched off now wait and go on when they are switched on again, instead of failing for good. People who cannot manage destinations no longer see the admin-only note on an approved destination. Sending the same rating again is not a new `feedback.submitted` event (a different rating or reason is). (#134, #135, #137, #138, #139)
+
 ## [0.6.0] - 2026-10-16
 
 "Service desk building blocks": **webhooks**, **agent templates**, a **router agent**, **conversation sharing** and **in-app team requests** (webhooks and team requests off until a platform admin turns them on). Five additive migrations (the schema moves from version 48 to 53), no new setting. Release notes, with how to upgrade and the known limitations: [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md).

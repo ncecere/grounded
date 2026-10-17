@@ -469,6 +469,14 @@ func (s *Service) recordFeedback(ctx context.Context, messageID uuid.UUID, ratin
 		stored = nil // taken back: no rating (v0.4.2 US-11)
 	}
 	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		// What it was before: the same rating sent again is not a new rating, so it is not a new event.
+		var prev, prevReason *string
+		if err := tx.QueryRow(ctx, `SELECT feedback, feedback_reason FROM message_events WHERE message_id = $1 FOR UPDATE`, messageID).Scan(&prev, &prevReason); errors.Is(err, pgx.ErrNoRows) {
+			return errNoMessage
+		} else if err != nil {
+			return err
+		}
+		unchanged := sameText(prev, stored) && sameText(prevReason, reason)
 		n, err := q.SetMessageFeedback(ctx, dbgen.SetMessageFeedbackParams{
 			MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: stored, FeedbackReason: reason, FeedbackShared: share,
 		})
@@ -481,9 +489,15 @@ func (s *Service) recordFeedback(ctx context.Context, messageID uuid.UUID, ratin
 		if err := afterFeedback(ctx, tx, messageID, rating, reason, share, asker); err != nil {
 			return err
 		}
+		if unchanged {
+			return nil
+		}
 		return s.emitFeedback(ctx, tx, messageID, rating, reason)
 	})
 }
+
+// sameText reports whether two optional strings are both unset or equal.
+func sameText(a, b *string) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
 
 // emitFeedback tells webhooks a rating was given: the agent, the message, the rating and the reason, never the question, the answer, a comment
 // or who. Taking a rating back says nothing.
