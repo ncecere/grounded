@@ -148,14 +148,14 @@ export function RecentConversations({ limit = 8 }: { limit?: number }) {
         <li key={c.id}>
           {c.agentDeleted ? (
             <Link to="/conversations/$conversationId" params={{ conversationId: c.id }} className={d.recentRow}>
-              <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>
+              <span className={d.recentTitle}><bdi>{c.title || "Untitled conversation"}</bdi></span>
               <span className={d.recentMeta}>
                 {c.agentName} (deleted) · <RelativeTime value={c.updatedAt} />
               </span>
             </Link>
           ) : (
             <Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} className={d.recentRow}>
-              <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>
+              <span className={d.recentTitle}><bdi>{c.title || "Untitled conversation"}</bdi></span>
               <span className={d.recentMeta}>
                 {c.agentName} · <RelativeTime value={c.updatedAt} />
               </span>

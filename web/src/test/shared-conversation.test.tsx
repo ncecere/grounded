@@ -158,7 +158,7 @@ describe("the shared page", () => {
     mockApi({ ...shellRoutes(), "GET /v1/shared/tok": () => shared({ sharedBy: "Blair Dev" }) });
     const { container } = renderApp("/shared/tok");
     expect(await screen.findByRole("heading", { level: 1, name: "Parking permits" }, { timeout: scaled(5000) })).toBeInTheDocument();
-    expect(screen.getByText(/shared by Blair Dev/)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "P" && /shared by Blair Dev/.test(el.textContent ?? ""))).toBeInTheDocument(); // the name is isolated in a <bdi> (#126)
     expect(screen.getByText("Where do I buy a parking permit?")).toBeInTheDocument();
     expect(await screen.findByText(/At the transportation office/)).toBeInTheDocument();
     expect(screen.getByText(/read-only copy of the conversation as it was when it was shared/)).toBeInTheDocument();

@@ -111,10 +111,10 @@ export function SharedPage() {
       <main className={c.main}>
         <div className={c.head}>
           <div className={c.heading}>
-            <h1 className={c.title}>{view.title || "Shared conversation"}</h1>
+            <h1 className={c.title}><bdi>{view.title || "Shared conversation"}</bdi></h1>
             <p className={c.meta}>
-              With {view.agent.name}
-              {view.sharedBy ? ` · shared by ${view.sharedBy}` : ""} · <Time value={view.sharedAt} format="datetime" />
+              With <bdi>{view.agent.name}</bdi>
+              {view.sharedBy ? <> · shared by <bdi>{view.sharedBy}</bdi></> : ""} · <Time value={view.sharedAt} format="datetime" />
             </p>
           </div>
           <Button render={<Link to="/a/$team/$agent" params={{ team: view.agent.teamSlug, agent: view.agent.slug }} />}>

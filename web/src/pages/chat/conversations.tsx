@@ -85,7 +85,7 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
           setDeleting(o);
           if (!o) remove.reset();
         }}
-        title={`Delete “${title}”?`}
+        title={<>Delete “<bdi>{title}</bdi>”?</>}
         description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it. Any link you made to it stops working."
         confirmLabel="Delete conversation"
         busy={remove.isPending}
@@ -200,7 +200,7 @@ export function ConversationList({ card, conversations, selected, onNew, onPick,
                   {g.items.map((conv) => (
                     <li key={conv.id} className={c.conv} data-current={conv.id === selected ? "" : undefined}>
                       <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick} title={conv.title || undefined}>
-                        <span className={c.convTitle}>{conv.title || "Untitled conversation"}</span>
+                        <span className={c.convTitle}><bdi>{conv.title || "Untitled conversation"}</bdi></span>
                         {/* Lists are relative, with the exact time on hover (VI-16). */}
                         <span className={c.convDate}>
                           <RelativeTime value={conv.updatedAt} />
