@@ -34,7 +34,11 @@
   gap: var(--space-3);
 }
 
+/* A long name with no spaces (a team, model or connection name) wraps instead of
+   widening the page. min-width: 0 lets the heading shrink inside the flex row. */
 .title {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);

@@ -21,6 +21,7 @@ import { toast } from "@/components/ui/toast/toast";
 import { providerName } from "@/lib/moderation";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
+import mc from "./models.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
 import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, modelUsedBy, useCatalogUsage, useConnections, useModels } from "./common";
@@ -76,7 +77,7 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"], { c
       sortable: true,
       rowHeader: true,
       hideable: false,
-      cell: (x) => <CellText primary={x.displayName} secondary={<span className={s.mono}>{x.key}</span>} />,
+      cell: (x) => <CellText wrap="anywhere" primary={x.displayName} secondary={<span className={s.mono}>{x.key}</span>} />,
     },
     {
       id: "kind",
@@ -85,7 +86,7 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"], { c
       sortable: true,
       cell: (x) => <CellText primary={<Badge tone="info">{kindLabels[x.kind]}</Badge>} secondary={kindDetail(x)} />,
     },
-    { id: "connection", header: "Connection", accessor: (x) => connName(x.connectionId), sortable: true, muted: true },
+    { id: "connection", header: "Connection", accessor: (x) => connName(x.connectionId), cell: (x) => <span className={mc.breakName}>{connName(x.connectionId)}</span>, sortable: true, muted: true },
     { id: "classification", header: "Max classification", accessor: "maxClassification", cell: (x) => <ClassificationBadge levels={levels} value={x.maxClassification} /> },
     {
       id: "usedBy",
