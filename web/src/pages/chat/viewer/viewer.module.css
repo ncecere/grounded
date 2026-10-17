@@ -30,6 +30,34 @@
   padding: 0;
 }
 
+/*
+ * The header (title, Close) and the source switcher stay at the top of the panel while it scrolls (#123: after "Show
+ * source" jumps to a passage deep in the page, Close and the other sources were out of sight). The negative margin and the
+ * matching padding put its background over the viewer's own top padding, so nothing shows above it.
+ */
+.sticky {
+  position: sticky;
+  top: calc(-1 * var(--space-4));
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: calc(-1 * var(--space-4));
+  padding-block: var(--space-4) var(--space-2);
+  background-color: var(--color-surface);
+
+  &:empty {
+    display: none;
+  }
+}
+
+/* The phone's sheet has no padding of its own, and its header is the sheet's. */
+.bare .sticky {
+  top: 0;
+  margin-top: 0;
+  padding-block: var(--space-2);
+}
+
 .head {
   display: flex;
   align-items: flex-start;
@@ -145,6 +173,8 @@
 /* The cited passage: highlighted, with a bar at its start edge (not colour alone). */
 .cited {
   scroll-margin-block: var(--space-4);
+  /* Scrolled to the top, the passage lands below the sticky header, not under it. */
+  scroll-margin-block-start: 8rem;
   padding: var(--space-3) var(--space-4);
   border-inline-start: 3px solid var(--color-warning);
   border-radius: var(--radius-2);

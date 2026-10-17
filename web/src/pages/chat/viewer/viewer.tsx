@@ -160,20 +160,23 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
   return (
     // In the sheet, the sheet (and its scrolling body) is named by the title: no second region of the same name.
     <section className={cx(v.viewer, bare && v.bare)} aria-labelledby={bare ? undefined : headingId} onKeyDown={onKeyDown} data-testid="source-viewer">
-      {!bare && (
-        <header className={v.head}>
-          <div className={v.headText}>
-            <p className={v.eyebrow}>{viewerCaption(item, n)}</p>
-            <h2 id={headingId} ref={heading} tabIndex={-1} className={v.title}>
-              {sourceTitle(c)}
-            </h2>
-            {where && <p className={v.where}>{where}</p>}
-          </div>
-          <IconButton size="sm" icon={<X aria-hidden />} label="Close the source" onClick={onClose} />
-        </header>
-      )}
       {bare && where && <p className={v.where}>{where}</p>}
-      <SourceNav item={item} n={n} onOpen={onOpen} />
+      {/* The header and the source switcher stay in view when the panel scrolls to a passage deep in the page (#123). */}
+      <div className={v.sticky}>
+        {!bare && (
+          <header className={v.head}>
+            <div className={v.headText}>
+              <p className={v.eyebrow}>{viewerCaption(item, n)}</p>
+              <h2 id={headingId} ref={heading} tabIndex={-1} className={v.title}>
+                {sourceTitle(c)}
+              </h2>
+              {where && <p className={v.where}>{where}</p>}
+            </div>
+            <IconButton size="sm" icon={<X aria-hidden />} label="Close the source" onClick={onClose} />
+          </header>
+        )}
+        <SourceNav item={item} n={n} onOpen={onOpen} />
+      </div>
       {(isWeb(c.url) || (team && d?.status !== "document_deleted")) && (
         <div className={v.actions}>
           {isWeb(c.url) && (
