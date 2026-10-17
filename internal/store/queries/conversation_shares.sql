@@ -33,7 +33,7 @@ SELECT s.id, s.conversation_id, s.up_to_seq, s.audience, s.show_name, s.created_
        c.title, c.user_id AS conversation_user_id,
        a.id AS agent_id, a.team_id, a.slug AS agent_slug, a.name AS agent_name, a.description AS agent_description, a.accent_color,
        a.status AS agent_status, a.published_version_id,
-       t.slug AS team_slug, t.name AS team_name,
+       t.slug AS team_slug, t.name AS team_name, u.status AS creator_status,
        (CASE WHEN s.show_name THEN coalesce(u.display_name, '') ELSE '' END)::text AS sharer_name
 FROM conversation_shares s
 JOIN conversations c ON c.id = s.conversation_id AND c.deleted_at IS NULL
