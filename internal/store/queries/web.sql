@@ -147,6 +147,11 @@ SET status = @status, error = @error, documents_deleted = @documents_deleted, fi
     waiting_reason = '', waiting_until = NULL
 WHERE id = @id AND status IN ('queued', 'running');
 
+-- The reason most pages of a run were skipped (a run that fetched nothing says why).
+-- name: TopSkipReason :one
+SELECT reason::text FROM web_frontier WHERE crawl_id = $1 AND status = 'skipped' AND reason <> ''
+GROUP BY reason ORDER BY count(*) DESC, reason LIMIT 1;
+
 -- name: CountFrontier :one
 SELECT count(*) FROM web_frontier WHERE crawl_id = $1;
 

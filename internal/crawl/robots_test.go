@@ -181,3 +181,32 @@ func TestProductToken(t *testing.T) {
 		}
 	}
 }
+
+// A robots.txt that could not be fetched at all (the site dropped the connection) still stops the crawl, as one the site answered with an error
+// does, so every caller that tests for ErrRobotsDisallowed behaves as before; but it is its own cause, not the site saying no (QA pass v0.6.0, #114).
+func TestRobotsThatCannotBeFetchedIsNotTheSiteSayingNo(t *testing.T) {
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			panic(http.ErrAbortHandler) // the connection closes without an answer
+		}
+		_, _ = w.Write([]byte("<html><body>hello</body></html>"))
+	}))
+	t.Cleanup(down.Close)
+	f := privateFetcher(FetcherConfig{RespectRobots: true})
+	_, err := f.Fetch(context.Background(), down.URL+"/page")
+	if !errors.Is(err, ErrRobotsUnreachable) || !errors.Is(err, ErrRobotsDisallowed) {
+		t.Fatalf("unreachable robots.txt: err = %v, want both ErrRobotsUnreachable and ErrRobotsDisallowed", err)
+	}
+	if ok, err := f.Allowed(context.Background(), down.URL+"/page"); ok || err != nil {
+		t.Errorf("Allowed = %v, %v; want false with no error, as for a robots.txt that refuses", ok, err)
+	}
+
+	// The site answering with a refusal is the site saying no, and is not "unreachable".
+	for _, status := range []int{403, 500} {
+		rs := newRobotsServer(t, status, "")
+		_, err := privateFetcher(FetcherConfig{RespectRobots: true}).Fetch(context.Background(), rs.URL+"/page")
+		if errors.Is(err, ErrRobotsUnreachable) || !errors.Is(err, ErrRobotsDisallowed) {
+			t.Errorf("robots.txt status %d: err = %v, want ErrRobotsDisallowed and not ErrRobotsUnreachable", status, err)
+		}
+	}
+}

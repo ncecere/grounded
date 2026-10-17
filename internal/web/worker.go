@@ -390,7 +390,11 @@ func (r *run) finish(ctx context.Context, reason string) error {
 		if deleted, err = r.deleteStale(ctx, q, cur, truncated); err != nil {
 			return err
 		}
-		if _, err := q.FinishCrawl(ctx, dbgen.FinishCrawlParams{ID: cur.ID, Status: CrawlCompleted, DocumentsDeleted: int32(len(deleted))}); err != nil {
+		note, err := nothingFetchedNote(ctx, q, cur)
+		if err != nil {
+			return err
+		}
+		if _, err := q.FinishCrawl(ctx, dbgen.FinishCrawlParams{ID: cur.ID, Status: CrawlCompleted, Error: note, DocumentsDeleted: int32(len(deleted))}); err != nil {
 			return err
 		}
 		if err := q.PruneFrontiers(ctx, dbgen.PruneFrontiersParams{SourceID: r.src.ID, KeepCrawlID: cur.ID}); err != nil {
