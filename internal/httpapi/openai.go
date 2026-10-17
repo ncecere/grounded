@@ -184,6 +184,10 @@ func readOpenAIRequest(w http.ResponseWriter, r *http.Request) (openaiRequest, b
 		openaiError(w, http.StatusBadRequest, "invalid_json", "Could not read the request body")
 		return in, false
 	}
+	if httpx.JSONHasNUL(raw) {
+		openaiError(w, http.StatusBadRequest, "invalid_text", httpx.NULMessage)
+		return in, false
+	}
 	if err := json.Unmarshal(raw, &in); err != nil {
 		openaiError(w, http.StatusBadRequest, "invalid_json", "Request body is not valid JSON")
 		return in, false
