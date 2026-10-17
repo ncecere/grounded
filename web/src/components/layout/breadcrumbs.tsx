@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Home, KeyRound, MessageSquare, MessagesSquare, Plug, Shield, User } from "lucide-react";
+import { Bell, Boxes, Compass, Home, KeyRound, MessageSquare, MessagesSquare, Plug, Shield, User, UsersRound } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
@@ -87,6 +87,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   if (routeId === "/app/conversations") return [{ label: terms.conversations, icon: icon(MessagesSquare) }];
   // The page sets the conversation's title as the tail.
   if (routeId === "/app/conversations/$conversationId") return [{ label: terms.conversations, icon: icon(MessagesSquare), render: <Link to="/conversations" /> }];
+  if (routeId === "/app/team-requests") return [{ label: "Team requests", icon: icon(UsersRound) }];
   if (routeId === "/app/notifications") return [{ label: "Notifications", icon: icon(Bell) }];
   if (routeId === "/app/settings/notifications")
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];

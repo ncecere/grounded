@@ -25,6 +25,21 @@ function useRefresh() {
   };
 }
 
+/**
+ * Someone else decided the request first (409 request_already_decided, or 412 for a changed revision): the queue
+ * refreshes, the dialog closes (docs/administration/team-requests) and a toast says why, instead of leaving an open
+ * dialog with an error and a button that cannot work. Other errors stay in the dialog.
+ */
+function useDecidedElsewhere(request: AdminTeamRequest, onClose: () => void) {
+  const refresh = useRefresh();
+  return (e: unknown) => {
+    if (!(e instanceof ApiError && (e.status === 412 || e.code === "request_already_decided"))) return;
+    refresh();
+    toast.info(`"${request.name}" was already decided`, "Someone else decided it, or the person withdrew it. The queue shows where it stands.");
+    onClose();
+  };
+}
+
 export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest; onClose: () => void }) {
   const refresh = useRefresh();
   const levels = useClassificationLevels();
@@ -37,6 +52,7 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
   const [submitted, setSubmitted] = useState(false);
   const shownSlug = slugEdited ? slug : slugify(name);
   const owner = request.ownerEmail || request.requesterEmail;
+  const decidedElsewhere = useDecidedElsewhere(request, onClose);
   const approve = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -50,8 +66,7 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
       toast.success(`"${r.teamName}" was created`, `${owner} is its owner.`);
       onClose();
     },
-    // A change since the page loaded (someone else decided it): the queue shows the current state.
-    onError: (e) => e instanceof ApiError && (e.status === 412 || e.code === "request_already_decided") && refresh(),
+    onError: decidedElsewhere,
   });
   const taken = approve.error instanceof ApiError && approve.error.code === "slug_taken";
   const slugError = !slugRE.test(shownSlug) ? "Use lower-case letters, digits and hyphens." : taken ? "A team with that address already exists." : undefined;
@@ -118,6 +133,7 @@ export function DeclineDialog({ request, onClose }: { request: AdminTeamRequest;
   const refresh = useRefresh();
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const decidedElsewhere = useDecidedElsewhere(request, onClose);
   const decline = useMutation({
     mutationFn: async () =>
       unwrap(await api.POST("/v1/admin/team-requests/{requestId}/decline", { params: { path: { requestId: request.id }, header: ifMatch(request.revision) }, body: { reason: reason.trim() } })),
@@ -126,7 +142,7 @@ export function DeclineDialog({ request, onClose }: { request: AdminTeamRequest;
       toast.success(`"${request.name}" was declined`);
       onClose();
     },
-    onError: (e) => e instanceof ApiError && (e.status === 412 || e.code === "request_already_decided") && refresh(),
+    onError: decidedElsewhere,
   });
   const error = !reason.trim() ? "Say why: the person who asked reads this." : undefined;
   return (
