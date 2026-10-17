@@ -86,3 +86,28 @@ describe("retrieval header (#125)", () => {
     expect(await screen.findByRole("button", { name: /Searched the knowledge base for “drop a class”/ })).toBeInTheDocument();
   });
 });
+
+describe("the chat page's conversation list (#124)", () => {
+  const conv = (i: number) => ({
+    id: `c${i}`, title: `Question ${i}`, agentId: "ag1", agentName: card.name, agentSlug: card.slug, teamSlug: "registrar", agentDeleted: false,
+    createdAt: "2026-10-16T09:00:00Z", updatedAt: new Date(Date.UTC(2026, 9, 16, 9, 0) - i * 60_000).toISOString(),
+  });
+  it("has Load more, which follows the cursor to the conversations past the first 50", async () => {
+    const all = Array.from({ length: 63 }, (_, i) => conv(i + 1));
+    const calls = mockApi(
+      routes({
+        "GET /v1/conversations": (_b, call) => (call.search.get("cursor") === "p2" ? { items: all.slice(50), nextCursor: null } : { items: all.slice(0, 50), nextCursor: "p2" }),
+      }),
+    );
+    renderApp(chatPath);
+    const list = await screen.findByRole("navigation", { name: "Conversations with Registrar assistant" });
+    await within(list).findByRole("link", { name: /^Question 1(?!\d)/ });
+    expect(within(list).getAllByRole("link")).toHaveLength(50);
+    await userEvent.click(within(list).getByRole("button", { name: "Load more" }));
+    expect(await within(list).findByRole("link", { name: /^Question 63(?!\d)/ })).toBeInTheDocument();
+    expect(within(list).getAllByRole("link")).toHaveLength(63);
+    expect(within(list).queryByRole("button", { name: "Load more" })).toBeNull();
+    const mine = calls.filter((c) => c.url === "/v1/conversations" && c.search.get("agentId") === "ag1");
+    expect(mine.map((c) => c.search.get("cursor"))).toEqual([null, "p2"]);
+  });
+});
