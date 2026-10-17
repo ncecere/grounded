@@ -33,6 +33,8 @@ type counts struct {
 // skipReason maps fetch errors that skip a page to a frontier reason.
 func skipReason(err error) string {
 	switch {
+	case errors.Is(err, crawl.ErrRobotsUnreachable): // before ErrRobotsDisallowed, which it also is
+		return "robots_unreachable"
 	case errors.Is(err, crawl.ErrRobotsDisallowed):
 		return "robots_disallowed"
 	case errors.Is(err, crawl.ErrHostNotAllowed):

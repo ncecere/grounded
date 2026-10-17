@@ -26,8 +26,10 @@ type robotsEntry struct {
 	retry   bool // loader's own context ended; waiters must try again
 	data    *robotstxt.RobotsData
 	denyAll error // non-nil: every path is refused with this cause
-	err     error // policy/SSRF error: returned as-is, never cached
-	expires time.Time
+	// unreachable: denyAll is because robots.txt could not be fetched at all, not because of what it says.
+	unreachable bool
+	err         error // policy/SSRF error: returned as-is, never cached
+	expires     time.Time
 }
 
 func (e *robotsEntry) ready() bool {
@@ -114,6 +116,7 @@ func (f *Fetcher) loadRobots(ctx context.Context, origin string, e *robotsEntry)
 		e.err = err
 	case err != nil:
 		e.denyAll = fmt.Errorf("robots.txt unavailable: %w", err)
+		e.unreachable = true
 		ttl = robotsFailureTTL
 	case r.status >= 200 && r.status < 300:
 		if looksLikeHTML(r.body) {
@@ -163,6 +166,9 @@ func (f *Fetcher) robotsCheck(ctx context.Context, normalized string) error {
 	}
 	if e.err != nil {
 		return e.err
+	}
+	if e.denyAll != nil && e.unreachable {
+		return fmt.Errorf("%w: %w: %s: %v", ErrRobotsUnreachable, ErrRobotsDisallowed, normalized, e.denyAll)
 	}
 	if e.denyAll != nil {
 		return fmt.Errorf("%w: %s: %v", ErrRobotsDisallowed, normalized, e.denyAll)

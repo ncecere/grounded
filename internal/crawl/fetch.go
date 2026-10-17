@@ -24,9 +24,12 @@ import (
 // Sentinel errors. Fetch wraps them (possibly inside *url.Error); test with
 // errors.Is.
 var (
-	ErrBlockedAddress     = errors.New("crawl: destination is not a public address")
-	ErrHostNotAllowed     = errors.New("crawl: host not allowed by policy")
-	ErrRobotsDisallowed   = errors.New("crawl: disallowed by robots.txt")
+	ErrBlockedAddress   = errors.New("crawl: destination is not a public address")
+	ErrHostNotAllowed   = errors.New("crawl: host not allowed by policy")
+	ErrRobotsDisallowed = errors.New("crawl: disallowed by robots.txt")
+	// ErrRobotsUnreachable is a robots.txt that could not be fetched (the site did not answer). It is also an ErrRobotsDisallowed (a site whose
+	// rules cannot be read is not crawled), but it is not the site saying no, and a crawl says so.
+	ErrRobotsUnreachable  = errors.New("crawl: robots.txt could not be fetched")
 	ErrTooManyRedirects   = errors.New("crawl: too many redirects")
 	ErrUnsupportedContent = errors.New("crawl: unsupported content type")
 )

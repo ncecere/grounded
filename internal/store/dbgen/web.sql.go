@@ -1186,6 +1186,19 @@ func (q *Queries) TeamsWithWaitingCrawls(ctx context.Context) ([]uuid.NullUUID, 
 	return items, nil
 }
 
+const topSkipReason = `-- name: TopSkipReason :one
+SELECT reason::text FROM web_frontier WHERE crawl_id = $1 AND status = 'skipped' AND reason <> ''
+GROUP BY reason ORDER BY count(*) DESC, reason LIMIT 1
+`
+
+// The reason most pages of a run were skipped (a run that fetched nothing says why).
+func (q *Queries) TopSkipReason(ctx context.Context, crawlID uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, topSkipReason, crawlID)
+	var reason string
+	err := row.Scan(&reason)
+	return reason, err
+}
+
 const upsertWebDocument = `-- name: UpsertWebDocument :one
 
 INSERT INTO documents (id, source_id, team_id, external_id, url, content_type, size_bytes, sha256, blob_key,

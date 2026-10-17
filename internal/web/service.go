@@ -106,6 +106,11 @@ func hostNotAllowed(host string) error {
 // team already has a pending request covering it, that request, so the UI
 // shows it instead of offering a duplicate (docs/ui-review P-15).
 func (s *Service) hostNotAllowedFor(ctx context.Context, team uuid.NullUUID, host string) error {
+	// An address the crawler never fetches (private, loopback, link-local, cloud metadata) is refused as that: a domain request for it could
+	// never be approved, so the message must not invite one.
+	if s.Fetcher.BlocksPattern(host) {
+		return apperr.Invalid("blocked_address", host+" can't be crawled: the crawler never fetches private, loopback, link-local or cloud metadata addresses, and a domain request can't change that.")
+	}
 	details := map[string]any{"host": host}
 	e := &apperr.Error{Status: 400, Code: "host_not_allowed",
 		Message: host + " is not on the crawl allowlist. A team editor can request it under Domain requests; a platform admin reviews the request.",
