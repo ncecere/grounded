@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **A NUL character (U+0000) in a request is a clear 400, not a 500.** Postgres text cannot hold it, so a message, name, search or address containing one failed at the database as `internal` from about twenty endpoints (both chat endpoints, creating teams, knowledge bases, agents and keys, renaming a conversation, searching). JSON bodies (including the OpenAI-compatible endpoint and OAuth client registration), paths and query strings now answer `400 invalid_text` before anything runs. (#109)
 - **API keys act within what they were given.** A key with only the `mcp` scope could read the team's sources, documents, knowledge bases and agents over the REST API although it is for `/mcp` only; it now gets `403 missing_scope` there (it still works on `/mcp`). A key restricted to some knowledge bases could read the sources and documents of the others; outside its knowledge bases a source now does not exist for it. A personal key kept its ingest or manage power after its owner was demoted in the team; it now never acts above its owner's current role. (#110, #111, #112)
 
 ## [0.6.0] - 2026-10-16

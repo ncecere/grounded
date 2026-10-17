@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -107,8 +108,22 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 				"duration_ms", elapsed.Milliseconds(), "request_id", reqID,
 				"client_ip", httpx.ClientIP(r, d.Config.TrustedProxies))
 		}()
+		if urlHasNUL(r.URL) {
+			httpx.Error(rec, http.StatusBadRequest, "invalid_text", httpx.NULMessage)
+			return
+		}
 		mux.ServeHTTP(rec, r)
 	})
+}
+
+// urlHasNUL reports whether the path or the query holds U+0000 once decoded.
+// Postgres text cannot store it, so a handler that searches or looks up by it
+// would answer 500. A literal "%00" (escaped as %2500) is just text.
+func urlHasNUL(u *url.URL) bool {
+	if strings.IndexByte(u.Path, 0) >= 0 || strings.Contains(u.RawQuery, "%00") || strings.IndexByte(u.RawQuery, 0) >= 0 {
+		return true
+	}
+	return false
 }
 
 // startSpan starts the request's server span (none for health checks and

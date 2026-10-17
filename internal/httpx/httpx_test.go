@@ -93,3 +93,45 @@ func TestInternalClientGone(t *testing.T) {
 		t.Fatalf("status %d log %q, want a 500 logged as an error", w.Code, buf.String())
 	}
 }
+
+// Postgres text columns cannot hold U+0000: a body that spells one with the
+// escape \u0000 is refused with a 400 instead of failing as a 500 at insert.
+func TestJSONHasNUL(t *testing.T) {
+	cases := []struct {
+		name, in string
+		want     bool
+	}{
+		{"escape in a value", `{"a":"x\u0000y"}`, true},
+		{"escape in a key", `{"a\u0000":1}`, true},
+		{"escape in an array", `{"a":["ok","\u0000"]}`, true},
+		{"escape after an escaped quote", `{"a":"q\"\u0000"}`, true},
+		{"escaped backslash then u0000 is just text", `{"a":"\\u0000"}`, false},
+		{"other control escapes are fine", `{"a":"\u0001 \u001f \n \t"}`, false},
+		{"u0000 followed by digits still counts", `{"a":"\u00000"}`, true},
+		{"truncated escape", `{"a":"\u00`, false},
+		{"no escape", `{"a":"plain"}`, false},
+		{"digits outside a string", `{"a":0000}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := JSONHasNUL([]byte(tc.in)); got != tc.want {
+				t.Fatalf("JSONHasNUL(%s) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDecodeRefusesNUL(t *testing.T) {
+	var b struct {
+		Name string `json:"name"`
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"a\u0000b"}`))
+	r.Header.Set("Content-Type", "application/json")
+	if Decode(w, r, &b) {
+		t.Fatal("a name with U+0000 was accepted")
+	}
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"invalid_text"`) {
+		t.Fatalf("want 400 invalid_text, got %d %s", w.Code, w.Body)
+	}
+}
