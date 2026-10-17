@@ -245,4 +245,24 @@ describe("source viewer", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
     expect(screen.queryByRole("button", { name: /^Show source 1/ })).toBeNull();
   });
+
+  it("shows a heading the crawler stored as a Markdown link as its text only, on the card, in the popover and in the viewer (#128)", async () => {
+    const raw = "[How to write Go code](<https://go.dev/doc/code.html>)";
+    const shown = "Documentation › Getting Started › How to write Go code";
+    const citations = [cite(1, { headingPath: ["Documentation", "Getting Started", raw] }), cite(2)];
+    mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1, { headingPath: ["Documentation", "Getting Started", raw] }) });
+    renderChat({ kind: "message" }, thread(answer(citations)));
+    // The popover of a citation chip.
+    await userEvent.click((await screen.findAllByRole("button", { name: /^Source 1: Fees 1/ }))[0]!);
+    expect(within(await screen.findByRole("dialog")).getByText(shown)).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    // The source card, and the viewer's header.
+    await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
+    const card = screen.getByRole("listitem", { name: "Source 1: Fees 1" });
+    expect(within(card).getByText(shown)).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: "Show source 1: Fees 1" }));
+    const viewer = await screen.findByRole("region", { name: "Fees 1" });
+    expect(await within(viewer).findByText(shown)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("](<");
+  });
 });

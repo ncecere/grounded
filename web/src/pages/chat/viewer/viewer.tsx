@@ -19,6 +19,7 @@ import { Button, IconButton } from "@/components/ui/button/button";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { cx } from "@/lib/bitop-utils";
+import { headingText } from "@/lib/plain-text";
 import { displayNumbers } from "../citations";
 import type { Claim } from "../claims";
 import type { AssistantItem, Citation } from "../stream";
@@ -146,7 +147,7 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
 
   if (!c) return null;
   const d = data.data;
-  const where = [(d?.headingPath ?? c.headingPath).join(" › "), pagesOf(c)].filter(Boolean).join(" · ");
+  const where = [(d?.headingPath ?? c.headingPath).map(headingText).join(" › "), pagesOf(c)].filter(Boolean).join(" · ");
   const cited = d?.passages.find((p) => p.cited);
   const claims = item.claims ?? d?.claims ?? [];
   const team = d?.documentTeam;

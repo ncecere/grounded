@@ -28,6 +28,12 @@ export function markdownToText(md: string): string {
 }
 
 /**
+ * A heading as the crawler stored it, as the words a reader sees: pages converted from HTML keep a heading's link as
+ * Markdown ("[How to write Go code](<https://go.dev/doc/code.html>)"), and its emphasis and code, in the path of a source.
+ */
+export const headingText = (h: string): string => markdownToText(h).replace(/\s+/g, " ").trim();
+
+/**
  * A source card's snippet on one line: Markdown removed (inline code even when its backticks sit on their own
  * lines, as pages converted from HTML have them, and code fences), and a leading heading left out when it repeats
  * the card's title or heading path ("Slices Slices wrap arrays…").

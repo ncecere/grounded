@@ -22,7 +22,7 @@ import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/r
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
-import { plainSnippet } from "@/lib/plain-text";
+import { headingText, plainSnippet } from "@/lib/plain-text";
 import { verificationLabel } from "@/lib/systemone";
 import { citedSoFar, copyText, displayText } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
@@ -53,7 +53,10 @@ export const sourceElementId = (itemKey: string, n: number) => `${itemKey}-sourc
 /** An MCP tool's result (docs/mcp-client.md) reads "From Service status · check_outage"; a passage by its document's title. */
 export const sourceTitle = (s: Citation) => (s.kind === "tool" ? `From ${s.server ?? "a tool"} · ${s.tool ?? ""}` : s.title || "Untitled document");
 /** The passage's headings, without a first heading that only repeats the document's title (the card shows it: VI2-12). */
-const headings = (s: Citation) => (s.headingPath[0]?.trim().toLowerCase() === s.title.trim().toLowerCase() ? s.headingPath.slice(1) : s.headingPath);
+const headings = (s: Citation) => {
+  const path = s.headingPath.map(headingText);
+  return path[0]?.toLowerCase() === s.title.trim().toLowerCase() ? path.slice(1) : path;
+};
 const where = (s: Citation) =>
   s.kind === "tool"
     ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
