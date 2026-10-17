@@ -1,5 +1,5 @@
 /* Costs and budgets (docs/costs.md): queries, labels and small helpers shared by Admin → Costs, the model and team pages and the team workspace. */
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { dayLabel } from "@/components/analytics/format";
 import { formatMoney, formatMoneyExact } from "./format";
@@ -25,6 +25,14 @@ export const budgetStatusQuery = (team: string) => ({
   queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/budget-status", { params: { path: { team } } })),
   refetchInterval: 60_000,
 });
+
+/**
+ * Forgets every team's remembered spend answer (a 404 costs_off is kept, see teamSpendQuery) after a cost mode
+ * changed, so the pages ask again and show the spend that is now on (or none that is now off).
+ */
+export function forgetTeamSpend(qc: QueryClient) {
+  void qc.resetQueries({ queryKey: ["team"], predicate: (q) => q.queryKey[2] === "spend" });
+}
 
 type Banner = Schemas["TeamBudgetBanner"];
 

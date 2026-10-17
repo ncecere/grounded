@@ -3,6 +3,13 @@
   overflow: hidden;
 }
 
+/* The collapsed "…" crumb is as wide as its button. bitop-ui measured its floor from the hidden label ("Team
+   settings", 87 px), so at 390 px the trail overflowed the top bar and cut the current page without an ellipsis.
+   The selector outweighs bitop-ui's .item:not(:last-child). */
+nav.crumbs li:has(> button):not(:last-child) {
+  min-width: 0;
+}
+
 /* A breadcrumb link is at least 24 px tall (WCAG 2.5.8): its text and padding came to 23.5. */
 .crumbs a {
   min-height: 1.5rem;

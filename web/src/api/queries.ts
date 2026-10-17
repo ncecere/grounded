@@ -24,12 +24,20 @@ export const adminTeamQuery = (team: string) =>
  * A team's spend this month (owners, admins and platform staff). It answers 404 while the team's cost
  * mode is Off, so data means cost tracking is on: Team settings' usage tab and its ⌘K command are then
  * "Usage & spend".
+ *
+ * The 404 is remembered: a page that mounts later (or a window that gains focus) does not ask again while
+ * the answer is in the cache, which used to put one red 404 in the network list for every team page opened.
+ * The budget status cannot tell "off" from "tracking, no budget" (both read state "none"), so the request
+ * cannot be skipped beforehand without the API saying the mode; the cache lasts gcTime (5 minutes) after the
+ * last page using it, or until a mutation invalidates the team's queries.
  */
 export const teamSpendQuery = (team: string) =>
   queryOptions({
     queryKey: ["team", team, "spend"],
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/spend", { params: { path: { team } } })),
     retry: false,
+    retryOnMount: false,
+    refetchOnWindowFocus: (q) => q.state.status !== "error",
   });
 
 export const sharedSourceKey = (id: string) => ["admin", "shared-source", id];

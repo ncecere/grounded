@@ -108,7 +108,9 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
       { label: team.data?.team.name ?? <VisuallyHidden>Team</VisuallyHidden>, icon: icon(Boxes), render: <Link to="/teams/$team" params={{ team: slug }} /> },
     ];
     const sub = routeId.slice("/app/teams/$team".length);
-    if (sub === "/" || sub === "") crumbs.push({ label: "Overview" });
+    // The team's own page (its index route). The team layout alone (sub "") matched an unknown address under the
+    // team: the not-found page adds its own tail, so no "Overview" crumb for a page that isn't Overview.
+    if (sub === "/") crumbs.push({ label: "Overview" });
     else if (sub === "/sources") crumbs.push({ label: "Data sources" });
     else if (sub === "/sources/$sourceId")
       crumbs.push(
