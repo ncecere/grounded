@@ -11,6 +11,15 @@ const dotAtom = `${atext}+(?:\\.${atext}+)*`;
 const ipLiteral = "\\[(?:\\d{1,3}(?:\\.\\d{1,3}){3}|[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*)\\]";
 const emailRE = new RegExp(`^${dotAtom}@(?:${dotAtom}|${ipLiteral})$`, "u");
 
+/** A model's or embedding profile's key: catalog.keyRE on the server, 1 to 63 of a-z 0-9 . _ -, starting with a letter or digit. */
+const keyRE = /^[a-z0-9][a-z0-9._-]{0,62}$/;
+
+/** A message for a key field (Add model, Add profile), or null when it is fine; for Field's `validate`. */
+export function keyProblem(key: string): string | null {
+  if (!key) return "Enter a key.";
+  return keyRE.test(key) ? null : "Use lowercase letters, digits, dots, hyphens and underscores, starting with a letter or digit (63 characters at most).";
+}
+
 /** A message for an email field, or undefined when it looks fine. */
 export function emailProblem(email: string) {
   const v = email.trim();
