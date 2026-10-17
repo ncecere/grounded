@@ -36,13 +36,16 @@ func webhookUpdateRequiresEnabled(t *testing.T, env *hookEnv) {
 	rev := c.Webhook.Revision
 
 	// Missing a required field: refused by name, nothing changed (it used to switch the webhook off and clear its description).
-	for _, body := range []map[string]any{
-		{"url": "https://hooks.example.com/upd2", "events": []string{"agent.published"}},
-		{"url": "https://hooks.example.com/upd2", "enabled": true},
-		{"events": []string{"agent.published"}, "enabled": true},
+	for _, tc := range []struct {
+		body map[string]any
+		code string
+	}{
+		{map[string]any{"url": "https://hooks.example.com/upd2", "events": []string{"agent.published"}}, "invalid_webhook"},
+		{map[string]any{"events": []string{"agent.published"}, "enabled": true}, "invalid_webhook"},
+		{map[string]any{"url": "https://hooks.example.com/upd2", "enabled": true}, "no_events"}, // the service's own answer for no events
 	} {
-		code, e := env.tadmin.call("PATCH", path, body, nil, ifMatch(rev))
-		mustCode(t, fmt.Sprintf("update with %v", keysOf(body)), code, e, 400, "invalid_webhook")
+		code, e := env.tadmin.call("PATCH", path, tc.body, nil, ifMatch(rev))
+		mustCode(t, fmt.Sprintf("update with %v", keysOf(tc.body)), code, e, 400, tc.code)
 	}
 	if w := env.get(t, env.tadmin, path); !w.Enabled || w.Description != "the registrar's receiver" || w.Revision != rev {
 		t.Fatalf("a refused update changed the webhook: %+v", w)
