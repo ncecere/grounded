@@ -4,6 +4,7 @@
  */
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { BellDot, BellOff, CheckCheck, Inbox as InboxIcon, Settings } from "lucide-react";
 import { PageTabs, useUrlTab } from "../../components/page-tabs";
 import { LoadMore, QueryView } from "../../components/query-view";
@@ -90,6 +91,19 @@ export function NotificationsPage() {
 function Inbox({ unread, type }: { unread: boolean; type?: NotificationType }) {
   const q = useInfiniteQuery(inboxQuery({ unread, type }));
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
+  // Marking one read removes it from the Unread list: focus goes to the one that took its place, not to the page (#128).
+  const list = useRef<HTMLUListElement>(null);
+  const toggled = useRef<number | null>(null);
+  const order = items.map((i) => i.id).join(" ");
+  useEffect(() => {
+    const at = toggled.current;
+    if (at === null) return;
+    toggled.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    const buttons = list.current?.querySelectorAll<HTMLElement>("li button");
+    if (buttons?.length) buttons[Math.min(at, buttons.length - 1)]!.focus();
+  }, [order]);
   const empty = (
     <EmptyState
       icon={<BellOff />}
@@ -100,7 +114,15 @@ function Inbox({ unread, type }: { unread: boolean; type?: NotificationType }) {
   return (
     <Card flush>
       <QueryView query={q} loadingLabel="Loading notifications…" empty={items.length === 0 && empty}>
-        <ul className={cx(n.list, styles.list)} aria-label={unread ? "Unread notifications" : "Notifications"}>
+        <ul
+          ref={list}
+          className={cx(n.list, styles.list)}
+          aria-label={unread ? "Unread notifications" : "Notifications"}
+          onClickCapture={(e) => {
+            const row = (e.target as Element).closest("li");
+            toggled.current = row && (e.target as Element).closest("button") ? [...e.currentTarget.children].indexOf(row) : null;
+          }}
+        >
           {items.map((item) => (
             <NotificationItem key={item.id} n={item} />
           ))}

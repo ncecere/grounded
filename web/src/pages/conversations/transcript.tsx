@@ -48,7 +48,7 @@ export function ConversationTranscript({ id }: { id: string }) {
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
-        title={conv.title || "Untitled conversation"}
+        title={<bdi>{conv.title || "Untitled conversation"}</bdi>}
         description={
           <>
             With {conv.agentName} (deleted) · last active <Time value={conv.updatedAt} format="datetime" />

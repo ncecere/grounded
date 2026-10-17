@@ -1,4 +1,5 @@
 import { type Schemas } from "../../api/client";
+import { fieldError } from "../../lib/field-errors";
 import { plural } from "../team/common";
 import { type MapRequest, type WebConfig, type WebConfigInput } from "./owner";
 
@@ -92,6 +93,19 @@ export function webInput(f: WebFormState): WebConfigInput {
 }
 
 export type WebErrors = Partial<Record<"urls" | "maxDepth" | "maxPages", string>>;
+
+/**
+ * The server's refusal of the depth or the page cap ("maxPages must be between 1 and 10000") as a field error. The page
+ * ceiling is the platform's CRAWL_MAX_PAGES (10,000 unless changed), which the client can't know, so the server's number is shown.
+ */
+export function serverWebErrors(error: unknown): WebErrors {
+  const out: WebErrors = {};
+  for (const field of ["maxDepth", "maxPages"] as const) {
+    const message = fieldError(error, ["invalid_web_config"], field);
+    if (message) out[field] = message;
+  }
+  return out;
+}
 
 const urlLimits: Record<WebMode, number> = { scrape: 1, batch: 1000, crawl: 20 };
 

@@ -31,6 +31,13 @@ import { rememberSuggestions, withRememberedSuggestions } from "./suggestion-mem
 
 const defaultMaxLength = 8000;
 
+/** Characters (code points), as the server counts them: text.length counts UTF-16 units, so an emoji would count twice (#127). */
+const charCount = (s: string) => {
+  let n = 0;
+  for (const _ of s) n++;
+  return n;
+};
+
 type ChatPanelProps = {
   chat: ReturnType<typeof useChat>;
   agent: AgentLook;
@@ -82,7 +89,7 @@ export function ChatPanel(props: ChatPanelProps) {
   const { chat, text, onTextChange, disabledReason, inputRef, maxLength = defaultMaxLength } = props;
   const local = useRef<HTMLTextAreaElement | null>(null);
   const ref = inputRef ?? local;
-  const over = text.length > maxLength;
+  const over = charCount(text) > maxLength;
   const wasStreaming = useRef(false);
   // Fetch the Markdown engine while the user types the first question.
   useEffect(() => preloadResponse(), []);
@@ -225,7 +232,7 @@ function ChatColumn(props: ColumnProps) {
               {chat.streaming ? "Answering… You can type your next question meanwhile." : "Enter to send, Shift+Enter for a new line."}
             </span>
             <span id="composer-count" className={c.count} data-over={over ? "" : undefined}>
-              {text.length.toLocaleString()} / {maxLength.toLocaleString()}
+              {charCount(text).toLocaleString()} / {maxLength.toLocaleString()}
               {over && " (too long)"}
             </span>
           </PromptInputTools>

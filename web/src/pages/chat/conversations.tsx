@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { Menu, MenuItem, MenuLinkItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
+import { LoadMore } from "../../components/query-view";
 import { RelativeTime } from "../../components/templates/list-page";
 import { toast } from "@/components/ui/toast/toast";
 import { groupByDay } from "../../lib/group-by-day";
@@ -85,7 +86,7 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
           setDeleting(o);
           if (!o) remove.reset();
         }}
-        title={`Delete “${title}”?`}
+        title={<>Delete “<bdi>{title}</bdi>”?</>}
         description="It disappears from your conversations now. The stored copy is removed permanently under the platform's retention policy, or later if records rules require it; until then it's kept but nobody else can read it. Any link you made to it stops working."
         confirmLabel="Delete conversation"
         busy={remove.isPending}
@@ -164,13 +165,15 @@ type ListProps = {
   conversations: ConversationsResult;
   selected?: string;
   onNew: () => void;
+  /** The list's next page: Load more at its end. */
+  more?: Parameters<typeof LoadMore>[0]["query"];
   /** Called after picking a conversation (closes the sheet on narrow screens). */
   onPick?: () => void;
   className?: string;
 };
 
 /** "New conversation" and the user's conversations with the agent, newest first, grouped by day (W11). */
-export function ConversationList({ card, conversations, selected, onNew, onPick, className }: ListProps) {
+export function ConversationList({ card, conversations, selected, onNew, more, onPick, className }: ListProps) {
   const items = conversations.data?.items ?? [];
   return (
     <nav aria-label={`Conversations with ${card.name}`} className={className}>
@@ -200,7 +203,7 @@ export function ConversationList({ card, conversations, selected, onNew, onPick,
                   {g.items.map((conv) => (
                     <li key={conv.id} className={c.conv} data-current={conv.id === selected ? "" : undefined}>
                       <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick} title={conv.title || undefined}>
-                        <span className={c.convTitle}>{conv.title || "Untitled conversation"}</span>
+                        <span className={c.convTitle}><bdi>{conv.title || "Untitled conversation"}</bdi></span>
                         {/* Lists are relative, with the exact time on hover (VI-16). */}
                         <span className={c.convDate}>
                           <RelativeTime value={conv.updatedAt} />
@@ -213,6 +216,7 @@ export function ConversationList({ card, conversations, selected, onNew, onPick,
               </section>
             );
           })}
+          {more && <LoadMore query={more} />}
         </div>
       )}
     </nav>

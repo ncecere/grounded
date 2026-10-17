@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, LifeBuoy, LogIn } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ApiError, api, errorMessage, setCsrfToken, unwrap, type Schemas } from "./api/client";
 import { applyInstance, instanceOf, tagline, type Instance } from "./lib/instance";
 import { retryDelay, shouldRetrySession } from "./lib/retry";
@@ -40,11 +40,17 @@ export function useMe() {
   });
 }
 
-/** Returns the current user; only call below the signed-in boundary. */
+/**
+ * Returns the current user; only call below the signed-in boundary. When the session ends (the cache says
+ * signed out, or was cleared) a mounted component can render once more before SessionGate swaps the tree for
+ * the sign-in page; it gets the last user it saw for that pass instead of crashing the app (#121).
+ */
 export function useCurrentUser(): Me {
   const { data } = useMe();
-  if (!data) throw new Error("useCurrentUser called while signed out");
-  return data;
+  const last = useRef<Me | null>(null);
+  if (data) last.current = data;
+  if (!last.current) throw new Error("useCurrentUser called while signed out");
+  return last.current;
 }
 
 export function useAuthConfig() {

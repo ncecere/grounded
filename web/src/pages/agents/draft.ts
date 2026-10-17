@@ -233,10 +233,16 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
     if (inflight.current) await inflight.current;
   }, [save]);
 
-  // Warn before leaving with unsaved edits; save what's pending on unmount.
+  /** The latest invalidFields, for the beforeunload handler below. */
+  const invalidRef = useRef(invalidFields);
+  invalidRef.current = invalidFields;
+
+  // Warn before leaving with unsaved edits; save what's pending on unmount. A value held back as invalid is never
+  // saved, so it counts too: reloading would lose it without a word (#131).
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (changes(base.current, draftRef.current).body) e.preventDefault();
+      const pending = changes(base.current, draftRef.current);
+      if (pending.body || pending.held || invalidRef.current.length > 0) e.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => {

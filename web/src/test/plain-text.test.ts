@@ -1,4 +1,4 @@
-import { markdownToText, plainSnippet } from "../lib/plain-text";
+import { headingText, markdownToText, plainSnippet } from "../lib/plain-text";
 
 describe("markdownToText", () => {
   it("keeps the text of emphasis, links, images, code and headings", () => {
@@ -26,5 +26,13 @@ describe("plainSnippet", () => {
   it("leaves out a leading heading the card already shows", () => {
     expect(plainSnippet("## Slices\n\nSlices wrap arrays.", ["Effective Go", "Data", "Slices"])).toBe("Slices wrap arrays.");
     expect(plainSnippet("## Fees\n\nThe **2019** fee.", ["Transcripts"])).toBe("Fees The 2019 fee.");
+  });
+});
+
+describe("headingText", () => {
+  it("is the words of a heading the crawler stored with its link, emphasis or code (#128)", () => {
+    expect(headingText("[How to write Go code](<https://go.dev/doc/code.html>)")).toBe("How to write Go code");
+    expect(headingText("The `append` [built-in](https://go.dev/ref/spec#Appending_and_copying_slices) **function**")).toBe("The append built-in function");
+    expect(headingText("Getting Started")).toBe("Getting Started");
   });
 });
