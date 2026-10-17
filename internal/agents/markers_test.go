@@ -2,6 +2,7 @@ package agents
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -129,5 +130,36 @@ func TestExportedMarkerReaders(t *testing.T) {
 	}
 	if !IsRefusal("I don't know [1].", "I don't know.") {
 		t.Error("IsRefusal ignores markers")
+	}
+}
+
+// A code span never crosses into another list item (CommonMark: each item is its own block). A passage quoted into a bullet and cut off in the
+// middle of a code span left a backtick open, which paired with one in a later bullet and turned the markers between them into "code": answers
+// showed plain "[1]" and "[2]" beside a chip numbered 1 that was really source 3 (QA pass v0.6.0, #122).
+func TestMarkersAfterAnOpenBacktickInAListItem(t *testing.T) {
+	text := "The closest passages I found:\n\n" +
+		"- **Workspaces**: The ` go ` command has subcommands such as ` go work init ` and ` go work use [-r] [dir] ` adds a ` use ` directive to the ` … [1]\n" +
+		"- **PGO**: PGO can result in slightly larger binaries due to additional function inlining. [2]\n" +
+		"- **Docs**: This doc shows how to use the ` go ` command to build and test packages. [3]"
+	if got := CitedNumbers(text); !slices.Equal(got, []int{1, 2, 3}) {
+		t.Fatalf("CitedNumbers = %v, want [1 2 3]", got)
+	}
+	sources := []numberedHit{{N: 1}, {N: 2}, {N: 3}}
+	out, cites := applyCitations(text, sources, CitationSnippet)
+	if len(cites) != 3 || out != text {
+		t.Errorf("applyCitations kept %d citations, text changed: %v", len(cites), out != text)
+	}
+
+	// What stays code: a span inside one item (even across a soft-wrapped line), and a span in a paragraph.
+	for name, in := range map[string]string{
+		"a span wrapped inside one item": "- uses `go\n  [1]` here\n- next [2]",
+		"a span in a paragraph":          "Use `a [1] b` for it. [2]",
+		"an open fence runs to the end":  "- item [1]\n```\n[2]\n",
+	} {
+		got := CitedNumbers(in)
+		want := map[string][]int{"a span wrapped inside one item": {2}, "a span in a paragraph": {2}, "an open fence runs to the end": {1}}[name]
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: CitedNumbers(%q) = %v, want %v", name, in, got, want)
+		}
 	}
 }

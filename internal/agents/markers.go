@@ -181,6 +181,7 @@ func markdownCode(text string) (blocks, inline []span) {
 		}
 		switch {
 		case listStartRE.MatchString(s):
+			endPara(ln.start) // each list item is its own block: a code span never crosses into the next one
 			inList = true
 		case indent == 0 && prevBlank:
 			inList = false // a paragraph at the margin ends the list

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Citation markers after an unclosed backtick are recognised.** A passage quoted into a list item and cut off inside a code span left a backtick open, which paired with one in a later item and made the markers between them look like code: an answer could show plain "[1]" and "[2]" beside a chip numbered 1 that was really source 3, and cite one source instead of three. A code span no longer crosses into the next list item, as in Markdown. (#122)
 - **A NUL character (U+0000) in a request is a clear 400, not a 500.** Postgres text cannot hold it, so a message, name, search or address containing one failed at the database as `internal` from about twenty endpoints (both chat endpoints, creating teams, knowledge bases, agents and keys, renaming a conversation, searching). JSON bodies (including the OpenAI-compatible endpoint and OAuth client registration), paths and query strings now answer `400 invalid_text` before anything runs. (#109)
 
 ## [0.6.0] - 2026-10-16
