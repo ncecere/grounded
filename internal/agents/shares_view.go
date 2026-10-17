@@ -32,7 +32,9 @@ type shareAccess struct {
 // does not exist, so nobody can tell valid links from invalid ones without having one. Signed-in callers get 404 for every refusal. A link is
 // closed when its agent is disabled, unpublished or deleted, when its conversation was deleted (by its user now, by retention later), or when
 // the caller may not chat with the agent (its audience: the team, everyone signed in, or, for a public agent, everyone signed in while public
-// access is on). The owner of the link may always open it while the agent is available.
+// access is on), and when its owner is no longer an active person who may chat with the agent (they left the team, were suspended or lost
+// access): a link is the owner's, so it ends with their standing, for everybody including them, and comes back with it. While the owner is in
+// good standing they may always open it, whatever the agent's audience.
 func (s *Service) openShare(ctx context.Context, a authz.Actor, token string) (shareAccess, error) {
 	anonymous := a.UserID == uuid.Nil || a.Delegated()
 	refuse := errNoShare
@@ -53,6 +55,11 @@ func (s *Service) openShare(ctx context.Context, a authz.Actor, token string) (s
 		return shareAccess{}, refuse
 	}
 	grant := s.grantOf(ctx, row.AgentID)
+	if ok, err := s.ownerStanding(ctx, row, grant); err != nil {
+		return shareAccess{}, err
+	} else if !ok {
+		return shareAccess{}, refuse
+	}
 	if anonymous {
 		on, err := s.publicEnabled(ctx)
 		if err != nil {
@@ -72,6 +79,15 @@ func (s *Service) openShare(ctx context.Context, a authz.Actor, token string) (s
 		return shareAccess{}, refuse
 	}
 	return shareAccess{row: row}, nil
+}
+
+// ownerStanding reports whether the person who made a link is still an active person who may chat with the agent: the condition for the link to
+// work at all.
+func (s *Service) ownerStanding(ctx context.Context, row dbgen.GetShareByTokenHashRow, grant string) (bool, error) {
+	if row.CreatorStatus != "active" {
+		return false, nil
+	}
+	return s.mayUse(ctx, authz.Actor{UserID: row.CreatedBy}, row.TeamID, grant)
 }
 
 // SharedCitation is a source of a shared answer: what the answer showed, without the agent's checks of it. A tool's result is named, never
