@@ -9,16 +9,18 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
-import { LogIn, MessageSquare } from "lucide-react";
+import { Compass, Home, LogIn, LogOut, MessageSquare } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { ApiError } from "../../api/client";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
+import { Inline } from "@/components/ui/layout/layout";
 import { Time } from "@/components/ui/time/time";
+import { terms } from "../../lib/terms";
 import { ProductMark } from "../../components/layout/product-mark";
-import { InstanceLogo, useAuthConfig, useInstance, useMe } from "../../session";
+import { InstanceLogo, useAuthConfig, useInstance, useMe, useSignOut } from "../../session";
 import { ChatMessages } from "../chat/thread";
 import { ViewerHost } from "../chat/viewer/host";
 import { itemsFromShared, sharedQuery } from "./data";
@@ -63,6 +65,7 @@ export function SharedPage() {
   const viewer = me.data?.user.id ?? "anonymous";
   const shared = useQuery({ ...sharedQuery(token, viewer), enabled: !me.isLoading });
   const signIn = useSignInHref();
+  const signOut = useSignOut();
   const instanceName = useInstance().name;
   const view = shared.data;
   useEffect(() => {
@@ -91,7 +94,24 @@ export function SharedPage() {
                 <Button render={<a href={signIn} />}>
                   <LogIn aria-hidden /> Sign in
                 </Button>
-              ) : undefined
+              ) : (
+                // Not a dead end (#128): the way into the app, and out of this account.
+                <Inline gap={2} justify="center">
+                  <Button render={<Link to="/" />}>
+                    <Home aria-hidden /> Home
+                  </Button>
+                  {me.data && (
+                    <Button variant="secondary" render={<Link to="/agents" />}>
+                      <Compass aria-hidden /> {terms.discoverAgents}
+                    </Button>
+                  )}
+                  {me.data && (
+                    <Button variant="ghost" loading={signOut.isPending} onClick={() => signOut.mutate()}>
+                      <LogOut aria-hidden /> Sign out
+                    </Button>
+                  )}
+                </Inline>
+              )
             }
           />
         </main>
