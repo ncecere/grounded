@@ -175,7 +175,7 @@ describe("public page", () => {
     const share = await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" });
     expect(share).toHaveAttribute("aria-checked", "false");
     await userEvent.click(share);
-    await userEvent.click(screen.getByRole("menuitem", { name: "Missing sources" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Missing sources" }));
     await waitFor(() => expect(calls.find((c) => c.url === path)?.body).toEqual({ rating: "down", reason: "missing_sources", share: true }));
     expect(await screen.findByRole("button", { name: "Bad answer: Missing sources" })).toHaveAttribute("aria-pressed", "true");
     expect(calls.some((c) => c.url === "/v1/messages/m1/feedback")).toBe(false);

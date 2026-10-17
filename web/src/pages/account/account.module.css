@@ -39,6 +39,19 @@
   min-width: 12rem;
 }
 
+/* The profile's teams: the role is a column of its own, so "Member" and "Owner" start at the same x
+   whatever the team's name takes (a flex row put it right after the name). */
+.teamRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+
+  & .rowMain {
+    min-width: 0;
+  }
+}
+
 .rowMeta {
   display: flex;
   flex-wrap: wrap;

@@ -3,6 +3,11 @@
   overflow: hidden;
 }
 
+/* A breadcrumb link is at least 24 px tall (WCAG 2.5.8): its text and padding came to 23.5. */
+.crumbs a {
+  min-height: 1.5rem;
+}
+
 .search {
   min-width: 15rem;
 }

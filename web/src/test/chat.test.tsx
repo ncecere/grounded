@@ -146,7 +146,7 @@ describe("chat page", () => {
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
     expect(localStorage.getItem("grounded.sidebarCollapsed")).toBeNull();
     // The team name links to Discover agents (the preview card is a hover enhancement).
-    expect(screen.getByRole("link", { name: /^Office of the Registrar: see agents/ })).toHaveAttribute("href", "/agents");
+    expect(screen.getByRole("link", { name: /^Office of the Registrar: see agents/ })).toHaveAttribute("href", "/agents?team=registrar");
     const list = screen.getByRole("navigation", { name: "Conversations with Registrar assistant" });
     const today = await within(list).findByRole("region", { name: "Today" });
     expect(within(today).getByRole("link", { name: /Drop a class/ })).toBeInTheDocument();
@@ -452,15 +452,15 @@ describe("chat page", () => {
     // "Share this question with the team" is off by default (docs/gaps.md) and stays open when ticked.
     const share = await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" });
     expect(share).toHaveAttribute("aria-checked", "false");
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Outdated" }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Outdated" }));
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/messages/m1/feedback")?.body).toEqual({ rating: "down", reason: "outdated", share: false }));
     await userEvent.click(screen.getByRole("button", { name: /Bad answer/ }));
     await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" }));
     expect(screen.getByRole("menuitemcheckbox", { name: "Share this question with the team" })).toHaveAttribute("aria-checked", "true");
-    await userEvent.click(screen.getByRole("menuitem", { name: "Missing sources" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Missing sources" }));
     await waitFor(() => expect(calls.filter((c) => c.url === "/v1/messages/m1/feedback").at(-1)?.body).toEqual({ rating: "down", reason: "missing_sources", share: true }));
     await userEvent.click(screen.getByRole("button", { name: /Bad answer/ }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Outdated" }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Outdated" }));
     expect(await screen.findByRole("button", { name: "Bad answer: Outdated" })).toHaveAttribute("aria-pressed", "true");
     // Both thumbs are toggle buttons (G16): exactly one is pressed.
     const good = screen.getByRole("button", { name: "Good answer" });

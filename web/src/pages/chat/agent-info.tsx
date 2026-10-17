@@ -19,7 +19,7 @@ export function AgentInfo({ card }: { card: Card }) {
   return (
     <HoverCard
       trigger={
-        <TextLink render={<Link to="/agents" />} className={c.teamLink} aria-label={`${card.teamName}: see agents in ${terms.discoverAgents}`}>
+        <TextLink render={<Link to="/agents" search={{ team: card.teamSlug }} />} className={c.teamLink} aria-label={`${card.teamName}: see agents in ${terms.discoverAgents}`}>
           {card.teamName}
         </TextLink>
       }
