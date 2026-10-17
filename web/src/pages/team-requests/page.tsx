@@ -15,11 +15,15 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { toast } from "@/components/ui/toast/toast";
 import { useJoinTeamHelp } from "@/components/layout/join-team";
+import { useCurrentUser } from "@/session";
 import { ClassificationBadge, useClassificationLevels } from "../team/common";
 import { type TeamRequest, RequestStatusBadge, myTeamRequestsKey, myTeamRequestsQuery } from "./common";
 import { NewRequestDialog } from "./new-request-dialog";
 
-function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): DataTableColumn<TeamRequest>[] {
+/** The team of an approved request is the person's own to open unless they named someone else as its owner (then they are not on it). */
+const isMyTeam = (r: TeamRequest, myEmail: string) => !r.ownerEmail || r.ownerEmail.toLowerCase() === myEmail.toLowerCase();
+
+function columns(levels: ReturnType<typeof useClassificationLevels>["data"], myEmail: string): DataTableColumn<TeamRequest>[] {
   return [
     { id: "name", header: "Team", accessor: "name", sortable: true, rowHeader: true, hideable: false, cell: (r) => <CellText primary={r.name} secondary={r.purpose} /> },
     { id: "status", header: "Status", accessor: "status", sortable: true, cell: (r) => <RequestStatusBadge status={r.status} /> },
@@ -31,10 +35,12 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
       header: "Outcome",
       accessor: (r) => r.decisionReason || r.teamName,
       cell: (r) =>
-        r.status === "approved" && r.teamSlug ? (
+        r.status === "approved" && r.teamSlug && isMyTeam(r, myEmail) ? (
           <Link to="/teams/$team" params={{ team: r.teamSlug }}>
             Open {r.teamName}
           </Link>
+        ) : r.status === "approved" ? (
+          <CellText primary="Approved" secondary={`Owned by ${r.ownerEmail}`} />
         ) : r.status === "declined" ? (
           <CellText primary="Declined" secondary={r.decisionReason} />
         ) : (
@@ -47,6 +53,7 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
 export function TeamRequestsPage() {
   const qc = useQueryClient();
   const levels = useClassificationLevels();
+  const { user } = useCurrentUser();
   const mine = useQuery(myTeamRequestsQuery());
   const help = useJoinTeamHelp();
   const [asking, setAsking] = useState(false);
@@ -74,7 +81,7 @@ export function TeamRequestsPage() {
         primaryAction={ask}
         notices={<Notices m={m} help={help} />}
         caption="Your team requests"
-        columns={columns(levels.data)}
+        columns={columns(levels.data, user.email)}
         data={m?.items ?? []}
         getRowId={(r) => r.id}
         rowLabel={(r) => r.name}
@@ -83,7 +90,7 @@ export function TeamRequestsPage() {
         error={mine.error}
         onRetry={() => void mine.refetch()}
         rowActions={(r) => [
-          { label: "Open team", icon: <UsersRound aria-hidden />, hidden: !(r.status === "approved" && r.teamSlug), render: <Link to="/teams/$team" params={{ team: r.teamSlug }} /> },
+          { label: "Open team", icon: <UsersRound aria-hidden />, hidden: !(r.status === "approved" && r.teamSlug && isMyTeam(r, user.email)), render: <Link to="/teams/$team" params={{ team: r.teamSlug }} /> },
           { label: "Withdraw…", icon: <Undo2 aria-hidden />, danger: true, hidden: r.status !== "pending", onSelect: () => setWithdrawing(r) },
         ]}
         empty={{ icon: <UsersRound />, title: "You haven't asked for a team.", description: m?.canAsk ? "Use New request to ask for one." : undefined }}
