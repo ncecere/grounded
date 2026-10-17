@@ -52,7 +52,7 @@ Grounded runs on Kubernetes. [`deploy/kubernetes/`](deploy/kubernetes/README.md)
 
 ```yaml
 resources:
-  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.6.0
+  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.6.1
 images:
   - name: ghcr.io/ncecere/grounded
     digest: sha256:<digest from the release notes>
@@ -163,18 +163,18 @@ PostgreSQL is the system of record. It holds the vectors (pgvector, one table pe
 | Security reviewers | [`docs/security/`](docs/security/README.md), [`SECURITY.md`](SECURITY.md) |
 | API users | [`api/openapi.yaml`](api/openapi.yaml) (every route; a test enforces it) |
 | Contributors | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/DESIGN.md`](docs/DESIGN.md), [ADRs](docs/adr/README.md) |
-| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.6.0`](docs/releases/v0.6.0.md)) |
+| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.6.1`](docs/releases/v0.6.1.md)) |
 
 ## Project status
 
-Grounded is **pre-1.0**. The current release is **v0.6.0** (2026-10-16), webhooks, agent templates, a router agent, conversation sharing and in-app team requests, on top of v0.5.0 (the index preview and an opt-in chunker). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
+Grounded is **pre-1.0**. The current release is **v0.6.1** (2026-10-17), a fix release from a QA pass of **v0.6.0** (2026-10-16: webhooks, agent templates, a router agent, conversation sharing and in-app team requests), on top of v0.5.0 (the index preview and an opt-in chunker). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
 
 - **Meant to stay stable through 0.x:** the OpenAI-compatible chat endpoint, the widget embed, the environment variables in `.env.example`, and the Kubernetes resource names that overlays patch. If one of these has to change, the release notes will say how to adapt.
 - **May change between minor releases:** the native REST API (`/v1/...`, described in [`api/openapi.yaml`](api/openapi.yaml)), metric names, the UI, and component defaults. Changes are listed in the [changelog](CHANGELOG.md).
 - **Upgrades** are forward-only and without downtime (expand/contract migrations). Don't skip a release that the release notes mark as required. Downgrading means restoring a backup.
 - **Supported versions:** the latest 0.4.x patch release gets fixes, including security fixes. See [`SECURITY.md`](SECURITY.md).
 
-[`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md) lists the known limitations, and [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
+[`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md) lists the known limitations, and [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
 
 ## Roadmap
 
@@ -193,6 +193,7 @@ Grounded is **pre-1.0**. The current release is **v0.6.0** (2026-10-16), webhook
 - [x] **v0.4.4** (2026-10-14): beta fixes: "Working on it…" while an answer waits, models that ignore thinking off are found, a Profile page with your API keys, the OCR image on Debian 13.
 - [x] **v0.5.0** (2026-10-15): the index preview (try new indexing settings on a knowledge base and compare before switching) and an opt-in chunker that merges short sections.
 - [x] **v0.6.0** (2026-10-16): service desk building blocks: webhooks, agent templates, a router agent, conversation sharing and in-app team requests.
+- [x] **v0.6.1** (2026-10-17): fixes from a QA pass of v0.6.0: API keys reach only what they were given, members see published versions, shared links end with their owner's standing, and more.
 
 **Next:** v0.7.0, "adoption by other installs" ([`docs/roadmap.md`](docs/roadmap.md)): a Helm chart, configuration as code, the docs site and registry, and an accessibility statement with model cards.
 

@@ -6,8 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-17
+
+A fix release from a QA pass of v0.6.0. No new features, **no migrations and no new settings** (schema 53, manifests unchanged). Some fixes narrow access to what the documentation always said (API keys, shared links, members and drafts): see [`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md).
+
 ### Fixed
 
+- **A key restricted to agents reaches only their knowledge bases, and a key restricted to knowledge bases sees only the agents that use them.** An agent restriction used to limit which agents a key could use but left every knowledge base of the team searchable (and readable, through sources and documents). Now a key restricted to some agents reaches only the knowledge bases those agents' published versions answer from, as they are now, and with a knowledge-base restriction too only those both allow. A key restricted to knowledge bases no longer lists or opens an agent whose configuration uses any other. (#111)
+- **The API says members can read their team's document passages.** `GET …/documents/{id}/passages` is readable by any team member (the data-source pages use it); only the document's whole text in order (`…/text`) is for editors, admins and owners, and the chat only serves the passages an answer cited. The description now says so; behaviour is unchanged. (#113)
 - **A shared link ends with its owner's standing.** A link used to keep working, and open for its owner, whatever had happened to the person who made it. It now works only while they are an active person who may still chat with the agent, for everybody including them: if they leave the team, are suspended or lose access, it stops (a link open to anyone, too), and it works again if they come back. Nothing is deleted. (#141)
 - **A request body that does not fit says what is wrong.** An unknown field, a value of the wrong kind (text where a number goes) or a body that is empty used to answer "Request body is not valid JSON for this operation" even when it was valid JSON. The message now names the field (`Unknown field "kbIds"`, `Field "limit" must be a whole number`, nested fields with their path) without naming any internal type; the code is still `invalid_json`. (#115)
 - **The OpenAI-compatible endpoints answer every error in OpenAI's shape.** A request with no API key at all (`GET /v1/models`, `POST /v1/chat/completions`) got the app's own `{code, message}` 401, and an internal failure on these endpoints the same; both now carry `type` and `param` like the rest (`authentication_error`, `api_error`), as the docs promise. (#116)
