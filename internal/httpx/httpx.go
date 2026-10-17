@@ -6,6 +6,7 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -87,6 +88,35 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // MaxBodyBytes is the default limit for JSON request bodies.
 const MaxBodyBytes = 1 << 20
 
+// NULMessage is what a person is told when text holds U+0000, which
+// Postgres text columns cannot store (the insert would fail as a 500).
+const NULMessage = "Text can't contain the NUL character (U+0000)."
+
+// JSONHasNUL reports whether a JSON document has a string, or an object key,
+// holding U+0000: the escape \u0000. (A raw 0x00 byte is not valid JSON and
+// the decoder refuses it.) It follows string and escape state, so the text
+// "\\u0000" (an escaped backslash, then u0000) is not a NUL.
+func JSONHasNUL(b []byte) bool {
+	inString := false
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if !inString {
+			inString = c == '"'
+			continue
+		}
+		switch c {
+		case '"':
+			inString = false
+		case '\\':
+			if i+5 < len(b) && b[i+1] == 'u' && string(b[i+2:i+6]) == "0000" {
+				return true
+			}
+			i++ // the escaped character is never a quote or a backslash that starts another escape
+		}
+	}
+	return false
+}
+
 // Decode reads exactly one JSON object into dst, rejecting unknown fields.
 // On failure it writes a 400 and returns false.
 func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
@@ -94,14 +124,23 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 		Error(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Send application/json")
 		return false
 	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxBodyBytes))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxBodyBytes))
+	if err != nil {
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
 			Error(w, http.StatusRequestEntityTooLarge, "body_too_large", "Request body is too large")
 			return false
 		}
+		Error(w, http.StatusBadRequest, "invalid_json", "Request body could not be read")
+		return false
+	}
+	if JSONHasNUL(raw) {
+		Error(w, http.StatusBadRequest, "invalid_text", NULMessage)
+		return false
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
 		Error(w, http.StatusBadRequest, "invalid_json", "Request body is not valid JSON for this operation")
 		return false
 	}
