@@ -3,7 +3,7 @@
  * here, not in the page modules, so the shell doesn't pull lazily loaded
  * pages into the main bundle.
  */
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { api, unwrap } from "./client";
 
 /** One user with their memberships (admin). */
@@ -58,6 +58,15 @@ export const conversationsQuery = (opts: { agentId?: string; limit?: number } = 
   queryOptions({
     queryKey: [...conversationsKey, opts.agentId ?? "all", opts.limit ?? 50],
     queryFn: async () => unwrap(await api.GET("/v1/conversations", { params: { query: { agentId: opts.agentId, limit: opts.limit } } })),
+  });
+
+/** One agent's conversations of the user, newest first, 50 a page; fetchNextPage follows the cursor (the chat page's list, #124). */
+export const agentConversationsQuery = (agentId: string) =>
+  infiniteQueryOptions({
+    queryKey: [...conversationsKey, "agent", agentId],
+    queryFn: async ({ pageParam }) => unwrap(await api.GET("/v1/conversations", { params: { query: { agentId, cursor: pageParam, limit: 50 } } })),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 
 /** A published agent's public profile, by team and slug, by ID or by short name. */

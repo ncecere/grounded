@@ -137,3 +137,37 @@ describe("agent editor", () => {
     expect(screen.getByText(/Create one with New set above\./)).toBeInTheDocument();
   });
 });
+
+describe("an edit held back as invalid (QA v0.6.0, #131)", () => {
+  async function typeInvalidTemperature() {
+    mockApi(routes(agent(), { "GET /v1/teams/registrar/agents": () => [agent()] }));
+    renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: scaled(5000) }));
+    await userEvent.type(screen.getByRole("textbox", { name: /Temperature/ }), "7");
+    await userEvent.tab();
+    expect(await screen.findByText("Enter a number from 0 to 2.")).toBeInTheDocument();
+    expect(screen.getAllByText("Not saved: fix the highlighted field").length).toBeGreaterThan(0);
+  }
+
+  it("asks before leaving the page, because the value is lost (it is not in the draft that autosaves)", async () => {
+    await typeInvalidTemperature();
+    const link = screen.getAllByRole("link", { name: "Agents" }).find((a) => a.getAttribute("href") === "/teams/registrar/agents")!;
+    await userEvent.click(link);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Leave without saving?");
+    expect(dialog).toHaveTextContent(/isn't valid/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.getByRole("textbox", { name: /Temperature/ })).toBeInTheDocument(); // still in the editor
+  });
+
+  it("gets the browser's prompt on reload or close", async () => {
+    const leave = () => {
+      const e = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    await typeInvalidTemperature();
+    expect(leave()).toBe(true);
+  });
+});

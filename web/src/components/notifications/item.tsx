@@ -56,8 +56,9 @@ export function NotificationItem({ n, compact, onOpen }: Props) {
         size="sm"
         icon={n.read ? <Undo2 aria-hidden /> : <Check aria-hidden />}
         label={n.read ? `Mark as unread: ${n.title}` : `Mark as read: ${n.title}`}
-        loading={setRead.isPending}
-        onClick={() => setRead.mutate({ id: n.id, read: !n.read })}
+        // Not `loading`: that disables the button, and a disabled button loses focus (#128). A click while busy does nothing.
+        aria-busy={setRead.isPending || undefined}
+        onClick={() => !setRead.isPending && setRead.mutate({ id: n.id, read: !n.read })}
         className={styles.toggle}
       />
     </li>

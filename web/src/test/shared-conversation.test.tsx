@@ -158,7 +158,7 @@ describe("the shared page", () => {
     mockApi({ ...shellRoutes(), "GET /v1/shared/tok": () => shared({ sharedBy: "Blair Dev" }) });
     const { container } = renderApp("/shared/tok");
     expect(await screen.findByRole("heading", { level: 1, name: "Parking permits" }, { timeout: scaled(5000) })).toBeInTheDocument();
-    expect(screen.getByText(/shared by Blair Dev/)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "P" && /shared by Blair Dev/.test(el.textContent ?? ""))).toBeInTheDocument(); // the name is isolated in a <bdi> (#126)
     expect(screen.getByText("Where do I buy a parking permit?")).toBeInTheDocument();
     expect(await screen.findByText(/At the transportation office/)).toBeInTheDocument();
     expect(screen.getByText(/read-only copy of the conversation as it was when it was shared/)).toBeInTheDocument();
@@ -205,6 +205,29 @@ describe("the shared page", () => {
     renderApp("/shared/gone");
     expect(await screen.findByRole("heading", { name: "This conversation isn't available" }, { timeout: scaled(5000) })).toBeInTheDocument();
     expect(screen.queryByText(/Registrar assistant/)).toBeNull();
+  });
+
+  it("is not a dead end when the link isn't available: Home, Discover agents and Sign out for someone signed in, Home for anyone else (#128)", async () => {
+    const calls = mockApi({
+      ...shellRoutes(),
+      "GET /v1/shared/gone": () => Reply.error(404, "share_not_found", "Shared conversation not found"),
+      "POST /auth/logout": () => ({ ok: true }),
+    });
+    const first = renderApp("/shared/gone");
+    expect(await screen.findByRole("heading", { name: "This conversation isn't available" }, { timeout: scaled(5000) })).toBeInTheDocument();
+    expect(await axe(first.container)).toHaveNoViolations();
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Discover agents" })).toHaveAttribute("href", "/agents");
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url === "/auth/logout")).toBe(true));
+    first.unmount();
+
+    mockApi({ ...shellRoutes(), "GET /v1/me": () => null, "GET /v1/shared/gone": () => Reply.error(404, "share_not_found", "Shared conversation not found") });
+    renderApp("/shared/gone");
+    expect(await screen.findByRole("heading", { name: "This conversation isn't available" }, { timeout: scaled(5000) })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Discover agents" })).toBeNull();
   });
 
   it("asks not to be sent on as a referrer while it is open", async () => {

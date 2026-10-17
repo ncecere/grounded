@@ -4,7 +4,7 @@
  * starter questions, the follow-up suggestions, and the feedback buttons.
  */
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Undo2, Wrench } from "lucide-react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
@@ -26,12 +26,23 @@ import pm from "./panel.module.css";
  * A follow-up searched together with the earlier question (the server joins them when it can't
  * rewrite it) reads as the question "with your earlier question", not as the two run together (US-09).
  */
-function stepTitle(step: SearchStep, question?: string) {
+function stepTitle(step: SearchStep, question?: string): ReactNode {
   if (step.name) return `Used ${step.title || step.name}`;
   const asked = question?.trim();
   const joined = Boolean(asked && step.query && step.query !== asked && step.query.endsWith(` ${asked}`));
-  const q = joined ? `“${asked}” with your earlier question` : step.query ? `“${step.query}”` : "the knowledge base";
-  return step.kind === "retrieval" ? `Searched the knowledge base for ${q}` : `Searched: ${q}`;
+  // The question is the person's own text: isolated (<bdi>), so a right-to-left override in it can't rearrange the words around it (#126).
+  const quoted = (s: string) => <>“<bdi>{clip(s)}</bdi>”</>;
+  const q = joined ? <>{quoted(asked!)} with your earlier question</> : step.query ? quoted(step.query) : "the knowledge base";
+  return <>{step.kind === "retrieval" ? "Searched the knowledge base for " : "Searched: "}{q}</>;
+}
+
+/** The most of a question a step's header prints: a header is a line or two, not the whole 8000 characters (#125). */
+const HEADER_CHARS = 120;
+
+/** `s` cut to HEADER_CHARS characters (not UTF-16 units, so an emoji is never split) with an ellipsis; the step's panel has it all. */
+function clip(s: string) {
+  const chars = Array.from(s);
+  return chars.length > HEADER_CHARS ? `${chars.slice(0, HEADER_CHARS).join("").trimEnd()}…` : s;
 }
 
 /** A search's result in words: "5 results", or the judged counts. */

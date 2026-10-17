@@ -64,7 +64,7 @@ export function ShareDialog({ conversation, onClose }: { conversation: Conversat
   const code = create.error instanceof ApiError ? create.error.code : "";
   const title = conversation.title || "Untitled conversation";
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} size="lg" title="Share this conversation" description={`“${title}” with ${conversation.agentName}`} footer={<DialogClose>Done</DialogClose>}>
+    <Dialog open onOpenChange={(o) => !o && onClose()} size="lg" title="Share this conversation" description={<>“<bdi>{title}</bdi>” with <bdi>{conversation.agentName}</bdi></>} footer={<DialogClose>Done</DialogClose>}>
       {conversation.agentDeleted ? (
         <Alert tone="info" title="This agent was deleted">
           A conversation with a deleted agent can't be shared.

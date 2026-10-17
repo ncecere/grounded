@@ -5,7 +5,7 @@
  * "Not saved: fix the highlighted field" (F-26).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRevisionForm } from "@/components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
@@ -14,6 +14,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
+import { useCurrentError } from "../../lib/field-errors";
 import { type Classification, notSavedText, plural, rankOf } from "../team/common";
 import { type SourceActions, pauseHelp } from "./actions";
 import { useOwnerLevels } from "./create";
@@ -22,7 +23,7 @@ import { ClassificationImpactDialog, ImpactError, impactOf, impactSummary, isLow
 import { useInvalidateSource } from "./invalidate";
 import { type ClassificationImpact, type DataSource, useSourceOwner } from "./owner";
 import { WebConfigFields } from "./web";
-import { type WebFormState, formUrls, validateWeb, webFormFromConfig, webInput } from "./web-form";
+import { type WebFormState, formUrls, serverWebErrors, validateWeb, webFormFromConfig, webInput } from "./web-form";
 
 type Form = { name: string; description: string; classification: string; reason: string; web: WebFormState | null; ocrEnabled: boolean };
 
@@ -53,20 +54,6 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
   const options = usable.filter((l) => owner.canLower || l.rank >= currentRank);
   const lowering = isLowering(levels, source.classification, form.classification);
   const raising = !lowering && form.classification !== source.classification;
-  const errors = {
-    name: form.name.trim() ? undefined : "Enter a name.",
-    reason: lowering && form.reason.trim().length < 10 ? "Enter at least 10 characters." : undefined,
-    web: form.web ? validateWeb(form.web) : {},
-  };
-  const invalidCount = Number(Boolean(errors.name)) + Number(Boolean(errors.reason)) + Object.keys(errors.web).length;
-  const invalid = invalidCount > 0;
-  const dirty =
-    form.name.trim() !== source.name ||
-    form.description !== source.description ||
-    form.classification !== source.classification ||
-    form.ocrEnabled !== source.ocrEnabled ||
-    webChanged(form.web, initial.web);
-
   const save = useMutation({
     mutationFn: async () => {
       const body: Parameters<typeof owner.api.update>[1] = {};
@@ -93,8 +80,34 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
     onError: (err) => setImpact(impactOf(err)),
     onSettled: invalidate,
   });
+  // The server's refusal of a value, while the form still holds what was sent: under its field (AD-20), not below the whole form.
+  const sent = useCurrentError(save.error, form);
+  const errors = {
+    name: form.name.trim() ? undefined : "Enter a name.",
+    reason: lowering && form.reason.trim().length < 10 ? "Enter at least 10 characters." : undefined,
+    web: form.web ? { ...validateWeb(form.web), ...serverWebErrors(sent) } : {},
+  };
+  const fielded = Object.keys(serverWebErrors(sent)).length > 0;
+  const invalidCount = Number(Boolean(errors.name)) + Number(Boolean(errors.reason)) + Object.keys(errors.web).length;
+  const invalid = invalidCount > 0;
+  const dirty =
+    form.name.trim() !== source.name ||
+    form.description !== source.description ||
+    form.classification !== source.classification ||
+    form.ocrEnabled !== source.ocrEnabled ||
+    webChanged(form.web, initial.web);
+
   const blocked = impactOf(save.error);
   const web = source.type === "web";
+  // A refusal shows under its field (Advanced opens for it) or after the whole form, a screen below the Save bar:
+  // either way it is brought into view and takes focus, so a failed save is never silent (#130).
+  const refusal = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!save.error || impactOf(save.error)) return;
+    const target = document.querySelector<HTMLElement>('[aria-invalid="true"]') ?? refusal.current;
+    target?.scrollIntoView?.({ block: "center" });
+    target?.focus();
+  }, [save.error]);
 
   return (
     <>
@@ -190,8 +203,10 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
           >
             {impactSummary(blocked)} would break at the new classification.
           </Alert>
-        ) : save.error ? (
-          <WebErrorAlert error={save.error} urls={form.web ? formUrls(form.web) : []} />
+        ) : save.error && !fielded ? (
+          <div ref={refusal} tabIndex={-1}>
+            <WebErrorAlert error={save.error} urls={form.web ? formUrls(form.web) : []} />
+          </div>
         ) : null}
         <DangerZone>
           <DangerAction
