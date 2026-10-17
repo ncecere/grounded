@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **The OpenAI-compatible endpoints answer every error in OpenAI's shape.** A request with no API key at all (`GET /v1/models`, `POST /v1/chat/completions`) got the app's own `{code, message}` 401, and an internal failure on these endpoints the same; both now carry `type` and `param` like the rest (`authentication_error`, `api_error`), as the docs promise. (#116)
 - **A NUL character (U+0000) in a request is a clear 400, not a 500.** Postgres text cannot hold it, so a message, name, search or address containing one failed at the database as `internal` from about twenty endpoints (both chat endpoints, creating teams, knowledge bases, agents and keys, renaming a conversation, searching). JSON bodies (including the OpenAI-compatible endpoint and OAuth client registration), paths and query strings now answer `400 invalid_text` before anything runs. (#109)
 
 ## [0.6.0] - 2026-10-16
