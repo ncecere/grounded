@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Team members no longer see agents' drafts.** The agents list and an agent returned the draft (instructions, knowledge bases, settings, unpublished changes and publish problems) to every member and to a member's query key, though the app shows members the published version only. Members now get the profile and the published version; editors and above, and a key with the ingest scope, still get the draft. (#129)
 - **A NUL character (U+0000) in a request is a clear 400, not a 500.** Postgres text cannot hold it, so a message, name, search or address containing one failed at the database as `internal` from about twenty endpoints (both chat endpoints, creating teams, knowledge bases, agents and keys, renaming a conversation, searching). JSON bodies (including the OpenAI-compatible endpoint and OAuth client registration), paths and query strings now answer `400 invalid_text` before anything runs. (#109)
 
 ## [0.6.0] - 2026-10-16
