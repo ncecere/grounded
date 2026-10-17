@@ -128,13 +128,18 @@ func TeamRequestNewEvent(admins []uuid.UUID, requestID uuid.UUID, name, requeste
 }
 
 // TeamRequestDecidedEvent: a platform admin approved or declined a team request; it reaches the person who asked. An approved one links to
-// the team; a declined one carries the reviewer's reason.
-func TeamRequestDecidedEvent(requester, requestID uuid.UUID, name, decision, reason, teamSlug string) Event {
+// the team, unless the request named another owner (otherOwner, an address): then the asker is not a member, so it says who owns the team and
+// links to their requests instead. A declined one carries the reviewer's reason.
+func TeamRequestDecidedEvent(requester, requestID uuid.UUID, name, decision, reason, teamSlug, otherOwner string) Event {
 	word, link := "declined", "/team-requests"
 	body := fmt.Sprintf("Your request for a team called %s was declined.", name)
 	if decision == "approve" {
 		word, link = "approved", "/teams/"+teamSlug
 		body = fmt.Sprintf("Your request for a team called %s was approved. The team is ready.", name)
+		if otherOwner != "" {
+			link = "/team-requests"
+			body = fmt.Sprintf("Your request for a team called %s was approved. The team is ready, and %s is its owner (you are not a member of it).", name, otherOwner)
+		}
 	}
 	if reason = strings.TrimSpace(reason); reason != "" {
 		body += "\n\nNote from the reviewer: " + reason

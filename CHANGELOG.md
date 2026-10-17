@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Team requests: the approval notice no longer sends the asker to a team they cannot open.** When the request named someone else as owner, the asker is not a member, but the notice said "The team is ready" and linked to the team ("Team not found"), and so did the Open team link on Request a team. The notice now says who owns the team and links to the requests page, and Request a team says "Owned by …" instead of offering the link. (#136)
 - **A NUL character (U+0000) in a request is a clear 400, not a 500.** Postgres text cannot hold it, so a message, name, search or address containing one failed at the database as `internal` from about twenty endpoints (both chat endpoints, creating teams, knowledge bases, agents and keys, renaming a conversation, searching). JSON bodies (including the OpenAI-compatible endpoint and OAuth client registration), paths and query strings now answer `400 invalid_text` before anything runs. (#109)
 
 ## [0.6.0] - 2026-10-16
