@@ -1733,7 +1733,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** A document's first passages (session, or an API key with the query scope) */
+        /**
+         * A document's first passages (session, or an API key with the query scope)
+         * @description Any member of the team may read these (the team's data-source pages show them): a team's documents are the team's own content. What is kept for editors, admins and owners is the document's whole text in order, with the cited passage marked (getDocumentText), which the chat's source viewer uses; the chat itself only ever serves the passages an answer cited.
+         */
         get: operations["listDocumentPassages"];
         put?: never;
         post?: never;
