@@ -125,11 +125,12 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, ref string) (Access, e
 		return Access{}, err
 	}
 	if a.Key != nil {
-		// API keys act only within their own team, with a scope-derived role.
+		// API keys act only within their own team, with a scope-derived role
+		// (a personal key never above its owner's current role).
 		if a.Key.TeamID != t.ID {
 			return Access{}, errTeamNotFound
 		}
-		return Access{Team: t, Role: authz.RoleForKey(a.Key)}, nil
+		return Access{Team: t, Role: authz.KeyTeamRole(a.Key, role)}, nil
 	}
 	if role == "" && !a.CanReadPlatform() {
 		return Access{}, errTeamNotFound

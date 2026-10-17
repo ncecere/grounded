@@ -13,15 +13,18 @@ const answered = (query: string, question: string): ChatItem[] => {
   return [{ role: "user", key: "u1", text: question }, applyChatEvent(a, "done", {})];
 };
 
+// The query sits in a <bdi> inside the title (#126): match the title element by its whole text.
+const stepTitled = (title: string) => (_: string, el: Element | null) => el?.tagName === "SPAN" && el.textContent === title;
+
 describe("the search step (US-09)", () => {
   it("shows a follow-up searched with the earlier question as the question, not the two run together", async () => {
     renderBare(<ChatMessages items={answered("How do I connect to eduroam? Which networks are available on campus?", "Which networks are available on campus?")} agent={{ name: "Helper" }} />);
-    expect(await screen.findByText("Searched the knowledge base for “Which networks are available on campus?” with your earlier question")).toBeInTheDocument();
+    expect(await screen.findByText(stepTitled("Searched the knowledge base for “Which networks are available on campus?” with your earlier question"))).toBeInTheDocument();
   });
 
   it("shows a rewritten or plain query as it was searched", async () => {
     renderBare(<ChatMessages items={answered("campus wifi networks", "Which networks are available?")} agent={{ name: "Helper" }} />);
-    expect(await screen.findByText("Searched the knowledge base for “campus wifi networks”")).toBeInTheDocument();
+    expect(await screen.findByText(stepTitled("Searched the knowledge base for “campus wifi networks”"))).toBeInTheDocument();
   });
 });
 

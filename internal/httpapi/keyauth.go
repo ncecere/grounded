@@ -21,7 +21,19 @@ type keyActorKey struct{}
 // CSRF check applies; what a key may do is decided by its scopes in the
 // services (ADR-0012).
 func (a *api) sessionOrKey(next http.Handler) http.Handler {
-	return a.keyOr(a.Auth.RequireSession(next), next, httpx.Error)
+	// A key with only the mcp scope is for /mcp: it reaches nothing here, and
+	// a refused call is not a use of the key.
+	scoped := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if k, ok := keyActor(r); ok {
+			if !k.Key.HasRESTScope() {
+				httpx.Error(w, http.StatusForbidden, "missing_scope", "This API key has no scope for the REST API. A key with only the mcp scope works on /mcp.")
+				return
+			}
+			a.APIKeys.Touch(r.Context(), k.Key.ID)
+		}
+		next.ServeHTTP(w, r)
+	})
+	return a.keyAuth(a.Auth.RequireSession(next), scoped, httpx.Error, false)
 }
 
 // errorWriter writes an error response in some envelope.

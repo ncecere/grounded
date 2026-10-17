@@ -14,6 +14,7 @@ import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
 import { RelativeTime } from "@/components/templates/list-page";
+import { UnsavedChangesGuard } from "@/components/templates/unsaved-guard";
 import { useUrlTab } from "@/components/page-tabs";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -226,6 +227,8 @@ function Editor({ agent }: { agent: Agent }) {
       {statusOpen && <StatusDialog agent={current} d={d} onClose={() => setStatusOpen(false)} />}
       {savingTemplate && <SaveTemplateDialog agent={current} onClose={() => setSavingTemplate(false)} />}
       <DeleteAgent agent={current} open={deleting} onOpenChange={setDeleting} />
+      {/* A value that isn't valid yet is held back from the autosave (F-26): leaving would lose it silently (#131). */}
+      <UnsavedChangesGuard dirty={d.held || d.invalidFields.length > 0} description="A value you typed isn't valid yet, so it isn't saved. If you leave now, it's discarded." />
     </>
   );
 }

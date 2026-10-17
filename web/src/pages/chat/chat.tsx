@@ -5,12 +5,12 @@
  * ?c=<id> opens a stored conversation; a new one gets its ID from the
  * stream's `conversation` event and the URL follows.
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { MessagesSquare } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
-import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
+import { agentConversationsQuery, agentProfileQuery, conversationsKey } from "../../api/queries";
 import { NotFoundState, isNotFound } from "../../components/not-found";
 import { ConversationTranscript, conversationQuery } from "../conversations/transcript";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -95,7 +95,10 @@ function AgentChat({ card }: { card: Card }) {
   const current = useRef<string | undefined>(selected);
   /** Conversations created in this page session: their items are already on screen. */
   const local = useRef(new Set<string>());
-  const conversations = useQuery(conversationsQuery({ agentId: card.id, limit: 50 }));
+  // All the conversations, a page at a time (Load more in the list): it used to stop at the newest 50 (#124).
+  const pages = useInfiniteQuery(agentConversationsQuery(card.id));
+  const items = useMemo(() => pages.data?.pages.flatMap((p) => p.items) ?? [], [pages.data]);
+  const conversations = { isLoading: pages.isLoading, error: pages.error, data: { items } };
   const disabledReason =
     card.status === "disabled_by_platform"
       ? "A platform admin turned this agent off. Your conversations are still here to read."
@@ -156,7 +159,7 @@ function AgentChat({ card }: { card: Card }) {
   const currentSummary = conversations.data?.items.find((x) => x.id === selected);
   const agentLook = { name: card.name, accentColor: card.accentColor, welcomeMessage: card.welcomeMessage, starterQuestions: card.starterQuestions, description: card.description };
 
-  const list = { card, conversations, selected, onNew: newChat };
+  const list = { card, conversations, selected, onNew: newChat, more: pages };
 
   return (
     <div className={c.page}>

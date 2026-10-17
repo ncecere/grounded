@@ -7,7 +7,7 @@
  * Signed-in people get the app's chat page and chat as themselves
  * (docs/phase4-publishing.md §5, docs/ui-review F-07).
  */
-import { useQuery } from "@tanstack/react-query";
+import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
 import { Bot, LogIn } from "lucide-react";
@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { InstanceLogo, useAuthConfig, useInstance } from "../../session";
 import { PublicChat } from "./public-chat";
-import { isTeamAddress, publicAgentQuery, publicRef } from "./session";
+import { type PublicAgent as PublicAgentProfile, isTeamAddress, publicAgentQuery, publicRef } from "./session";
 import p from "./public.module.css";
 
 /** Where "Sign in" goes: single sign-on returning here, or the sign-in page, which comes back here (US-06). */
@@ -34,11 +34,14 @@ export function PublicAgentPage({ fallback }: { fallback?: ReactNode }) {
   const agent = useQuery({ ...publicAgentQuery(ref), enabled: ref !== "" });
   if (isTeamAddress(ref) && fallback) {
     if (agent.isLoading) return <Loading label="Loading…" />;
-    if (agent.error instanceof ApiError && agent.error.status === 404) return <>{fallback}</>;
+    // Not served publicly (unknown, signed-in only, or public chat off): signed-in people may still use it.
+    if (agent.error instanceof ApiError && (agent.error.status === 404 || agent.error.code === "public_disabled")) return <>{fallback}</>;
   }
+  // The one observer of the query is passed down: a second one would refetch an errored query on mount, flip it
+  // back to pending, swap this page for "Loading…" and mount it again, without end (#120).
   return (
     <div className={p.shell}>
-      <PublicAgent agentRef={ref} signIn={signIn} />
+      <PublicAgent agent={agent} signIn={signIn} />
     </div>
   );
 }
@@ -62,8 +65,7 @@ function SignInButton({ href }: { href: string }) {
   );
 }
 
-function PublicAgent({ agentRef, signIn }: { agentRef: string; signIn: string }) {
-  const agent = useQuery({ ...publicAgentQuery(agentRef), enabled: agentRef !== "" });
+function PublicAgent({ agent, signIn }: { agent: UseQueryResult<PublicAgentProfile>; signIn: string }) {
   // "Registrar assistant · <instance>" in the browser tab (D8).
   const instanceName = useInstance().name;
   const agentName = agent.data?.name;

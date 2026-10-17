@@ -19,6 +19,7 @@ import { Button, IconButton } from "@/components/ui/button/button";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { cx } from "@/lib/bitop-utils";
+import { headingText } from "@/lib/plain-text";
 import { displayNumbers } from "../citations";
 import type { Claim } from "../claims";
 import type { AssistantItem, Citation } from "../stream";
@@ -146,7 +147,7 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
 
   if (!c) return null;
   const d = data.data;
-  const where = [(d?.headingPath ?? c.headingPath).join(" › "), pagesOf(c)].filter(Boolean).join(" · ");
+  const where = [(d?.headingPath ?? c.headingPath).map(headingText).join(" › "), pagesOf(c)].filter(Boolean).join(" · ");
   const cited = d?.passages.find((p) => p.cited);
   const claims = item.claims ?? d?.claims ?? [];
   const team = d?.documentTeam;
@@ -160,20 +161,23 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
   return (
     // In the sheet, the sheet (and its scrolling body) is named by the title: no second region of the same name.
     <section className={cx(v.viewer, bare && v.bare)} aria-labelledby={bare ? undefined : headingId} onKeyDown={onKeyDown} data-testid="source-viewer">
-      {!bare && (
-        <header className={v.head}>
-          <div className={v.headText}>
-            <p className={v.eyebrow}>{viewerCaption(item, n)}</p>
-            <h2 id={headingId} ref={heading} tabIndex={-1} className={v.title}>
-              {sourceTitle(c)}
-            </h2>
-            {where && <p className={v.where}>{where}</p>}
-          </div>
-          <IconButton size="sm" icon={<X aria-hidden />} label="Close the source" onClick={onClose} />
-        </header>
-      )}
       {bare && where && <p className={v.where}>{where}</p>}
-      <SourceNav item={item} n={n} onOpen={onOpen} />
+      {/* The header and the source switcher stay in view when the panel scrolls to a passage deep in the page (#123). */}
+      <div className={v.sticky}>
+        {!bare && (
+          <header className={v.head}>
+            <div className={v.headText}>
+              <p className={v.eyebrow}>{viewerCaption(item, n)}</p>
+              <h2 id={headingId} ref={heading} tabIndex={-1} className={v.title}>
+                {sourceTitle(c)}
+              </h2>
+              {where && <p className={v.where}>{where}</p>}
+            </div>
+            <IconButton size="sm" icon={<X aria-hidden />} label="Close the source" onClick={onClose} />
+          </header>
+        )}
+        <SourceNav item={item} n={n} onOpen={onOpen} />
+      </div>
       {(isWeb(c.url) || (team && d?.status !== "document_deleted")) && (
         <div className={v.actions}>
           {isWeb(c.url) && (

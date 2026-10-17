@@ -39,7 +39,8 @@ test("follow-up suggestions: chips under the answer ask the question when chosen
   await test.step("choosing one asks it, and only the last answer offers them", async () => {
     await answers.first().getByRole("button", { name: chosen }).click();
     await expect(answers).toHaveCount(2);
-    await expect(page.getByText(chosen, { exact: true })).toHaveCount(1); // the question asked, not offered again
+    // The question asked, once, in the person's own message: not offered again, and not counting the retrieval step that quotes it (#126 isolates that quote in its own element).
+    await expect(page.locator("[data-chat-question]").filter({ hasText: chosen })).toHaveCount(1);
     await expect(answers.nth(1).getByRole("group", { name: "Suggested follow-up questions" })).toBeVisible();
     await expect(answers.first().getByRole("group", { name: "Suggested follow-up questions" })).toHaveCount(0);
     await expect(composer).toHaveValue("");

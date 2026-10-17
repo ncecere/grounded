@@ -159,7 +159,7 @@ function ConversationLink({ item }: { item: ConversationSummary }) {
     return (
       <Link to="/conversations/$conversationId" params={{ conversationId: item.id }} className={c.link}>
         <span className={c.title} title={title}>
-          {title}
+          <bdi>{title}</bdi>
         </span>
         {meta}
       </Link>
@@ -169,7 +169,7 @@ function ConversationLink({ item }: { item: ConversationSummary }) {
     <Link to="/a/$team/$agent" params={{ team: item.teamSlug, agent: item.agentSlug }} search={{ c: item.id }} className={c.link}>
       {/* Cut to one line on a phone: the whole title on hover (VI2-13). */}
       <span className={c.title} title={title}>
-        {title}
+        <bdi>{title}</bdi>
       </span>
       {meta}
     </Link>

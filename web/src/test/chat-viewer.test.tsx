@@ -1,6 +1,8 @@
 /* The source viewer (docs/v0.4.0.md §5): the cited passage in context, its claims, the whole document for editors, deleted and changed passages, Try it, public sessions, phones, axe. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { type AssistantItem, type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
@@ -223,9 +225,44 @@ describe("source viewer", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("keeps its header, Close and the source switcher in one sticky block, so they stay in view when it scrolls to a passage (#123)", async () => {
+    mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1), "GET /v1/messages/m1/sources/2": () => cited(2) });
+    renderChat({ kind: "message" });
+    const viewer = await openSource(1);
+    const close = within(viewer).getByRole("button", { name: "Close the source" });
+    const block = close.closest<HTMLElement>('[class*="sticky"]');
+    expect(block).not.toBeNull();
+    expect(within(block!).getByRole("heading", { level: 2, name: "Fees 1" })).toBeInTheDocument();
+    expect(within(block!).getByRole("navigation", { name: "Sources of this answer" })).toBeInTheDocument();
+    // The passages scroll under it, not with it. (CSS isn't applied in jsdom: read the rule.)
+    expect(block!.contains(await within(viewer).findByTestId("cited-passage"))).toBe(false);
+    const css = readFileSync(path.resolve(__dirname, "../pages/chat/viewer/viewer.module.css"), "utf8");
+    expect(/\.sticky\s*\{[^}]*position:\s*sticky;/.test(css)).toBe(true);
+  });
+
   it("keeps sources under the answer where there is no viewer (a transcript)", async () => {
     renderBare(<ChatMessages items={thread()} agent={{ name: "Helper" }} />);
     await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
     expect(screen.queryByRole("button", { name: /^Show source 1/ })).toBeNull();
+  });
+
+  it("shows a heading the crawler stored as a Markdown link as its text only, on the card, in the popover and in the viewer (#128)", async () => {
+    const raw = "[How to write Go code](<https://go.dev/doc/code.html>)";
+    const shown = "Documentation › Getting Started › How to write Go code";
+    const citations = [cite(1, { headingPath: ["Documentation", "Getting Started", raw] }), cite(2)];
+    mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1, { headingPath: ["Documentation", "Getting Started", raw] }) });
+    renderChat({ kind: "message" }, thread(answer(citations)));
+    // The popover of a citation chip.
+    await userEvent.click((await screen.findAllByRole("button", { name: /^Source 1: Fees 1/ }))[0]!);
+    expect(within(await screen.findByRole("dialog")).getByText(shown)).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    // The source card, and the viewer's header.
+    await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
+    const card = screen.getByRole("listitem", { name: "Source 1: Fees 1" });
+    expect(within(card).getByText(shown)).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: "Show source 1: Fees 1" }));
+    const viewer = await screen.findByRole("region", { name: "Fees 1" });
+    expect(await within(viewer).findByText(shown)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("](<");
   });
 });

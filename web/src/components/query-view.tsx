@@ -1,8 +1,8 @@
 /* The loading / error / empty / content switch that list cards repeat for every query. */
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
-import { Loading } from "@/components/ui/spinner/spinner";
+import { Loading, Spinner } from "@/components/ui/spinner/spinner";
 import s from "../pages/shared.module.css";
 
 type QueryViewProps = {
@@ -31,13 +31,40 @@ export function QueryView({ query, loadingLabel, empty, children }: QueryViewPro
   return <>{empty || children}</>;
 }
 
-/** The "Load more" button under a paged list (a TanStack infinite query); nothing when there are no more pages. */
+const focusable = "a[href], button:not([disabled])";
+
+/**
+ * The "Load more" button under a paged list (a TanStack infinite query); nothing when there are no more pages.
+ *
+ * Focus stays put (#128): the button isn't disabled while it works (a disabled button loses focus, and the page gets it),
+ * and when the last page arrives and the button goes away, focus moves to the first of the new rows.
+ */
 export function LoadMore({ query }: { query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown } }) {
+  const box = useRef<HTMLDivElement>(null);
+  /** The list around the button and how many of its controls came before the new rows. */
+  const resume = useRef<{ scope: Element; before: number } | null>(null);
+  const busy = query.isFetchingNextPage;
+  // After every render, until the new rows are there (they arrive with the render that ends the fetch).
+  useEffect(() => {
+    const at = resume.current;
+    if (!at || busy) return;
+    const controls = [...at.scope.querySelectorAll<HTMLElement>(focusable)].filter((el) => !box.current?.contains(el));
+    if (controls.length <= at.before) return;
+    resume.current = null;
+    const active = document.activeElement;
+    if (!active || active === document.body || !document.body.contains(active)) controls[at.before]!.focus();
+  });
   if (!query.hasNextPage) return null;
+  const load = () => {
+    if (busy) return;
+    const scope = box.current?.parentElement;
+    if (scope) resume.current = { scope, before: [...scope.querySelectorAll(focusable)].filter((el) => !box.current!.contains(el)).length };
+    void query.fetchNextPage();
+  };
   return (
-    <div className={s.more}>
-      <Button variant="secondary" size="sm" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
-        Load more
+    <div ref={box} className={s.more}>
+      <Button variant="secondary" size="sm" aria-busy={busy || undefined} onClick={load}>
+        {busy && <Spinner size="sm" />} Load more
       </Button>
     </div>
   );
