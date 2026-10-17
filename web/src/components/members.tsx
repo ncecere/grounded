@@ -24,7 +24,8 @@ export function leaveBlockedReason(list: { role: string }[] | undefined, myRole?
   return list.filter((m) => m.role === "owner").length <= 1 ? "You're the only owner. Make someone else an owner before you leave." : undefined;
 }
 
-const invitesKey = (team: string) => ["team", team, "invites"];
+/** The team's open invites (shared with the admin Members tab, which adds invites). */
+export const invitesKey = (team: string) => ["team", team, "invites"];
 
 export { MemberList } from "./member-list";
 

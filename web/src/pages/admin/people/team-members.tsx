@@ -9,7 +9,7 @@ import { UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ssoGroup } from "@/components/member-list";
-import { InviteList } from "@/components/members";
+import { InviteList, invitesKey } from "@/components/members";
 import { Stack } from "@/components/ui/layout/layout";
 import { PersonCell } from "@/components/person-cell";
 import { roleLabels } from "@/components/roles";
@@ -120,6 +120,8 @@ function AssignOwnerDialog({ team, onClose }: { team: string; onClose: () => voi
     onSuccess: () => {
       toast.success("Owner assigned", email ?? undefined);
       void qc.invalidateQueries({ queryKey: ["admin"] });
+      // An invited address shows under Open invites, whose key is not under "admin".
+      void qc.invalidateQueries({ queryKey: invitesKey(team) });
       onClose();
     },
   });
