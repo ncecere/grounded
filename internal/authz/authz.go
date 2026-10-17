@@ -126,17 +126,39 @@ func (k *KeyGrant) AllowsAgent(id uuid.UUID) bool {
 	return false
 }
 
+// HasRESTScope reports whether the key can call the REST API at all: a key
+// with only the mcp scope is for /mcp and nothing else (docs: "grants
+// nothing on the REST API").
+func (k *KeyGrant) HasRESTScope() bool {
+	return k.HasScope(ScopeQuery) || k.HasScope(ScopeIngest) || k.HasScope(ScopeManage)
+}
+
 // RoleForKey maps a key's scopes to the team role it acts with: manage acts
-// as admin, ingest as editor, query as member.
+// as admin, ingest as editor, query as member, and a key with no REST scope
+// as no one ("").
 func RoleForKey(k *KeyGrant) string {
 	switch {
 	case k.HasScope(ScopeManage):
 		return RoleAdmin
 	case k.HasScope(ScopeIngest):
 		return RoleEditor
-	default:
+	case k.HasScope(ScopeQuery):
 		return RoleMember
+	default:
+		return ""
 	}
+}
+
+// KeyTeamRole is the role a key acts with in its team: what its scopes grant
+// (RoleForKey) and, for a personal key, never more than its owner's role in
+// the team now (ownerRole, "" when they are no longer a member). A key is its
+// owner's delegate, so demoting the owner takes power from the key at once.
+func KeyTeamRole(k *KeyGrant, ownerRole string) string {
+	role := RoleForKey(k)
+	if k.Personal() && roleRank[ownerRole] < roleRank[role] {
+		return ownerRole
+	}
+	return role
 }
 
 // MaxScopesForRole caps the scopes a member may put on a personal key.

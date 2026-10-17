@@ -26,7 +26,16 @@ import (
 	"github.com/ncecere/grounded/internal/teams"
 )
 
-// List returns the team's agents. Members see them all (metadata).
+// withoutDraft is what a plain member sees of an agent: its profile and its published version, never the draft (its instructions, knowledge
+// bases and settings), whether it has unpublished changes, or the problems of publishing it. Drafts are editor material.
+func withoutDraft(v View) View {
+	v.Draft = DecodeConfig(nil)
+	v.HasUnpublishedChanges = false
+	v.Warnings = nil
+	return v
+}
+
+// List returns the team's agents. Members see them all (metadata, and the published version, not the drafts).
 func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string) ([]View, error) {
 	acc, err := s.teamAccess(ctx, a, teamRef, "")
 	if err != nil {
@@ -45,6 +54,9 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string) ([]Vi
 		if err != nil {
 			return nil, err
 		}
+		if !authz.RoleAtLeast(acc.Role, authz.RoleEditor) {
+			v = withoutDraft(v)
+		}
 		out = append(out, v)
 	}
 	return out, nil
@@ -60,7 +72,11 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, teamRef string, id uui
 	if err != nil {
 		return View{}, err
 	}
-	return s.view(ctx, ag, acc.Team, true)
+	v, err := s.view(ctx, ag, acc.Team, true)
+	if err == nil && !authz.RoleAtLeast(acc.Role, authz.RoleEditor) {
+		v = withoutDraft(v)
+	}
+	return v, err
 }
 
 // Profile holds optional profile changes.

@@ -1122,6 +1122,24 @@ func (q *Queries) SourceDocumentStats(ctx context.Context, sourceIds []uuid.UUID
 	return items, nil
 }
 
+const sourceInKBs = `-- name: SourceInKBs :one
+SELECT EXISTS (SELECT 1 FROM kb_sources WHERE source_id = $1 AND kb_id = ANY($2::uuid[]))
+`
+
+type SourceInKBsParams struct {
+	SourceID uuid.UUID
+	KBIDs    []uuid.UUID
+}
+
+// Whether a source feeds any of the knowledge bases (an API key restricted to
+// some knowledge bases reaches only the sources they use).
+func (q *Queries) SourceInKBs(ctx context.Context, arg SourceInKBsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, sourceInKBs, arg.SourceID, arg.KBIDs)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const sourceKnowledgeBases = `-- name: SourceKnowledgeBases :many
 SELECT kb.id, kb.name FROM kb_sources ks JOIN knowledge_bases kb ON kb.id = ks.kb_id
 WHERE ks.source_id = $1 ORDER BY kb.name
