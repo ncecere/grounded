@@ -68,7 +68,11 @@ type KeyGrant struct {
 	ID     uuid.UUID
 	TeamID uuid.UUID
 	Scopes []string
-	KBIDs  []uuid.UUID // empty = every KB of the team
+	// KBIDs are the knowledge bases the key may use. Unlimited (every KB of the team) unless KBLimited or KBIDs is non-empty. Authentication
+	// sets them to what the key's restrictions allow together: its knowledge bases, and the knowledge bases of its agents' published versions.
+	KBIDs []uuid.UUID
+	// KBLimited: the key is limited to KBIDs even when that is empty (an agent restriction whose agents use no knowledge base reaches none).
+	KBLimited bool
 	// AgentIDs restricts the key to these agents (DESIGN.md §3.3); empty =
 	// every agent of the team.
 	AgentIDs []uuid.UUID
@@ -100,9 +104,12 @@ func (k *KeyGrant) HasScope(scope string) bool {
 	return false
 }
 
+// KBsLimited reports whether the key reaches only some knowledge bases (KBIDs, possibly none).
+func (k *KeyGrant) KBsLimited() bool { return k.KBLimited || len(k.KBIDs) > 0 }
+
 // AllowsKB reports whether the key may use a knowledge base.
 func (k *KeyGrant) AllowsKB(id uuid.UUID) bool {
-	if len(k.KBIDs) == 0 {
+	if !k.KBsLimited() {
 		return true
 	}
 	for _, kb := range k.KBIDs {

@@ -43,3 +43,11 @@ RETURNING *;
 SELECT sqlc.embed(k), coalesce(u.email::text, '')::text AS user_email, coalesce(u.display_name, '')::text AS user_name
 FROM api_keys k LEFT JOIN users u ON u.id = k.user_id
 WHERE k.id = @id AND k.team_id = @team_id;
+
+-- The knowledge bases the published versions of some agents answer from: an agent-restricted key reaches only these.
+-- name: AgentPublishedKBIDs :many
+SELECT DISTINCT (kb->>'kbId')::uuid AS kb_id
+FROM agents a
+JOIN agent_versions v ON v.id = a.published_version_id
+CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(v.config->'kbs') = 'array' THEN v.config->'kbs' ELSE '[]'::jsonb END) kb
+WHERE a.id = ANY(@agent_ids::uuid[]) AND a.deleted_at IS NULL;

@@ -81,7 +81,7 @@ Platform
 - **Team service keys.** Only team admins and owners can create them. They belong to the team, survive staff changes, and have a named responsible contact (a team member, chosen at creation and reassigned with `PATCH /v1/teams/{team}/api-keys/{keyId}`), shown in the key list.
 - **All keys:**
   - Scopes: `query`, `ingest`, `manage`, and `mcp` (v0.3: the MCP server at `POST /mcp`, acting as a `query` key there and granting nothing on the REST API; [`mcp.md`](mcp.md)).
-  - Can be restricted to specific KBs or agents.
+  - Can be restricted to specific KBs or agents. A key restricted to agents reaches only the knowledge bases those agents answer from (their published versions, as they are now), and with a KB restriction too, only those both allow; a key restricted to KBs sees only the agents that answer from nothing else.
   - Have an expiry date.
   - Format `rag_<12-char id>_<40-char secret>`. The id is stored in clear for lookup; only HMAC-SHA256(`API_KEY_PEPPER`, key) is stored. The secret is shown once.
   - Can never administer the platform.

@@ -16,7 +16,7 @@ import (
 // without a knowledge-base restriction, or a source one of its knowledge
 // bases uses.
 func (s *Service) keyAllows(ctx context.Context, sc scope, sourceID uuid.UUID) (bool, error) {
-	if sc.key == nil || len(sc.key.KBIDs) == 0 {
+	if sc.key == nil || !sc.key.KBsLimited() {
 		return true, nil
 	}
 	return s.q.SourceInKBs(ctx, dbgen.SourceInKBsParams{SourceID: sourceID, KBIDs: sc.key.KBIDs})
@@ -24,7 +24,7 @@ func (s *Service) keyAllows(ctx context.Context, sc scope, sourceID uuid.UUID) (
 
 // keyFilter keeps the sources the acting key may reach (see keyAllows).
 func (s *Service) keyFilter(ctx context.Context, sc scope, srcs []dbgen.DataSource) ([]dbgen.DataSource, error) {
-	if sc.key == nil || len(sc.key.KBIDs) == 0 {
+	if sc.key == nil || !sc.key.KBsLimited() {
 		return srcs, nil
 	}
 	out := srcs[:0:0]

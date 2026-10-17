@@ -412,8 +412,30 @@ func (s *Service) Verify(ctx context.Context, presented string) (authz.Actor, er
 	if err := s.markPepper(ctx, k, peppers, match, rehash); err != nil {
 		return authz.Actor{}, err
 	}
-	return authz.Actor{
-		UserID: k.UserID.UUID,
-		Key:    &authz.KeyGrant{ID: k.ID, TeamID: k.TeamID, Scopes: k.Scopes, KBIDs: k.KBIDs, AgentIDs: k.AgentIDs, Kind: k.Kind},
-	}, nil
+	grant := &authz.KeyGrant{ID: k.ID, TeamID: k.TeamID, Scopes: k.Scopes, KBIDs: k.KBIDs, AgentIDs: k.AgentIDs, Kind: k.Kind}
+	if err := s.limitToAgentsKBs(ctx, grant); err != nil {
+		return authz.Actor{}, err
+	}
+	return authz.Actor{UserID: k.UserID.UUID, Key: grant}, nil
+}
+
+// limitToAgentsKBs applies the rule that a key restricted to some agents reaches only the knowledge bases those agents answer from (their
+// published versions, as they are now), and, when it is restricted to knowledge bases too, only those both allow. Without an agent restriction
+// the grant is left as it was.
+func (s *Service) limitToAgentsKBs(ctx context.Context, g *authz.KeyGrant) error {
+	if len(g.AgentIDs) == 0 {
+		return nil
+	}
+	ids, err := s.q.AgentPublishedKBIDs(ctx, g.AgentIDs)
+	if err != nil {
+		return err
+	}
+	allowed := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if len(g.KBIDs) == 0 || slices.Contains(g.KBIDs, id) {
+			allowed = append(allowed, id)
+		}
+	}
+	g.KBIDs, g.KBLimited = allowed, true
+	return nil
 }
