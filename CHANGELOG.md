@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. No product setting or migration changes. (#169)
+
 ## [0.6.1] - 2026-10-17
 
 A fix release from a QA pass of v0.6.0. No new features, **no migrations and no new settings** (schema 53, manifests unchanged). Some fixes narrow access to what the documentation always said (API keys, shared links, members and drafts): see [`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md).
