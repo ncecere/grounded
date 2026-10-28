@@ -136,6 +136,25 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
+### 2026-10-28 toolchain advisory follow-up
+
+The historical results below are not a current clean bill of health. Dependency
+triage found **GO-2026-6809** reachable in `crypto/x509` with the previously pinned
+Go 1.26.9 (GitHub Actions job `121350666804`, 2026-10-26, `govulncheck` in the Lint
+step). Its reported path is an outbound MCP response body read through
+`mcpclient.cappedBody.Read` to certificate verification. Go **1.26.10** adds a
+denylist for known intermediate certificates that are no longer trusted, covering
+cases where the system trust store has not been updated. The toolchain pin is
+updated in [#169](https://github.com/ncecere/grounded/issues/169). The first fresh
+scan after that update found **GO-2026-6860** in `golang.org/x/net` v0.61.0,
+reachable through `htmlmd.Convert` → `goquery.NewDocumentFromReader` → `html.Parse`:
+quadratic text-node coalescing on untrusted HTML. Updating to **v0.62.0** fixes
+that advisory. Fresh source and release-image scans are required before shipping.
+Public advisories: [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) and
+[GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860).
+
+### Historical v0.5.0 release scans
+
 Run on 2026-10-15 with Go 1.26.9, npm 10.9.8 and Trivy 0.75.0. The source scans ran on `main` at the v0.5.0 tag (`b59033cf`); **the image scans are of the v0.5.0 release digests** (`grounded@sha256:8d01a1cac5ff…`, `grounded-ocr@sha256:b8d8a0209fed…`), and the v0.4.4 and v0.4.3 numbers are kept for comparison. Earlier runs: before v0.1.0 (2026-09-27, `431020a`), and `govulncheck` alone on 2026-10-11.
 
 | Scan | Command | Result |
