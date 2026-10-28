@@ -31,8 +31,18 @@ func TestGetAPIKeyIncludesRevoked(t *testing.T) {
 		t.Fatalf("active service key = %d %+v", code, k)
 	}
 	for _, path := range []string{servicePath, base + "/api-keys/00000000-0000-0000-0000-000000000001"} {
-		code, e = alex.call("GET", path, nil, nil, nil)
-		mustCode(t, "member reads a key not theirs", code, e, 404, "key_not_found")
+		for _, method := range []string{"GET", "DELETE"} {
+			code, e = alex.call(method, path, nil, nil, nil)
+			mustCode(t, "member cannot discover a key through "+method, code, e, 404, "key_not_found")
+		}
+	}
+	code, e = blair.call("DELETE", personalPath, nil, nil, nil)
+	mustCode(t, "member cannot revoke another member's personal key", code, e, 404, "key_not_found")
+	if code := owner.get(servicePath, nil); code != 200 {
+		t.Fatalf("refused deletion changed the service key: %d", code)
+	}
+	if code := alex.get(personalPath, nil); code != 200 {
+		t.Fatalf("refused deletion changed the personal key: %d", code)
 	}
 
 	// Revoked: gone from the list, still readable by ID.

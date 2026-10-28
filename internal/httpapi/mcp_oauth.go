@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ncecere/grounded/internal/httpx"
@@ -19,7 +18,7 @@ import (
 // bearerAccessToken returns the request's bearer value when it has the
 // shape of an OAuth access token (API keys look different).
 func bearerAccessToken(r *http.Request) (string, bool) {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	token, ok := bearerToken(r.Header.Get("Authorization"))
 	return token, ok && oauth.IsAccessToken(token)
 }
 

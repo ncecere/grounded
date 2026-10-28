@@ -2170,7 +2170,10 @@ export interface paths {
         /** Active API keys (team admins see all; others see their own) */
         get: operations["listAPIKeys"];
         put?: never;
-        /** Create an API key; the secret is returned once */
+        /**
+         * Create an API key; the secret is returned once
+         * @description Scopes must be the exact lower-case values query, ingest, manage or mcp. Empty or unknown scopes return 400 invalid_scopes; a known scope beyond the caller's team role returns 403. Bearer authentication scheme names are case-insensitive; the secret itself is case-sensitive.
+         */
         post: operations["createAPIKey"];
         delete?: never;
         options?: never;
@@ -2196,7 +2199,10 @@ export interface paths {
         get: operations["getAPIKey"];
         put?: never;
         post?: never;
-        /** Revoke an API key */
+        /**
+         * Revoke an API key
+         * @description Team admins and owners may revoke any key in their team; other members may revoke their own personal keys. A key they cannot see returns the same 404 key_not_found as an unknown, cross-team or already-revoked key, so this operation does not reveal whether another person's key exists.
+         */
         delete: operations["revokeAPIKey"];
         options?: never;
         head?: never;

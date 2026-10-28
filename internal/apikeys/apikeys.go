@@ -148,16 +148,11 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	default:
 		return Created{}, apperr.Invalid("invalid_kind", "Kind must be personal or service")
 	}
-	if len(in.Scopes) == 0 {
-		return Created{}, apperr.Invalid("invalid_scopes", "Choose at least one scope")
+	if err := validateScopes(in.Scopes, allowed); err != nil {
+		return Created{}, err
 	}
 	slices.Sort(in.Scopes)
 	in.Scopes = slices.Compact(in.Scopes)
-	for _, sc := range in.Scopes {
-		if !slices.Contains(allowed, sc) {
-			return Created{}, apperr.Forbidden("Your team role does not allow the " + sc + " scope")
-		}
-	}
 	if in.ExpiresAt != nil && !in.ExpiresAt.After(time.Now()) {
 		return Created{}, apperr.Invalid("invalid_expiry", "The expiry must be in the future")
 	}
@@ -291,7 +286,7 @@ func (s *Service) Revoke(ctx context.Context, a authz.Actor, teamRef string, id 
 		}
 		own := k.Kind == KindPersonal && k.UserID.Valid && k.UserID.UUID == a.UserID
 		if !own && !authz.RoleAtLeast(acc.Role, authz.RoleAdmin) {
-			return apperr.Forbidden("Only the key's owner or a team admin can revoke it")
+			return apperr.NotFound("key_not_found", "API key not found")
 		}
 		if err := q.RevokeAPIKey(ctx, id); err != nil {
 			return err

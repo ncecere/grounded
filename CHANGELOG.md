@@ -26,6 +26,10 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 
 - **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. **golang.org/x/net v0.62.0** also fixes GO-2026-6860, a reachable quadratic-complexity issue while parsing HTML during ingestion. **go-jose v4.1.6** fixes CVE-2026-116587, denial of service while parsing RSA JWKs, found by the candidate-image scan. The web lockfile updates shipped `seroval` to 1.7.3 for two serialization injection advisories, and development-only `undici` to 8.12.3 for its HTTP/TLS advisories. No direct npm dependency, product setting or migration changes. (#169)
 
+### Fixed
+
+- **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
+
 ## [0.6.1] - 2026-10-17
 
 A fix release from a QA pass of v0.6.0. No new features, **no migrations and no new settings** (schema 53, manifests unchanged). Some fixes narrow access to what the documentation always said (API keys, shared links, members and drafts): see [`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md).

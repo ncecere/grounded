@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ncecere/grounded/internal/apikeys"
@@ -57,11 +56,12 @@ func (a *api) keyAuth(fallback, next http.Handler, fail errorWriter, touch bool)
 			fallback.ServeHTTP(w, r)
 			return
 		}
-		if a.APIKeys == nil || !strings.HasPrefix(header, "Bearer ") || len(header) > 512 {
+		token, ok := bearerToken(header)
+		if a.APIKeys == nil || !ok {
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "Send a valid API key as: Authorization: Bearer <key>")
 			return
 		}
-		actor, err := a.APIKeys.Verify(r.Context(), strings.TrimPrefix(header, "Bearer "))
+		actor, err := a.APIKeys.Verify(r.Context(), token)
 		if errors.Is(err, apikeys.ErrInvalidKey) {
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "The API key is invalid, expired or revoked")
 			return
