@@ -61,7 +61,7 @@ func applySettings(next *dbgen.ClassificationLevel, in ClassificationUpdate) err
 		next.ConversationRetentionDays = nil
 	} else if in.ConversationRetentionDays != nil {
 		if d := *in.ConversationRetentionDays; d < 1 || d > 36500 {
-			return apperr.Invalid("invalid_retention", "Conversation retention must be between 1 and 36500 days")
+			return apperr.Invalid("invalid_retention", "Conversation retention must be 0 (keep until deleted) or between 1 and 36500 days")
 		}
 		next.ConversationRetentionDays = in.ConversationRetentionDays
 	}

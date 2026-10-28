@@ -151,6 +151,12 @@ func (a *api) adminCreateConnection(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
+	// Omitted uses the default; an explicit zero is outside the API range.
+	// The service's zero default also serves non-HTTP callers.
+	if in.TimeoutSeconds != nil && *in.TimeoutSeconds == 0 {
+		httpx.Error(w, http.StatusBadRequest, "invalid_timeout", "Timeout must be between 1 and 600 seconds")
+		return
+	}
 	c, err := a.Catalog.CreateConnection(r.Context(), a.actor(r), catalog.ConnectionInput{
 		Name: in.Name, Description: deref(in.Description, ""), BaseURL: in.BaseUrl,
 		APIKey: deref(in.ApiKey, ""), TimeoutSeconds: deref(in.TimeoutSeconds, 0), Enabled: deref(in.Enabled, true),

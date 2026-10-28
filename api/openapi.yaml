@@ -10764,8 +10764,8 @@ components:
         kind: { $ref: "#/components/schemas/ModelKind" }
         maxClassification: { type: string }
         enabled: { type: boolean, default: true }
-        contextWindow: { type: integer, format: int32 }
-        maxOutputTokens: { type: integer, format: int32 }
+        contextWindow: { type: integer, format: int32, minimum: 1, description: "Chat models only. When both are known, maxOutputTokens must not exceed contextWindow." }
+        maxOutputTokens: { type: integer, format: int32, minimum: 1, description: "Maximum output tokens; must not exceed a chat model's known contextWindow (400 invalid_max_output_tokens)." }
         supportsTools: { type: boolean }
         supportsVision: { type: boolean }
         dimensions: { type: integer, format: int32, description: Required for embedding models }
@@ -10782,8 +10782,8 @@ components:
         description: { type: string }
         maxClassification: { type: string }
         enabled: { type: boolean }
-        contextWindow: { type: integer, format: int32 }
-        maxOutputTokens: { type: integer, format: int32 }
+        contextWindow: { type: integer, format: int32, minimum: 1, description: "Chat models only. The resulting maxOutputTokens must not exceed contextWindow." }
+        maxOutputTokens: { type: integer, format: int32, minimum: 1, description: "Maximum output tokens; must not exceed the chat model's resulting contextWindow (400 invalid_max_output_tokens)." }
         supportsTools: { type: boolean }
         supportsVision: { type: boolean }
         dimensions: { type: integer, format: int32 }

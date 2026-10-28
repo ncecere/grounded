@@ -95,8 +95,8 @@ func (s *Service) AdminSetStatus(ctx context.Context, a authz.Actor, id uuid.UUI
 	if status != StatusActive && status != StatusDisabledByPlatform {
 		return AdminAgent{}, apperr.Invalid("invalid_status", "Status must be active or disabled_by_platform")
 	}
-	if status == StatusDisabledByPlatform && len(strings.TrimSpace(reason)) < 5 {
-		return AdminAgent{}, apperr.Invalid("reason_required", "Explain why the agent is being disabled")
+	if status == StatusDisabledByPlatform && len([]rune(strings.TrimSpace(reason))) < 5 {
+		return AdminAgent{}, apperr.Invalid("reason_required", "Explain why the agent is being disabled (at least 5 characters)")
 	}
 	var teamID uuid.UUID
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {

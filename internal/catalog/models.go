@@ -192,6 +192,7 @@ func normalizeSpec(ctx context.Context, q *dbgen.Queries, kind string, s *ModelS
 		positive(s.MaxInputTokens, "invalid_max_input_tokens", "Maximum input tokens must be positive"),
 		s.Compat.validate(),
 		normalizeModeration(kind, s),
+		validateOutputWindow(kind, s.ContextWindow, s.MaxOutputTokens),
 	} {
 		if chk != nil {
 			return chk

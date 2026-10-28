@@ -30,6 +30,10 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 
 - **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. **golang.org/x/net v0.62.0** also fixes GO-2026-6860, a reachable quadratic-complexity issue while parsing HTML during ingestion. **go-jose v4.1.6** fixes CVE-2026-116587, denial of service while parsing RSA JWKs, found by the candidate-image scan. The web lockfile updates shipped `seroval` to 1.7.3 for two serialization injection advisories, and development-only `undici` to 8.12.3 for its HTTP/TLS advisories. No direct npm dependency, product setting or migration changes. (#169)
 
+### Fixed
+
+- **Admin validation and guidance:** creating a connection with an explicit zero timeout now rejects it as an update already did (omitting it still selects 60 seconds). A chat model cannot declare more output tokens than its known context window, including partial updates. Retention errors explain the 0/keep option; the platform-disable reason names the five-character minimum and counts Unicode characters consistently. MCP's off message and answer-cache comments point to Admin → Settings → Features. (#146, partial)
+
 ## [0.6.1] - 2026-10-17
 
 A fix release from a QA pass of v0.6.0. No new features, **no migrations and no new settings** (schema 53, manifests unchanged). Some fixes narrow access to what the documentation always said (API keys, shared links, members and drafts): see [`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md).

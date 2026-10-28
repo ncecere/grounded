@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
@@ -27,6 +28,11 @@ func TestClassificationSettings(t *testing.T) {
 		if code != 400 {
 			t.Errorf("%v = %d %s", bad, code, e)
 		}
+	}
+
+	code, raw := env.admin.raw("PATCH", "/v1/admin/classifications/open", map[string]any{"conversationRetentionDays": 36501}, ifMatch(open.Revision))
+	if code != 400 || !strings.Contains(string(raw), "0 (keep until deleted)") || !strings.Contains(string(raw), "36500") {
+		t.Fatalf("retention range omits the supported keep option: %d %s", code, raw)
 	}
 
 	// Open data only in websites, kept 30 days, no direct retrieval.

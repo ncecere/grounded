@@ -1,4 +1,4 @@
-// The platform switch (Admin → Overview → Features) and agents' settings
+// The platform switch (Admin → Settings → Features) and agents' settings
 // (Agent → Settings).
 
 package answercache

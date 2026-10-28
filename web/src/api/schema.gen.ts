@@ -7283,9 +7283,15 @@ export interface components {
             maxClassification: string;
             /** @default true */
             enabled: boolean;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Chat models only. When both are known, maxOutputTokens must not exceed contextWindow.
+             */
             contextWindow?: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Maximum output tokens; must not exceed a chat model's known contextWindow (400 invalid_max_output_tokens).
+             */
             maxOutputTokens?: number;
             supportsTools?: boolean;
             supportsVision?: boolean;
@@ -7311,9 +7317,15 @@ export interface components {
             description?: string;
             maxClassification?: string;
             enabled?: boolean;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Chat models only. The resulting maxOutputTokens must not exceed contextWindow.
+             */
             contextWindow?: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Maximum output tokens; must not exceed the chat model's resulting contextWindow (400 invalid_max_output_tokens).
+             */
             maxOutputTokens?: number;
             supportsTools?: boolean;
             supportsVision?: boolean;
