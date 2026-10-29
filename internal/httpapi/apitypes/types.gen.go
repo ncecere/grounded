@@ -11459,7 +11459,7 @@ type TeamRequest struct {
 	// ApprovedClassification The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved)
 	ApprovedClassification string `json:"approvedClassification"`
 
-	// Classification The highest classification the team's data will need
+	// Classification The highest classification the team's data will need, as asked for
 	Classification string     `json:"classification"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	DecidedAt      *time.Time `json:"decidedAt,omitempty"`

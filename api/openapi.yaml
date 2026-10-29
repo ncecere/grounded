@@ -15738,7 +15738,7 @@ components:
         name: { type: string }
         purpose: { type: string }
         ownerEmail: { type: string, description: 'Who should own the team ("" is the requester)' }
-        classification: { type: string, description: The highest classification the team's data will need, as asked for }
+        classification: { type: string, description: "The highest classification the team's data will need, as asked for" }
         approvedClassification: { type: string, description: 'The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved)' }
         status: { $ref: "#/components/schemas/TeamRequestStatus" }
         decisionReason: { type: string, description: The reviewer's reason for a declined request }

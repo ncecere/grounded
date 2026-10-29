@@ -11936,7 +11936,7 @@ export interface components {
             purpose: string;
             /** @description Who should own the team ("" is the requester) */
             ownerEmail: string;
-            /** @description The highest classification the team's data will need */
+            /** @description The highest classification the team's data will need, as asked for */
             classification: string;
             /** @description The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved) */
             approvedClassification: string;
