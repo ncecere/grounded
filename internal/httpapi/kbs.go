@@ -148,6 +148,10 @@ func (a *api) retrieve(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
+	if in.TopK != nil && (*in.TopK < 1 || *in.TopK > 50) {
+		httpx.Error(w, http.StatusBadRequest, "invalid_topk", "topK must be between 1 and 50")
+		return
+	}
 	res, err := a.KBs.Retrieve(r.Context(), a.actor(r), r.PathValue("team"), id, kbs.Query{Text: in.Query, TopK: deref(in.TopK, 0),
 		Filter: metadataFilter(in.Filters), Judge: deref(in.Judge, false), NoRerank: !deref(in.Rerank, true)})
 	if failed(w, r, err) {

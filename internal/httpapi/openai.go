@@ -28,6 +28,9 @@ func isOpenAIPath(path string) bool {
 // maxOpenAIBody bounds a chat completions request (history included).
 const maxOpenAIBody = 4 << 20
 
+// The last user question plus the native chat's 50 retained history turns.
+const maxOpenAIMessages = 51
+
 // openaiError writes {"error": {"message", "type", "code", "param"}}.
 func openaiError(w http.ResponseWriter, status int, code, message string) {
 	typ := "invalid_request_error"
@@ -139,9 +142,10 @@ func openaiText(raw json.RawMessage) (string, bool) {
 	}
 	var b strings.Builder
 	for _, p := range parts {
-		if p.Type == "text" || p.Type == "" {
-			b.WriteString(p.Text)
+		if p.Type != "text" {
+			return "", false
 		}
+		b.WriteString(p.Text)
 	}
 	return b.String(), true
 }
@@ -228,10 +232,13 @@ func readOpenAIRequest(w http.ResponseWriter, r *http.Request) (openaiRequest, b
 // dropped (the agent's instructions win); the last user message is the
 // question and the rest is history. problem explains invalid messages.
 func openaiTurns(msgs []openaiMessage) (turns []agents.HistoryMessage, problem string) {
+	if len(msgs) > maxOpenAIMessages {
+		return nil, "Send at most 51 messages, including the final user question; all roles count"
+	}
 	for _, m := range msgs {
 		text, ok := openaiText(m.Content)
 		if !ok {
-			return nil, "Message content must be a string or text parts"
+			return nil, "Message content must be a string or text parts; image and other non-text parts are not supported"
 		}
 		switch m.Role {
 		case "user", "assistant":
