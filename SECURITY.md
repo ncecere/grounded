@@ -20,17 +20,18 @@ Grounded is pre-1.0. Security fixes are made on `main` and released as a patch o
 
 | Version | Supported |
 |---|---|
-| 0.1.x (latest patch) | Yes |
-| Earlier pre-release builds | No |
+| Latest published minor (latest patch) | Yes |
+| Older minor releases or superseded patches | No — upgrade to the latest patch |
+| Development and superseded prerelease builds | No released-support guarantee |
 
-Released images are signed. Verify an image before you deploy it, as the [release notes](docs/releases/v0.1.0.md#verifying-the-images) describe.
+[GitHub Releases](https://github.com/ncecere/grounded/releases/latest) identifies the latest published version; preparation notes on `main` are not proof of publication. Released images are signed. Verify an image before you deploy it, as the [deployment instructions](README.md#deploy) describe.
 
 ## Scope
 
 In scope: the code in this repository, including
 - `grounded` (API, worker, migrations) and its default configuration;
 - the web UI in `web/`;
-- the container image built from the `Dockerfile`;
+- the application and optional Tesseract OCR container images and Kubernetes manifests;
 - the example configuration in `.env.example` and `deploy/examples/`.
 
 Areas we care most about:

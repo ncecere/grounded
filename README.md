@@ -48,11 +48,12 @@ The demo uses development sign-in and public example keys. Grounded accepts both
 
 ## Deploy
 
-Grounded runs on Kubernetes. [`deploy/kubernetes/`](deploy/kubernetes/README.md) holds a generic Kustomize **base**: the API and worker Deployments, migrations in an init container, probes, PodDisruptionBudgets, restricted security contexts and default-deny NetworkPolicies. It also has optional **components** (Postgres as a single StatefulSet or CloudNativePG, Valkey, `pg_dump` backups, Ingress, Apache Tika, the OCR sidecar, monitoring, alerts and dashboards, tracing) and two example **overlays**, `example-small` and `example-ha`. Your install keeps its own overlay in its own repository and references the base at a release tag:
+Grounded runs on Kubernetes. [`deploy/kubernetes/`](deploy/kubernetes/README.md) holds a generic Kustomize **base**: the API and worker Deployments, migrations in an init container, probes, PodDisruptionBudgets, restricted security contexts and default-deny NetworkPolicies. It also has optional **components** (Postgres as a single StatefulSet or CloudNativePG, Valkey, `pg_dump` backups, Ingress, Apache Tika, the OCR sidecar, monitoring, alerts and dashboards, tracing) and two example **overlays**, `example-small` and `example-ha`. Your install keeps its own overlay in its own repository and references the base at a release tag. Choose the latest published patch from [GitHub Releases](https://github.com/ncecere/grounded/releases/latest), then replace `vX.Y.Z` and the digest below with that release's version and image digest (not `main` or a development image):
 
 ```yaml
+namespace: grounded # Create/select a dedicated namespace for your install.
 resources:
-  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.6.1
+  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=vX.Y.Z
 images:
   - name: ghcr.io/ncecere/grounded
     digest: sha256:<digest from the release notes>
@@ -163,18 +164,18 @@ PostgreSQL is the system of record. It holds the vectors (pgvector, one table pe
 | Security reviewers | [`docs/security/`](docs/security/README.md), [`SECURITY.md`](SECURITY.md) |
 | API users | [`api/openapi.yaml`](api/openapi.yaml) (every route; a test enforces it) |
 | Contributors | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/DESIGN.md`](docs/DESIGN.md), [ADRs](docs/adr/README.md) |
-| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.6.1`](docs/releases/v0.6.1.md)) |
+| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/), [published releases](https://github.com/ncecere/grounded/releases/latest) |
 
 ## Project status
 
-Grounded is **pre-1.0**. The current release is **v0.6.1** (2026-10-17), a fix release from a QA pass of **v0.6.0** (2026-10-16: webhooks, agent templates, a router agent, conversation sharing and in-app team requests), on top of v0.5.0 (the index preview and an opt-in chunker). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
+Grounded is **pre-1.0**. [GitHub Releases](https://github.com/ncecere/grounded/releases/latest) is the source of truth for published versions; notes on `main` can include release preparation. The v0.6 line added webhooks, agent templates, a router agent, conversation sharing and in-app team requests, on top of v0.5's index preview and opt-in chunker. See the [v0.6.1 QA fixes](docs/releases/v0.6.1.md) and [v0.6.2 security notes](docs/releases/v0.6.2.md). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19). CI, disposable-environment QA and upgrade checks gate releases; they do not establish long production use. What to expect:
 
 - **Meant to stay stable through 0.x:** the OpenAI-compatible chat endpoint, the widget embed, the environment variables in `.env.example`, and the Kubernetes resource names that overlays patch. If one of these has to change, the release notes will say how to adapt.
 - **May change between minor releases:** the native REST API (`/v1/...`, described in [`api/openapi.yaml`](api/openapi.yaml)), metric names, the UI, and component defaults. Changes are listed in the [changelog](CHANGELOG.md).
 - **Upgrades** are forward-only and without downtime (expand/contract migrations). Don't skip a release that the release notes mark as required. Downgrading means restoring a backup.
-- **Supported versions:** the latest 0.4.x patch release gets fixes, including security fixes. See [`SECURITY.md`](SECURITY.md).
+- **Supported versions:** the latest published patch of the latest minor release gets fixes, including security fixes; older minor lines do not. See [`SECURITY.md`](SECURITY.md).
 
-[`docs/releases/v0.6.1.md`](docs/releases/v0.6.1.md) lists the known limitations, and [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
+Read the notes for your [published release](https://github.com/ncecere/grounded/releases/latest) for its known limitations. [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
 
 ## Roadmap
 
