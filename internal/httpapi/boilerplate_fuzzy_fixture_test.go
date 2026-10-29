@@ -15,16 +15,17 @@ import (
 // The fixture of the near-duplicate boilerplate tests (#23): twelve upload documents of one source, each with
 //   - a unique paragraph (never boilerplate),
 //   - an exact repeat on every page (the existing hash matching finds it),
-//   - a navigation menu whose highlighted item differs per page (bold on some, "(current page)" on others): twelve
-//     different exact hashes, none of them frequent enough on its own,
-//   - a footer whose date changes per page (a month name, so exact hashing does not fold it),
-//   - a negative control: a paragraph that shares many words with the same paragraph of the other pages but says
-//     something different.
+//   - a navigation menu whose highlighted item differs per page (bold): ten different exact hashes, none of them
+//     frequent enough on its own,
+//   - a footer whose date changes per page (a month name, so exact hashing does not fold it): twelve exact hashes,
+//   - negative controls: a paragraph, on three pages each, that shares many words with the paragraphs of the other
+//     pages but says something different, and an "Appendix" line that follows one template with other words.
 const fuzzyDocs = 12
 
 var (
-	fuzzyMenuItems = []string{"Home", "Admissions", "Academics", "Registrar", "Student life", "Contact us"}
+	fuzzyMenuItems = []string{"Home", "Admissions", "Academics", "Registrar", "Student life", "Contact us", "Libraries", "Athletics", "Research", "Giving"}
 	fuzzyMonths    = []string{"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+	fuzzyForms     = []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima"}
 	// Pairs of sentences over the same vocabulary that are not the same text.
 	fuzzyControls = []string{
 		"Students may petition the dean to drop a course after the published deadline when a documented emergency prevented earlier action.",
@@ -34,17 +35,13 @@ var (
 	}
 )
 
-// fuzzyMenu is the menu of page i: item i%6 is highlighted, in bold or with a marker.
+// fuzzyMenu is the menu of page i: item i%10 is highlighted in bold.
 func fuzzyMenu(i int) string {
 	var b strings.Builder
 	for j, item := range fuzzyMenuItems {
 		link := fmt.Sprintf("[%s](/%s)", item, strings.ToLower(strings.ReplaceAll(item, " ", "-")))
 		if j == i%len(fuzzyMenuItems) {
-			if i/len(fuzzyMenuItems)%2 == 0 {
-				link = fmt.Sprintf("[**%s**](/%s)", item, strings.ToLower(strings.ReplaceAll(item, " ", "-")))
-			} else {
-				link += " (current page)"
-			}
+			link = "**" + link + "**"
 		}
 		b.WriteString("- " + link + "\n")
 	}
@@ -52,10 +49,8 @@ func fuzzyMenu(i int) string {
 }
 
 func fuzzyDoc(i int) upload {
-	body := fmt.Sprintf("# Policy %c\n\n%s\n\n%s\n\n%s\n\nLast updated %s %d, 2026 by the Office of the Test Registrar, 101 Main Hall, 555-0100.\n\n%s\n\nZebraSignoff: the Office of the Test Registrar answers every request within two business days.\n",
-		'A'+i, bpTopics[i%len(bpTopics)]+fmt.Sprintf(" This is policy %c of the handbook and applies to every student.", 'A'+i),
-		fuzzyMenu(i), fuzzyControls[i%len(fuzzyControls)], fuzzyMonths[i], i+3,
-		"Appendix "+string(rune('A'+i))+" lists the forms for "+[]string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima"}[i]+" requests.")
+	body := fmt.Sprintf("# Policy %c\n\n%s This is policy %c of the handbook and applies to every student.\n\n%s\n\n%s\n\nLast updated %s %d, 2026 by the Office of the Test Registrar, 101 Main Hall, 555-0100.\n\nAppendix %c lists the forms for %s requests.\n\nZebraSignoff: the Office of the Test Registrar answers every request within two business days.\n",
+		'A'+i, bpTopics[i%len(bpTopics)], 'A'+i, fuzzyMenu(i), fuzzyControls[i%len(fuzzyControls)], fuzzyMonths[i], i+3, 'A'+i, fuzzyForms[i])
 	return upload{fmt.Sprintf("p%02d.md", i+1), []byte(body)}
 }
 
@@ -89,7 +84,7 @@ type snapshotDocument struct {
 	Chunks          []string
 }
 
-// snapshotBlocks reads a source's classification, each document's recorded and dropped hashes, and its chunks.
+// snapshotBlocks reads a source's classification, each document's recorded and dropped hashes, and its chunks of the source's own profile.
 func snapshotBlocks(t *testing.T, env *ragEnv, src apitypes.DataSource, bp apitypes.SourceBoilerplate) blockSnapshot {
 	t.Helper()
 	ctx := context.Background()
@@ -123,7 +118,8 @@ func snapshotBlocks(t *testing.T, env *ragEnv, src apitypes.DataSource, bp apity
 		s.Documents[name] = d
 	}
 	rows.Close()
-	rows, err = env.app.Pool.Query(ctx, `SELECT d.filename, c.content FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.source_id = $1 ORDER BY d.filename, c.ordinal`, src.Id)
+	rows, err = env.app.Pool.Query(ctx, `SELECT d.filename, c.content FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.source_id = $1 AND c.profile_id = (SELECT embedding_profile_id FROM data_sources WHERE id = $1)
+		ORDER BY d.filename, c.ordinal`, src.Id)
 	if err != nil {
 		t.Fatal(err)
 	}

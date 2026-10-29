@@ -5736,21 +5736,27 @@ type AuthConfig struct {
 	TeamRequestUrl *string `json:"teamRequestUrl,omitempty"`
 }
 
-// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS"}
+// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS","variants":1}
 type BoilerplateBlock struct {
-	// Documents Documents that contain it
+	// Documents Documents that contain it (or one of its near-duplicate variants)
 	Documents int32 `json:"documents"`
 
 	// Text The first 80 characters of the block, without Markdown
 	Text string `json:"text"`
+
+	// Variants Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match
+	Variants int32 `json:"variants"`
 }
 
-// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 //
-// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 type BoilerplateSettings struct {
 	// Enabled Leave repeated blocks out of chunks
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Fuzzy Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a different date). Off unless the install turns it on; it only has an effect while enabled is true. Try it first in an index preview (changes.boilerplateFuzzy).
+	Fuzzy *bool `json:"fuzzy,omitempty"`
 
 	// MinDocs A block must be in at least this many documents
 	MinDocs *int `json:"minDocs,omitempty"`
@@ -7016,9 +7022,9 @@ type DataSourceType string
 
 // DataSourceCreate defines model for DataSourceCreate.
 type DataSourceCreate struct {
-	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Boilerplate    *BoilerplateSettings `json:"boilerplate,omitempty"`
 	Classification string               `json:"classification"`
 	Description    *string              `json:"description,omitempty"`
@@ -7300,6 +7306,9 @@ type DomainReviewDecision string
 
 // EmbeddingProfile defines model for EmbeddingProfile.
 type EmbeddingProfile struct {
+	// BoilerplateFuzzy Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use.
+	BoilerplateFuzzy bool `json:"boilerplateFuzzy"`
+
 	// CandidateOf Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
 	CandidateOf    *openapi_types.UUID `json:"candidateOf,omitempty"`
 	ChunkOverlap   int32               `json:"chunkOverlap"`
@@ -10279,8 +10288,10 @@ type ProfileMigrationPreflightSource struct {
 type ProfileMigrationPreview struct {
 	// Changes The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
 	Changes struct {
-		ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
-		ChunkSize    *int32 `json:"chunkSize,omitempty"`
+		// BoilerplateFuzzy Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now.
+		BoilerplateFuzzy *bool  `json:"boilerplateFuzzy,omitempty"`
+		ChunkOverlap     *int32 `json:"chunkOverlap,omitempty"`
+		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
 		// ChunkerVersion The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
 		ChunkerVersion *int32              `json:"chunkerVersion,omitempty"`
@@ -11029,11 +11040,14 @@ type SourceBoilerplate struct {
 	// DocumentsCounted Documents counted at the last refresh
 	DocumentsCounted int32 `json:"documentsCounted"`
 	Enabled          bool  `json:"enabled"`
-	MinDocs          int   `json:"minDocs"`
 
-	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Fuzzy Near-duplicate blocks count as one (in force: the source's override, else the platform default)
+	Fuzzy   bool `json:"fuzzy"`
+	MinDocs int  `json:"minDocs"`
+
+	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Overrides BoilerplateSettings `json:"overrides"`
 
 	// PagesAffected Documents they were removed from
@@ -11046,7 +11060,7 @@ type SourceBoilerplate struct {
 	// RefreshedAt When the last refresh was requested (null before the first)
 	RefreshedAt *time.Time `json:"refreshedAt"`
 
-	// RepeatedBlocks Distinct blocks classified as repeated
+	// RepeatedBlocks Distinct blocks classified as repeated; the near-duplicate variants of one block count once
 	RepeatedBlocks int64 `json:"repeatedBlocks"`
 
 	// Threshold Documents a block needed at the last refresh

@@ -391,11 +391,14 @@ type Document struct {
 }
 
 type DocumentBlock struct {
-	DocumentID uuid.UUID
-	SourceID   uuid.UUID
-	Hashes     []int64
-	Dropped    []int64
-	Rev        int32
+	DocumentID    uuid.UUID
+	SourceID      uuid.UUID
+	Hashes        []int64
+	Dropped       []int64
+	Rev           int32
+	SketchVersion int16
+	FuzzyHashes   []int64
+	Sketches      []byte
 }
 
 type EmbeddingProfile struct {
@@ -421,6 +424,7 @@ type EmbeddingProfile struct {
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
+	BoilerplateFuzzy     bool
 }
 
 type EmbeddingSetFailure struct {
@@ -1009,6 +1013,21 @@ type Session struct {
 	ExpiresAt   time.Time
 }
 
+type SetBoilerplate struct {
+	SourceID     uuid.UUID
+	ProfileID    uuid.UUID
+	ClassifiedAt time.Time
+	Documents    int32
+	Threshold    int32
+}
+
+type SetBoilerplateBlock struct {
+	SourceID            uuid.UUID
+	ProfileID           uuid.UUID
+	BlockHash           int64
+	CanonicalDocumentID uuid.NullUUID
+}
+
 type SourceBoilerplate struct {
 	SourceID    uuid.UUID
 	Enabled     pgtype.Bool
@@ -1019,6 +1038,7 @@ type SourceBoilerplate struct {
 	RefreshedAt *time.Time
 	Documents   int32
 	Threshold   int32
+	Fuzzy       pgtype.Bool
 }
 
 type SourceBoilerplateBlock struct {
@@ -1027,6 +1047,8 @@ type SourceBoilerplateBlock struct {
 	DocCount            int32
 	Sample              string
 	CanonicalDocumentID uuid.NullUUID
+	Variants            int32
+	MemberOf            *int64
 }
 
 type SourceEmbeddingSet struct {

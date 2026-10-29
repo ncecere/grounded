@@ -21,6 +21,9 @@ type CandidateChanges struct {
 	DocumentPrefix, QueryPrefix *string
 	ChunkSize, ChunkOverlap     *int32
 	ChunkerVersion              *int32
+	// BoilerplateFuzzy builds the candidate with near-duplicate boilerplate matching on, whatever the sources' settings are (#23). It is not a
+	// setting of a profile in use: a switch turns it on for the sources instead.
+	BoilerplateFuzzy *bool
 }
 
 // CreateCandidate copies the live profile with the changes applied, hidden (candidate_of is set, so it is in no list or picker, is never
@@ -60,6 +63,12 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 	p, err := s.createProfile(ctx, a, in, uuid.NullUUID{UUID: live.ID, Valid: true})
 	if err != nil {
 		return Profile{}, fmt.Errorf("preview of %s: %w", live.Key, err)
+	}
+	if ch.BoilerplateFuzzy != nil && *ch.BoilerplateFuzzy {
+		if err := s.q.SetCandidateBoilerplateFuzzy(ctx, p.ID); err != nil {
+			return Profile{}, err
+		}
+		p.BoilerplateFuzzy = true
 	}
 	return p, nil
 }

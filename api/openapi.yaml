@@ -11411,7 +11411,7 @@ components:
         enabled: { type: boolean }
     EmbeddingProfile:
       type: object
-      required: [id, key, name, description, model, dimensions, storageType, documentPrefix, queryPrefix, chunkSize, chunkOverlap, chunkerVersion, status, isDefault, revision, createdAt, updatedAt]
+      required: [id, key, name, description, model, dimensions, storageType, documentPrefix, queryPrefix, chunkSize, chunkOverlap, chunkerVersion, boilerplateFuzzy, status, isDefault, revision, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         key: { type: string, example: nomic-768 }
@@ -11434,6 +11434,7 @@ components:
         chunkSize: { type: integer, format: int32 }
         chunkOverlap: { type: integer, format: int32 }
         chunkerVersion: { type: integer, format: int32 }
+        boilerplateFuzzy: { type: boolean, description: "Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use." }
         status: { type: string, enum: [active, retired] }
         isDefault: { type: boolean }
         candidateOf: { type: string, format: uuid, nullable: true, description: "Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id." }
@@ -11628,6 +11629,16 @@ components:
                 The chunker: 1, the original, or 2, which merges short
                 neighbouring sections and drops chunks with no body. Anything
                 else is refused (400 invalid_chunker_version).
+            boilerplateFuzzy:
+              type: boolean
+              description: >-
+                Judge the knowledge base's sources with near-duplicate matching
+                of repeated blocks on (a menu with a different item
+                highlighted, a footer with a different date), whatever their
+                setting is: the candidate's passages leave those variants out
+                where a source's repeated-block removal is on. Switching the
+                preview turns the setting on for those sources. Omitted: the
+                sources' own settings decide, as now.
     ProfileMigrationStatus:
       type: string
       description: >-
@@ -11868,27 +11879,35 @@ components:
       type: object
       description: >-
         A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform
-        default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the
-        install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+        default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate
+        matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use
+        the defaults.
       additionalProperties: false
       properties:
         enabled: { type: boolean, description: Leave repeated blocks out of chunks }
         minDocs: { type: integer, minimum: 2, maximum: 100000, description: A block must be in at least this many documents }
         ratio: { type: number, format: double, minimum: 0.05, maximum: 1, description: "... and in at least this share of the source's documents" }
-      example: { enabled: true, minDocs: 5, ratio: 0.2 }
+        fuzzy:
+          type: boolean
+          description: >-
+            Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a
+            different date). Off unless the install turns it on; it only has an effect while enabled is true.
+            Try it first in an index preview (changes.boilerplateFuzzy).
+      example: { enabled: true, minDocs: 5, ratio: 0.2, fuzzy: false }
     SourceBoilerplate:
       type: object
       description: >-
         Repeated-boilerplate suppression for a source: the settings in force and what they remove. A block
         is repeated when at least max(minDocs, ceil(ratio x documents)) documents contain it; one copy stays
         in the document with the shortest URL.
-      required: [enabled, minDocs, ratio, overrides, repeatedBlocks, pagesAffected, documentsCounted, threshold, refreshedAt, pending]
+      required: [enabled, minDocs, ratio, fuzzy, overrides, repeatedBlocks, pagesAffected, documentsCounted, threshold, refreshedAt, pending]
       properties:
         enabled: { type: boolean }
         minDocs: { type: integer }
         ratio: { type: number, format: double }
+        fuzzy: { type: boolean, description: "Near-duplicate blocks count as one (in force: the source's override, else the platform default)" }
         overrides: { $ref: "#/components/schemas/BoilerplateSettings" }
-        repeatedBlocks: { type: integer, format: int64, description: Distinct blocks classified as repeated }
+        repeatedBlocks: { type: integer, format: int64, description: Distinct blocks classified as repeated; the near-duplicate variants of one block count once }
         pagesAffected: { type: integer, format: int64, description: Documents they were removed from }
         documentsCounted: { type: integer, format: int32, description: Documents counted at the last refresh }
         threshold: { type: integer, format: int32, description: Documents a block needed at the last refresh }
@@ -11896,11 +11915,12 @@ components:
         pending: { type: boolean, description: A refresh is scheduled or running; the counts may change }
     BoilerplateBlock:
       type: object
-      required: [text, documents]
+      required: [text, documents, variants]
       properties:
         text: { type: string, description: "The first 80 characters of the block, without Markdown" }
-        documents: { type: integer, format: int32, description: Documents that contain it }
-      example: { text: "QUICKLINKS", documents: 29 }
+        documents: { type: integer, format: int32, description: "Documents that contain it (or one of its near-duplicate variants)" }
+        variants: { type: integer, format: int32, minimum: 1, description: "Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match" }
+      example: { text: "QUICKLINKS", documents: 29, variants: 1 }
     DataSourceCreate:
       type: object
       required: [name, classification]

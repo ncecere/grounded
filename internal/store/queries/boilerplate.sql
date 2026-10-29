@@ -10,10 +10,10 @@ SELECT rev FROM source_boilerplate WHERE source_id = $1;
 
 -- Replaces a source's overrides (NULL = inherit) and asks for a refresh.
 -- name: SetBoilerplateSettings :exec
-INSERT INTO source_boilerplate (source_id, enabled, min_docs, ratio, requested_at)
-VALUES (@source_id, @enabled, @min_docs, @ratio, now())
+INSERT INTO source_boilerplate (source_id, enabled, min_docs, ratio, fuzzy, requested_at)
+VALUES (@source_id, @enabled, @min_docs, @ratio, @fuzzy, now())
 ON CONFLICT (source_id) DO UPDATE
-SET enabled = EXCLUDED.enabled, min_docs = EXCLUDED.min_docs, ratio = EXCLUDED.ratio, requested_at = now();
+SET enabled = EXCLUDED.enabled, min_docs = EXCLUDED.min_docs, ratio = EXCLUDED.ratio, fuzzy = EXCLUDED.fuzzy, requested_at = now();
 
 -- name: RequestBoilerplateRefresh :exec
 INSERT INTO source_boilerplate (source_id, requested_at) VALUES ($1, now())
@@ -67,7 +67,7 @@ WHERE db.source_id = @source_id AND h = ANY(@hashes::bigint[])
 ORDER BY h, length(d.external_id), d.external_id, d.id;
 
 -- name: ListBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample, canonical_document_id FROM source_boilerplate_blocks
+SELECT block_hash, doc_count, sample, canonical_document_id, variants, member_of FROM source_boilerplate_blocks
 WHERE source_id = $1;
 
 -- name: DeleteBoilerplateBlocks :exec
@@ -90,6 +90,22 @@ SET hashes = EXCLUDED.hashes, dropped = EXCLUDED.dropped, rev = EXCLUDED.rev;
 
 -- name: DeleteDocumentBlocks :exec
 DELETE FROM document_blocks WHERE document_id = $1;
+
+-- Near-duplicate matching (#23): the eligible blocks of a document and their sketches, or (version 0) none.
+-- name: SetDocumentSketches :exec
+UPDATE document_blocks
+SET sketch_version = @sketch_version, fuzzy_hashes = @fuzzy_hashes, sketches = @sketches
+WHERE document_id = @document_id
+  AND (sketch_version <> @sketch_version OR fuzzy_hashes <> @fuzzy_hashes OR sketches <> @sketches);
+
+-- Ready documents with recorded blocks but no sketches yet (near-duplicate matching was switched on after they
+-- were processed).
+-- name: DocumentsMissingSketches :many
+SELECT d.id, d.blob_key FROM document_blocks db
+JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
+WHERE db.source_id = @source_id AND db.sketch_version < @sketch_version
+ORDER BY d.id
+LIMIT @max_rows;
 
 -- Ready documents processed before blocks were recorded.
 -- name: DocumentsMissingBlocks :many
@@ -121,9 +137,9 @@ WHERE id = @id;
 -- ---- reporting -----------------------------------------------------------------------
 
 -- name: BoilerplateSummaries :many
-SELECT sb.source_id, sb.enabled, sb.min_docs, sb.ratio, sb.rev, sb.documents, sb.threshold,
+SELECT sb.source_id, sb.enabled, sb.min_docs, sb.ratio, sb.fuzzy, sb.rev, sb.documents, sb.threshold,
        sb.requested_at, sb.refreshed_at,
-       (SELECT count(*) FROM source_boilerplate_blocks b WHERE b.source_id = sb.source_id)::bigint AS blocks,
+       (SELECT count(*) FROM source_boilerplate_blocks b WHERE b.source_id = sb.source_id AND b.member_of IS NULL)::bigint AS blocks,
        (SELECT count(*) FROM document_blocks db
         WHERE db.source_id = sb.source_id AND cardinality(db.dropped) > 0)::bigint AS pages,
        EXISTS (SELECT 1 FROM document_blocks db JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
@@ -132,8 +148,8 @@ FROM source_boilerplate sb
 WHERE sb.source_id = ANY(@source_ids::uuid[]);
 
 -- name: TopBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample FROM source_boilerplate_blocks
-WHERE source_id = @source_id
+SELECT block_hash, doc_count, sample, variants FROM source_boilerplate_blocks
+WHERE source_id = @source_id AND member_of IS NULL
 ORDER BY doc_count DESC, sample
 LIMIT @max_rows;
 
@@ -142,3 +158,27 @@ LIMIT @max_rows;
 -- name: ReprocessDocument :exec
 UPDATE documents SET status = 'pending', updated_at = now()
 WHERE id = @id AND version = @version AND status = 'ready';
+
+-- ---- index preview with near-duplicate matching (#23) ----------------------------------------------------------
+
+-- The blocks a candidate profile's set drops, among one document's hashes.
+-- name: SetBoilerplateBlocksIn :many
+SELECT block_hash, canonical_document_id FROM set_boilerplate_blocks
+WHERE source_id = @source_id AND profile_id = @profile_id AND block_hash = ANY(@hashes::bigint[]);
+
+-- name: InsertSetBoilerplate :exec
+INSERT INTO set_boilerplate (source_id, profile_id, documents, threshold)
+VALUES (@source_id, @profile_id, @documents, @threshold)
+ON CONFLICT (source_id, profile_id) DO NOTHING;
+
+-- name: GetSetBoilerplate :one
+SELECT * FROM set_boilerplate WHERE source_id = @source_id AND profile_id = @profile_id;
+
+-- name: SetCandidateBoilerplateFuzzy :exec
+UPDATE embedding_profiles SET boilerplate_fuzzy = true WHERE id = @id AND candidate_of IS NOT NULL;
+
+-- A source's own override of near-duplicate matching, keeping the others (the switch of a preview with it on).
+-- name: SetSourceBoilerplateFuzzy :execrows
+INSERT INTO source_boilerplate (source_id, fuzzy, requested_at) VALUES (@source_id, true, now())
+ON CONFLICT (source_id) DO UPDATE SET fuzzy = true, requested_at = now()
+WHERE source_boilerplate.fuzzy IS DISTINCT FROM true;

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/ncecere/grounded/internal/boilerplate"
 	"github.com/ncecere/grounded/internal/chunk"
@@ -23,6 +24,7 @@ import (
 // bpPlan is the boilerplate decision for one document.
 type bpPlan struct {
 	hashes  []int64         // distinct block hashes, recorded for counting
+	fuzzy   *blockSketches  // sketches of the eligible blocks, when near-duplicate matching is on
 	dropped []int64         // hashes left out of the chunks
 	rev     int32           // the source's classification revision applied
 	drop    map[string]bool // block texts left out
@@ -38,14 +40,17 @@ func SourceBoilerplate(ctx context.Context, q *dbgen.Queries, sourceID uuid.UUID
 	} else if err != nil {
 		return boilerplate.Settings{}, 0, err
 	}
-	return SettingsOf(row.Enabled.Bool, row.Enabled.Valid, row.MinDocs, row.Ratio), row.Rev, nil
+	return SettingsOf(row.Enabled, row.Fuzzy, row.MinDocs, row.Ratio), row.Rev, nil
 }
 
-// SettingsOf converts stored overrides.
-func SettingsOf(enabled, enabledSet bool, minDocs *int32, ratio *float64) boilerplate.Settings {
+// SettingsOf converts stored overrides (NULL = inherit).
+func SettingsOf(enabled, fuzzy pgtype.Bool, minDocs *int32, ratio *float64) boilerplate.Settings {
 	var s boilerplate.Settings
-	if enabledSet {
-		s.Enabled = &enabled
+	if enabled.Valid {
+		s.Enabled = &enabled.Bool
+	}
+	if fuzzy.Valid {
+		s.Fuzzy = &fuzzy.Bool
 	}
 	if minDocs != nil {
 		n := int(*minDocs)
@@ -67,7 +72,8 @@ func (p *Processor) planBoilerplate(ctx context.Context, q *dbgen.Queries, src d
 		return bpPlan{}, err
 	}
 	var classified map[int64]uuid.NullUUID
-	if p.Boilerplate.Resolve(src.Type, settings).Enabled {
+	eff := p.Boilerplate.Resolve(src.Type, settings)
+	if eff.Enabled {
 		hashes := make([]int64, 0, len(blocks))
 		for _, b := range blocks {
 			hashes = append(hashes, boilerplate.Hash(b.Text))
@@ -83,6 +89,9 @@ func (p *Processor) planBoilerplate(ctx context.Context, q *dbgen.Queries, src d
 	}
 	plan := decide(blocks, classified, docID)
 	plan.rev = rev
+	if eff.Enabled && eff.Fuzzy {
+		plan.fuzzy = sketchBlocks(blocks)
+	}
 	if plan.guarded {
 		p.Log.InfoContext(ctx, "document kept whole: it has nothing but repeated blocks", "document", docID, "source", src.ID)
 	}
@@ -134,6 +143,9 @@ func recordBlocks(ctx context.Context, tx pgx.Tx, doc dbgen.Document, plan bpPla
 	if err := q.UpsertDocumentBlocks(ctx, dbgen.UpsertDocumentBlocksParams{
 		DocumentID: doc.ID, SourceID: doc.SourceID, Hashes: nonNilInts(plan.hashes), Dropped: nonNilInts(plan.dropped), Rev: plan.rev,
 	}); err != nil {
+		return err
+	}
+	if err := recordSketches(ctx, q, doc.ID, plan.fuzzy); err != nil {
 		return err
 	}
 	rev, err := q.GetSourceBoilerplateRev(ctx, doc.SourceID)
