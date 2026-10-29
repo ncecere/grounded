@@ -3519,7 +3519,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** OpenAI-compatible model list. Each agent the caller may chat with is a model named agent:{team}/{slug}. */
+        /**
+         * OpenAI-compatible model list. Each agent the caller may chat with is a model named agent:{team}/{slug}.
+         * @description Every error uses message, type, code and param in the OpenAI envelope, including session expiry or suspension, request rate limits, invalid URL text and authentication-storage failures. Internal causes are logged with the request ID, never returned to the client.
+         */
         get: operations["openaiListModels"];
         put?: never;
         post?: never;
@@ -3540,7 +3543,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions for agents (stateless; transcripts are never stored)
-         * @description model must be agent:{team}/{slug}. Client system messages are dropped (the agent's instructions win); the other messages are the history and the last user message is the question. tools and n > 1 are rejected (400). With stream true the reply is chat.completion.chunk SSE with delta.content and delta.reasoning_content, a final chunk with finish_reason and citations (and claims when SystemOne citation checks are on for the agent), a usage chunk when stream_options.include_usage is set, then data [DONE]. Errors use the OpenAI shape. When a fail-closed moderation check can't run, the reply is 503 moderation_unavailable ("The safety check is unavailable right now. Please try again."), or an error chunk with that code when streaming.
+         * @description model must be agent:{team}/{slug}. Client system messages are dropped (the agent's instructions win); the other messages are the history and the last user message is the question. tools and n > 1 are rejected (400). With stream true the reply is chat.completion.chunk SSE with delta.content and delta.reasoning_content, a final chunk with finish_reason and citations (and claims when SystemOne citation checks are on for the agent), a usage chunk when stream_options.include_usage is set, then data [DONE]. Errors use the OpenAI shape. When a fail-closed moderation check can't run, the reply is 503 moderation_unavailable ("The safety check is unavailable right now. Please try again."), or an error chunk with that code when streaming. Session, CSRF, rate-limit and shared-middleware failures before response headers use the same OpenAI error envelope, including type and param; a rate limit retains Retry-After.
          */
         post: operations["openaiChatCompletions"];
         delete?: never;
@@ -18615,7 +18618,11 @@ export interface operations {
                     "application/json": components["schemas"]["OpenAIModelList"];
                 };
             };
+            400: components["responses"]["OpenAIErrorReply"];
             401: components["responses"]["OpenAIErrorReply"];
+            403: components["responses"]["OpenAIErrorReply"];
+            429: components["responses"]["OpenAIErrorReply"];
+            500: components["responses"]["OpenAIErrorReply"];
         };
     };
     openaiChatCompletions: {
@@ -18658,6 +18665,7 @@ export interface operations {
             404: components["responses"]["OpenAIErrorReply"];
             409: components["responses"]["OpenAIErrorReply"];
             429: components["responses"]["OpenAIErrorReply"];
+            500: components["responses"]["OpenAIErrorReply"];
             503: components["responses"]["OpenAIErrorReply"];
         };
     };

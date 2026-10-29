@@ -36,7 +36,7 @@ func (a *api) sessionOrKey(next http.Handler) http.Handler {
 }
 
 // errorWriter writes an error response in some envelope.
-type errorWriter func(w http.ResponseWriter, status int, code, message string)
+type errorWriter = httpx.ErrorWriter
 
 // keyOr authenticates "Authorization: Bearer rag_..." API keys (then records
 // the use and calls next) and hands every other request to fallback. fail
@@ -66,7 +66,7 @@ func (a *api) keyAuth(fallback, next http.Handler, fail errorWriter, touch bool)
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "The API key is invalid, expired or revoked")
 			return
 		} else if err != nil {
-			httpx.Internal(w, r, err)
+			httpx.InternalWith(w, r, err, fail)
 			return
 		}
 		res, err := limiter.Allow(r.Context(), "key:"+actor.Key.ID.String(), a.Config.RequestsPerMinute, time.Minute)

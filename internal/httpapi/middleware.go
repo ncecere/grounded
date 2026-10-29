@@ -75,6 +75,10 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "DENY")
 
+		fail := httpx.Error
+		if isOpenAIPath(r.URL.Path) {
+			fail = openaiError
+		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		d.Metrics.InFlight().Inc()
 		defer func() {
@@ -86,7 +90,7 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 				d.Log.ErrorContext(r.Context(), "panic serving request",
 					"panic", p, "request_id", reqID, "stack", string(debug.Stack()))
 				if !rec.wrote {
-					httpx.Error(rec, http.StatusInternalServerError, "internal", "Something went wrong")
+					fail(rec, http.StatusInternalServerError, "internal", "Something went wrong")
 				}
 				rec.status = http.StatusInternalServerError
 			}
@@ -109,7 +113,7 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 				"client_ip", httpx.ClientIP(r, d.Config.TrustedProxies))
 		}()
 		if urlHasNUL(r.URL) {
-			httpx.Error(rec, http.StatusBadRequest, "invalid_text", httpx.NULMessage)
+			fail(rec, http.StatusBadRequest, "invalid_text", httpx.NULMessage)
 			return
 		}
 		mux.ServeHTTP(rec, r)

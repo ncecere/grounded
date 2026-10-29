@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -21,6 +20,10 @@ import (
 // shape, so OpenAI SDKs work unchanged.
 
 const openaiModelPrefix = "agent:"
+
+func isOpenAIPath(path string) bool {
+	return path == "/v1/models" || path == "/v1/chat/completions"
+}
 
 // maxOpenAIBody bounds a chat completions request (history included).
 const maxOpenAIBody = 4 << 20
@@ -60,13 +63,7 @@ func openaiFail(w http.ResponseWriter, r *http.Request, err error) {
 
 // openaiInternal is httpx.Internal in the OpenAI shape: the cause is logged with the request ID, the client gets a generic message.
 func openaiInternal(w http.ResponseWriter, r *http.Request, err error) {
-	if httpx.ClientGone(r) {
-		slog.InfoContext(r.Context(), "client closed request", "err", err, "request_id", httpx.RequestID(r.Context()), "path", r.URL.Path)
-		openaiError(w, httpx.StatusClientClosedRequest, "client_closed_request", "The request was cancelled.")
-		return
-	}
-	slog.ErrorContext(r.Context(), "internal error", "err", err, "request_id", httpx.RequestID(r.Context()), "path", r.URL.Path)
-	openaiError(w, http.StatusInternalServerError, "internal", "Something went wrong. Include the request ID if you report this.")
+	httpx.InternalWith(w, r, err, openaiError)
 }
 
 func itoaSeconds(d time.Duration) string {
@@ -78,7 +75,7 @@ func itoaSeconds(d time.Duration) string {
 // openaiAuth accepts API keys (with OpenAI-shaped errors) and browser
 // sessions.
 func (a *api) openaiAuth(h http.HandlerFunc) http.Handler {
-	session := a.Auth.RequireSession(h)
+	session := a.Auth.RequireSessionWithErrors(h, openaiError)
 	// No key and no session: an OpenAI client gets its own 401, not the app's "Sign in to continue".
 	fallback := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") == "" && !a.Auth.HasSessionCookie(r) {
