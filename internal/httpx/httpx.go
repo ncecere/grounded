@@ -45,6 +45,9 @@ func JSON(w http.ResponseWriter, status int, data any) {
 	writeJSON(w, status, envelope{Data: data})
 }
 
+// ErrorWriter formats a safe client-facing error (native, OpenAI or JSON-RPC).
+type ErrorWriter func(http.ResponseWriter, int, string, string)
+
 // Error writes an error envelope. Messages must be safe to show to users.
 func Error(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, errorBody{Error: ErrorDetail{Code: code, Message: message}})
@@ -71,13 +74,19 @@ func ClientGone(r *http.Request) bool {
 // itself, so it is logged at info as a client cancellation and recorded
 // as 499 instead.
 func Internal(w http.ResponseWriter, r *http.Request, err error) {
+	InternalWith(w, r, err, Error)
+}
+
+// InternalWith keeps Internal's logging, redaction and cancellation semantics,
+// but writes the endpoint's error envelope, including failures in shared auth.
+func InternalWith(w http.ResponseWriter, r *http.Request, err error, fail ErrorWriter) {
 	if ClientGone(r) {
 		slog.InfoContext(r.Context(), "client closed request", "err", err, "request_id", RequestID(r.Context()), "path", r.URL.Path)
-		Error(w, StatusClientClosedRequest, "client_closed_request", "The request was cancelled.")
+		fail(w, StatusClientClosedRequest, "client_closed_request", "The request was cancelled.")
 		return
 	}
 	slog.ErrorContext(r.Context(), "internal error", "err", err, "request_id", RequestID(r.Context()), "path", r.URL.Path)
-	Error(w, http.StatusInternalServerError, "internal", "Something went wrong. Include the request ID if you report this.")
+	fail(w, http.StatusInternalServerError, "internal", "Something went wrong. Include the request ID if you report this.")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -180,38 +180,45 @@ func (s *Service) setSessionCookie(w http.ResponseWriter, secret string) {
 // RequireSession authenticates the browser session, enforces CSRF + Origin on
 // unsafe methods and applies the per-user request limit.
 func (s *Service) RequireSession(next http.Handler) http.Handler {
+	return s.RequireSessionWithErrors(next, httpx.Error)
+}
+
+// RequireSessionWithErrors applies the same policy with the endpoint's error
+// envelope. OpenAI-compatible routes must not switch to native errors when a
+// session expires, a CSRF check fails, the user is limited or storage fails.
+func (s *Service) RequireSessionWithErrors(next http.Handler, fail httpx.ErrorWriter) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" {
-			httpx.Error(w, http.StatusUnauthorized, "unauthorized", "API keys are not accepted on this endpoint")
+			fail(w, http.StatusUnauthorized, "unauthorized", "API keys are not accepted on this endpoint")
 			return
 		}
 		cookie, err := r.Cookie(s.sessionCookieName())
 		if err != nil || cookie.Value == "" || len(cookie.Value) > 256 {
-			httpx.Error(w, http.StatusUnauthorized, "unauthorized", "Sign in to continue")
+			fail(w, http.StatusUnauthorized, "unauthorized", "Sign in to continue")
 			return
 		}
 		row, err := s.q.GetSessionUser(r.Context(), digest(cookie.Value))
 		if err != nil {
 			if errors.Is(store.NotFound(err), store.ErrNotFound) {
 				s.setCookie(w, s.sessionCookieName(), "", -1)
-				httpx.Error(w, http.StatusUnauthorized, "unauthorized", "Your session has expired. Sign in again.")
+				fail(w, http.StatusUnauthorized, "unauthorized", "Your session has expired. Sign in again.")
 				return
 			}
-			httpx.Internal(w, r, err)
+			httpx.InternalWith(w, r, err, fail)
 			return
 		}
 		if row.User.Status != StatusActive {
-			httpx.Error(w, http.StatusForbidden, "user_suspended", "This account is suspended")
+			fail(w, http.StatusForbidden, "user_suspended", "This account is suspended")
 			return
 		}
 		if !isSafeMethod(r.Method) {
 			if !s.originAllowed(r) ||
 				subtle.ConstantTimeCompare([]byte(r.Header.Get("X-CSRF-Token")), []byte(row.Session.CSRFToken)) != 1 {
-				httpx.Error(w, http.StatusForbidden, "csrf_failed", "Invalid request token or origin. Reload the page and try again.")
+				fail(w, http.StatusForbidden, "csrf_failed", "Invalid request token or origin. Reload the page and try again.")
 				return
 			}
 		}
-		if !s.admitUser(w, r, row.User.ID.String()) {
+		if !s.admitUser(w, r, row.User.ID.String(), fail) {
 			return
 		}
 		id := Identity{User: row.User, SessionID: row.Session.ID.String(), CSRFToken: row.Session.CSRFToken}
@@ -221,7 +228,7 @@ func (s *Service) RequireSession(next http.Handler) http.Handler {
 
 // admitUser applies the per-user request limit. It fails open when Valkey is
 // unavailable: counters are ephemeral and availability matters more (ADR-0015).
-func (s *Service) admitUser(w http.ResponseWriter, r *http.Request, userID string) bool {
+func (s *Service) admitUser(w http.ResponseWriter, r *http.Request, userID string, fail httpx.ErrorWriter) bool {
 	res, err := s.limiter.Allow(r.Context(), "user:"+userID, s.cfg.RequestsPerMinute, time.Minute)
 	if err != nil {
 		s.metrics.RateLimitErrors.Inc()
@@ -230,7 +237,7 @@ func (s *Service) admitUser(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if !res.Allowed {
 		w.Header().Set("Retry-After", retryAfter(res.RetryAfter))
-		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many requests. Try again shortly.")
+		fail(w, http.StatusTooManyRequests, "rate_limited", "Too many requests. Try again shortly.")
 		return false
 	}
 	return true

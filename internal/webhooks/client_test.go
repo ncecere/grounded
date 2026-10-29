@@ -116,14 +116,21 @@ func TestClientReadsLittleOfALargeAnswerAndGivesUpOnASlowOne(t *testing.T) {
 	if status, err := c.Post(t.Context(), "https://example.com/hook", nil, nil); err != nil || status != 200 || time.Since(start) > 5*time.Second {
 		t.Errorf("a large answer: %d, %v in %s", status, err, time.Since(start))
 	}
-	slow, _, _ := serve(t, func(w http.ResponseWriter, r *http.Request) {
+	release := make(chan struct{})
+	slow, _, _ := serve(t, func(_ http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
-		case <-time.After(5 * time.Second):
+		case <-release:
 		}
+		// Do not race cancellation with the server's implicit 200 response.
+		// Only release the handler after Post has returned.
+		<-release
 	}, ClientConfig{Timeout: 200 * time.Millisecond})
+	t.Cleanup(func() { close(release) })                            // registered after serve: unblock before srv.Close
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second) // bounds a broken client too
+	defer cancel()
 	start = time.Now()
-	if _, err := slow.Post(t.Context(), "https://example.com/hook", nil, nil); err == nil || time.Since(start) > 3*time.Second {
+	if _, err := slow.Post(ctx, "https://example.com/hook", nil, nil); !errors.Is(err, context.DeadlineExceeded) || time.Since(start) > 3*time.Second {
 		t.Errorf("a slow receiver: %v after %s, want a timeout", err, time.Since(start))
 	}
 }

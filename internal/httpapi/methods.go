@@ -46,7 +46,7 @@ func restMethodFallback(mux *http.ServeMux, routes []route, next http.Handler) h
 		}
 		w.Header().Set("Allow", strings.Join(allowed, ", "))
 		fail := httpx.Error
-		if r.URL.Path == "/v1/models" || r.URL.Path == "/v1/chat/completions" {
+		if isOpenAIPath(r.URL.Path) {
 			fail = openaiError
 		}
 		fail(w, http.StatusMethodNotAllowed, "method_not_allowed", "This HTTP method is not supported for this endpoint.")

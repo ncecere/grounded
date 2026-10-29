@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
 - **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
+- **OpenAI error envelopes also cover shared middleware.** Expired/suspended browser sessions, CSRF refusals, per-user rate limits, authentication-store failures, invalid URL text and a panic before response headers keep the OpenAI `message`, `type`, `code` and `param` fields. Retry-After, cookie clearing, internal-error redaction and native API/session behavior are preserved. (#116)
+
 ## [0.6.2] - 2026-10-29
 
 A dependency security patch. No new features, migrations or settings (schema 53).
