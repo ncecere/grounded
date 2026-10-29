@@ -49,7 +49,7 @@ test("the chat's composer isn't cut off at the bottom, at any size, with the sou
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await answer.getByRole("button", { name: /^Used \d sources?$/ }).click();
-  await answer.getByRole("button", { name: /^Show source 1: /i }).click();
+  await answer.getByRole("button", { name: /^Show source 1\s*:/i }).click();
   await expect(page.getByTestId("source-viewer")).toBeVisible();
   // Beside the conversation, then under it (a tablet).
   for (const [width, height] of [[1440, 900], [1280, 720], [768, 1024]] as const) {

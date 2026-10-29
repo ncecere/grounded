@@ -130,7 +130,7 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await expect(viewer).toBeHidden();
     // Focus goes to the source card's Show source button (the chip's card that opened it is gone), so Enter reopens it.
     const source = answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem", { name: /^Source 1: / });
-    await expect(source.getByRole("button", { name: /^Show source 1: /i })).toBeFocused();
+    await expect(source.getByRole("button", { name: /^Show source 1\s*:/i })).toBeFocused();
     await expect(source).toContainText(handbook.answer);
     await expect(source).toBeInViewport();
     await expect(card).toBeHidden();
