@@ -230,6 +230,10 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
+		if code, msg, ok := formatProblem(err); ok {
+			Error(w, http.StatusBadRequest, code, msg)
+			return false
+		}
 		Error(w, http.StatusBadRequest, "invalid_json", decodeProblem(err))
 		return false
 	}

@@ -238,6 +238,11 @@ func (s *Service) addOrInvite(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, 
 	}
 	switch len(users) {
 	case 0:
+		// The team is locked, so the open invite read here is the one the upsert renews.
+		open, err := openInvite(ctx, q, t.ID, email)
+		if err != nil {
+			return AddResult{}, err
+		}
 		inv, err := q.UpsertInvite(ctx, dbgen.UpsertInviteParams{
 			TeamID: t.ID, Email: email, Role: role,
 			InvitedBy: uuid.NullUUID{UUID: a.UserID, Valid: true}, ExpiresAt: time.Now().Add(InviteTTL),
@@ -245,9 +250,7 @@ func (s *Service) addOrInvite(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, 
 		if err != nil {
 			return AddResult{}, err
 		}
-		e := a.Audit("team.invite_create", "team_invite", inv.ID.String())
-		e.TeamID, e.After = t.ID, map[string]any{"email": email, "role": role, "expiresAt": inv.ExpiresAt}
-		if err := audit.Record(ctx, q, e); err != nil {
+		if err := audit.Record(ctx, q, inviteAudit(a, t.ID, open, inv)); err != nil {
 			return AddResult{}, err
 		}
 		if err := s.Notify.Emit(ctx, tx, notify.InvitedEvent(teamRef(t), email, role, inv.ExpiresAt).By(a.UserID)); err != nil {
