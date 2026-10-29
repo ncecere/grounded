@@ -212,6 +212,9 @@ func checkValue(d Def, what string, v *int64) error {
 	if v != nil && (*v < 0 || *v > maxValue) {
 		return invalid("The %s for %s must be between 0 and %d", what, label(d), maxValue)
 	}
+	if v != nil && d.Min != nil && *v < *d.Min {
+		return invalid("The %s for %s must be at least %d", what, label(d), *d.Min)
+	}
 	if v != nil && d.Max != nil && *v > *d.Max {
 		return invalid("The %s for %s must be at most %d, the most Grounded allows.", what, label(d), *d.Max)
 	}

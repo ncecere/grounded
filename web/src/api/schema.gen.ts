@@ -9023,12 +9023,18 @@ export interface components {
             updatedAt: string;
             items: components["schemas"]["PlatformLimit"][];
         };
+        /**
+         * Format: int64
+         * @description A required nullable integer. The member must be sent explicitly; null means unlimited/no ceiling. Omission is not an implicit reset.
+         */
+        RequiredLimitValue: number | null;
+        /** @description All three members are required, including explicit nulls. Numeric public_message_max_chars defaults and ceilings must be at least 1; use the public-access switch to disable chat, not a zero message length. */
         PlatformLimitSetting: {
             key: components["schemas"]["LimitKey"];
-            /** @description null = unlimited; must be at most the ceiling */
-            default: components["schemas"]["LimitValue"];
-            /** @description null = no ceiling */
-            ceiling: components["schemas"]["LimitValue"];
+            /** @description Explicit null = unlimited; must be at most the ceiling */
+            default: components["schemas"]["RequiredLimitValue"];
+            /** @description Explicit null = no ceiling; omission is invalid_limit */
+            ceiling: components["schemas"]["RequiredLimitValue"];
         };
         PlatformLimitsUpdate: {
             items: components["schemas"]["PlatformLimitSetting"][];
@@ -9040,7 +9046,7 @@ export interface components {
             period: components["schemas"]["LimitPeriod"];
             label: string;
             description: string;
-            /** @description The team's own value (0 = blocked); null = inherits the default */
+            /** @description The team's own value (0 = blocked, except public_message_max_chars must be at least 1); null = inherits the default */
             override: components["schemas"]["LimitValue"];
             default: components["schemas"]["LimitValue"];
             ceiling: components["schemas"]["LimitValue"];

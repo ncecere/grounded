@@ -73,7 +73,11 @@ func (a *api) adminUpdateLimits(w http.ResponseWriter, r *http.Request) {
 	}
 	changes := make([]limits.SettingChange, len(in.Items))
 	for i, it := range in.Items {
-		changes[i] = limits.SettingChange{Key: limits.Key(it.Key), Setting: limits.Setting{Default: it.Default, Ceiling: it.Ceiling}}
+		if !it.Default.Present || !it.Ceiling.Present {
+			httpx.Error(w, http.StatusBadRequest, "invalid_limit", "Each limit must include default and ceiling; use null for unlimited or no ceiling")
+			return
+		}
+		changes[i] = limits.SettingChange{Key: limits.Key(it.Key), Setting: limits.Setting{Default: it.Default.Value, Ceiling: it.Ceiling.Value}}
 	}
 	p, err := a.Limits.UpdatePlatform(r.Context(), a.actor(r), changes, rev)
 	if failed(w, r, err) {

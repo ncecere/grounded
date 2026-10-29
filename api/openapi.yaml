@@ -12703,17 +12703,36 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/PlatformLimit" }
+    RequiredLimitValue:
+      description: >-
+        A required nullable integer. The member must be sent explicitly; null
+        means unlimited/no ceiling. Omission is not an implicit reset.
+      type: integer
+      format: int64
+      nullable: true
+      minimum: 0
+      maximum: 9007199254740992
+      x-go-type: jsonfield.NullableInt64
+      x-go-type-import:
+        name: jsonfield
+        path: github.com/ncecere/grounded/internal/jsonfield
     PlatformLimitSetting:
+      description: >-
+        All three members are required, including explicit nulls. Numeric
+        public_message_max_chars defaults and ceilings must be at least 1;
+        use the public-access switch to disable chat, not a zero message length.
       type: object
       required: [key, default, ceiling]
       properties:
         key: { $ref: "#/components/schemas/LimitKey" }
         default:
-          description: null = unlimited; must be at most the ceiling
-          allOf: [{ $ref: "#/components/schemas/LimitValue" }]
+          description: Explicit null = unlimited; must be at most the ceiling
+          x-go-type-skip-optional-pointer: true
+          allOf: [{ $ref: "#/components/schemas/RequiredLimitValue" }]
         ceiling:
-          description: null = no ceiling
-          allOf: [{ $ref: "#/components/schemas/LimitValue" }]
+          description: Explicit null = no ceiling; omission is invalid_limit
+          x-go-type-skip-optional-pointer: true
+          allOf: [{ $ref: "#/components/schemas/RequiredLimitValue" }]
     PlatformLimitsUpdate:
       type: object
       required: [items]
@@ -12732,7 +12751,7 @@ components:
         label: { type: string }
         description: { type: string }
         override:
-          description: The team's own value (0 = blocked); null = inherits the default
+          description: "The team's own value (0 = blocked, except public_message_max_chars must be at least 1); null = inherits the default"
           allOf: [{ $ref: "#/components/schemas/LimitValue" }]
         default: { $ref: "#/components/schemas/LimitValue" }
         ceiling: { $ref: "#/components/schemas/LimitValue" }
