@@ -178,8 +178,10 @@ describe("app shell", () => {
       expect(header).toHaveAttribute("aria-expanded", "true");
     }
     expect(within(nav).getByRole("link", { name: "Logs" })).toBeInTheDocument();
-    // SystemOne is listed only once a SystemOne model exists.
-    expect(within(nav).queryByRole("link", { name: "SystemOne" })).toBeNull();
+    // #146: SystemOne is always listed under Models, like Reranking (OW-2), so the docs' sidebar matches before a
+    // SystemOne model exists; its page says how to add one.
+    await user.click(within(nav).getByRole("button", { name: "Models" }));
+    expect(within(nav).getByRole("link", { name: "SystemOne" })).toHaveAttribute("href", "/admin/systemone");
     // P-16: the pending domain requests are counted beside Crawl domains.
     await waitFor(() => expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toContain("Crawl domains2 pending domain requests"));
     expect(within(nav).getByRole("link", { name: "Limits" })).toBeInTheDocument();
