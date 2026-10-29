@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
 - **OpenAI error envelopes also cover shared middleware.** Expired/suspended browser sessions, CSRF refusals, per-user rate limits, authentication-store failures, invalid URL text and a panic before response headers keep the OpenAI `message`, `type`, `code` and `param` fields. Retry-After, cookie clearing, internal-error redaction and native API/session behavior are preserved. (#116)
+- **Auditors get a clear 403 before admin-write validation.** Admin routes reject write actions before checking `If-Match` or the body, instead of inviting an auditor to retry with a revision they cannot use. Read-only POST previews for SSO group rules and profile-migration preflight still admit auditors; services retain their own authorization checks. (#146, partial)
 
 ## [0.6.2] - 2026-10-29
 
@@ -28,10 +29,6 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 ### Security
 
 - **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. **golang.org/x/net v0.62.0** also fixes GO-2026-6860, a reachable quadratic-complexity issue while parsing HTML during ingestion. **go-jose v4.1.6** fixes CVE-2026-116587, denial of service while parsing RSA JWKs, found by the candidate-image scan. The web lockfile updates shipped `seroval` to 1.7.3 for two serialization injection advisories, and development-only `undici` to 8.12.3 for its HTTP/TLS advisories. No direct npm dependency, product setting or migration changes. (#169)
-
-### Fixed
-
-- **Auditors get a clear 403 before admin-write validation.** Admin routes reject write actions before checking `If-Match` or the body, instead of inviting an auditor to retry with a revision they cannot use. Read-only POST previews for SSO group rules and profile-migration preflight still admit auditors; services retain their own authorization checks. (#146, partial)
 
 ## [0.6.1] - 2026-10-17
 
