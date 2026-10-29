@@ -159,8 +159,10 @@ transitive dependency `seroval` 1.6.9 (GHSA-f86p-h4j2-7qgj and
 GHSA-9wx9-5pv9-3349), and high/moderate advisories in development-only `undici`
 8.11.2 through jsdom. A targeted lockfile update selects `seroval` **1.7.3** and
 `undici` **8.12.3**, within their parents' existing semver ranges; direct dependency
-versions are unchanged. Fresh npm audits and UI tests are required on the installed
-updated lockfile; fresh release-image scans are still required before shipping.
+versions are unchanged. Runtime and full npm audits on the installed updated
+lockfile both report **0 vulnerabilities**; all **144 UI test files / 1,196 tests**
+pass, along with type-check, styling/size guards and production/widget builds.
+Fresh final release-image scans are still required before shipping.
 
 Trivy **0.76.1** source scans on 2026-10-28 found **0 secrets** and **28**
 medium/high/critical misconfiguration findings, all in the previously reviewed
@@ -179,7 +181,12 @@ to **v4.1.6**; a rebuilt image must be scanned before shipping.
 | `grounded@sha256:c44fc78b4bbaac3109dee3aa3466e721166383833fb6a85e1c68c64e4f89b9b6` | Go: 1 high (go-jose, fixed by the subsequent source update). Debian 12.15: 3 unknown (ca-certificates and tzdata update advisories). | **1 — release blocked pending rebuild/rescan** |
 | `grounded-ocr@sha256:bcba110aff19b65b2da222ce40dce469ae3a6977b78a247f95b8ea4060f38daa` | Go: 0. Debian 13.7: 341 (1 critical, 69 high, 110 medium, 157 low, 4 unknown). | 0; remaining base findings require the existing reachability assessment, not a claim of zero vulnerabilities |
 
-These candidate results do not satisfy the final exact-release-digest scan gate.
+The subsequent rebuilt candidate `dfbab63` passed: **0 Go findings** and **0
+fixable high/critical findings** in both images. `grounded` retains 3 unknown
+Debian update advisories; OCR retains the same 341 Debian findings. Exact rebuilt
+candidate digests and completed lint, tests, upgrade and cluster-QA evidence are
+in the [v0.6.2 validation record](validation/v0.6.2.md). These candidate results do
+not satisfy the final exact-release-digest scan and artifact-verification gate.
 
 Public Go advisories: [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) and
 [GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860).
