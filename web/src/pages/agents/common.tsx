@@ -163,18 +163,6 @@ export function configInput(c: AgentConfig): AgentConfigInput {
   };
 }
 
-/** Slug rules (same as team slugs): lower-case letters, digits and single hyphens. */
-export function slugify(name: string) {
-  return name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60)
-    .replace(/-+$/g, "");
-}
-
 /** A server problem as a sentence: problems come without a final period ("Choose a chat model"). */
 export const asSentence = (text: string) => (/[.!?…]$/.test(text.trim()) ? text : `${text.trim()}.`);
 

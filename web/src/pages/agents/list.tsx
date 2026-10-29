@@ -41,6 +41,11 @@ export function AgentsPage() {
   const modelName = (ag: Agent) => models.data?.find((m) => m.id === ag.draft.chatModelId)?.displayName ?? ag.published?.chatModelName ?? "";
   const editor = (ag: Agent, search?: Record<string, string>) => <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: ag.id }} search={search as never} />;
 
+  // Two agents may have the same name (only the address is unique): their rows would read the same, so they show it (#132).
+  const sameName = new Map<string, number>();
+  for (const ag of agents.data ?? []) sameName.set(ag.name.trim().toLowerCase(), (sameName.get(ag.name.trim().toLowerCase()) ?? 0) + 1);
+  const secondary = (ag: Agent) => ((sameName.get(ag.name.trim().toLowerCase()) ?? 0) > 1 ? [`Address: ${ag.slug}`, ag.description].filter(Boolean).join(" · ") : ag.description);
+
   const columns: DataTableColumn<Agent>[] = [
     {
       id: "name",
@@ -61,7 +66,7 @@ export function AgentsPage() {
                 ag.name
               )
             }
-            secondary={ag.description}
+            secondary={secondary(ag)}
           />
         </span>
       ),

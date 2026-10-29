@@ -10,9 +10,8 @@
  * Editors and members see no money. On a phone the breakdown's tables show
  * the name and the spend; Tokens and Requests are in their Columns menu.
  */
-import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { ApiError, type Schemas } from "@/api/client";
+import type { Schemas } from "@/api/client";
 import { teamSpendQuery } from "@/api/queries";
 import { num } from "@/components/analytics/format";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -21,7 +20,7 @@ import { Card } from "@/components/ui/card/card";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table/data-table";
-import { budgetStateLabel, monthLabel, requestsColumn, requestsHint, type TeamBudgetState } from "@/lib/costs";
+import { budgetStateLabel, monthLabel, requestsColumn, requestsHint, type TeamBudgetState, useTeamSpend } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { BudgetMeter } from "../admin/costs/budget-parts";
 import s from "../shared.module.css";
@@ -31,12 +30,7 @@ type Row = Schemas["CostReportRow"];
 
 export { teamSpendQuery };
 
-/** The team's spend this month; `off` while its cost mode is Off (the API's 404). Only owners, admins and platform staff may ask. */
-export function useTeamSpend(team: string, enabled = true) {
-  const q = useQuery({ ...teamSpendQuery(team), enabled });
-  const off = q.error instanceof ApiError && q.error.status === 404;
-  return { ...q, off };
-}
+export { useTeamSpend };
 
 /** "Oct 1": the first day of the next budget month, from this month's first day (a date in the platform's zone). */
 export function resetDay(month: string) {

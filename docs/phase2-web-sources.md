@@ -75,6 +75,8 @@ A `web` data source stores this JSON in `data_sources.config`. The type is fixed
   | 404 / 410 | not seen (so it is deleted at the end) | failed (with HTTP status) | failed |
   | other non-2xx, or network error | **marked seen** (keeps the previous version) | failed | failed |
 
+  **Downloads are skipped without a request:** a link (depth 1 or more, and not already a document) whose path ends in an archive, installer, disk image, picture, audio, video, font or unread office extension (`crawl.IsDownload`) is marked skipped (`unsupported_content`) before any fetch. Fetching it would wait for the origin's turn (`CRAWL_ORIGIN_INTERVAL`, a second by default) only to learn it is unsupported or redirected off the allowlist, so a page that lists thousands (go.dev/dl) made a run look hung at "Running" with "skipped" climbing a second at a time (#132).
+
   In **crawl mode**, links from HTML pages (`crawl.Links`) at `depth+1 ≤ maxDepth` that pass `Scope.Allows` are inserted with `ON CONFLICT DO NOTHING`. The frontier is capped at `maxPages × 5` rows.
 
   **Redirects:** the document's identity (`external_id`) is the normalised **final** URL. If a different requested URL already has a document, that document simply isn't seen and is deleted as stale at the end of the run.

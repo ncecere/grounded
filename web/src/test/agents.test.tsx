@@ -151,6 +151,21 @@ describe("team agents list", () => {
     expect(within(table).getByText("Draft helper")).toBeInTheDocument();
   });
 
+  it("tells agents with the same name apart by their address (#132)", async () => {
+    const twin = agent({ id: "ag2", slug: "registrar-assistant-2", description: "" });
+    mockApi(agentRoutes({ "GET /v1/teams/registrar/agents": () => [agent({ description: "" }), twin, agent({ id: "ag3", name: "Admissions helper", slug: "admissions", description: "Applications." })] }));
+    renderApp("/teams/registrar/agents");
+    const table = await screen.findByRole("table", { name: "Agents" }, { timeout: scaled(5000) });
+    const rows = await within(table).findAllByRole("row", { name: /Registrar assistant/ });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Address: registrar-assistant");
+    expect(rows[1]).toHaveTextContent("Address: registrar-assistant-2");
+    // A name that is not shared keeps its description alone.
+    const other = within(table).getByRole("row", { name: /Admissions helper/ });
+    expect(other).toHaveTextContent("Applications.");
+    expect(other).not.toHaveTextContent("Address:");
+  });
+
   it("creates an agent with a slug from its name, a model and knowledge bases", async () => {
     const calls = mockApi(agentRoutes({ "POST /v1/teams/registrar/agents": () => agent({ id: "ag1" }) }));
     const { router } = renderApp("/teams/registrar/agents");

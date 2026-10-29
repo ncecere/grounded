@@ -1,6 +1,7 @@
 /* Costs and budgets (docs/costs.md): queries, labels and small helpers shared by Admin → Costs, the model and team pages and the team workspace. */
 import { type QueryClient, useQuery } from "@tanstack/react-query";
-import { api, unwrap, type Schemas } from "@/api/client";
+import { api, ApiError, unwrap, type Schemas } from "@/api/client";
+import { teamSpendQuery } from "@/api/queries";
 import { dayLabel } from "@/components/analytics/format";
 import { formatMoney, formatMoneyExact } from "./format";
 
@@ -27,11 +28,29 @@ export const budgetStatusQuery = (team: string) => ({
 });
 
 /**
- * Forgets every team's remembered spend answer (a 404 costs_off is kept, see teamSpendQuery) after a cost mode
- * changed, so the pages ask again and show the spend that is now on (or none that is now off).
+ * Forgets every team's remembered spend and budget-status answers (the status says whether cost tracking is off, see
+ * useTeamSpend; a 404 costs_off is kept, see teamSpendQuery) after a cost mode changed, so the pages ask again and
+ * show the spend that is now on (or none that is now off).
  */
 export function forgetTeamSpend(qc: QueryClient) {
-  void qc.resetQueries({ queryKey: ["team"], predicate: (q) => q.queryKey[2] === "spend" });
+  void qc.resetQueries({ queryKey: ["team"], predicate: (q) => q.queryKey[2] === "spend" || q.queryKey[2] === "budget-status" });
+}
+
+/**
+ * The team's spend this month; `off` while its cost mode is Off. Only owners, admins and platform staff may ask.
+ * The budget status (every member may read it) carries the team's cost mode, so the spend is not requested at all
+ * while that says "off": the API would answer 404 costs_off, a red line in the network list on every team page (#132).
+ * Should the status fail, the spend is asked for anyway, and a 404 still reads as off.
+ */
+export function useTeamSpend(team: string, enabled = true) {
+  const status = useQuery({ ...budgetStatusQuery(team), enabled, retryOnMount: false, select: (b) => b.mode });
+  const modeOff = status.data === "off";
+  const ask = enabled && (status.isError || (status.isSuccess && !modeOff));
+  const q = useQuery({ ...teamSpendQuery(team), enabled: ask });
+  const off = modeOff || (q.error instanceof ApiError && q.error.status === 404);
+  // Until the status has answered, and then the spend, the page is waiting; a disabled query stays "pending" for ever.
+  const waiting = enabled && (status.isPending || (ask && q.isPending));
+  return { ...q, isPending: waiting, isLoading: waiting, off };
 }
 
 type Banner = Schemas["TeamBudgetBanner"];

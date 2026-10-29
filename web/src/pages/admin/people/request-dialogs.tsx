@@ -8,7 +8,7 @@ import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { slugify } from "../../agents/common";
+import { slugFromName } from "@/lib/slug";
 import { useAgentTemplates } from "../../agents/templates";
 import { useClassificationLevels } from "../../team/common";
 import { type AdminTeamRequest, RequestStatusBadge, adminTeamRequestsKey, statusLabels } from "../../team-requests/common";
@@ -50,7 +50,7 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
   const [classification, setClassification] = useState(request.classification);
   const [starter, setStarter] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const shownSlug = slugEdited ? slug : slugify(name);
+  const shownSlug = slugEdited ? slug : slugFromName(name);
   const owner = request.ownerEmail || request.requesterEmail;
   const decidedElsewhere = useDecidedElsewhere(request, onClose);
   const approve = useMutation({
