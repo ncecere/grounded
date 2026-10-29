@@ -11,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -84,6 +85,9 @@ func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a a
 		return Summary{}, AddResult{}, errAdminOnly
 	}
 	in.Slug = strings.ToLower(strings.TrimSpace(in.Slug))
+	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+		return Summary{}, AddResult{}, err
+	}
 	in.Name = strings.TrimSpace(in.Name)
 	if err := ValidateSlug(in.Slug); err != nil {
 		return Summary{}, AddResult{}, err
@@ -197,6 +201,9 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, ref string, in Upda
 		}
 		p := dbgen.UpdateTeamParams{ID: t.ID, Name: t.Name, Description: t.Description, MaxClassification: t.MaxClassification, Status: t.Status}
 		if in.Name != nil {
+			if err := displaytext.Validate(*in.Name, "invalid_name", "Name"); err != nil {
+				return err
+			}
 			p.Name = strings.TrimSpace(*in.Name)
 		}
 		if in.Description != nil {

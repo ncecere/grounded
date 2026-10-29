@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/boilerplate"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
@@ -241,6 +242,9 @@ func (s *Service) validateUpdate(ctx context.Context, sc scope, in UpdateInput) 
 func textAndStatus(cur dbgen.DataSource, in UpdateInput) (dbgen.UpdateSourceParams, error) {
 	p := dbgen.UpdateSourceParams{ID: cur.ID, Name: cur.Name, Description: cur.Description, Classification: cur.Classification, Status: cur.Status, Config: cur.Config}
 	if in.Name != nil {
+		if err := displaytext.Validate(*in.Name, "invalid_name", "Name"); err != nil {
+			return p, err
+		}
 		p.Name = strings.TrimSpace(*in.Name)
 	}
 	if in.Description != nil {

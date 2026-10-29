@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/sources"
@@ -233,13 +234,16 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	if err != nil {
 		return KB{}, err
 	}
-	in.Name = strings.TrimSpace(in.Name)
+	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+		return KB{}, err
+	}
 	if in.TopK == 0 {
 		in.TopK = 8
 	}
 	if err := validate(in); err != nil {
 		return KB{}, err
 	}
+	in.Name = strings.TrimSpace(in.Name)
 	var (
 		out     dbgen.KnowledgeBase
 		created []KB
@@ -313,13 +317,20 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
+		// The handler fills in the name even for unrelated updates. Do not force
+		// existing objects to be renamed unless their name actually changes.
+		if in.Name != cur.Name {
+			if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+				return err
+			}
+		}
 		if in.ProfileID != nil && *in.ProfileID != cur.EmbeddingProfileID {
 			return apperr.Invalid("profile_immutable", "A knowledge base's embedding profile cannot be changed")
 		}
-		in.Name = strings.TrimSpace(in.Name)
 		if err := validate(in); err != nil {
 			return err
 		}
+		in.Name = strings.TrimSpace(in.Name)
 		vw, kw := cur.VectorWeight, cur.KeywordWeight
 		switch {
 		case in.DefaultWeights:

@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store"
@@ -253,6 +254,9 @@ type RequestInput struct {
 func (s *Service) Ask(ctx context.Context, a authz.Actor, in RequestInput) (Request, error) {
 	if a.Delegated() || a.UserID == uuid.Nil {
 		return Request{}, errSignedInOnly
+	}
+	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+		return Request{}, err
 	}
 	name, purpose := strings.TrimSpace(in.Name), strings.TrimSpace(in.Purpose)
 	if n := len([]rune(name)); n < 1 || n > 80 {

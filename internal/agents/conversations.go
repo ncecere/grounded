@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -336,6 +337,9 @@ func utf16Len(s string) int {
 
 // RenameConversation changes the title of the actor's conversation.
 func (s *Service) RenameConversation(ctx context.Context, a authz.Actor, id uuid.UUID, title string) (dbgen.Conversation, error) {
+	if err := displaytext.Validate(title, "invalid_title", "Title"); err != nil {
+		return dbgen.Conversation{}, err
+	}
 	title = strings.TrimSpace(title)
 	if n := len([]rune(title)); n < 1 || n > 200 {
 		return dbgen.Conversation{}, apperr.Invalid("invalid_title", "The title must be 1-200 characters")

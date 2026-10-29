@@ -422,10 +422,10 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, o Owner, in CreateI
 	if err != nil {
 		return Summary{}, err
 	}
-	in.Name = strings.TrimSpace(in.Name)
-	if err := validateText(in.Name, in.Description); err != nil {
+	if err := validateNewText(in.Name, in.Description); err != nil {
 		return Summary{}, err
 	}
+	in.Name = strings.TrimSpace(in.Name)
 	if in.Type == "" {
 		in.Type = TypeUpload
 	}

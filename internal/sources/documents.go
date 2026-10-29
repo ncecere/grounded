@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/breakglass"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/parse"
@@ -110,7 +111,14 @@ func cleanFilename(name string) string {
 	}
 	if len(name) > 255 {
 		ext := path.Ext(name)
-		name = name[:255-len(ext)] + ext
+		if len(ext) >= 255 {
+			return ""
+		}
+		prefix := name[:255-len(ext)]
+		for !utf8.ValidString(prefix) {
+			prefix = prefix[:len(prefix)-1]
+		}
+		name = prefix + ext
 	}
 	if name == "." || name == "/" {
 		return ""
@@ -165,6 +173,10 @@ func headMatches(ext string, head []byte) bool {
 // identical content is left unchanged.
 func (u *Uploader) Upload(ctx context.Context, filename string, body io.Reader, contentType string) (UploadResult, error) {
 	s := u.s
+	if err := displaytext.Validate(filename, "invalid_filename", "Filename"); err != nil {
+		e, _ := apperr.As(err)
+		return UploadResult{Filename: filename, Status: "rejected", Error: e}, nil
+	}
 	name := cleanFilename(filename)
 	if name == "" {
 		return reject(filename, "invalid_filename", "The file needs a name", http.StatusBadRequest), nil

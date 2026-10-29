@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -95,7 +96,11 @@ func (ru *run) newConversation(ctx context.Context, q *dbgen.Queries) (dbgen.Con
 // question, shortened.
 func titleFrom(q string) string {
 	line, _, _ := strings.Cut(q, "\n")
-	return truncateRunes(strings.TrimSpace(line), 80)
+	title := strings.TrimSpace(displaytext.Derived(line))
+	if title == "" {
+		return "New conversation"
+	}
+	return truncateRunes(title, 80)
 }
 
 // historyFromRows rebuilds the model history: user questions and the final

@@ -30,6 +30,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -128,6 +129,9 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	}
 	if acc.Team.Status != teams.StatusActive {
 		return Created{}, apperr.Conflict("team_archived", "This team is archived and read-only")
+	}
+	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+		return Created{}, err
 	}
 	in.Name = strings.TrimSpace(in.Name)
 	if n := len(in.Name); n < 1 || n > 100 {
