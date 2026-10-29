@@ -121,7 +121,7 @@ func (a *api) getTeamBudgetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := bs.Status
-	out := apitypes.TeamBudgetBanner{State: apitypes.BudgetState(st.State), Enforced: st.Enforced()}
+	out := apitypes.TeamBudgetBanner{State: apitypes.BudgetState(st.State), Enforced: st.Enforced(), Mode: apitypes.CostMode(st.Mode)}
 	if st.State == costs.StateNone {
 		httpx.JSON(w, http.StatusOK, out)
 		return

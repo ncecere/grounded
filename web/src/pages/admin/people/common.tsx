@@ -15,12 +15,3 @@ export function UserStatusBadge({ status }: { status: Schemas["User"]["status"] 
 export function TeamStatusBadge({ status }: { status: Schemas["TeamStatus"] }) {
   return status === "active" ? <StatusBadge tone="success">Active</StatusBadge> : <StatusBadge tone="warning">Archived</StatusBadge>;
 }
-
-/** A team slug suggested from its name: lowercase, hyphen-separated, at most 63 characters. */
-export function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63);
-}

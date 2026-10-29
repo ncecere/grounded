@@ -25,11 +25,10 @@ export const adminTeamQuery = (team: string) =>
  * mode is Off, so data means cost tracking is on: Team settings' usage tab and its ⌘K command are then
  * "Usage & spend".
  *
- * The 404 is remembered: a page that mounts later (or a window that gains focus) does not ask again while
- * the answer is in the cache, which used to put one red 404 in the network list for every team page opened.
- * The budget status cannot tell "off" from "tracking, no budget" (both read state "none"), so the request
- * cannot be skipped beforehand without the API saying the mode; the cache lasts gcTime (5 minutes) after the
- * last page using it, or until a mutation invalidates the team's queries.
+ * Pages use useTeamSpend (pages/team/spend.tsx), which does not ask while the team's budget status says its cost
+ * mode is "off" (#132). The 404 is still remembered, for the status failing or a mode that changed in between: a page
+ * that mounts later (or a window that gains focus) does not ask again while the answer is in the cache. The cache
+ * lasts gcTime (5 minutes) after the last page using it, or until a cost mode changes (forgetTeamSpend).
  */
 export const teamSpendQuery = (team: string) =>
   queryOptions({

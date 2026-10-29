@@ -134,3 +134,26 @@ func TestTrapReason(t *testing.T) {
 		}
 	}
 }
+
+func TestIsDownload(t *testing.T) {
+	for u, want := range map[string]bool{
+		"https://go.dev/dl/go1.25.0.linux-amd64.tar.gz":  true,
+		"https://go.dev/dl/go1.25.0.windows-amd64.MSI":   true,
+		"https://example.edu/files/photo.JPG?size=large": true,
+		"https://example.edu/a.zip#part":                 true,
+		"https://example.edu/guide.pdf":                  false,
+		"https://example.edu/forms.docx":                 false,
+		"https://example.edu/slides.pptx":                false,
+		"https://example.edu/readme.md":                  false,
+		"https://example.edu/data.csv":                   false,
+		"https://example.edu/admissions/":                false,
+		"https://example.edu/page.html":                  false,
+		"https://example.edu/download?file=a.zip":        false, // the query is not the file
+		"https://example.edu/v1.2":                       false,
+		"::not a url":                                    false,
+	} {
+		if got := IsDownload(u); got != want {
+			t.Errorf("IsDownload(%q) = %v, want %v", u, got, want)
+		}
+	}
+}

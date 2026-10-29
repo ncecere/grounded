@@ -145,64 +145,6 @@ func (s *Service) access(ctx context.Context, a authz.Actor, o Owner, write bool
 	return s.accessFor(ctx, a, o, write, nil)
 }
 
-// readAccess is access for a read that a platform admin who isn't a member
-// may make under a break-glass session with the documents scope (ADR-0024).
-// The read is recorded in the audit log when it is authorized, before the
-// content is fetched. A read of the team itself (the source list) passes
-// an empty TargetID.
-func (s *Service) readAccess(ctx context.Context, a authz.Actor, o Owner, r breakglass.Read) (scope, error) {
-	return s.accessFor(ctx, a, o, false, &r)
-}
-
-func (s *Service) accessFor(ctx context.Context, a authz.Actor, o Owner, write bool, read *breakglass.Read) (scope, error) {
-	if o.platform {
-		if a.Key != nil || !a.CanReadPlatform() {
-			return scope{}, apperr.Forbidden("Shared sources are managed by platform admins")
-		}
-		if write && !a.IsPlatformAdmin() {
-			return scope{}, apperr.Forbidden("Only platform admins can change shared sources")
-		}
-		return scope{}, nil
-	}
-	acc, err := s.Teams.Get(ctx, a, o.teamRef)
-	if err != nil {
-		return scope{}, err
-	}
-	if acc.Role == "" {
-		return s.breakGlassScope(ctx, a, acc, read)
-	}
-	if write {
-		if !authz.RoleAtLeast(acc.Role, authz.RoleEditor) {
-			return scope{}, apperr.Forbidden("Only team editors, admins and owners can change data sources")
-		}
-		if acc.Team.Status != teams.StatusActive {
-			return scope{}, apperr.Conflict("team_archived", "This team is archived and read-only")
-		}
-	}
-	return scope{team: &acc.Team, role: acc.Role, key: a.Key}, nil
-}
-
-// breakGlassScope answers a non-member: a read under the actor's break-glass
-// session, or 404 as for anyone outside the team.
-func (s *Service) breakGlassScope(ctx context.Context, a authz.Actor, acc teams.Access, read *breakglass.Read) (scope, error) {
-	errTeam := apperr.NotFound("team_not_found", "Team not found")
-	if read == nil {
-		return scope{}, errTeam
-	}
-	r := *read
-	if r.TargetID == "" {
-		r.TargetType, r.TargetID = "team", acc.Team.ID.String()
-	}
-	g, err := s.BreakGlass.Authorize(ctx, a, acc.Team.ID, r)
-	if err != nil {
-		return scope{}, err
-	}
-	if g == nil {
-		return scope{}, errTeam
-	}
-	return scope{team: &acc.Team}, nil
-}
-
 func (s *Service) source(ctx context.Context, q *dbgen.Queries, sc scope, id uuid.UUID, lock bool) (dbgen.DataSource, error) {
 	var (
 		src dbgen.DataSource

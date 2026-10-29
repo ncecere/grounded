@@ -42,3 +42,26 @@ func TestConfigTypeErrorsNameFieldsNotGoTypes(t *testing.T) {
 		t.Fatalf("valid incomplete draft rejected: %v", err)
 	}
 }
+
+// #132: a number that is positive but too large was told "must be a positive number".
+func TestMaxOutputTokensMessages(t *testing.T) {
+	for _, tc := range []struct{ raw, want string }{
+		{`{"maxOutputTokens":0}`, "Maximum output tokens must be a positive number"},
+		{`{"maxOutputTokens":-5}`, "Maximum output tokens must be a positive number"},
+		{`{"maxOutputTokens":99999999999}`, "Maximum output tokens is too large. The most is 1000000"},
+		{`{"maxOutputTokens":1000001}`, "Maximum output tokens is too large. The most is 1000000"},
+	} {
+		_, err := ParseConfig(json.RawMessage(tc.raw))
+		var problem *apperr.Error
+		if !errors.As(err, &problem) {
+			t.Fatalf("%s: %v", tc.raw, err)
+		}
+		items := problem.Details.(map[string]any)["problems"].([]Problem)
+		if len(items) != 1 || items[0].Field != "maxOutputTokens" || items[0].Problem != tc.want {
+			t.Errorf("%s: problems = %+v, want %q", tc.raw, items, tc.want)
+		}
+	}
+	if _, err := ParseConfig(json.RawMessage(`{"maxOutputTokens":1000000}`)); err != nil {
+		t.Errorf("the limit itself: %v", err)
+	}
+}
