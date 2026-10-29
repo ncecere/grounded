@@ -89,6 +89,23 @@ Every question's rank is identical before and after. It matches the documented 0
 
 Before, the #1 hit for "How do I build an agent with Pydantic AI?" was the footer call to action "Ready to see what your agents are actually doing? Start free". After, it is the Pydantic AI section of an article, followed by two getting-started passages. For "How do Logfire dashboards work?", the dashboards article now fills the top three instead of sharing them with repeated cards. The two duplicated hits left are the product comparison pages' "Choose a traditional APM if …" and a "Comparison" label, repeated on 4–10 pages (below the threshold of 30).
 
+## Near-duplicate matching cost
+
+Opt-in (DESIGN.md §5.5, A11, #23). **No answer-quality claim is made:** it was validated with fake models and test sites (the fixture of `internal/httpapi/boilerplate_fuzzy_integration_test.go`: twelve pages with a menu whose highlighted item changes, a footer whose date changes, negative controls that share words, an exact repeat), not on a real site. Whether it helps retrieval on a real knowledge base is for the evaluation sets of an index preview to say.
+
+**What it does on the fixture.** With exact matching, 1 repeated block is found (the sign-off) and every page keeps its own menu and footer. With near-duplicate matching, 3: the sign-off, the 10 menus (one cluster) and the 12 footers (one cluster), each kept on `p01.md` and left out of the other 11 pages. The control sentences, the template line and every page's own paragraph stay. Turning it off restores the exact result byte for byte (`testdata/boilerplate_exact_golden.json`, written before the feature).
+
+**Cost at scale.** 100,000 documents of 30 eligible blocks each (3 million blocks, threshold 20,000), on the 4-CPU shared development host, one core in use:
+
+| | Postgres, end to end (`TestFuzzyAtScalePostgres`) | The clustering alone (`TestClustersAtScale`) |
+|---|---:|---:|
+| Classification (three passes) | **21 s** | 15.6 s (19.3 s less 3.7 s generating the input) |
+| Peak heap | 188 MB (mostly garbage between collections) | 61 MB |
+| Count-min sketch | 32 MB, fixed | 32 MB, fixed |
+| `document_blocks` of the source, with sketches | 161 MB | |
+
+Reproduce with `GROUNDED_FUZZY_SCALE=1 RUN_ID=x bash /tmp/grounded-test-with-deps.sh go test ./internal/ingest ./internal/boilerplate -run 'AtScale' -v` (the ingest test loads the source into Postgres first, 12 s). The refresh that follows a crawl or a settings change does this once, in the background, and re-chunks only the pages whose dropped blocks change. Time and memory are bounded by the limits, not by the source: at most 100,000 candidate blocks and 20 million sketch comparisons (beyond that the source is classified by exact blocks only, with a warning in the log). Most of the time is the count-min passes (random access into 32 MB). Sources of a few thousand pages take well under a second. Not measured: the first backfill of sketches from stored parsed text of 100,000 existing documents (one object-store read each, 50 per step).
+
 ## Reproduce
 
 ```sh

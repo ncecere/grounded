@@ -119,6 +119,23 @@ describe("Preview new settings", () => {
     expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 2 } });
   });
 
+  it("sends near-duplicate matching only when it is chosen, and the dialog has no accessibility violations (#23)", async () => {
+    const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const field = await within(dialog).findByRole("combobox", { name: "Repeated blocks" });
+    expect(field).toHaveValue("");
+    expect(within(field).getAllByRole("option").map((o) => o.textContent)).toEqual(["Keep each source's setting", "Treat near-duplicate blocks as one"]);
+    // Left alone, it changes nothing: the dialog still says the new index would be identical.
+    expect(within(dialog).getByText(/Nothing is filled in, so the new index will be identical/)).toBeInTheDocument();
+    await userEvent.selectOptions(field, "on");
+    expect(within(dialog).queryByText(/Nothing is filled in/)).not.toBeInTheDocument();
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
+    expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { boilerplateFuzzy: true } });
+  });
+
   it("says when the knowledge base already uses the merging chunker", async () => {
     mockApi(routes({ "GET /v1/admin/embedding-profiles": () => [profile("p1", "Nomic 768", { chunkerVersion: 2 }), profile("p2", "Qwen3 768")] }));
     renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
