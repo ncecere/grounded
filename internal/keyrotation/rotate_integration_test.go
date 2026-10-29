@@ -341,6 +341,8 @@ func TestEveryEncryptedColumnIsRegistered(t *testing.T) {
 		"river_job.unique_key": true,
 		// A conversation link's secret is 32 random bytes; the table keeps their plain SHA-256 (nothing to pepper or rotate).
 		"conversation_shares.token_hash": true,
+		// MinHash sketches of a document's blocks (near-duplicate boilerplate matching, #23): derived from public page text, no secret.
+		"document_blocks.sketches": true,
 	}
 	for _, c := range keyrotation.Columns {
 		known[c.Name()] = true
