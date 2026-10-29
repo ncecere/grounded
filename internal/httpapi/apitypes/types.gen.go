@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	jsonfield "github.com/ncecere/grounded/internal/jsonfield"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -10006,13 +10007,13 @@ type PlatformLimit struct {
 	Unit   LimitUnit   `json:"unit"`
 }
 
-// PlatformLimitSetting defines model for PlatformLimitSetting.
+// PlatformLimitSetting All three members are required, including explicit nulls. Numeric public_message_max_chars defaults and ceilings must be at least 1; use the public-access switch to disable chat, not a zero message length.
 type PlatformLimitSetting struct {
-	// Ceiling null = no ceiling
-	Ceiling *LimitValue `json:"ceiling"`
+	// Ceiling Explicit null = no ceiling; omission is invalid_limit
+	Ceiling RequiredLimitValue `json:"ceiling"`
 
-	// Default null = unlimited; must be at most the ceiling
-	Default *LimitValue `json:"default"`
+	// Default Explicit null = unlimited; must be at most the ceiling
+	Default RequiredLimitValue `json:"default"`
 
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
 	Key LimitKey `json:"key"`
@@ -10529,6 +10530,9 @@ type RequestTimings struct {
 	// TlsMs TLS handshake; 0 for http
 	TlsMs float64 `json:"tlsMs"`
 }
+
+// RequiredLimitValue A required nullable integer. The member must be sent explicitly; null means unlimited/no ceiling. Omission is not an implicit reset.
+type RequiredLimitValue = jsonfield.NullableInt64
 
 // RerankModelTest Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher)
 type RerankModelTest struct {
@@ -11396,7 +11400,7 @@ type TeamLimitOverride struct {
 	// Max The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none.
 	Max *int64 `json:"max,omitempty"`
 
-	// Override The team's own value (0 = blocked); null = inherits the default
+	// Override The team's own value (0 = blocked, except public_message_max_chars must be at least 1); null = inherits the default
 	Override *LimitValue `json:"override"`
 
 	// Period none: a total or a concurrency level; minute; day: a UTC day

@@ -121,6 +121,9 @@ type Def struct {
 	// Max is a maximum built into Grounded (nil = none): no default,
 	// ceiling or team value may be above it, and "unlimited" means it.
 	Max *int64
+	// Min bounds numeric settings/overrides when zero cannot represent blocking.
+	// Nil values retain their existing unlimited/inherit meaning.
+	Min *int64
 }
 
 func ptr(n int64) *int64 { return &n }
@@ -181,7 +184,7 @@ var registry = []Def{
 	{Key: PublicConcurrentChatsPerAgent, Group: GroupPublic, Unit: UnitCount, Label: "Public concurrent chats per agent", Noun: "concurrent public chats",
 		Description: "Anonymous answers streaming at once for each public agent.", Default: ptr(20)},
 	{Key: PublicMessageMaxChars, Group: GroupPublic, Unit: UnitCount, Label: "Public message length", Noun: "characters",
-		Description: "The longest question an anonymous visitor may send, in characters.", Default: ptr(2_000)},
+		Description: "The longest question an anonymous visitor may send, in characters (at least 1). Turn public access off to disable chat.", Default: ptr(2_000), Min: ptr(1)},
 	{Key: EvaluationSets, Group: GroupEvaluations, Unit: UnitCount, Label: "Evaluation sets", Noun: "evaluation sets",
 		Description: "Evaluation sets across the team's knowledge bases and agents.", Default: ptr(50)},
 	{Key: EvaluationQuestionsPerSet, Group: GroupEvaluations, Unit: UnitCount, Label: "Questions per evaluation set", Noun: "questions in this set",
