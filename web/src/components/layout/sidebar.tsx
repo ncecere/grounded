@@ -128,10 +128,8 @@ function WorkspaceNav({ me, active }: { me: Me; active: ActiveTeam }) {
   );
 }
 
-/** Admin groups (D6); SystemOne only once a SystemOne model exists. Groups collapse (useAdminGroups). */
+/** Admin groups (D6). Groups collapse (useAdminGroups). */
 function AdminNav() {
-  const models = useQuery({ queryKey: ["admin", "models"], queryFn: async () => unwrap(await api.GET("/v1/admin/models")) });
-  const hasSystemOne = (models.data ?? []).some((m) => m.kind === "systemone");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const groups = useAdminGroups(activeAdminGroup(pathname));
   return adminSections.map((section, i) => (
@@ -143,7 +141,6 @@ function AdminNav() {
       onOpenChange={section.label ? (o) => groups.setOpen(section.label!, o) : undefined}
     >
       {section.items
-        .filter((item) => !item.systemOne || hasSystemOne)
         .map((item) => (
           <SidebarItem
             key={item.to}
