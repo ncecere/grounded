@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Agent config type errors name the public field, not a Go type.** For example, `maxOutputTokens` supplied as text returns `400 invalid_config` with `maxOutputTokens must be a whole number` and the matching field in `details.problems`. Draft creation and updates preserve their existing validation and revisions on failure. (#119, partial)
 
 - **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
+- **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
 ## [0.6.2] - 2026-10-29
 
@@ -25,10 +26,6 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 ### Security
 
 - **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. **golang.org/x/net v0.62.0** also fixes GO-2026-6860, a reachable quadratic-complexity issue while parsing HTML during ingestion. **go-jose v4.1.6** fixes CVE-2026-116587, denial of service while parsing RSA JWKs, found by the candidate-image scan. The web lockfile updates shipped `seroval` to 1.7.3 for two serialization injection advisories, and development-only `undici` to 8.12.3 for its HTTP/TLS advisories. No direct npm dependency, product setting or migration changes. (#169)
-
-### Fixed
-
-- **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
 ## [0.6.1] - 2026-10-17
 
