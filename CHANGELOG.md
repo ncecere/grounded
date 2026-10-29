@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Settings links to Features land correctly after a reload.** The page re-anchors `#features` once the asynchronously loaded general settings above it settle, for admins and auditors. Ordinary page entries and background refetches/saves do not force another scroll. (#146, partial)
+
 - **Display names cannot hide or reorder their identity with control/formatting characters.** New and renamed teams, agents, KBs, sources and API keys, and explicit conversation titles, reject control characters, bidi controls, zero-width joiners and other invisible formatting. Uploaded filenames are refused before storage instead of being silently cleaned into another identity. Ordinary Unicode names remain supported; existing names are not rewritten, and initial conversation titles omit hidden characters without changing the message. Joiner-based emoji/scripts must use a label without the joiner; this does not prevent all Unicode confusables. (#119)
 - **Public message length cannot be set to zero.** Numeric defaults, ceilings and team overrides for `public_message_max_chars` must be at least 1; use the public-access switch to turn chat off. Other resources still accept zero to block them, and null keeps its unlimited/inherit meaning. Platform limit updates require explicit `default` and `ceiling` members, so omitting one no longer silently resets it to null. Rejected updates leave revisions and audits unchanged. (#146, partial)
 
