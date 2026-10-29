@@ -22,7 +22,7 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 
 ### Fixed
 
-- **Wrong methods on the OpenAI-compatible endpoints use OpenAI errors.** Unsupported methods on `/v1/models` and `/v1/chat/completions` now return `405 method_not_allowed`, with `message`, `type`, `code` and `param`, and an accurate `Allow` header, instead of the app's native 404. `HEAD /v1/models` still follows GET. OPTIONS is not a CORS preflight grant. (#116)
+- **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
 
 ## [0.6.1] - 2026-10-17
 
