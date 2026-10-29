@@ -22,7 +22,7 @@ KIND        := $(K8S_TOOLS)/kind-$(KIND_VERSION)/kind
 PROMETHEUS_VERSION ?= 3.15.0
 PROMTOOL := $(CURDIR)/bin/obs-tools/prometheus-$(PROMETHEUS_VERSION)/promtool
 
-.PHONY: help deps-up dev-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy fake-mcp widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
+.PHONY: help deps-up dev-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy fake-mcp widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-ocr-network-test k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -139,7 +139,11 @@ k8s-validate: $(KUSTOMIZE) $(KUBECONFORM) ## Render every Kubernetes overlay and
 	GO=$(GO) KUSTOMIZE=$(KUSTOMIZE) KUBECONFORM=$(KUBECONFORM) deploy/kubernetes/scripts/validate.sh
 
 k8s-smoke: $(KIND) $(KUSTOMIZE) ## Deploy the manifests on a throwaway kind cluster; check readiness and OCR (needs docker, jq)
-	KIND=$(KIND) KUSTOMIZE=$(KUSTOMIZE) deploy/kubernetes/scripts/kind-smoke.sh
+	GO=$(GO) KIND=$(KIND) KUSTOMIZE=$(KUSTOMIZE) deploy/kubernetes/scripts/kind-smoke.sh
+
+k8s-ocr-network-test: $(KIND) ## Verify OCR denies DNS/external egress while API/worker and probes work (OCR_IMAGE required)
+	python3 -m unittest discover -s deploy/kubernetes/scripts -p test_ocr_networkpolicy.py
+	GO=$(GO) KIND=$(KIND) python3 deploy/kubernetes/scripts/ocr_networkpolicy.py --ocr-image "$(OCR_IMAGE)"
 
 k8s-load: $(KIND) $(KUSTOMIZE) ## Load tests (k6, fake models) on a throwaway kind cluster; SCENARIOS="chat retrieve openai ingest mixed"
 	KIND=$(KIND) KUSTOMIZE=$(KUSTOMIZE) deploy/loadtest/run.sh $(SCENARIOS)

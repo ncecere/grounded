@@ -179,5 +179,10 @@ after="$(kc get deploy/grounded-api -o jsonpath='{.spec.template.spec.containers
 [ "$before" != "$after" ] || { echo "FAIL: the api still uses ${before} after a configuration change" >&2; exit 1; }
 echo "grounded-config: ${before} -> ${after}"
 
+echo "--- OCR NetworkPolicy in an isolated namespace (positive and negative connectivity controls)"
+python3 -m unittest discover -s "${root}/scripts" -p test_ocr_networkpolicy.py
+python3 "${root}/scripts/ocr_networkpolicy.py" --ocr-image "$ocr_image" \
+  --cluster "$cluster" --kubeconfig "$kubeconfig"
+
 kc get pods -o wide
 echo "--- smoke test passed"

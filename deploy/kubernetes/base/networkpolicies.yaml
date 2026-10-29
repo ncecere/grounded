@@ -29,7 +29,13 @@ metadata:
     app.kubernetes.io/name: grounded
     app.kubernetes.io/part-of: grounded
 spec:
-  podSelector: {}
+  # OCR uses no DNS. A namespace-wide grant here would override its
+  # component's deny-all egress because NetworkPolicies combine by union.
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: NotIn
+        values: [ocr]
   policyTypes: [Egress]
   egress:
     - to:
