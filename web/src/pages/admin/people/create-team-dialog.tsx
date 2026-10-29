@@ -9,7 +9,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { emailProblem } from "@/lib/validation";
 import { useClassifications } from "../hooks";
-import { slugify } from "./common";
+import { slugFromName } from "@/lib/slug";
 
 const empty = { name: "", slug: "", description: "", maxClassification: "open", ownerEmail: "" };
 type TeamForm = typeof empty;
@@ -75,7 +75,7 @@ export function CreateTeamDialog({ open, onOpenChange }: { open: boolean; onOpen
           <TeamFields
             form={form}
             levels={levels.data}
-            onName={(name) => setForm({ ...form, name, slug: slugEdited ? form.slug : slugify(name) })}
+            onName={(name) => setForm({ ...form, name, slug: slugEdited ? form.slug : slugFromName(name) })}
             slugError={slugTaken ? "A team with this slug already exists. Choose another." : undefined}
             onSlug={(slug) => {
               setSlugEdited(true);

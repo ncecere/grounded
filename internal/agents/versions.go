@@ -4,8 +4,10 @@
 package agents
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -42,6 +44,10 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 	if err != nil {
 		return Version{}, err
 	}
+	// Nothing to publish: the UI says "No changes since version N" and offers no Publish; the API refuses the same (#132).
+	if err := s.refuseUnchanged(ctx, s.q, pre); err != nil {
+		return Version{}, err
+	}
 	audience := DecodeConfig(pre.Draft).Audience
 	if err := s.checkPublishAudience(ctx, acc.Role, audience); err != nil {
 		return Version{}, err
@@ -50,6 +56,9 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		cur, err := s.loadAgent(ctx, q, acc.Team.ID, id, true)
 		if err != nil {
+			return err
+		}
+		if err := s.refuseUnchanged(ctx, q, cur); err != nil {
 			return err
 		}
 		cfg := DecodeConfig(cur.Draft)
@@ -104,6 +113,23 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 		name = u.DisplayName
 	}
 	return s.versionView(ctx, ver, name), nil
+}
+
+// refuseUnchanged is 409 no_changes when the agent's draft is exactly its published version (the rule of View's
+// HasUnpublishedChanges, which the editor shows as "No changes since version N"): publishing it again would add an
+// identical version, a new row in the history and a webhook and audit entry for nothing.
+func (s *Service) refuseUnchanged(ctx context.Context, q *dbgen.Queries, ag dbgen.Agent) error {
+	if !ag.PublishedVersionID.Valid {
+		return nil
+	}
+	pv, err := q.GetAgentVersion(ctx, ag.PublishedVersionID.UUID)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(DecodeConfig(ag.Draft).JSON(), DecodeConfig(pv.Config).JSON()) {
+		return apperr.Conflict("no_changes", fmt.Sprintf("No changes since version %d. Change the draft first.", pv.Version))
+	}
+	return nil
 }
 
 // insertVersion stores the version and its KBs and publishes it.

@@ -6,6 +6,7 @@ package sources
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -183,6 +184,13 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 		if err != nil {
 			return err
 		}
+		if noop, err := s.isNoop(ctx, q, cur, p, newConfig, in); err != nil {
+			return err
+		} else if noop {
+			// Nothing to change: no write, no new revision and no audit entry (#132).
+			out = cur
+			return nil
+		}
 		scheduleChanged, err := applyWebConfig(ctx, q, cur, newConfig, &p)
 		if err != nil {
 			return err
@@ -219,6 +227,36 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 		return Summary{}, err
 	}
 	return s.summary(ctx, src)
+}
+
+// isNoop reports whether an update changes nothing: the text, status, classification, web configuration, OCR switch
+// and boilerplate overrides it names are already what they say. Such an update is not written (#132): a revision
+// that moved without a change makes the next editor's If-Match fail for no reason, and an audit entry would claim
+// a change that never happened. A web configuration on a source that is not a web source is not a no-op, so the
+// update reports its error.
+func (s *Service) isNoop(ctx context.Context, q *dbgen.Queries, cur dbgen.DataSource, p dbgen.UpdateSourceParams, cfg *web.Config, in UpdateInput) (bool, error) {
+	if p.Name != cur.Name || p.Description != cur.Description || p.Classification != cur.Classification || p.Status != cur.Status {
+		return false, nil
+	}
+	if cfg != nil && (cur.Type != TypeWeb || !sameJSON(cur.Config, cfg.JSON())) {
+		return false, nil
+	}
+	if in.OCREnabled != nil && *in.OCREnabled != cur.OcrEnabled {
+		return false, nil
+	}
+	if in.Boilerplate != nil {
+		set, _, err := ingest.SourceBoilerplate(ctx, q, cur.ID)
+		if err != nil || !sameSettings(set, *in.Boilerplate) {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// sameJSON reports whether two JSON documents hold the same value, whatever their key order or spacing.
+func sameJSON(a, b json.RawMessage) bool {
+	var x, y any
+	return json.Unmarshal(a, &x) == nil && json.Unmarshal(b, &y) == nil && reflect.DeepEqual(x, y)
 }
 
 // validateUpdate checks the boilerplate overrides and a new web

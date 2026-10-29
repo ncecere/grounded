@@ -173,13 +173,23 @@ func (s *Service) accessFor(ctx context.Context, a authz.Actor, o Owner, write b
 	}
 	if write {
 		if !authz.RoleAtLeast(acc.Role, authz.RoleEditor) {
-			return scope{}, apperr.Forbidden("Only team editors, admins and owners can change data sources")
+			return scope{}, writeDenied(a)
 		}
 		if acc.Team.Status != teams.StatusActive {
 			return scope{}, apperr.Conflict("team_archived", "This team is archived and read-only")
 		}
 	}
 	return scope{team: &acc.Team, role: acc.Role, key: a.Key}, nil
+}
+
+// writeDenied is the refusal of a change to data sources. A key with only the query scope acts as a member, and
+// "only team editors" tells it nothing it can act on: it needs the ingest scope (#132). Anyone else, including a key
+// whose scopes are enough but whose owner is not an editor now, is told who may.
+func writeDenied(a authz.Actor) error {
+	if k := a.Key; k != nil && !k.HasScope(authz.ScopeIngest) && !k.HasScope(authz.ScopeManage) {
+		return apperr.Forbidden("This API key needs the ingest scope to change data sources. Create a key with the ingest scope.")
+	}
+	return apperr.Forbidden("Only team editors, admins and owners can change data sources")
 }
 
 // breakGlassScope answers a non-member: a read under the actor's break-glass

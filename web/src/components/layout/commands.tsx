@@ -1,9 +1,8 @@
 /* The command palette's groups: pages, the team's places (team-commands.tsx), team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Globe, Home, KeyRound, MessagesSquare, Plug, Plus, User, UserPlus } from "lucide-react";
 import { useMemo } from "react";
-import { teamSpendQuery } from "../../api/queries";
+import { useTeamSpend } from "../../lib/costs";
 import { requestIntent, type Intent } from "../../lib/intents";
 import { type TeamSettingsTab } from "../../lib/tabs";
 import { terms } from "../../lib/terms";
@@ -222,7 +221,7 @@ export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: st
   const teamName = active.name ?? "Team";
   // Whether the team's usage tab shows spend (its owners and admins, while cost tracking is on), for the command's name.
   const manager = mine?.status === "active" && (mine.role === "owner" || mine.role === "admin");
-  const spend = useQuery({ ...teamSpendQuery(slug ?? ""), enabled: open && Boolean(slug) && manager });
+  const spend = useTeamSpend(slug ?? "", open && Boolean(slug) && manager);
   const spendOn = manager && spend.data !== undefined;
 
   const { mode } = useColorMode();
