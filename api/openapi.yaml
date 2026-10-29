@@ -136,8 +136,11 @@ paths:
         Checks the publishable key, the agent's status and audience, and the
         public switch. Content-Security-Policy frame-ancestors lists 'self'
         and the key's allowed origins; X-Frame-Options is not sent. A Referer
-        from another origin must be allowed. With preview=1 (and no key) it is
-        the editor's same-origin preview for team members.
+        from another origin must be allowed. With preview=1 (and no key), a
+        syntactically valid UUID receives the generic SPA shell (200), including
+        an anonymous caller or unknown agent ID; this does not disclose an agent
+        profile or grant access. Preview framing is same-origin only. The app's
+        subsequent signed-in team APIs enforce membership and agent access.
       parameters:
         - name: key
           in: query
@@ -225,6 +228,7 @@ paths:
       operationId: getAuthConfig
       summary: Sign-in methods and instance identity for the web UI
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Sign-in configuration
           content:
@@ -249,6 +253,7 @@ paths:
             session is still a 401 (and clears the cookie).
           schema: { type: boolean }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Current user (null only with optional=true and no session cookie)
           content:
@@ -280,6 +285,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of notifications
           content:
@@ -307,6 +313,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/NotificationUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The notification
           content:
@@ -333,6 +340,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/NotificationReadAll" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: How many notifications changed
           content:
@@ -349,6 +357,7 @@ paths:
       operationId: getNotificationSettings
       summary: The caller's channels for every notification type
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           content:
@@ -372,6 +381,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/NotificationSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           content:
@@ -388,6 +398,7 @@ paths:
       operationId: listClassifications
       summary: Classification levels, least to most sensitive
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Levels ordered by rank
           content:
@@ -406,6 +417,7 @@ paths:
       operationId: listMyTeams
       summary: Teams the caller belongs to
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Memberships
           content:
@@ -426,6 +438,7 @@ paths:
       operationId: getTeam
       summary: A team the caller belongs to (platform admins and auditors see any team)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Team
           headers:
@@ -446,6 +459,7 @@ paths:
       operationId: listMembers
       summary: Team members
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Members, owners first
           content:
@@ -468,6 +482,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MemberAdd" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Added or invited
           content:
@@ -501,6 +516,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MemberUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated member
           headers:
@@ -526,6 +542,7 @@ paths:
         rule manages the membership: the person would be added again at their
         next sign-in. 409 last_owner for the team's only owner.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -538,6 +555,7 @@ paths:
       operationId: listInvites
       summary: Open email invites
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Invites
           content:
@@ -567,6 +585,7 @@ paths:
         admins for any open invite, such as an owner invite sent from Admin ->
         Teams.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -591,6 +610,7 @@ paths:
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/AuditPageReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -608,6 +628,7 @@ paths:
       summary: One entry of the team's audit log, for a linked entry (owners, admins and editors)
       description: A cost entry (`costs.*`) is not found for an editor, as in the list.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The entry
           content:
@@ -628,6 +649,7 @@ paths:
       operationId: getTeamLimits
       summary: The team's effective limits and current usage (team members; platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Limits and usage
           content:
@@ -656,6 +678,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of users ordered by email
           content:
@@ -674,6 +697,7 @@ paths:
       operationId: adminGetUser
       summary: A user and their team memberships
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: User
           headers:
@@ -699,6 +723,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/UserUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated user
           headers:
@@ -724,6 +749,7 @@ paths:
       operationId: adminListUserOAuthGrants
       summary: "A person's connected apps (OAuth grants for MCP clients; platform admins and auditors)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Active grants, newest first
           content:
@@ -746,6 +772,7 @@ paths:
       operationId: adminRevokeUserOAuthGrant
       summary: "Disconnect a person's app: its tokens stop working at once (platform admins; audited as oauth.revoke)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -763,6 +790,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of teams ordered by slug
           content:
@@ -783,6 +811,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           content:
@@ -803,6 +832,7 @@ paths:
       operationId: adminGetTeam
       summary: A team with membership counts
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Team
           headers:
@@ -828,6 +858,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated team
           headers:
@@ -857,6 +888,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/OwnerAssign" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Assigned
           content:
@@ -880,6 +912,7 @@ paths:
         have signed in with it, and the groups seen (lower-cased, most people
         first, at most 500), for choosing a rule's group.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Status
           content:
@@ -902,6 +935,7 @@ paths:
           description: Only this team's rules (slug or ID; 404 team_not_found when there is no such team)
           schema: { type: string }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Rules
           content:
@@ -933,6 +967,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GroupRuleCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -965,6 +1000,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GroupRulePreviewRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Dry run
           content:
@@ -989,6 +1025,7 @@ paths:
       operationId: adminGetGroupRule
       summary: One SSO group mapping rule (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Rule
           headers:
@@ -1017,6 +1054,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GroupRuleUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -1043,6 +1081,7 @@ paths:
         given another matching rule's role. A team's last owner is kept.
         Audited as platform.sso_rule_delete.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -1052,6 +1091,7 @@ paths:
       operationId: adminGetLimits
       summary: Platform defaults and ceilings of every team limit (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Platform limits
           headers:
@@ -1076,6 +1116,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/PlatformLimitsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated platform limits
           headers:
@@ -1099,6 +1140,7 @@ paths:
       operationId: adminGetTeamLimits
       summary: A team's limit overrides with the platform defaults and ceilings (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Team overrides
           headers:
@@ -1124,6 +1166,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamLimitOverridesUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated overrides
           headers:
@@ -1151,6 +1194,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ClassificationCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           content:
@@ -1181,6 +1225,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ClassificationUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -1209,6 +1254,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -1231,6 +1277,7 @@ paths:
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/AuditPageReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -1245,6 +1292,7 @@ paths:
       operationId: adminGetAuditEntry
       summary: One entry of the platform-wide audit log, for a linked entry (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The entry
           content:
@@ -1271,6 +1319,7 @@ paths:
         pepper that is no longer configured and cannot work. Never returns
         digests or keys.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Keys not on the current pepper
           content:
@@ -1294,6 +1343,7 @@ paths:
         classification level (PATCH /v1/admin/classifications/{key}) and listed
         here. Anonymous sessions end at expiry.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -1323,6 +1373,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RetentionUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -1348,6 +1399,7 @@ paths:
         audience and reason, and what legal holds keep. Counts only; computed
         in a read-only transaction, so it writes nothing.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Report
           content:
@@ -1366,6 +1418,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Runs
           content:
@@ -1393,6 +1446,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RetentionRunRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The run was queued
           content:
@@ -1415,6 +1469,7 @@ paths:
           required: false
           schema: { type: string, enum: [active, released, all], default: active }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Holds
           content:
@@ -1444,6 +1499,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/LegalHoldCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Placed
           content:
@@ -1463,6 +1519,7 @@ paths:
       operationId: adminGetLegalHold
       summary: One legal hold (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Hold
           content:
@@ -1490,6 +1547,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/LegalHoldRelease" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Released
           content:
@@ -1509,6 +1567,7 @@ paths:
       operationId: adminListConnections
       summary: List connections (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Connections
           content:
@@ -1531,6 +1590,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ConnectionCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -1556,6 +1616,7 @@ paths:
       operationId: adminGetConnection
       summary: One connection
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Connection
           headers:
@@ -1581,6 +1642,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ConnectionUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -1603,6 +1665,7 @@ paths:
       operationId: adminDeleteConnection
       summary: Delete an unused connection
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -1630,6 +1693,7 @@ paths:
         connection's health, and so is the health it implies for the
         connection's enabled models (adminListHealthChecks).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Test result (ok is false when the proxy call failed)
           content:
@@ -1652,6 +1716,7 @@ paths:
         Remote MCP servers whose approved tools agents may call
         (docs/mcp-client.md). Header values are never returned.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: MCP servers
           content:
@@ -1680,6 +1745,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MCPServerCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -1702,6 +1768,7 @@ paths:
       operationId: adminGetMCPServer
       summary: One MCP server
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: MCP server
           headers:
@@ -1727,6 +1794,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MCPServerUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -1754,6 +1822,7 @@ paths:
         agent version uses one of its tools: turn the server off instead, or
         publish those agents without its tools. Past versions lose the tools.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -1771,6 +1840,7 @@ paths:
         server's health (adminListHealthChecks); the health job re-tests
         enabled servers the same way.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Test result (ok is false when the server couldn't be read)
           content:
@@ -1796,6 +1866,7 @@ paths:
         mcp_server_unreachable when the server couldn't be read
         (details.class).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The stored tools and what changed
           content:
@@ -1816,6 +1887,7 @@ paths:
       operationId: adminListMCPServerTools
       summary: A server's stored tools, listed ones first (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Tools
           content:
@@ -1854,6 +1926,7 @@ paths:
               properties:
                 approved: { type: boolean }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The tool
           content:
@@ -1882,6 +1955,7 @@ paths:
           required: false
           schema: { type: string, format: uuid }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Models
           content:
@@ -1904,6 +1978,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ModelCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -1929,6 +2004,7 @@ paths:
       operationId: adminGetModel
       summary: One model
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Model
           headers:
@@ -1954,6 +2030,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ModelUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -1976,6 +2053,7 @@ paths:
       operationId: adminDeleteModel
       summary: Delete an unused model
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -1997,6 +2075,7 @@ paths:
         it happened in. The result is stored as the model's health
         (adminListHealthChecks).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Test result (ok is false when the proxy call failed)
           content:
@@ -2021,6 +2100,7 @@ paths:
         policies that use it and whether SystemOne does; for each embedding
         profile, the data sources (team and shared) and knowledge bases on it.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Usage
           content:
@@ -2051,6 +2131,7 @@ paths:
           description: Only subjects of this kind
           schema: { $ref: "#/components/schemas/HealthSubjectKind" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Latest checks
           content:
@@ -2070,6 +2151,7 @@ paths:
       operationId: adminListEmbeddingProfiles
       summary: List embedding profiles (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Embedding profiles
           content:
@@ -2092,6 +2174,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EmbeddingProfileCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -2117,6 +2200,7 @@ paths:
       operationId: adminGetEmbeddingProfile
       summary: One embedding profile
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Embedding profile
           headers:
@@ -2142,6 +2226,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EmbeddingProfileUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -2164,6 +2249,7 @@ paths:
       operationId: adminDeleteEmbeddingProfile
       summary: Delete an unused embedding profile
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2174,6 +2260,7 @@ paths:
       operationId: adminListKnowledgeBases
       summary: Every knowledge base with its team, embedding profile, figures and active profile migration (platform admins and auditors; metadata only)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Knowledge bases, by team and name (at most 1000)
           content:
@@ -2198,6 +2285,7 @@ paths:
           description: Only this knowledge base's migrations
           schema: { type: string, format: uuid }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Migrations (at most 200), without per-source detail
           content:
@@ -2228,6 +2316,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ProfileMigrationStart" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Started
           headers:
@@ -2267,6 +2356,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ProfileMigrationPreview" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Started (status running, then ready)
           headers:
@@ -2293,6 +2383,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ProfileMigrationTarget" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Preflight
           content:
@@ -2313,6 +2404,7 @@ paths:
       operationId: adminGetProfileMigration
       summary: One profile migration with per-source progress and failed documents (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2326,6 +2418,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2350,6 +2443,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2373,6 +2467,7 @@ paths:
         GET /v1/teams/{team}/kbs/{kbId}/index-preview. A knowledge base
         without evaluation sets has none to compare (sets is empty).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The comparison
           content:
@@ -2401,6 +2496,7 @@ paths:
         checks. 409 preview_running while a comparison of this migration is
         still running; 409 migration_not_ready when it is not ready.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: Started
           content:
@@ -2429,6 +2525,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2445,6 +2542,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2461,6 +2559,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ProfileMigrationReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2473,6 +2572,7 @@ paths:
       operationId: listUsableEmbeddingProfiles
       summary: Embedding profiles teams can choose for new sources and knowledge bases
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Active profiles whose model is enabled, default first
           content:
@@ -2495,6 +2595,7 @@ paths:
         stored health (healthy, failing or untested), so the New agent dialog
         can default to a working model and the pickers can warn.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Enabled chat models on enabled connections, by display name
           content:
@@ -2518,6 +2619,7 @@ paths:
         agent whose knowledge bases hold data above a server's ceiling can't
         use its tools. The server's URL and credentials are never returned.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Tools, by server and name
           content:
@@ -2538,6 +2640,7 @@ paths:
       operationId: listSources
       summary: Data sources with document counts (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Sources
           content:
@@ -2561,6 +2664,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DataSourceCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -2589,6 +2693,7 @@ paths:
       operationId: getSource
       summary: One data source (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Source
           headers:
@@ -2614,6 +2719,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DataSourceUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -2636,6 +2742,7 @@ paths:
       operationId: deleteSource
       summary: Delete a source with all its documents
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2663,6 +2770,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of documents
           content:
@@ -2695,6 +2803,7 @@ paths:
                   description: "Tags for every file in the request (repeat the field or separate with commas). Send it before the files: invalid tags are then refused before anything is stored. Without it, replaced documents keep their tags."
                   items: { type: string }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: One result per file; rejected files carry an error
           content:
@@ -2736,6 +2845,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentRetryInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: How many documents were queued
           content:
@@ -2765,6 +2875,7 @@ paths:
       operationId: getDocument
       summary: One document (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Document
           content:
@@ -2786,6 +2897,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           content:
@@ -2803,6 +2915,7 @@ paths:
       operationId: deleteDocument
       summary: Delete a document with its chunks
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -2831,6 +2944,7 @@ paths:
           required: false
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The first passages, in document order
           content:
@@ -2855,6 +2969,7 @@ paths:
       operationId: listSourceTags
       summary: The tags used by a source's documents, for filters (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Tags, alphabetically (at most 200)
           content:
@@ -2906,6 +3021,7 @@ paths:
           required: false
           schema: { type: string, format: uuid }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Passages of the document
           content:
@@ -2939,6 +3055,7 @@ paths:
         again with OCR for those pages; that needs OCR to read the source (409
         ocr_off, saying why). Other documents: 409 not_retryable.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Queued
           content:
@@ -2970,6 +3087,7 @@ paths:
         not_web_document); a source with an active run answers 409
         crawl_in_progress.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The run was queued
           content:
@@ -2993,6 +3111,7 @@ paths:
       operationId: syncSource
       summary: Start a crawl of a web source (editors and above, or an API key with the ingest scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The crawl was queued
           content:
@@ -3021,6 +3140,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/BoilerplateLimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/BoilerplateBlockListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -3036,6 +3156,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/CrawlListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -3050,6 +3171,7 @@ paths:
       operationId: cancelCrawl
       summary: Cancel an active crawl; the crawler stops before its next page (editors and above, or an API key with the ingest scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/CrawlReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3068,6 +3190,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MapRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Discovered URLs, in scope and allowed for the team
           content:
@@ -3090,6 +3213,7 @@ paths:
       operationId: listTeamDomainRequests
       summary: The team's requests to crawl hosts outside the allowlist, newest first
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/DomainRequestListReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3103,6 +3227,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DomainRequestCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Requested
           content:
@@ -3133,6 +3258,7 @@ paths:
         (crawl.domain_withdraw) with the request as it was. A request that
         was already reviewed cannot be withdrawn (409 request_not_pending).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3143,6 +3269,7 @@ paths:
       operationId: listSharedSources
       summary: Platform-shared sources a team can attach to its knowledge bases (metadata and document counts only)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Shared sources
           content:
@@ -3163,6 +3290,7 @@ paths:
       operationId: listKnowledgeBases
       summary: Knowledge bases (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Knowledge bases
           content:
@@ -3186,6 +3314,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/KnowledgeBaseCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -3213,6 +3342,7 @@ paths:
       operationId: getKnowledgeBase
       summary: One knowledge base (session, or an API key with the query scope)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Knowledge base
           headers:
@@ -3238,6 +3368,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/KnowledgeBaseUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -3260,6 +3391,7 @@ paths:
       operationId: deleteKnowledgeBase
       summary: Delete a knowledge base (its sources are kept)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3282,6 +3414,7 @@ paths:
         keys and platform staff get 404, and so does everyone while
         evaluations are off.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The comparison, or null
           content:
@@ -3310,6 +3443,7 @@ paths:
         Platform admins start and manage migrations (Admin, Profile
         migrations); team members see the progress on the knowledge base.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The active migration, with per-source progress, or null
           content:
@@ -3340,6 +3474,7 @@ paths:
       summary: Add a data source to the knowledge base
       description: "Refused with 409 classification_impact (details: ClassificationImpact with agents) when the source's classification would raise the knowledge base above what a published agent using it may serve (ADR-0006 rule 6)."
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated knowledge base
           content:
@@ -3358,6 +3493,7 @@ paths:
       operationId: detachSource
       summary: Remove a data source from the knowledge base
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated knowledge base
           content:
@@ -3390,6 +3526,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RetrieveRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Ranked chunks
           content:
@@ -3412,6 +3549,7 @@ paths:
       operationId: listAPIKeys
       summary: Active API keys (team admins see all; others see their own)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Keys
           content:
@@ -3440,6 +3578,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/APIKeyCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           content:
@@ -3469,6 +3608,7 @@ paths:
         key too (with revokedAt), so links to a key (for example from the
         audit log) keep working after it is revoked.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The key
           content:
@@ -3494,6 +3634,7 @@ paths:
               properties:
                 responsibleUserId: { type: string, format: uuid, description: An active member of the team }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The key
           content:
@@ -3516,6 +3657,7 @@ paths:
         same 404 key_not_found as an unknown, cross-team or already-revoked key,
         so this operation does not reveal whether another person's key exists.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3525,6 +3667,7 @@ paths:
       operationId: adminListCrawlAllowlist
       summary: Host patterns every team may crawl
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Allowlist
           content:
@@ -3547,6 +3690,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AllowlistCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Added
           content:
@@ -3570,6 +3714,7 @@ paths:
       operationId: adminRemoveCrawlAllowlist
       summary: Remove a host pattern; running crawls stop fetching its hosts within 30 s
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3586,6 +3731,7 @@ paths:
         `grounded doctor`). Pending domain requests are in GET
         /v1/admin/attention.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Overview
           content:
@@ -3606,6 +3752,7 @@ paths:
         one request instead of one per setting (docs/v0.4.2.md M4). Each
         settings object is what its own GET returns, with its revision.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Features
           content:
@@ -3622,6 +3769,7 @@ paths:
       operationId: adminGetAttention
       summary: Counts of things waiting for a platform admin, for sidebar badges (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Counts
           content:
@@ -3643,6 +3791,7 @@ paths:
           required: false
           schema: { $ref: "#/components/schemas/DomainRequestStatus" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/DomainRequestListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -3662,6 +3811,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DomainReview" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Reviewed
           content:
@@ -3681,6 +3831,7 @@ paths:
       operationId: adminListSharedSourceUsage
       summary: The knowledge bases (and teams) that attach each platform-shared source (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Attachments, by team and knowledge base name
           content:
@@ -3699,6 +3850,7 @@ paths:
       operationId: adminListSharedSources
       summary: Platform-shared sources with document counts
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Sources
           content:
@@ -3721,6 +3873,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DataSourceCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -3744,6 +3897,7 @@ paths:
       operationId: adminGetSharedSource
       summary: One platform-shared source
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Source
           headers:
@@ -3779,6 +3933,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DataSourceUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The updated source, or (with preview=true) the impact of the requested classification
           headers:
@@ -3804,6 +3959,7 @@ paths:
       operationId: adminDeleteSharedSource
       summary: Delete a shared source with all its documents (knowledge bases must detach it first)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3827,6 +3983,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of documents
           content:
@@ -3859,6 +4016,7 @@ paths:
                   description: "Tags for every file in the request (repeat the field or separate with commas). Send it before the files: invalid tags are then refused before anything is stored. Without it, replaced documents keep their tags."
                   items: { type: string }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: One result per file; rejected files carry an error
           content:
@@ -3896,6 +4054,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentRetryInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: How many documents were queued
           content:
@@ -3918,6 +4077,7 @@ paths:
       operationId: adminGetSharedDocument
       summary: One document of a shared source
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Document
           content:
@@ -3939,6 +4099,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           content:
@@ -3956,6 +4117,7 @@ paths:
       operationId: adminDeleteSharedDocument
       summary: Delete a document of a shared source with its chunks
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -3973,6 +4135,7 @@ paths:
           required: false
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The first passages, in document order
           content:
@@ -3993,6 +4156,7 @@ paths:
       operationId: adminListSharedSourceTags
       summary: The tags used by a shared source's documents
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Tags, alphabetically (at most 200)
           content:
@@ -4020,6 +4184,7 @@ paths:
         again with OCR for those pages; that needs OCR to read the source (409
         ocr_off, saying why). Other documents: 409 not_retryable.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Queued
           content:
@@ -4043,6 +4208,7 @@ paths:
       summary: Fetch one page of a shared web source again now (platform admins)
       description: As refetchDocument, for a shared source.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The run was queued
           content:
@@ -4065,6 +4231,7 @@ paths:
       operationId: adminSyncSharedSource
       summary: Start a crawl of a shared web source
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The crawl was queued
           content:
@@ -4089,6 +4256,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/BoilerplateLimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/BoilerplateBlockListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -4103,6 +4271,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/CrawlListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -4116,6 +4285,7 @@ paths:
       operationId: adminCancelSharedCrawl
       summary: Cancel an active crawl of a shared source
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/CrawlReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -4128,6 +4298,7 @@ paths:
       operationId: listAgents
       summary: The team's agents (members; or an API key of the team)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Agents, by name. Warnings are only computed by GET of one agent.
           content:
@@ -4158,6 +4329,7 @@ paths:
                 kbs: [{ kbId: 0b5e2d3c-1a4f-4c6e-8f7a-9d0e1c2b3a4f, topK: 6 }]
                 instructions: Answer briefly and point to the right office.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -4184,6 +4356,7 @@ paths:
         questions), never knowledge bases, tools or an audience. 403 for anyone who cannot create an
         agent, and for API keys.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Templates
           content:
@@ -4213,6 +4386,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentTemplateInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The template
           content:
@@ -4232,6 +4406,7 @@ paths:
       summary: Delete a saved template (platform admins)
       description: Agents already made from it are not changed. 409 template_builtin for a built-in template.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -4255,6 +4430,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentTemplateInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The template
           content:
@@ -4277,6 +4453,7 @@ paths:
       operationId: getAgent
       summary: An agent with its draft, published version summary and warnings
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Agent
           headers:
@@ -4309,6 +4486,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -4331,6 +4509,7 @@ paths:
       operationId: deleteAgent
       summary: Delete an agent (team admins). Soft delete; its conversations stay readable by their owners but can't continue.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -4355,6 +4534,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentPublish" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The new version
           content:
@@ -4377,6 +4557,7 @@ paths:
       operationId: listAgentVersions
       summary: Published versions, newest first
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Versions
           content:
@@ -4403,6 +4584,7 @@ paths:
       operationId: getAgentVersion
       summary: One published version with its configuration
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Version
           content:
@@ -4429,6 +4611,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentRevert" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The agent with the reverted draft
           headers:
@@ -4457,6 +4640,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentStatusChange" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -4489,6 +4673,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TestChatRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ChatReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -4508,6 +4693,7 @@ paths:
         - $ref: "#/components/parameters/AnalyticsFromParam"
         - $ref: "#/components/parameters/AnalyticsToParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Analytics
           content:
@@ -4529,6 +4715,7 @@ paths:
       operationId: getAgentAnswerCache
       summary: "The agent's answer cache settings, whether it is on and its stored answers (editors, admins and owners; docs/answer-cache.md)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -4554,6 +4741,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AgentAnswerCacheUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -4580,6 +4768,7 @@ paths:
       operationId: clearAgentAnswerCache
       summary: "Delete every stored answer of the agent, so the next questions get fresh ones (editors, admins and owners; audited)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Cleared
           content:
@@ -4601,6 +4790,7 @@ paths:
       operationId: getAgentSharing
       summary: Audiences the caller could publish the draft to (and why not), links and the widget (members)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Sharing
           content:
@@ -4633,6 +4823,7 @@ paths:
                 origins: { type: array, maxItems: 50, items: { type: string, maxLength: 300 } }
             example: { origins: ["localhost:8095", "www.example.edu", "https://example.edu/page"] }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: One result per non-empty input, in order
           content:
@@ -4654,6 +4845,7 @@ paths:
       operationId: listPublishableKeys
       summary: The agent's publishable keys for the widget (team admins and owners)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Keys (not revoked)
           content:
@@ -4678,6 +4870,7 @@ paths:
             schema: { $ref: "#/components/schemas/PublishableKeyInput" }
             example: { name: Main website, allowedOrigins: ["https://www.example.edu", "https://*.example.edu"] }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -4714,6 +4907,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/PublishableKeyInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -4735,6 +4929,7 @@ paths:
       operationId: revokePublishableKey
       summary: Revoke a key for good; widgets using it stop at once (team admins and owners; audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -4750,6 +4945,7 @@ paths:
       operationId: getPublicAgent
       summary: A public agent's profile for anonymous visitors (no sign-in; Access-Control-Allow-Origin *, for the widget loader)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Profile
           content:
@@ -4779,6 +4975,7 @@ paths:
       summary: A public agent's profile by its team address (/a/{team}/{agent}), for anonymous visitors
       description: The same as GET /v1/public/agents/{agentRef}; 404 unless the agent is published to the public audience.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Profile
           content:
@@ -4815,6 +5012,7 @@ paths:
           description: The page's origin, used only when the request has no Origin header
           schema: { type: string }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The check
           content:
@@ -4849,6 +5047,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/PublicSessionCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Started
           content:
@@ -4883,6 +5082,7 @@ paths:
           schema: { type: string }
         - $ref: "#/components/parameters/PublicChannelHeader"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Session
           content:
@@ -4921,6 +5121,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/PublicChatRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ChatReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "401": { $ref: "#/components/responses/ErrorReply" }
@@ -4947,6 +5148,7 @@ paths:
           description: Only this team's agents (slug or ID)
           schema: { type: string }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Agent profiles
           content:
@@ -4968,6 +5170,7 @@ paths:
       operationId: getAgentProfile
       summary: A published agent's public profile. Disabled agents are returned with their status (chat is refused).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Profile
           content:
@@ -4989,6 +5192,7 @@ paths:
       operationId: getAgentProfileByShortName
       summary: A published agent's profile by its short name (/a/{short})
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Profile
           content:
@@ -5007,6 +5211,7 @@ paths:
       operationId: getAgentProfileByID
       summary: A published agent's public profile by its stable ID
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Profile
           content:
@@ -5063,6 +5268,7 @@ paths:
             schema: { $ref: "#/components/schemas/ChatRequest" }
             example: { message: "How do I request a transcript?", stream: true }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/ChatReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "401": { $ref: "#/components/responses/ErrorReply" }
@@ -5090,6 +5296,7 @@ paths:
         for any other conversation, 401 without a live session. documentTeam
         is never set.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The cited passage
           content:
@@ -5133,6 +5340,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/Feedback" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Recorded
           content:
@@ -5181,6 +5389,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of conversations
           content:
@@ -5205,6 +5414,7 @@ paths:
         read is audited as breakglass.read with the session ID. Renaming,
         deleting, exporting and feedback stay the user's alone.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Conversation
           content:
@@ -5225,6 +5435,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ConversationUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Renamed
           content:
@@ -5241,6 +5452,7 @@ paths:
       operationId: deleteConversation
       summary: Delete a conversation. It is hidden at once and removed for good by retention.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/conversations/{conversationId}/shares:
@@ -5252,6 +5464,7 @@ paths:
       summary: The links you made to your own conversation, newest first (a signed-in session; not API keys)
       description: A link's secret is shown once, when it is made, so the list has no link; make a new one to get a link again.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: ok
           content:
@@ -5281,6 +5494,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ConversationShareCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The link, shown once
           content:
@@ -5307,6 +5521,7 @@ paths:
       operationId: revokeConversationShare
       summary: Revoke a link at once
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "401": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -5327,6 +5542,7 @@ paths:
         exist, so valid and invalid links cannot be told apart; a signed-in caller gets 404. Never cached and never sent as a referrer. Reading
         a shared answer of a Sensitive or Restricted agent is recorded in the access log (channel shared).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: ok
           content:
@@ -5359,6 +5575,7 @@ paths:
         snapshot and only the passages it cited. The agent's checks of the claims are left out, and the whole document is never offered.
         Same access and 401/404 rules as the shared conversation.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: ok
           content:
@@ -5390,6 +5607,7 @@ paths:
           description: "The reader's IANA time zone (such as America/New_York) for the Markdown's times; UTC when absent or unknown."
           schema: { type: string, maxLength: 64 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The export, as an attachment (JSON is not wrapped in data)
           content:
@@ -5415,6 +5633,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/Feedback" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Recorded
           content:
@@ -5450,6 +5669,7 @@ paths:
         is set when the caller may open the whole document (the source's
         team editors, admins and owners; GET .../documents/{documentId}/text).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The cited passage
           content:
@@ -5476,6 +5696,7 @@ paths:
         URL text and authentication-storage failures. Internal causes are logged
         with the request ID, never returned to the client.
       responses:
+        default: { $ref: "#/components/responses/OpenAIDefaultErrorReply" }
         "200":
           description: Models (OpenAI shape, not wrapped in data)
           content:
@@ -5518,6 +5739,7 @@ paths:
               model: agent:office-of-the-registrar/student-help
               messages: [{ role: user, content: "How do I request a transcript?" }]
       responses:
+        default: { $ref: "#/components/responses/OpenAIDefaultErrorReply" }
         "200":
           description: A completion, or chat.completion.chunk events when streaming
           content:
@@ -5551,6 +5773,7 @@ paths:
           required: false
           schema: { $ref: "#/components/schemas/AgentStatus" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Agents
           content:
@@ -5576,6 +5799,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AdminAgentStatusChange" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           content:
@@ -5605,6 +5829,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ShortNameUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           content:
@@ -5624,6 +5849,7 @@ paths:
       operationId: adminGetPublicAccess
       summary: The public switch, CAPTCHA status and anonymous session lifetime (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -5648,6 +5874,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/PublicAccessUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -5678,6 +5905,7 @@ paths:
         administration keep working. Clients can check this before starting
         ingestion.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The current state (the reason is empty while off)
           content:
@@ -5694,6 +5922,7 @@ paths:
       operationId: adminGetMaintenance
       summary: Maintenance mode with who started and last changed it (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -5725,6 +5954,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MaintenanceUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -5749,6 +5979,7 @@ paths:
         The app's banner reads this to show the reading admin the time left
         and an End now button. A session past its end is never listed.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Open sessions, newest first
           content:
@@ -5767,6 +5998,7 @@ paths:
       operationId: listMyOAuthGrants
       summary: "The caller's connected apps: MCP clients they allowed with OAuth"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Active grants, newest first
           content:
@@ -5787,6 +6019,7 @@ paths:
       operationId: revokeMyOAuthGrant
       summary: "Disconnect one of the caller's apps: its tokens stop working at once and it must ask again (audited as oauth.revoke)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "401": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -5811,6 +6044,7 @@ paths:
         - { name: state, in: query, required: false, schema: { type: string } }
         - { name: scope, in: query, required: false, schema: { type: string } }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The request is valid
           content:
@@ -5837,6 +6071,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/OAuthConsentDecision" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Where to send the browser
           content:
@@ -5884,6 +6119,7 @@ paths:
           description: At most this many results (default 20, at most 50)
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Matches, best first
           content:
@@ -5908,6 +6144,7 @@ paths:
         The notice on the team's pages: which platform admin is reading
         what, why and until when.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Active sessions
           content:
@@ -5944,6 +6181,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of conversations
           content:
@@ -5962,6 +6200,7 @@ paths:
       operationId: adminGetBreakGlassSettings
       summary: Break-glass approval, maximum duration and approval timeout (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -5990,6 +6229,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/BreakGlassSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -6024,6 +6264,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of sessions
           content:
@@ -6056,6 +6297,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/BreakGlassStart" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Started (active) or requested (pending)
           content:
@@ -6077,6 +6319,7 @@ paths:
       operationId: adminGetBreakGlassSession
       summary: A break-glass session with its read counts by kind (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Session
           content:
@@ -6099,6 +6342,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of reads
           content:
@@ -6120,6 +6364,7 @@ paths:
       summary: Approve a pending session (another platform admin, never the one who asked; audited as breakglass.approve)
       description: The session starts now and runs for its duration; the team's owners are notified.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Approved (active)
           content:
@@ -6145,6 +6390,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/BreakGlassDeny" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Denied
           content:
@@ -6170,6 +6416,7 @@ paths:
         revoke it. Access stops at once, and the team's owners get a summary
         of what was read.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Ended or withdrawn
           content:
@@ -6213,6 +6460,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of entries
           content:
@@ -6240,6 +6488,7 @@ paths:
         - $ref: "#/components/parameters/AnalyticsTeamParam"
         - $ref: "#/components/parameters/AnalyticsAudienceParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Analytics
           content:
@@ -6261,6 +6510,7 @@ paths:
         - $ref: "#/components/parameters/AnalyticsToParam"
         - $ref: "#/components/parameters/AnalyticsAudienceParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Counts per team, most failed questions first
           content:
@@ -6283,6 +6533,7 @@ paths:
         - $ref: "#/components/parameters/AnalyticsTeamParam"
         - $ref: "#/components/parameters/AnalyticsAudienceParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: >-
             An attachment with a header row
@@ -6326,6 +6577,7 @@ paths:
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: A page of decisions
           content:
@@ -6347,6 +6599,7 @@ paths:
         settings (ADR-0020). Every feature is off until an admin turns it on;
         with no SystemOne model, Grounded behaves as if SystemOne did not exist.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The settings (the defaults with revision 1 until saved)
           headers:
@@ -6376,6 +6629,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/SystemOneSettingsInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -6401,6 +6655,7 @@ paths:
         candidates a search reranks and the time limit of the call. With no
         rerank model, retrieval is as without reranking.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The settings (the defaults with revision 1 until saved)
           headers:
@@ -6430,6 +6685,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RerankSettingsInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -6456,6 +6712,7 @@ paths:
         documents per team that need OCR (skipped as scanned, or partly scanned
         PDFs indexed without their scanned pages), which OCR could now read.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The settings (the defaults with revision 1 until saved)
           headers:
@@ -6484,6 +6741,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ParsingSettingsInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -6514,6 +6772,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ParsingTestInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: What the backend read
           content:
@@ -6538,6 +6797,7 @@ paths:
         without its scanned pages) is counted; documents that are waiting or
         were skipped as empty are not.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The groups, largest teams' sources first
           content:
@@ -6565,6 +6825,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentProblemAction" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: How many documents were queued
           content:
@@ -6597,6 +6858,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DocumentProblemAction" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Who was told
           content:
@@ -6621,6 +6883,7 @@ paths:
         median added time. available is false when no SystemOne model is set
         or it (or its connection) is disabled.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Status
           content:
@@ -6641,6 +6904,7 @@ paths:
         Advanced) and the Try it comparison. available is false when no rerank
         model is set or it (or its connection) is disabled.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Status
           content:
@@ -6662,6 +6926,7 @@ paths:
       operationId: adminGetModerationPolicy
       summary: An audience's moderation policy (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The policy (the defaults with revision 1 until saved)
           headers:
@@ -6692,6 +6957,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ModerationPolicyInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -6719,6 +6985,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ModerationTestRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Scores
           content:
@@ -6741,6 +7008,7 @@ paths:
         currency, the time zone of the budget month and report days, the
         warning threshold and the optional default budget (docs/costs.md).
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Cost settings
           headers:
@@ -6770,6 +7038,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/CostSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated settings
           headers:
@@ -6791,6 +7060,7 @@ paths:
       operationId: adminListCostPrices
       summary: "Every priced model's and MCP server's current prices, with unpriced units (platform admins and auditors)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Prices
           content:
@@ -6812,6 +7082,7 @@ paths:
       operationId: adminGetModelPrices
       summary: A model's current prices and their history (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The model's pricing
           content:
@@ -6840,6 +7111,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ModelPricesCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The model's pricing
           content:
@@ -6868,6 +7140,7 @@ paths:
       operationId: adminDeleteModelPrice
       summary: Delete a mistaken price row (platform admins; audited as costs.price_delete)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Deleted
           content:
@@ -6893,6 +7166,7 @@ paths:
         - $ref: "#/components/parameters/CostToParam"
         - $ref: "#/components/parameters/CostGroupByParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The report
           content:
@@ -6914,6 +7188,7 @@ paths:
         - $ref: "#/components/parameters/CostToParam"
         - $ref: "#/components/parameters/CostGroupByParam"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: An attachment with a header row and one row per group; amounts are decimal strings
           content:
@@ -6930,6 +7205,7 @@ paths:
       operationId: adminListBudgets
       summary: Every active team's mode, budget, month-to-date spend and projection (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Budgets
           content:
@@ -6948,6 +7224,7 @@ paths:
       operationId: adminGetTeamBudget
       summary: A team's cost mode override, budget, this month's extensions and state (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The team's budget
           headers:
@@ -6976,6 +7253,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamBudgetUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The team's budget
           headers:
@@ -7006,6 +7284,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/BudgetExtensionCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The team's budget
           content:
@@ -7034,6 +7313,7 @@ paths:
         the current month's extensions can be revoked (404 otherwise); the
         audit log keeps the revoked one.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The team's budget
           content:
@@ -7065,6 +7345,7 @@ paths:
           required: false
           schema: { type: string, format: date }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Spend
           content:
@@ -7089,6 +7370,7 @@ paths:
         is enforced (a Track-only budget has a state but never blocks); only
         owners, admins and platform readers get the amounts.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The budget state
           content:
@@ -7121,6 +7403,7 @@ paths:
           required: false
           schema: { type: string, format: uuid }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Sets, by name
           content:
@@ -7143,6 +7426,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationSetCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           headers:
@@ -7166,6 +7450,7 @@ paths:
       operationId: getEvaluationSet
       summary: One set
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The set
           headers:
@@ -7190,6 +7475,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationSetUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -7211,6 +7497,7 @@ paths:
       operationId: deleteEvaluationSet
       summary: Delete a set with its questions and runs (audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
@@ -7223,6 +7510,7 @@ paths:
       operationId: listEvaluationQuestions
       summary: A set's questions, oldest first
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Questions
           content:
@@ -7245,6 +7533,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationQuestionInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Added
           headers:
@@ -7282,6 +7571,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationImportRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: What the import found, and added unless dryRun
           content:
@@ -7303,6 +7593,7 @@ paths:
       operationId: exportEvaluationQuestions
       summary: The set's questions as CSV, in the import's format
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: An attachment with a header row (question,expected,must_mention,note) and one row per question
           content:
@@ -7322,6 +7613,7 @@ paths:
       operationId: getEvaluationQuestion
       summary: A question with its results in the latest runs (newest first)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The question
           headers:
@@ -7346,6 +7638,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationQuestionInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Updated
           headers:
@@ -7367,6 +7660,7 @@ paths:
       operationId: deleteEvaluationQuestion
       summary: Delete a question; past runs keep its results (audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
@@ -7389,6 +7683,7 @@ paths:
         each of its last 3 retrieval runs. Warnings only: nothing blocks a
         run. Questions without a problem are left out.
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The questions that need attention, in the set's order
           content:
@@ -7419,6 +7714,7 @@ paths:
           required: false
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Documents, by title
           content:
@@ -7461,6 +7757,7 @@ paths:
           required: false
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Documents, by title
           content:
@@ -7497,6 +7794,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationQuestionCheckRequest" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Each expected document and phrase, in the order given
           content:
@@ -7522,6 +7820,7 @@ paths:
           required: false
           schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Runs
           content:
@@ -7549,6 +7848,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationRunStart" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Queued
           content:
@@ -7579,6 +7879,7 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The comparison
           content:
@@ -7600,6 +7901,7 @@ paths:
       operationId: getEvaluationRun
       summary: A run with its results
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The run
           content:
@@ -7620,6 +7922,7 @@ paths:
       operationId: cancelEvaluationRun
       summary: Cancel a queued or running run; its results so far are kept (audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Cancelled
           content:
@@ -7654,6 +7957,7 @@ paths:
           description: "open (the default), closed (dismissed, fixed or resolved) or all"
           schema: { type: string, enum: [open, closed, all] }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Topics, open first, then by recent activity
           content:
@@ -7674,6 +7978,7 @@ paths:
       operationId: getGapTopic
       summary: A gap topic with the questions its askers shared (editors, admins and owners)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The topic
           content:
@@ -7701,6 +8006,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GapTopicDismiss" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Dismissed
           content:
@@ -7722,6 +8028,7 @@ paths:
       operationId: reopenGapTopic
       summary: Reopen a closed topic, undoing a dismissal or a fix (audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Reopened
           content:
@@ -7741,6 +8048,7 @@ paths:
       operationId: getGapSettings
       summary: The team's gap report settings (editors, admins and owners)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The settings (the defaults when never saved); the ETag is the revision
           content:
@@ -7763,6 +8071,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GapSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           content:
@@ -7786,6 +8095,7 @@ paths:
       operationId: fixGapTopic
       summary: Mark a topic fixed; it reopens on new failures (audited)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Marked fixed
           content:
@@ -7806,6 +8116,7 @@ paths:
       operationId: addGapTopicSource
       summary: Record that an editor went to add a source for the topic (audited); the app then opens Data sources with the topic as a note
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Recorded
           content:
@@ -7831,6 +8142,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/GapEvaluationAdd" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Added
           content:
@@ -7850,6 +8162,7 @@ paths:
       operationId: adminGetEvaluationSettings
       summary: Whether evaluations are on (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -7874,6 +8187,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/EvaluationSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -7895,6 +8209,7 @@ paths:
       operationId: adminGetTeamRequestSettings
       summary: Whether in-app team requests are on, and their limits (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -7922,6 +8237,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamRequestSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -7943,6 +8259,7 @@ paths:
       operationId: listMyTeamRequests
       summary: Your team requests, and whether you can ask for a team now (people signing in; not API keys)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Your requests
           content:
@@ -7966,6 +8283,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamRequestCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Created
           content:
@@ -7989,6 +8307,7 @@ paths:
       operationId: withdrawTeamRequest
       summary: Withdraw your own pending request (404 for anyone else's, or one already decided)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -8003,6 +8322,7 @@ paths:
           required: false
           schema: { type: string, enum: [pending, approved, declined, withdrawn] }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Requests (at most 200)
           content:
@@ -8027,6 +8347,7 @@ paths:
       operationId: adminGetTeamRequest
       summary: One request (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The request
           headers:
@@ -8062,6 +8383,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamRequestApprove" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The decided request
           headers:
@@ -8097,6 +8419,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/TeamRequestDecline" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The decided request
           headers:
@@ -8120,6 +8443,7 @@ paths:
       operationId: adminGetAnswerCacheSettings
       summary: Whether the answer cache is on for the platform (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -8144,6 +8468,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/AnswerCacheSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -8165,6 +8490,7 @@ paths:
       operationId: adminGetMCPSettings
       summary: Whether the MCP server is on (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -8189,6 +8515,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/MCPSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -8212,6 +8539,7 @@ paths:
       operationId: listTeamWebhooks
       summary: "Team's webhooks, oldest first"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Webhooks
           content:
@@ -8239,6 +8567,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The webhook and its secret
           content:
@@ -8261,6 +8590,7 @@ paths:
       operationId: getTeamWebhook
       summary: One webhook (never its secret)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The webhook
           headers:
@@ -8286,6 +8616,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -8308,6 +8639,7 @@ paths:
       operationId: deleteTeamWebhook
       summary: Delete a webhook and its delivery log
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -8320,6 +8652,7 @@ paths:
       operationId: rotateTeamWebhookSecret
       summary: Replace the secret at once; the new one is in the answer and is shown only this once
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The webhook and its new secret
           content:
@@ -8340,6 +8673,7 @@ paths:
       operationId: testTeamWebhook
       summary: Send a test event (webhook.test), whatever the webhook subscribes to
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The delivery, queued
           content:
@@ -8361,6 +8695,7 @@ paths:
       operationId: listTeamWebhookDeliveries
       summary: The last 50 deliveries, newest first (kept for 14 days)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Deliveries
           content:
@@ -8384,6 +8719,7 @@ paths:
       operationId: redeliverTeamWebhook
       summary: Send a delivery's event again (the same event ID and body), as a new delivery
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The new delivery, queued
           content:
@@ -8402,6 +8738,7 @@ paths:
       operationId: listPlatformWebhooks
       summary: "Platform's webhooks, oldest first"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Webhooks
           content:
@@ -8429,6 +8766,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: The webhook and its secret
           content:
@@ -8450,6 +8788,7 @@ paths:
       operationId: getPlatformWebhook
       summary: One webhook (never its secret)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The webhook
           headers:
@@ -8475,6 +8814,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookInput" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -8497,6 +8837,7 @@ paths:
       operationId: deletePlatformWebhook
       summary: Delete a webhook and its delivery log
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -8508,6 +8849,7 @@ paths:
       operationId: rotatePlatformWebhookSecret
       summary: Replace the secret at once; the new one is in the answer and is shown only this once
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: The webhook and its new secret
           content:
@@ -8527,6 +8869,7 @@ paths:
       operationId: testPlatformWebhook
       summary: Send a test event (webhook.test), whatever the webhook subscribes to
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The delivery, queued
           content:
@@ -8547,6 +8890,7 @@ paths:
       operationId: listPlatformWebhookDeliveries
       summary: The last 50 deliveries, newest first (kept for 14 days)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Deliveries
           content:
@@ -8569,6 +8913,7 @@ paths:
       operationId: redeliverPlatformWebhook
       summary: Send a delivery's event again (the same event ID and body), as a new delivery
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "202":
           description: The new delivery, queued
           content:
@@ -8587,6 +8932,7 @@ paths:
       operationId: listWebhookEvents
       summary: The events a webhook can subscribe to (people signing in; not API keys)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Event types
           content:
@@ -8604,6 +8950,7 @@ paths:
       operationId: listWebhookDestinations
       summary: The approved destination host patterns (people signing in; not API keys), so a team admin can choose an address
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Destinations
           content:
@@ -8629,6 +8976,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookDestinationCreate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "201":
           description: Approved
           content:
@@ -8652,6 +9000,7 @@ paths:
       operationId: deleteWebhookDestination
       summary: "Withdraw an approval: webhooks to that host stop at once (platform admins; audited)"
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
@@ -8661,6 +9010,7 @@ paths:
       operationId: adminGetWebhookSettings
       summary: Whether webhooks are on (platform admins and auditors)
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Settings
           headers:
@@ -8687,6 +9037,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/WebhookSettingsUpdate" }
       responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
           description: Saved
           headers:
@@ -9026,6 +9377,31 @@ components:
             required: [data]
             properties:
               data: { $ref: "#/components/schemas/ProfileMigration" }
+    DefaultErrorReply:
+      description: >-
+        An error not listed separately for the operation. Any native /v1 operation
+        can be refused by shared rate limiting with 429 rate_limited and an integer
+        Retry-After delay in seconds. Explicit operation-specific responses take
+        precedence; Retry-After is optional on other errors.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying a rate-limited request
+          schema: { type: integer, minimum: 0 }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    OpenAIDefaultErrorReply:
+      description: >-
+        An unspecified OpenAI-compatible error, including shared rate limiting
+        (429 rate_limited, type rate_limit_error, with Retry-After in seconds).
+        Explicit operation-specific responses take precedence.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying a rate-limited request
+          schema: { type: integer, minimum: 0 }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/OpenAIError" }
     ErrorReply:
       description: Error
       content:

@@ -12061,6 +12061,9 @@ type CrawlReply struct {
 	Data Crawl `json:"data"`
 }
 
+// DefaultErrorReply defines model for DefaultErrorReply.
+type DefaultErrorReply = ErrorResponse
+
 // DomainRequestListReply defines model for DomainRequestListReply.
 type DomainRequestListReply struct {
 	Data []DomainRequest `json:"data"`
@@ -12084,6 +12087,9 @@ type MaintenanceReply = MaintenanceErrorResponse
 type OkReply struct {
 	Data Ok `json:"data"`
 }
+
+// OpenAIDefaultErrorReply defines model for OpenAIDefaultErrorReply.
+type OpenAIDefaultErrorReply = OpenAIError
 
 // OpenAIErrorReply defines model for OpenAIErrorReply.
 type OpenAIErrorReply = OpenAIError
