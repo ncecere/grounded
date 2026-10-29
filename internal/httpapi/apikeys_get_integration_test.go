@@ -38,11 +38,11 @@ func TestGetAPIKeyIncludesRevoked(t *testing.T) {
 	}
 	code, e = blair.call("DELETE", personalPath, nil, nil, nil)
 	mustCode(t, "member cannot revoke another member's personal key", code, e, 404, "key_not_found")
-	if code := owner.get(servicePath, nil); code != 200 {
-		t.Fatalf("refused deletion changed the service key: %d", code)
+	if code := owner.get(servicePath, &k); code != 200 || k.RevokedAt != nil {
+		t.Fatalf("refused deletion changed the service key: %d %+v", code, k)
 	}
-	if code := alex.get(personalPath, nil); code != 200 {
-		t.Fatalf("refused deletion changed the personal key: %d", code)
+	if code := alex.get(personalPath, &k); code != 200 || k.RevokedAt != nil {
+		t.Fatalf("refused deletion changed the personal key: %d %+v", code, k)
 	}
 
 	// Revoked: gone from the list, still readable by ID.

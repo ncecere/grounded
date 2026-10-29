@@ -56,11 +56,8 @@ func TestAPIKeyBearerSchemeIsCaseInsensitive(t *testing.T) {
 			}
 		}
 	}
-	// The scheme alone is case-insensitive; credentials are not normalized,
-	// and a lower-case scheme never bypasses revocation.
-	code, e = env.owner.call("DELETE", base+"/api-keys/"+key.Key.Id.String(), nil, nil, nil)
-	mustCode(t, "revoke key", code, e, 200, "")
-	for _, header := range []string{"bearer " + key.Secret, "Bearer " + strings.ToUpper(key.Secret), "Basic " + key.Secret} {
+	assertInvalid := func(header string) {
+		t.Helper()
 		req, _ := http.NewRequest("GET", env.app.URL+base+"/kbs", nil)
 		req.Header.Set("Authorization", header)
 		res, err := http.DefaultClient.Do(req)
@@ -74,4 +71,11 @@ func TestAPIKeyBearerSchemeIsCaseInsensitive(t *testing.T) {
 			t.Fatalf("invalid/revoked key = %d %s (%v)", res.StatusCode, body.Error.Code, err)
 		}
 	}
+	// Check secret case and scheme rejection while the key is still active:
+	// revoking first would mask a bug that accepted these credentials.
+	assertInvalid("Bearer " + strings.ToUpper(key.Secret))
+	assertInvalid("Basic " + key.Secret)
+	code, e = env.owner.call("DELETE", base+"/api-keys/"+key.Key.Id.String(), nil, nil, nil)
+	mustCode(t, "revoke key", code, e, 200, "")
+	assertInvalid("bearer " + key.Secret)
 }
