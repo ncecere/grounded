@@ -12539,7 +12539,8 @@ components:
         A draft configuration. Every field is optional (defaults apply); types
         and ranges are checked (400 invalid_config with details.problems) but an
         incomplete draft (no model, no knowledge bases) can be saved. Unknown
-        fields are rejected.
+        fields are rejected. Type errors name the JSON field and expected kind
+        (for example, maxOutputTokens must be a whole number), never Go types.
       properties:
         instructions: { type: string, maxLength: 20000 }
         chatModelId: { type: string, format: uuid, nullable: true }

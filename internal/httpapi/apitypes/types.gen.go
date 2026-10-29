@@ -5258,7 +5258,7 @@ type AgentConfigErrorResponse struct {
 	} `json:"error"`
 }
 
-// AgentConfigInput A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected.
+// AgentConfigInput A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. Type errors name the JSON field and expected kind (for example, maxOutputTokens must be a whole number), never Go types.
 type AgentConfigInput struct {
 	// Audience Default team. Editors publish to team; team admins and owners to any audience the classification allows. Public also needs public access on and a working public moderation policy.
 	Audience    *Audience           `json:"audience,omitempty"`
@@ -5315,7 +5315,7 @@ type AgentCreate struct {
 	// AccentColor #rrggbb with at least 4.5:1 contrast against white (400 insufficient_contrast)
 	AccentColor *string `json:"accentColor,omitempty"`
 
-	// Config A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected.
+	// Config A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. Type errors name the JSON field and expected kind (for example, maxOutputTokens must be a whole number), never Go types.
 	Config      *AgentConfigInput `json:"config,omitempty"`
 	Description *string           `json:"description,omitempty"`
 	Name        string            `json:"name"`
@@ -5485,7 +5485,7 @@ type AgentTemplateInput struct {
 type AgentUpdate struct {
 	AccentColor *string `json:"accentColor,omitempty"`
 
-	// Config A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected.
+	// Config A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. Type errors name the JSON field and expected kind (for example, maxOutputTokens must be a whole number), never Go types.
 	Config           *AgentConfigInput `json:"config,omitempty"`
 	Description      *string           `json:"description,omitempty"`
 	Name             *string           `json:"name,omitempty"`

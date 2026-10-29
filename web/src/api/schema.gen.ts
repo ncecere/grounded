@@ -9207,7 +9207,7 @@ export interface components {
             /** @description The agent is a router: it answers nothing itself and sends each question to the best routable agent the asker may chat with, then shows its answer and links to the conversation. It has no knowledge bases or tools, and needs the SystemOne scope check to be published */
             router?: boolean;
         };
-        /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. */
+        /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. Type errors name the JSON field and expected kind (for example, maxOutputTokens must be a whole number), never Go types. */
         AgentConfigInput: {
             instructions?: string;
             /** Format: uuid */
