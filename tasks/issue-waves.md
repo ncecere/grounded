@@ -12,15 +12,17 @@ Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments 
 - Fake models test mechanics, not retrieval/answer quality. Record missing real-model measurements honestly; never manufacture results. External credentials/infrastructure and unavailable corpora are explicit blockers, not reasons to close issues.
 - Each completed increment updates this file and the issue with PR/test evidence. Reinventory before the final sweep and at release boundaries.
 
-## Wave 0 — foundations and baseline (in progress)
+## Wave 0 — foundations and baseline (baseline complete; security release in progress)
 
 1. [x] Read all 29 issues and comments; inspect open PRs, roadmap and v0.7/v0.8 decisions.
 2. [x] Record waves, release gates and v1.0 restriction.
-3. [ ] Establish executable Go/Node tooling and disposable integration infrastructure; locate homelab dev-env tooling without exposing secrets.
-4. [ ] Record baseline check results; distinguish pre-existing failures from regressions.
-5. [ ] Inspect #165–167, advisories and CI; batch safe updates at the next release gate.
+3. [x] Establish executable Go/Node tooling and disposable integration infrastructure; locate homelab dev-env tooling without exposing secrets.
+4. [x] Record baseline check results; distinguish pre-existing failures from regressions.
+5. [x] Inspect #165–167, advisories and CI; prioritize newly identified security blockers (#169) and stale calendar assertions (#172).
+6. [ ] Complete the separate **v0.6.2 security patch** (#171 merged; release preparation #176, main/image/upgrade and final artifact gates still pending).
+7. [ ] Refresh and batch safe routine dependency updates at a validated milestone; do not mix an unreviewed group into the security patch.
 
-## Wave 1 — API/security correctness (candidate v0.6.2)
+## Wave 1 — API/security correctness (in progress; candidate v0.6.3)
 
 Order: #116, security/contract portions of #119 and #146, then #77 if its verification environment is available.
 
@@ -31,7 +33,7 @@ Order: #116, security/contract portions of #119 and #146, then #77 if its verifi
 
 Exit: API spec/generated types agree, negative/authz and method regressions pass, required CI green. Do not wait on inaccessible infrastructure to ship independently complete fixes; keep blocked items open.
 
-## Wave 2 — remaining v0.6 QA (candidate v0.6.3, or combine with v0.6.2 if ready)
+## Wave 2 — remaining v0.6 QA (combine with v0.6.3 if ready, otherwise a later patch)
 
 - **#140:** suspended-requester approval; Unicode template uniqueness; paused/editable withdrawn-destination webhook; DNS label validation; remaining DESIGN/OpenAPI mismatches; router sharing/export clarity; approved classification; mobile webhook/request tables.
 - **#132:** explicit costs-enabled signal to remove spend 404s; Unicode slug strategy; accurate numeric errors; alt-less image removal; upload scope/size copy; top-k validation; no-op source edits and duplicate publishing; profile the crawl's skip-heavy tail and expose a real waiting reason if applicable.
@@ -94,5 +96,13 @@ Exit: fixture contract tests and opt-in real-provider acceptance for each connec
 
 ## Progress / evidence
 
-- Initial environment: GitHub CLI authenticated; Node 22.23.0, npm 10.9.8, Docker 29.1.3 and kubectl present. Go is not on PATH; documented homelab checkout/dev-env path absent. Kubernetes context exists; no credentials printed. No integration/CI result claimed yet.
-- First implementation increment: #116 method/error contract, with overlapping method requirements from #119 considered to avoid incompatible routing fixes.
+- Initial inventory: 29 issues / 10 comments, preserved above. Execution added security issue **#169** and test-maintenance issue **#172**; #172 is closed by the validated merge, while #169 stays open until release publication/verification.
+- Tooling established: verified Go archive, Go 1.26.10 selected by the updated toolchain pin; Node 22.23.0, Docker, kubectl and the homelab's `tools/dev-env` (with `GROUNDED_REPO`/`KUBECONFIG_DEV` overrides). No credentials printed. Local database regressions use isolated Postgres 17 + Valkey containers with cleanup; cluster tests use `dev-grounded` only.
+- Baseline `8e61890`: cluster authz and k8s suites pass with exit-0 artifact results; resources removed. The initial API connection timeout and the retry wrapper's anomalous exit are documented rather than hidden.
+- **Security source landed:** PR **#171**, all required checks green, merged without override as `4f099247abd228801b7aa84ea304dfa34061ba22`. Go 1.26.10, x/net v0.62.0, go-jose v4.1.6, seroval 1.7.3 and development-only undici 8.12.3 fix the fresh findings. PR **#176** prepares v0.6.2 notes/evidence; **no release is published yet**.
+- Security validation: full local lint/unit checks, fresh clean Go/npm audits, **144 UI files / 1,196 tests**, candidate image scans (0 Go findings; no fixable high/critical findings), v0.6.1 upgrade rehearsal, cluster doctor on Postgres 18 and an admin/user 1280/390px QA walk (**94 captures, 0 configured-check failures**, four representative screenshots visually reviewed). Unfixable OCR Debian findings remain documented. Exact candidate evidence is in `docs/security/validation/v0.6.2.md` on #176; final main/tag/digest/signature/SBOM/checksum gates remain pending.
+- **#116 / #119 methods:** PR **#170** implements accurate REST 405/Allow, including overlapping literal/wildcard matches, OpenAI error shapes and an explicit no-preflight-CORS-write policy. Focused race/router tests and real-database OpenAI error tests pass. Still open pending merge and the final shared-middleware envelope audit; new negative tests cover expired/suspended sessions, CSRF, rate limits, invalid URL text and auth-store failures.
+- **#119 keys:** PR **#173** implements invisible-key DELETE 404, invalid scopes 400 versus known over-privileged scopes 403, and case-insensitive Bearer schemes. Focused and real-database race tests pass; cluster authorization matrix also passed. Strengthened tests verify denied deletion leaves keys active and check secret-case rejection before revocation. Fresh CI on the rebased security source is required before merge.
+- **#146 authorization:** PR **#174** checks platform access before body/revision validation, preserving explicit read-only POST previews. The 12 reported endpoint regressions and the complete database-backed authorization matrix pass under `-race`; CI remains a gate.
+- **#146 validation/copy:** PR **#175** covers explicit zero timeout, chat-model output/context bounds on create/partial update, retention 0/keep wording, Unicode-aware disable-reason length and MCP Settings/Features guidance. Five real-database HTTP regression groups plus focused unit/contract/size checks pass. Other tracker bullets remain open.
+- **#89 measurement design:** use existing DESIGN sizing and Phase-5 harness as provisional assumptions (recorded in the issue), not an invented owner SLO or a claim that old 16k-passage measurements prove current 10M-passage capacity. No production load or configuration changes.
