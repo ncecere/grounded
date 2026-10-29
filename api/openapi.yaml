@@ -10,6 +10,12 @@ info:
     Browser writes require the session's `X-CSRF-Token` header (from `GET /v1/me`)
     and a same-origin `Origin`.
 
+    A request body that is not JSON, has an unknown field or a value of the
+    wrong JSON kind is 400 invalid_json, naming the field where possible. A value
+    of the right kind in the wrong format is 400 with its own code: an email
+    (format: email) invalid_email, a date or date-time invalid_date, a UUID
+    invalid_id.
+
     Known REST paths under `/v1/` return 405 method_not_allowed with an Allow
     header for unsupported methods, including OPTIONS; unknown paths stay 404.
     HEAD follows a registered GET. OpenAI-compatible paths use OpenAI errors;

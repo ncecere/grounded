@@ -288,6 +288,10 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 			Error(w, http.StatusBadRequest, "invalid_id", badIDMessage(raw, dst))
 			return false
 		}
+		if code, msg, ok := formatProblem(err); ok {
+			Error(w, http.StatusBadRequest, code, msg)
+			return false
+		}
 		Error(w, http.StatusBadRequest, "invalid_json", decodeProblem(err))
 		return false
 	}

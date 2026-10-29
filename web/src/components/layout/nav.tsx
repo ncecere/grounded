@@ -34,7 +34,7 @@ export type AdminPath =
   | "/admin/break-glass"
   | "/admin/logs";
 
-export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
+export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean };
 
 /**
  * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 26 items (MCP servers joined Models in v0.3, Reranking and
@@ -69,7 +69,8 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/models", label: "Models", icon: icon(Cpu) },
       { to: "/admin/embedding-profiles", label: "Embedding profiles", icon: icon(Layers) },
       { to: "/admin/mcp-servers", label: "MCP servers", icon: icon(Blocks) },
-      { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles), systemOne: true },
+      // Always shown, like Reranking (OW-2): its page says how to add a SystemOne model (#146).
+      { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles) },
       // Always shown, so the app says reranking exists before a rerank model does (OW-2).
       { to: "/admin/reranking", label: "Reranking", icon: icon(ArrowDownWideNarrow) },
     ],
