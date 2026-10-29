@@ -3138,6 +3138,21 @@ func (e OpenAIModelListObject) Valid() bool {
 	}
 }
 
+// Defines values for OpenAITextPartType.
+const (
+	OpenAITextPartTypeText OpenAITextPartType = "text"
+)
+
+// Valid indicates whether the value is a known member of the OpenAITextPartType enum.
+func (e OpenAITextPartType) Valid() bool {
+	switch e {
+	case OpenAITextPartTypeText:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PassageJudgmentReason.
 const (
 	Injection  PassageJudgmentReason = "injection"
@@ -9601,9 +9616,20 @@ type OpenAIChatCompletionObject string
 
 // OpenAIChatMessage defines model for OpenAIChatMessage.
 type OpenAIChatMessage struct {
-	// Content A string or an array of content parts (text parts are used)
-	Content interface{}           `json:"content,omitempty"`
-	Role    OpenAIChatMessageRole `json:"role"`
+	// Content Text only: a string or an array of text parts. Image and other non-text parts return 400 invalid_messages rather than being ignored.
+	Content *OpenAIChatMessage_Content `json:"content,omitempty"`
+	Role    OpenAIChatMessageRole      `json:"role"`
+}
+
+// OpenAIChatMessageContent0 defines model for OpenAIChatMessage.Content.0.
+type OpenAIChatMessageContent0 = string
+
+// OpenAIChatMessageContent1 defines model for OpenAIChatMessage.Content.1.
+type OpenAIChatMessageContent1 = []OpenAITextPart
+
+// OpenAIChatMessage_Content Text only: a string or an array of text parts. Image and other non-text parts return 400 invalid_messages rather than being ignored.
+type OpenAIChatMessage_Content struct {
+	union json.RawMessage
 }
 
 // OpenAIChatMessageRole defines model for OpenAIChatMessage.Role.
@@ -9611,6 +9637,7 @@ type OpenAIChatMessageRole string
 
 // OpenAIChatRequest defines model for OpenAIChatRequest.
 type OpenAIChatRequest struct {
+	// Messages At most 51 submitted messages (the final user question and up to 50 preceding messages). All roles count toward this bound, including ignored system/developer/tool messages.
 	Messages []OpenAIChatMessage `json:"messages"`
 
 	// Model agent:{team}/{slug}
@@ -9661,6 +9688,15 @@ type OpenAIModelList struct {
 
 // OpenAIModelListObject defines model for OpenAIModelList.Object.
 type OpenAIModelListObject string
+
+// OpenAITextPart defines model for OpenAITextPart.
+type OpenAITextPart struct {
+	Text string             `json:"text"`
+	Type OpenAITextPartType `json:"type"`
+}
+
+// OpenAITextPartType defines model for OpenAITextPart.Type.
+type OpenAITextPartType string
 
 // OpenAIUsage defines model for OpenAIUsage.
 type OpenAIUsage struct {
@@ -10782,7 +10818,7 @@ type RetrieveRequest struct {
 	// Rerank Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3; the default); false searches without it, to compare.
 	Rerank *bool `json:"rerank,omitempty"`
 
-	// TopK Defaults to the knowledge base's setting
+	// TopK Omit to use the knowledge base's setting. An explicit value outside 1–50 returns 400 invalid_topk; it is not clamped or defaulted.
 	TopK *int `json:"topK,omitempty"`
 }
 
@@ -13406,6 +13442,68 @@ func (a OpenAIChatRequest) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsOpenAIChatMessageContent0 returns the union data inside the OpenAIChatMessage_Content as a OpenAIChatMessageContent0
+func (t OpenAIChatMessage_Content) AsOpenAIChatMessageContent0() (OpenAIChatMessageContent0, error) {
+	var body OpenAIChatMessageContent0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromOpenAIChatMessageContent0 overwrites any union data inside the OpenAIChatMessage_Content as the provided OpenAIChatMessageContent0
+func (t *OpenAIChatMessage_Content) FromOpenAIChatMessageContent0(v OpenAIChatMessageContent0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeOpenAIChatMessageContent0 performs a merge with any union data inside the OpenAIChatMessage_Content, using the provided OpenAIChatMessageContent0
+func (t *OpenAIChatMessage_Content) MergeOpenAIChatMessageContent0(v OpenAIChatMessageContent0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsOpenAIChatMessageContent1 returns the union data inside the OpenAIChatMessage_Content as a OpenAIChatMessageContent1
+func (t OpenAIChatMessage_Content) AsOpenAIChatMessageContent1() (OpenAIChatMessageContent1, error) {
+	var body OpenAIChatMessageContent1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromOpenAIChatMessageContent1 overwrites any union data inside the OpenAIChatMessage_Content as the provided OpenAIChatMessageContent1
+func (t *OpenAIChatMessage_Content) FromOpenAIChatMessageContent1(v OpenAIChatMessageContent1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeOpenAIChatMessageContent1 performs a merge with any union data inside the OpenAIChatMessage_Content, using the provided OpenAIChatMessageContent1
+func (t *OpenAIChatMessage_Content) MergeOpenAIChatMessageContent1(v OpenAIChatMessageContent1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t OpenAIChatMessage_Content) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *OpenAIChatMessage_Content) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }
 
 // AsDataSource returns the union data inside the AdminUpdateSharedSource200JSONResponseBody_Data as a DataSource

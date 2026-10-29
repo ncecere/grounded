@@ -8599,7 +8599,7 @@ export interface components {
         };
         RetrieveRequest: {
             query: string;
-            /** @description Defaults to the knowledge base's setting */
+            /** @description Omit to use the knowledge base's setting. An explicit value outside 1–50 returns 400 invalid_topk; it is not clamped or defaulted. */
             topK?: number;
             filters?: components["schemas"]["MetadataFilter"];
             /** @description Judge the platform's candidate count of fused hits with the SystemOne model and return every candidate with its scores and route: evidence, then conflicting, then dropped (team editors signed in; 409 systemone_unavailable without a SystemOne model). topK is ignored. */
@@ -11106,12 +11106,18 @@ export interface components {
         OpenAIChatMessage: {
             /** @enum {string} */
             role: "system" | "developer" | "user" | "assistant" | "tool";
-            /** @description A string or an array of content parts (text parts are used) */
-            content?: unknown;
+            /** @description Text only: a string or an array of text parts. Image and other non-text parts return 400 invalid_messages rather than being ignored. */
+            content?: (string | components["schemas"]["OpenAITextPart"][]) | null;
+        };
+        OpenAITextPart: {
+            /** @enum {string} */
+            type: "text";
+            text: string;
         };
         OpenAIChatRequest: {
             /** @description agent:{team}/{slug} */
             model: string;
+            /** @description At most 51 submitted messages (the final user question and up to 50 preceding messages). All roles count toward this bound, including ignored system/developer/tool messages. */
             messages: components["schemas"]["OpenAIChatMessage"][];
             /** @default false */
             stream: boolean;

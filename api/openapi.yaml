@@ -11862,7 +11862,7 @@ components:
       required: [query]
       properties:
         query: { type: string, maxLength: 4000 }
-        topK: { type: integer, minimum: 1, maximum: 50, description: "Defaults to the knowledge base's setting" }
+        topK: { type: integer, minimum: 1, maximum: 50, description: "Omit to use the knowledge base's setting. An explicit value outside 1–50 returns 400 invalid_topk; it is not clamped or defaulted." }
         filters: { $ref: "#/components/schemas/MetadataFilter" }
         judge:
           type: boolean
@@ -14456,7 +14456,19 @@ components:
       required: [role]
       properties:
         role: { type: string, enum: [system, developer, user, assistant, tool] }
-        content: { description: A string or an array of content parts (text parts are used) }
+        content:
+          description: "Text only: a string or an array of text parts. Image and other non-text parts return 400 invalid_messages rather than being ignored."
+          nullable: true
+          oneOf:
+            - type: string
+            - type: array
+              items: { $ref: "#/components/schemas/OpenAITextPart" }
+    OpenAITextPart:
+      type: object
+      required: [type, text]
+      properties:
+        type: { type: string, enum: [text] }
+        text: { type: string }
     OpenAIChatRequest:
       type: object
       required: [model, messages]
@@ -14465,6 +14477,9 @@ components:
         model: { type: string, description: "agent:{team}/{slug}" }
         messages:
           type: array
+          minItems: 1
+          maxItems: 51
+          description: "At most 51 submitted messages (the final user question and up to 50 preceding messages). All roles count toward this bound, including ignored system/developer/tool messages."
           items: { $ref: "#/components/schemas/OpenAIChatMessage" }
         stream: { type: boolean, default: false }
         stream_options:

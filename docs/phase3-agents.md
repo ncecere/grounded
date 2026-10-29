@@ -261,7 +261,9 @@ With `stream = false`, the endpoint returns the final message as JSON.
 
 **OpenAI-compatible endpoint.**
 - `model` must be `agent:{team}/{slug}`.
-- Client `system` messages are dropped (the agent's instructions win). The rest of `messages` is the history, and the last user message is the question.
+- Client `system`/`developer`/`tool` and legacy `function` messages are dropped (the agent's instructions win). User/assistant messages form the history, and the last user message is the question.
+- Submit at most **51 messages total** (up to 50 preceding messages plus the question); ignored roles still count. More returns `400 invalid_messages`, rather than silently retaining only the tail.
+- Content is text only: strings or parts with explicit `type: text`. Image/audio/other non-text parts return `400 invalid_messages` explaining that they are unsupported, including mixed text/image arrays; they are not silently dropped.
 - `tools` and `n > 1` return 400.
 - `stream: true` returns `chat.completion.chunk`s with `delta.content`, `delta.reasoning_content` and a final chunk with `finish_reason`, plus `usage` when `stream_options.include_usage` is set.
 - Citations appear in an extra top-level `citations` field on the final chunk and the non-stream response.
