@@ -1,7 +1,9 @@
 import copy
+import tempfile
+from types import SimpleNamespace
 import unittest
 
-from ocr_networkpolicy import http_target, tcp_target, verify_local_kind
+from ocr_networkpolicy import Acceptance, http_target, tcp_target, verify_local_kind
 
 
 class LocalKindGuardTests(unittest.TestCase):
@@ -43,6 +45,14 @@ class LocalKindGuardTests(unittest.TestCase):
         node["NetworkSettings"]["Ports"]["6443/tcp"][0]["HostIp"] = "0.0.0.0"
         with self.assertRaises(ValueError):
             verify_local_kind(self.config, node, self.cluster)
+
+    def test_component_renders_from_an_isolated_scratch_tree(self):
+        args = SimpleNamespace(cluster=None, kubeconfig=None, ocr_image="unused-by-client-render")
+        with tempfile.TemporaryDirectory() as work:
+            rendered = Acceptance(args, work).render_component().decode()
+        self.assertIn("namespace: dev-grounded", rendered)
+        self.assertIn("name: grounded-ocr-ingress", rendered)
+        self.assertIn("imagePullPolicy: Never", rendered)
 
     def test_probe_targets_support_both_ip_families(self):
         self.assertEqual(tcp_target("192.0.2.1"), "192.0.2.1:8080")

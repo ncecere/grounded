@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import tempfile
 import time
@@ -117,12 +118,19 @@ class Acceptance:
         net = peer["NetworkSettings"]["Networks"][self.network]
         self.peer_ip = net.get("IPAddress") or net["GlobalIPv6Address"]
 
-    def deploy(self):
+    def render_component(self):
+        # Kustomize rejects absolute component roots. Copy the exact component
+        # into this owned scratch tree and use a normal relative reference.
+        shutil.copytree(K8S / "components/ocr-tesseract", self.work / "component")
         overlay = self.work / "overlay"
         overlay.mkdir()
+        # The component patches this base ConfigMap. No application or extra
+        # policy is needed to satisfy that dependency in the isolated fixture.
+        (overlay / "config.json").write_text(json.dumps({"apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": "grounded-config"}, "data": {}}))
         (overlay / "kustomization.yaml").write_text(
             "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
-            f"namespace: {NS}\ncomponents:\n  - {K8S / 'components/ocr-tesseract'}\n"
+            f"namespace: {NS}\nresources:\n  - config.json\ncomponents:\n  - ../component\n"
             "images:\n  - name: ghcr.io/ncecere/grounded-ocr\n"
             f"    newName: docker.io/library/grounded-ocr-policy\n    newTag: {self.cluster}\n"
             "patches:\n  - target:\n      kind: Deployment\n      name: grounded-ocr\n"
@@ -132,8 +140,10 @@ class Acceptance:
             "                resources:\n                  requests: {cpu: 10m, memory: 32Mi}\n"
             "                  limits: {cpu: 200m, memory: 256Mi}\n"
             "                readinessProbe:\n                  periodSeconds: 2\n                  failureThreshold: 1\n")
-        rendered = run(["kubectl", "kustomize", overlay]).stdout
-        self.k("apply", "-f", "-", data=rendered)
+        return run(["kubectl", "kustomize", overlay]).stdout
+
+    def deploy(self):
+        self.k("apply", "-f", "-", data=self.render_component())
         # Establish the counterfactual first: ingress-only means OCR can reach
         # DNS and the controlled outside-cluster peer. No other policy selects it.
         self.k("patch", "networkpolicy", "grounded-ocr-ingress", "--type=merge", "-p",

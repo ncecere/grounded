@@ -35,7 +35,9 @@ creation. No extra CNI is installed and no host firewall is changed.
 
 The production OCR component is rendered with only the image/pull policy,
 small health-test resource requests, and more frequent readiness probes changed.
-A static, test-only `tools/netprobe` binary is copied into writable `/tmp`; the
+A minimal `grounded-config` ConfigMap satisfies the component's configuration
+patch without deploying an application or ambient allow policy. A static,
+test-only `tools/netprobe` binary is copied into writable `/tmp`; the
 shipped image and its read-only root filesystem are not changed. API and worker
 client pods have the production policy labels. A third client is a positive
 control and is not selected by OCR's policies. A controlled Docker OCR server on
