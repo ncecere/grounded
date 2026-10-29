@@ -113,10 +113,16 @@ func TestAnonymousPublicChatAndRetention(t *testing.T) {
 		t.Fatalf("member reads an anonymous conversation = %d", code)
 	}
 
-	// Retention: past the level's anonymous retention (24 h) it is deleted.
+	// Retention: this test owns the deletion counts. The ingestion fixture's
+	// startup-scheduled retention job must not race the manual runner below.
+	env.app.stopWorker()
 	ctx := context.Background()
-	env.app.Pool.Exec(ctx, `UPDATE conversations SET updated_at = now() - interval '25 hours' WHERE id = $1`, conv.ConversationID)
-	env.app.Pool.Exec(ctx, `UPDATE conversations SET updated_at = now() - interval '23 hours' WHERE id = $1`, conv2.ConversationID)
+	if _, err := env.app.Pool.Exec(ctx, `UPDATE conversations SET updated_at = now() - interval '25 hours' WHERE id = $1`, conv.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.app.Pool.Exec(ctx, `UPDATE conversations SET updated_at = now() - interval '23 hours' WHERE id = $1`, conv2.ConversationID); err != nil {
+		t.Fatal(err)
+	}
 	runner := &retention.Runner{Pool: env.app.Pool, Batch: 1}
 	n, err := runner.Apply(ctx, nil)
 	if err != nil || n[retention.Conversations].Deleted != 1 {
@@ -134,13 +140,15 @@ func TestAnonymousPublicChatAndRetention(t *testing.T) {
 	env.admin.get("/v1/classifications", &[]apitypes.Classification{})
 	code, e = env.admin.call("PATCH", "/v1/admin/classifications/open", map[string]any{"anonymousRetentionHours": 12}, &open, ifMatch(1))
 	mustCode(t, "retention hours", code, e, 200, "")
-	if n, _ := runner.Apply(ctx, nil); n[retention.Conversations].Deleted != 1 {
-		t.Fatalf("retention at 12 h = %v", n)
+	if n, err := runner.Apply(ctx, nil); err != nil || n[retention.Conversations].Deleted != 1 {
+		t.Fatalf("retention at 12 h = %v %v", n, err)
 	}
 	// Expired sessions end: the cookie no longer works.
-	env.app.Pool.Exec(ctx, `UPDATE anon_sessions SET expires_at = now() - interval '1 minute'`)
-	if n, _ := runner.Apply(ctx, nil); n[retention.AnonymousSessions].Deleted != 2 {
-		t.Fatalf("session retention = %v", n)
+	if _, err := env.app.Pool.Exec(ctx, `UPDATE anon_sessions SET expires_at = now() - interval '1 minute'`); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := runner.Apply(ctx, nil); err != nil || n[retention.AnonymousSessions].Deleted != 2 {
+		t.Fatalf("session retention = %v %v", n, err)
 	}
 	if code, _, e := v.ask(pub.Id, "Hello again"); code != 401 || e != "session_expired" {
 		t.Fatalf("after expiry = %d %s", code, e)

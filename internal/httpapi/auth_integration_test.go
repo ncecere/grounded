@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -35,6 +36,8 @@ type testApp struct {
 	// Svc are the app's services (tests reach the public guard and jobs).
 	Svc    *app.Services
 	Client *http.Client
+	// stopWorker waits for the fixture's jobs to stop before tests run a job manually.
+	stopWorker func()
 }
 
 // testWeb stands in for the built UI: index.html and widget.js.
@@ -108,6 +111,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	deps.Auth = auth.NewService(cfg, pool, kvs, metrics, log)
 	handler = httpapi.NewAPIHandler(deps)
 
+	var stopWorker func()
 	if worker {
 		reg, err := app.IngestRegistration(cfg, pool, svc, log)
 		if err != nil {
@@ -120,15 +124,18 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		if err := w.Start(ctx); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() {
+		stopWorker = sync.OnceFunc(func() {
 			stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			_ = w.StopAndCancel(stopCtx)
+			if err := w.StopAndCancel(stopCtx); err != nil {
+				t.Errorf("stop fixture worker: %v", err)
+			}
 		})
+		t.Cleanup(stopWorker)
 	}
 
 	jar, _ := cookiejar.New(nil)
-	return &testApp{t: t, URL: srv.URL, Pool: pool, Client: &http.Client{Jar: jar}, Moderation: svc.Moderation, Svc: svc}
+	return &testApp{t: t, URL: srv.URL, Pool: pool, Client: &http.Client{Jar: jar}, Moderation: svc.Moderation, Svc: svc, stopWorker: stopWorker}
 }
 
 func (a *testApp) do(method, path string, body any, headers map[string]string) (int, []byte) {
