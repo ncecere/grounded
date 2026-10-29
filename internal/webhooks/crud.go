@@ -73,7 +73,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	}
 	var out Created
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		if in, err = s.normalize(ctx, q, sc, in); err != nil {
+		if in, err = s.normalize(ctx, q, sc, in, nil); err != nil {
 			return err
 		}
 		// The scope's count is read under a lock, so two requests cannot both pass the limit.
@@ -131,7 +131,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		if in.KeepDescription {
 			in.Description = cur.Description
 		}
-		if in, err = s.normalize(ctx, q, sc, in); err != nil {
+		if in, err = s.normalize(ctx, q, sc, in, &cur); err != nil {
 			return err
 		}
 		row, err := q.UpdateWebhook(ctx, dbgen.UpdateWebhookParams{ID: id, URL: in.URL, Description: in.Description, Events: in.Events, Enabled: in.Enabled})

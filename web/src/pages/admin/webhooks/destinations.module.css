@@ -19,3 +19,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* A host pattern or note has no spaces to wrap at (a 253-character name): break it inside the cell, so the table keeps its width and Note and Approved stay on screen. */
+.pattern,
+.note {
+  display: block;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  max-inline-size: 40ch;
+}

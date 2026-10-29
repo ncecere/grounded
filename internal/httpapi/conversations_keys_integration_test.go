@@ -97,3 +97,17 @@ func TestPersonalKeyConversationsStayWithinTheKey(t *testing.T) {
 		t.Errorf("session lists %d conversations", len(page.Items))
 	}
 }
+
+// A conversationId that is not an ID is the same refusal as one in a path: 400 invalid_id naming the field, not invalid_json (#140).
+func TestChatWithAMalformedConversationIDSaysSo(t *testing.T) {
+	env := newAgentEnv(t)
+	help := env.publishAgent(t, "Student help", env.agentConfig(env.kb.Id.String()))
+	for _, id := range []string{"not-an-id", "123", ""} {
+		code, e := env.owner.call("POST", env.chatPath(help.Slug), map[string]any{"message": "Hello", "conversationId": id, "stream": false}, nil, nil)
+		mustCode(t, "chat with conversationId "+id, code, e, 400, "invalid_id")
+	}
+	code, e := env.owner.call("POST", env.chatPath(help.Slug), map[string]any{"message": "Hello", "conversationId": "00000000-0000-4000-8000-000000000000", "stream": false}, nil, nil)
+	if code == 400 {
+		t.Errorf("a well-formed unknown conversationId = %d %s, want it looked up (not an invalid-id answer)", code, e)
+	}
+}
