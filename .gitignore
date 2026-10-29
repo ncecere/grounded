@@ -28,6 +28,8 @@ ai.env
 
 # Scratch directories of deploy/kubernetes/scripts
 /deploy/kubernetes/.tmp.*
+# Python bytecode from Kubernetes acceptance helpers
+__pycache__/
 coverage.out
 
 # Playwright end-to-end output (web/e2e): report, traces, server log, signed-in states

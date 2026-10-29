@@ -1,5 +1,6 @@
 # api (Admin -> Parsing's Test button) and worker (ingestion) may call the
-# OCR sidecar; the sidecar itself needs no egress.
+# OCR sidecar; the sidecar itself needs no egress. The base's DNS grant
+# excludes OCR too: policies combine by union, so a second allow would win.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -13,7 +14,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: grounded
       app.kubernetes.io/component: ocr
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
   ingress:
     - from:
         - podSelector:

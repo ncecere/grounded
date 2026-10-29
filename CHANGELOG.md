@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **The OCR component initiates no outbound traffic, including DNS.** Its NetworkPolicy now isolates egress, and the base DNS grant excludes OCR so an additive policy cannot silently undo that isolation. API/worker ingress is unchanged. A real kind acceptance test checks the standalone component and composed base with healthy positive controls, fresh readiness probes and a live DNS-policy mutation; it is part of the existing Kubernetes smoke check. Custom namespace-wide allow policies still combine by union and must exclude OCR too. (#77)
+
 ## [0.6.2] - 2026-10-29
 
 A dependency security patch. No new features, migrations or settings (schema 53).
