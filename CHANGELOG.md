@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Agent config type errors name the public field, not a Go type.** For example, `maxOutputTokens` supplied as text returns `400 invalid_config` with `maxOutputTokens must be a whole number` and the matching field in `details.problems`. Draft creation and updates preserve their existing validation and revisions on failure. (#119, partial)
 
 - **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
+- **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
 ## [0.6.2] - 2026-10-29
 

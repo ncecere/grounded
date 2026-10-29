@@ -3424,6 +3424,11 @@ paths:
       tags: [apikeys]
       operationId: createAPIKey
       summary: Create an API key; the secret is returned once
+      description: >-
+        Scopes must be the exact lower-case values query, ingest, manage or mcp.
+        Empty or unknown scopes return 400 invalid_scopes; a known scope beyond
+        the caller's team role returns 403. Bearer authentication scheme names
+        are case-insensitive; the secret itself is case-sensitive.
       requestBody:
         required: true
         content:
@@ -3500,6 +3505,11 @@ paths:
       tags: [apikeys]
       operationId: revokeAPIKey
       summary: Revoke an API key
+      description: >-
+        Team admins and owners may revoke any key in their team; other members
+        may revoke their own personal keys. A key they cannot see returns the
+        same 404 key_not_found as an unknown, cross-team or already-revoked key,
+        so this operation does not reveal whether another person's key exists.
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
