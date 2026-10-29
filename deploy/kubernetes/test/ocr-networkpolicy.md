@@ -78,3 +78,22 @@ excludes `app.kubernetes.io/component=ocr`; simply adding `Egress` to OCR's own
 policy would not override the old namespace-wide DNS grant. Operators adding
 namespace-wide egress allows must exclude OCR too if they want the same isolation.
 The policy keeps its existing resource name, so an upgrade updates it in place.
+Not every CNI tears down pre-existing connections when policy changes: when
+hardening an existing install, restart the OCR Deployment after applying the
+policies if you need to ensure old outbound connections are gone.
+
+## Recorded standalone acceptance (2026-10-29)
+
+Clean source `0e431182bb00a0999b78aa62ca28f02db0e6b99e`, kind v0.33.0 and the
+pinned Kubernetes 1.37.0 node image passed all four phases above, using
+`grounded-ocr@sha256:6c1510976dc4be682444cc956c43cae2d8b14e0d1da5c3785cea9d16bd861dfa`.
+The report records `ok: true`, `sourceDirty: false`, all four phase results and
+`error: null`. Cluster, peer container, test image alias and newly created bridge
+were removed; only Docker's default networks remained. This is network isolation
+acceptance, not OCR-quality evidence. The full existing-cluster smoke path and
+required GitHub CI remain merge gates.
+
+The first attempt failed before connectivity testing because the isolated
+component render lacked a relative component root/config dependency. It was
+cleaned up, fixed, and covered by a client-side render regression test; that
+failed attempt is not counted as policy evidence.
