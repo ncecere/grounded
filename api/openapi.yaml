@@ -10,6 +10,15 @@ info:
     Browser writes require the session's `X-CSRF-Token` header (from `GET /v1/me`)
     and a same-origin `Origin`.
 
+    Known REST paths under `/v1/` return 405 method_not_allowed with an Allow
+    header for unsupported methods, including OPTIONS; unknown paths stay 404.
+    HEAD follows a registered GET. OpenAI-compatible paths use OpenAI errors;
+    other REST paths use the native error envelope. OPTIONS is not a CORS
+    preflight endpoint: some public GET responses allow simple anonymous
+    cross-origin reads, but cross-origin JSON writes and credentialed preflights
+    are not supported. Public writes remain same-origin, including the widget's
+    iframe hosted by Grounded.
+
     Every route served by the application must be listed here; a test enforces it.
     The one exception is the MCP server (`POST /mcp`), which speaks JSON-RPC
     (the Model Context Protocol) and is described in docs/mcp.md.
@@ -5438,6 +5447,10 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/models:
+    description: >-
+      Unsupported methods return 405 with an OpenAI-shaped error and
+      Allow: GET, HEAD. HEAD follows GET with no response body.
+      OPTIONS is not a CORS preflight endpoint.
     get:
       tags: [openai]
       operationId: openaiListModels
@@ -5450,6 +5463,9 @@ paths:
               schema: { $ref: "#/components/schemas/OpenAIModelList" }
         "401": { $ref: "#/components/responses/OpenAIErrorReply" }
   /v1/chat/completions:
+    description: >-
+      Unsupported methods return 405 with an OpenAI-shaped error and
+      Allow: POST. OPTIONS is not a CORS preflight endpoint.
     post:
       tags: [openai]
       operationId: openaiChatCompletions

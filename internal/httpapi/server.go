@@ -395,7 +395,7 @@ func build(d Deps, routes []route, fallback http.Handler) http.Handler {
 	for _, rt := range routes {
 		mux.Handle(rt.pattern(), rt.Handler)
 	}
-	mux.Handle("/", fallback)
+	mux.Handle("/", restMethodFallback(mux, routes, fallback))
 	return chain(mux, d)
 }
 
