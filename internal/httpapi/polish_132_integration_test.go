@@ -94,6 +94,13 @@ func TestPatchThatChangesNothingWritesNothing(t *testing.T) {
 	if out.Revision != cur.Revision+1 || count("source.update") != before+1 {
 		t.Errorf("a real change: revision %d (was %d), audit %d (was %d)", out.Revision, cur.Revision, count("source.update"), before)
 	}
+	// A real change of classification is written too (a lowered one needs its reason).
+	var lowered apitypes.DataSource
+	code, e = env.owner.call("PATCH", path, map[string]any{"classification": "open", "reason": "Reviewed: nothing sensitive in it"}, &lowered, ifMatch(out.Revision))
+	mustCode(t, "lower the classification", code, e, 200, "")
+	if lowered.Classification != "open" || lowered.Revision != out.Revision+1 || count("source.classification_change") != 1 {
+		t.Errorf("lowered: %q revision %d (was %d), classification audit %d", lowered.Classification, lowered.Revision, out.Revision, count("source.classification_change"))
+	}
 	// A stale precondition is still refused, change or not.
 	code, e = env.owner.call("PATCH", path, map[string]any{}, nil, ifMatch(cur.Revision))
 	mustCode(t, "stale no-op", code, e, 412, "")

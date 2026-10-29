@@ -235,7 +235,8 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 // a change that never happened. A web configuration on a source that is not a web source is not a no-op, so the
 // update reports its error.
 func (s *Service) isNoop(ctx context.Context, q *dbgen.Queries, cur dbgen.DataSource, p dbgen.UpdateSourceParams, cfg *web.Config, in UpdateInput) (bool, error) {
-	if p.Name != cur.Name || p.Description != cur.Description || p.Classification != cur.Classification || p.Status != cur.Status {
+	// p.Classification is still the current one here: the requested level is applied after its checks.
+	if p.Name != cur.Name || p.Description != cur.Description || p.Status != cur.Status || (in.Classification != nil && *in.Classification != cur.Classification) {
 		return false, nil
 	}
 	if cfg != nil && (cur.Type != TypeWeb || !sameJSON(cur.Config, cfg.JSON())) {
