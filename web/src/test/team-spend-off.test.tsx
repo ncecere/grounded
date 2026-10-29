@@ -1,4 +1,4 @@
-/* #132: a team whose cost tracking is Off answers GET /v1/teams/{team}/spend with 404 costs_off; the pages do not ask again on every visit. */
+/* #132: a team whose cost tracking is Off answers GET /v1/teams/{team}/spend with 404 costs_off. Its budget status says the mode, so the pages do not ask at all; without that answer they ask once, not on every visit. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { forgetTeamSpend } from "../lib/costs";
@@ -14,8 +14,42 @@ function Page({ team }: { team: string }) {
 
 const spendCalls = (calls: { url: string }[]) => calls.filter((c) => c.url === "/v1/teams/registrar/spend").length;
 
+const banner = (mode: string) => ({ state: "none", enforced: false, mode });
+const statusCalls = (calls: { url: string }[]) => calls.filter((c) => c.url === "/v1/teams/registrar/budget-status").length;
+
 describe("a team's spend while its cost tracking is off", () => {
-  it("is asked once, not again for every page opened afterwards", async () => {
+  it("is not requested when the budget status says the mode is off", async () => {
+    const calls = mockApi({
+      "GET /v1/teams/registrar/budget-status": () => banner("off"),
+      "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team"),
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <Page team="registrar" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("off")).toBeInTheDocument();
+    expect(statusCalls(calls)).toBe(1);
+    expect(spendCalls(calls)).toBe(0);
+  });
+
+  it("is requested when the budget status says costs are tracked", async () => {
+    const calls = mockApi({
+      "GET /v1/teams/registrar/budget-status": () => banner("track"),
+      "GET /v1/teams/registrar/spend": () => ({ status: {}, timeZone: "UTC", from: "2026-10-01", to: "2026-10-16", total: null, agents: [], models: [] }),
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <Page team="registrar" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("on")).toBeInTheDocument();
+    expect(spendCalls(calls)).toBe(1);
+  });
+
+  it("is asked once when the budget status cannot be read, not again for every page opened afterwards", async () => {
     const calls = mockApi({ "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team") });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = (n: number) => (
@@ -38,6 +72,7 @@ describe("a team's spend while its cost tracking is off", () => {
   it("is asked again once a cost mode has changed", async () => {
     let on = false;
     const calls = mockApi({
+      "GET /v1/teams/registrar/budget-status": () => banner(on ? "track" : "off"),
       "GET /v1/teams/registrar/spend": () => (on ? { status: {}, timeZone: "UTC", from: "2026-10-01", to: "2026-10-16", total: null, agents: [], models: [] } : Reply.error(404, "costs_off", "Off")),
     });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -47,11 +82,12 @@ describe("a team's spend while its cost tracking is off", () => {
       </QueryClientProvider>
     );
     render(ui).unmount();
-    await waitFor(() => expect(spendCalls(calls)).toBe(1));
+    await waitFor(() => expect(statusCalls(calls)).toBe(1));
+    expect(spendCalls(calls)).toBe(0);
     on = true;
     act(() => forgetTeamSpend(qc));
     render(ui);
     expect(await screen.findByText("on")).toBeInTheDocument();
-    expect(spendCalls(calls)).toBe(2);
+    expect(spendCalls(calls)).toBe(1);
   });
 });

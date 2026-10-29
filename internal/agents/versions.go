@@ -4,8 +4,10 @@
 package agents
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -42,6 +44,10 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 	if err != nil {
 		return Version{}, err
 	}
+	// Nothing to publish: the UI says "No changes since version N" and offers no Publish; the API refuses the same (#132).
+	if err := s.refuseUnchanged(ctx, s.q, pre); err != nil {
+		return Version{}, err
+	}
 	audience := DecodeConfig(pre.Draft).Audience
 	if err := s.checkPublishAudience(ctx, acc.Role, audience); err != nil {
 		return Version{}, err
@@ -50,6 +56,9 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		cur, err := s.loadAgent(ctx, q, acc.Team.ID, id, true)
 		if err != nil {
+			return err
+		}
+		if err := s.refuseUnchanged(ctx, q, cur); err != nil {
 			return err
 		}
 		cfg := DecodeConfig(cur.Draft)
@@ -74,27 +83,7 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 			CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}}); err != nil {
 			return err
 		}
-		e := a.Audit("agent.publish", "agent", id.String())
-		e.TeamID = acc.Team.ID
-		e.After = map[string]any{"version": ver.Version, "chatModelId": cfg.ChatModelID, "kbIds": cfg.KBIDs(), "toolIds": cfg.Tools,
-			"effectiveRank": pol.Rank, "classification": pol.Classification, "audience": audience, "note": note}
-		if previous != audience {
-			e.Before = map[string]any{"audience": previous}
-		}
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
-		}
-		if err := s.notifyPublished(ctx, tx, a, acc.Team, cur, audience, previous, ver.Version); err != nil {
-			return err
-		}
-		if err := s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventAgentPublished, TeamID: acc.Team.ID, Data: map[string]any{
-			"agentId": id, "agentName": cur.Name, "agentSlug": cur.Slug, "version": ver.Version, "audience": audience}}); err != nil {
-			return err
-		}
-		if s.OnPublished != nil {
-			return s.OnPublished(ctx, tx, id)
-		}
-		return nil
+		return s.recordPublish(ctx, q, tx, a, acc.Team, cur, ver, publishRecord{cfg: cfg, rank: pol.Rank, classification: pol.Classification, audience: audience, previous: previous, note: note})
 	})
 	if err != nil {
 		return Version{}, err
@@ -104,6 +93,57 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 		name = u.DisplayName
 	}
 	return s.versionView(ctx, ver, name), nil
+}
+
+// publishRecord is what a publish records besides the version itself.
+type publishRecord struct {
+	cfg                      Config
+	rank                     int32
+	classification, audience string
+	previous, note           string
+}
+
+// recordPublish audits a publish and tells the owners, the webhooks and the publish hook, in its transaction.
+func (s *Service) recordPublish(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, team dbgen.Team, cur dbgen.Agent, ver dbgen.AgentVersion, p publishRecord) error {
+	id, cfg, audience := cur.ID, p.cfg, p.audience
+	e := a.Audit("agent.publish", "agent", id.String())
+	e.TeamID = team.ID
+	e.After = map[string]any{"version": ver.Version, "chatModelId": cfg.ChatModelID, "kbIds": cfg.KBIDs(), "toolIds": cfg.Tools,
+		"effectiveRank": p.rank, "classification": p.classification, "audience": audience, "note": p.note}
+	if p.previous != audience {
+		e.Before = map[string]any{"audience": p.previous}
+	}
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	if err := s.notifyPublished(ctx, tx, a, team, cur, audience, p.previous, ver.Version); err != nil {
+		return err
+	}
+	if err := s.Webhooks.Emit(ctx, tx, webhooks.Event{Type: webhooks.EventAgentPublished, TeamID: team.ID, Data: map[string]any{
+		"agentId": id, "agentName": cur.Name, "agentSlug": cur.Slug, "version": ver.Version, "audience": audience}}); err != nil {
+		return err
+	}
+	if s.OnPublished != nil {
+		return s.OnPublished(ctx, tx, id)
+	}
+	return nil
+}
+
+// refuseUnchanged is 409 no_changes when the agent's draft is exactly its published version (the rule of View's
+// HasUnpublishedChanges, which the editor shows as "No changes since version N"): publishing it again would add an
+// identical version, a new row in the history and a webhook and audit entry for nothing.
+func (s *Service) refuseUnchanged(ctx context.Context, q *dbgen.Queries, ag dbgen.Agent) error {
+	if !ag.PublishedVersionID.Valid {
+		return nil
+	}
+	pv, err := q.GetAgentVersion(ctx, ag.PublishedVersionID.UUID)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(DecodeConfig(ag.Draft).JSON(), DecodeConfig(pv.Config).JSON()) {
+		return apperr.Conflict("no_changes", fmt.Sprintf("No changes since version %d. Change the draft first.", pv.Version))
+	}
+	return nil
 }
 
 // insertVersion stores the version and its KBs and publishes it.

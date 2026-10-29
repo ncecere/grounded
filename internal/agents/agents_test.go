@@ -153,9 +153,11 @@ func TestAccentContrast(t *testing.T) {
 }
 
 func TestSlugFromName(t *testing.T) {
-	for in, want := range map[string]string{"Student Help!": "student-help", "  ": "agent", "Admin": "agent", "Über café 2": "ber-caf-2"} {
+	// #132: accents are dropped, not the letters; a name with no usable letters is "agent" (freeSlug numbers it), never one letter.
+	for in, want := range map[string]string{"Student Help!": "student-help", "  ": "agent", "Admin": "agent", "Über café 2": "uber-cafe-2",
+		"Ünï": "uni", "qa-build-日本語 ünï 😀": "qa-build-uni", "日本語": "agent", "Ä": "agent"} {
 		if got := slugFromName(in); got != want {
-			t.Errorf("%q → %q", in, got)
+			t.Errorf("%q → %q, want %q", in, got, want)
 		}
 	}
 }

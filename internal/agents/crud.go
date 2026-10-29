@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -101,18 +100,13 @@ type CreateInput struct {
 	TemplateID string
 }
 
-var slugJunk = regexp.MustCompile(`[^a-z0-9]+`)
-
-// slugFromName derives a URL slug from an agent name.
+// slugFromName derives a URL slug from an agent name (accents dropped, other scripts romanised where there is a
+// common spelling); "agent" when the name gives no usable address, which freeSlug then numbers if it is taken.
 func slugFromName(name string) string {
-	s := strings.Trim(slugJunk.ReplaceAllString(strings.ToLower(name), "-"), "-")
-	if len(s) > 60 {
-		s = strings.Trim(s[:60], "-")
+	if s := teams.SlugFromName(name, 60); s != "" {
+		return s
 	}
-	if teams.ValidateSlug(s) != nil {
-		return "agent"
-	}
-	return s
+	return "agent"
 }
 
 type profileFields struct {
