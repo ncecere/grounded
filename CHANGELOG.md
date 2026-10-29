@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **The OCR component initiates no outbound traffic, including DNS.** Its NetworkPolicy now isolates egress, and the base DNS grant excludes OCR so an additive policy cannot silently undo that isolation. API/worker ingress is unchanged. A real kind acceptance test checks the standalone component and composed base with healthy positive controls, fresh readiness probes and a live DNS-policy mutation; it is part of the existing Kubernetes smoke check. Custom namespace-wide allow policies still combine by union and must exclude OCR too. (#77)
 
+### Fixed
+
+- **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
+
 ## [0.6.2] - 2026-10-29
 
 A dependency security patch. No new features, migrations or settings (schema 53).
@@ -19,10 +23,6 @@ instructions and scan limitations. The remaining v0.6.0 QA issues are separate w
 ### Security
 
 - **Go 1.26.10** fixes GO-2026-6809 in `crypto/x509`: certificate verification now rejects known intermediate certificates that are no longer trusted even where the system trust store has not been updated. The previously pinned Go 1.26.9 is affected, and `govulncheck` found a reachable path through outbound MCP HTTP responses. **golang.org/x/net v0.62.0** also fixes GO-2026-6860, a reachable quadratic-complexity issue while parsing HTML during ingestion. **go-jose v4.1.6** fixes CVE-2026-116587, denial of service while parsing RSA JWKs, found by the candidate-image scan. The web lockfile updates shipped `seroval` to 1.7.3 for two serialization injection advisories, and development-only `undici` to 8.12.3 for its HTTP/TLS advisories. No direct npm dependency, product setting or migration changes. (#169)
-
-### Fixed
-
-- **Wrong methods on known REST paths return 405, not a misleading 404.** The `Allow` header is derived from the router, including overlapping literal/wildcard paths and implicit HEAD support. OpenAI-compatible paths use `message`, `type`, `code` and `param`; other REST paths use the native error envelope. Unknown paths stay 404. OPTIONS is not a CORS preflight grant: public writes remain same-origin, including the widget's Grounded-hosted iframe. (#116; #119, partial)
 
 ## [0.6.1] - 2026-10-17
 
