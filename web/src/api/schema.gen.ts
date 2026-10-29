@@ -86,7 +86,7 @@ export interface paths {
         };
         /**
          * The widget's chat page (framed by allowed origins only)
-         * @description Checks the publishable key, the agent's status and audience, and the public switch. Content-Security-Policy frame-ancestors lists 'self' and the key's allowed origins; X-Frame-Options is not sent. A Referer from another origin must be allowed. With preview=1 (and no key) it is the editor's same-origin preview for team members.
+         * @description Checks the publishable key, the agent's status and audience, and the public switch. Content-Security-Policy frame-ancestors lists 'self' and the key's allowed origins; X-Frame-Options is not sent. A Referer from another origin must be allowed. With preview=1 (and no key), a syntactically valid UUID receives the generic SPA shell (200), including an anonymous caller or unknown agent ID; this does not disclose an agent profile or grant access. Preview framing is same-origin only. The app's subsequent signed-in team APIs enforce membership and agent access.
          */
         get: operations["getEmbedPage"];
         put?: never;
@@ -12137,6 +12137,28 @@ export interface components {
                 };
             };
         };
+        /** @description An error not listed separately for the operation. Any native /v1 operation can be refused by shared rate limiting with 429 rate_limited and an integer Retry-After delay in seconds. Explicit operation-specific responses take precedence; Retry-After is optional on other errors. */
+        DefaultErrorReply: {
+            headers: {
+                /** @description Seconds to wait before retrying a rate-limited request */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description An unspecified OpenAI-compatible error, including shared rate limiting (429 rate_limited, type rate_limit_error, with Retry-After in seconds). Explicit operation-specific responses take precedence. */
+        OpenAIDefaultErrorReply: {
+            headers: {
+                /** @description Seconds to wait before retrying a rate-limited request */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OpenAIError"];
+            };
+        };
         /** @description Error */
         ErrorReply: {
             headers: {
@@ -12544,6 +12566,7 @@ export interface operations {
                     };
                 };
             };
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getMe: {
@@ -12571,6 +12594,7 @@ export interface operations {
             };
             401: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listNotifications: {
@@ -12602,6 +12626,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateNotification: {
@@ -12632,6 +12657,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     markAllNotificationsRead: {
@@ -12659,6 +12685,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getNotificationSettings: {
@@ -12682,6 +12709,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateNotificationSettings: {
@@ -12709,6 +12737,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listClassifications: {
@@ -12732,6 +12761,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listMyTeams: {
@@ -12755,6 +12785,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeam: {
@@ -12782,6 +12813,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listMembers: {
@@ -12808,6 +12840,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     addMember: {
@@ -12841,6 +12874,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     removeMember: {
@@ -12860,6 +12894,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateMember: {
@@ -12899,6 +12934,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listInvites: {
@@ -12926,6 +12962,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revokeInvite: {
@@ -12944,6 +12981,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamAudit: {
@@ -12979,6 +13017,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeamAuditEntry: {
@@ -13008,6 +13047,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeamLimits: {
@@ -13034,6 +13074,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListUsers: {
@@ -13065,6 +13106,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetUser: {
@@ -13092,6 +13134,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateUser: {
@@ -13130,6 +13173,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListUserOAuthGrants: {
@@ -13156,6 +13200,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRevokeUserOAuthGrant: {
@@ -13173,6 +13218,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListTeams: {
@@ -13203,6 +13249,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateTeam: {
@@ -13232,6 +13279,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetTeam: {
@@ -13260,6 +13308,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateTeam: {
@@ -13298,6 +13347,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminAssignOwner: {
@@ -13331,6 +13381,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetGroupMapping: {
@@ -13354,6 +13405,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListGroupRules: {
@@ -13381,6 +13433,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateGroupRule: {
@@ -13412,6 +13465,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPreviewGroupRule: {
@@ -13442,6 +13496,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetGroupRule: {
@@ -13469,6 +13524,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteGroupRule: {
@@ -13485,6 +13541,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateGroupRule: {
@@ -13523,6 +13580,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetLimits: {
@@ -13547,6 +13605,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateLimits: {
@@ -13581,6 +13640,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetTeamLimits: {
@@ -13609,6 +13669,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateTeamLimits: {
@@ -13647,6 +13708,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateClassification: {
@@ -13676,6 +13738,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteClassification: {
@@ -13698,6 +13761,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateClassification: {
@@ -13736,6 +13800,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListAudit: {
@@ -13767,6 +13832,7 @@ export interface operations {
             200: components["responses"]["AuditPageReply"];
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetAuditEntry: {
@@ -13794,6 +13860,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetKeyRotation: {
@@ -13817,6 +13884,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetRetention: {
@@ -13841,6 +13909,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutRetention: {
@@ -13875,6 +13944,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetRetentionReport: {
@@ -13898,6 +13968,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListRetentionRuns: {
@@ -13924,6 +13995,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminStartRetentionRun: {
@@ -13952,6 +14024,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListLegalHolds: {
@@ -13978,6 +14051,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateLegalHold: {
@@ -14006,6 +14080,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetLegalHold: {
@@ -14032,6 +14107,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminReleaseLegalHold: {
@@ -14064,6 +14140,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListConnections: {
@@ -14087,6 +14164,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateConnection: {
@@ -14117,6 +14195,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetConnection: {
@@ -14144,6 +14223,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteConnection: {
@@ -14161,6 +14241,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateConnection: {
@@ -14199,6 +14280,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminTestConnection: {
@@ -14227,6 +14309,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListMCPServers: {
@@ -14250,6 +14333,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateMCPServer: {
@@ -14280,6 +14364,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetMCPServer: {
@@ -14307,6 +14392,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteMCPServer: {
@@ -14324,6 +14410,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateMCPServer: {
@@ -14362,6 +14449,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminTestMCPServer: {
@@ -14388,6 +14476,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRefreshMCPServerTools: {
@@ -14415,6 +14504,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             502: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListMCPServerTools: {
@@ -14441,6 +14531,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSetMCPToolApproval: {
@@ -14476,6 +14567,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListModels: {
@@ -14502,6 +14594,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateModel: {
@@ -14532,6 +14625,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetModel: {
@@ -14559,6 +14653,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteModel: {
@@ -14576,6 +14671,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateModel: {
@@ -14614,6 +14710,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminTestModel: {
@@ -14642,6 +14739,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetCatalogUsage: {
@@ -14665,6 +14763,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListHealthChecks: {
@@ -14692,6 +14791,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListEmbeddingProfiles: {
@@ -14715,6 +14815,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateEmbeddingProfile: {
@@ -14745,6 +14846,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetEmbeddingProfile: {
@@ -14772,6 +14874,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteEmbeddingProfile: {
@@ -14789,6 +14892,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateEmbeddingProfile: {
@@ -14827,6 +14931,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListKnowledgeBases: {
@@ -14850,6 +14955,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListProfileMigrations: {
@@ -14876,6 +14982,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminStartProfileMigration: {
@@ -14907,6 +15014,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPreviewProfileMigration: {
@@ -14938,6 +15046,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPreflightProfileMigration: {
@@ -14967,6 +15076,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetProfileMigration: {
@@ -14983,6 +15093,7 @@ export interface operations {
             200: components["responses"]["ProfileMigrationReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCancelProfileMigration: {
@@ -15005,6 +15116,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSwitchProfileMigration: {
@@ -15027,6 +15139,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetProfileMigrationPreview: {
@@ -15053,6 +15166,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminEvaluateProfileMigration: {
@@ -15080,6 +15194,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSwitchBackProfileMigration: {
@@ -15102,6 +15217,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRetryProfileMigration: {
@@ -15124,6 +15240,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminFinishProfileMigration: {
@@ -15146,6 +15263,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listUsableEmbeddingProfiles: {
@@ -15169,6 +15287,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listUsableChatModels: {
@@ -15192,6 +15311,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listUsableMCPTools: {
@@ -15215,6 +15335,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listSources: {
@@ -15242,6 +15363,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createSource: {
@@ -15277,6 +15399,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getSource: {
@@ -15306,6 +15429,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteSource: {
@@ -15325,6 +15449,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateSource: {
@@ -15365,6 +15490,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listDocuments: {
@@ -15407,6 +15533,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     uploadDocuments: {
@@ -15447,6 +15574,7 @@ export interface operations {
             409: components["responses"]["LimitReachedReply"];
             413: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     retryDocuments: {
@@ -15481,6 +15609,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getDocument: {
@@ -15510,6 +15639,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteDocument: {
@@ -15529,6 +15659,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateDocument: {
@@ -15563,6 +15694,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listDocumentPassages: {
@@ -15595,6 +15727,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listSourceTags: {
@@ -15623,6 +15756,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getDocumentText: {
@@ -15657,6 +15791,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     retryDocument: {
@@ -15688,6 +15823,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     refetchDocument: {
@@ -15720,6 +15856,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     syncSource: {
@@ -15751,6 +15888,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listBoilerplateBlocks: {
@@ -15772,6 +15910,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listCrawls: {
@@ -15793,6 +15932,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     cancelCrawl: {
@@ -15813,6 +15953,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     mapSite: {
@@ -15847,6 +15988,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             422: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamDomainRequests: {
@@ -15864,6 +16006,7 @@ export interface operations {
             200: components["responses"]["DomainRequestListReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createDomainRequest: {
@@ -15897,6 +16040,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     withdrawDomainRequest: {
@@ -15916,6 +16060,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listSharedSources: {
@@ -15939,6 +16084,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listKnowledgeBases: {
@@ -15966,6 +16112,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createKnowledgeBase: {
@@ -16000,6 +16147,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getKnowledgeBase: {
@@ -16029,6 +16177,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteKnowledgeBase: {
@@ -16047,6 +16196,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateKnowledgeBase: {
@@ -16087,6 +16237,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getKnowledgeBaseIndexPreview: {
@@ -16114,6 +16265,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getKnowledgeBaseProfileMigration: {
@@ -16142,6 +16294,7 @@ export interface operations {
             };
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     attachSource: {
@@ -16173,6 +16326,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     detachSource: {
@@ -16202,6 +16356,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     retrieve: {
@@ -16237,6 +16392,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listAPIKeys: {
@@ -16264,6 +16420,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createAPIKey: {
@@ -16297,6 +16454,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAPIKey: {
@@ -16325,6 +16483,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revokeAPIKey: {
@@ -16343,6 +16502,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateAPIKeyContact: {
@@ -16382,6 +16542,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListCrawlAllowlist: {
@@ -16405,6 +16566,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminAddCrawlAllowlist: {
@@ -16434,6 +16596,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRemoveCrawlAllowlist: {
@@ -16450,6 +16613,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetOverview: {
@@ -16473,6 +16637,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetFeatures: {
@@ -16496,6 +16661,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetAttention: {
@@ -16519,6 +16685,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListDomainRequests: {
@@ -16535,6 +16702,7 @@ export interface operations {
             200: components["responses"]["DomainRequestListReply"];
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminReviewDomainRequest: {
@@ -16567,6 +16735,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedSourceUsage: {
@@ -16590,6 +16759,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedSources: {
@@ -16613,6 +16783,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCreateSharedSource: {
@@ -16644,6 +16815,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetSharedSource: {
@@ -16671,6 +16843,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteSharedSource: {
@@ -16688,6 +16861,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateSharedSource: {
@@ -16729,6 +16903,7 @@ export interface operations {
             409: components["responses"]["ClassificationImpactReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedDocuments: {
@@ -16769,6 +16944,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUploadSharedDocuments: {
@@ -16807,6 +16983,7 @@ export interface operations {
             409: components["responses"]["LimitReachedReply"];
             413: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRetrySharedDocuments: {
@@ -16839,6 +17016,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetSharedDocument: {
@@ -16866,6 +17044,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteSharedDocument: {
@@ -16883,6 +17062,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateSharedDocument: {
@@ -16915,6 +17095,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedDocumentPassages: {
@@ -16945,6 +17126,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedSourceTags: {
@@ -16971,6 +17153,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRetrySharedDocument: {
@@ -17000,6 +17183,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRefetchSharedDocument: {
@@ -17030,6 +17214,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSyncSharedSource: {
@@ -17059,6 +17244,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedBoilerplateBlocks: {
@@ -17078,6 +17264,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListSharedCrawls: {
@@ -17097,6 +17284,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminCancelSharedCrawl: {
@@ -17115,6 +17303,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listAgents: {
@@ -17142,6 +17331,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createAgent: {
@@ -17192,6 +17382,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listAgentTemplates: {
@@ -17215,6 +17406,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteAgentTemplate: {
@@ -17232,6 +17424,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateAgentTemplate: {
@@ -17264,6 +17457,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     saveAgentAsTemplate: {
@@ -17298,6 +17492,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgent: {
@@ -17327,6 +17522,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteAgent: {
@@ -17345,6 +17541,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateAgent: {
@@ -17385,6 +17582,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     publishAgent: {
@@ -17419,6 +17617,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             422: components["responses"]["AgentInvalidReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listAgentVersions: {
@@ -17447,6 +17646,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentVersion: {
@@ -17477,6 +17677,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revertAgent: {
@@ -17511,6 +17712,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     setAgentStatus: {
@@ -17545,6 +17747,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     testAgent: {
@@ -17571,6 +17774,7 @@ export interface operations {
             422: components["responses"]["AgentInvalidReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentAnalytics: {
@@ -17605,6 +17809,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentAnswerCache: {
@@ -17634,6 +17839,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateAgentAnswerCache: {
@@ -17674,6 +17880,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     clearAgentAnswerCache: {
@@ -17703,6 +17910,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentSharing: {
@@ -17731,6 +17939,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     checkWidgetOrigins: {
@@ -17769,6 +17978,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listPublishableKeys: {
@@ -17797,6 +18007,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createPublishableKey: {
@@ -17842,6 +18053,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revokePublishableKey: {
@@ -17861,6 +18073,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updatePublishableKey: {
@@ -17901,6 +18114,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getPublicAgent: {
@@ -17928,6 +18142,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getPublicAgentByTeam: {
@@ -17957,6 +18172,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     widgetCheck: {
@@ -17986,6 +18202,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createPublicSession: {
@@ -18017,6 +18234,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getPublicSession: {
@@ -18050,6 +18268,7 @@ export interface operations {
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     publicChat: {
@@ -18078,6 +18297,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listAgentDirectory: {
@@ -18106,6 +18326,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentProfile: {
@@ -18134,6 +18355,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentProfileByShortName: {
@@ -18159,6 +18381,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getAgentProfileByID: {
@@ -18184,6 +18407,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     chat: {
@@ -18218,6 +18442,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getPublicCitedPassage: {
@@ -18252,6 +18477,7 @@ export interface operations {
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     setPublicMessageFeedback: {
@@ -18290,6 +18516,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listConversations: {
@@ -18324,6 +18551,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getConversation: {
@@ -18349,6 +18577,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteConversation: {
@@ -18364,6 +18593,7 @@ export interface operations {
         responses: {
             200: components["responses"]["OkReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     renameConversation: {
@@ -18394,6 +18624,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listConversationShares: {
@@ -18421,6 +18652,7 @@ export interface operations {
             401: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createConversationShare: {
@@ -18454,6 +18686,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revokeConversationShare: {
@@ -18472,6 +18705,7 @@ export interface operations {
             401: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getSharedConversation: {
@@ -18499,6 +18733,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getSharedCitedPassage: {
@@ -18529,6 +18764,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     exportConversation: {
@@ -18558,6 +18794,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     setMessageFeedback: {
@@ -18588,6 +18825,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getCitedPassage: {
@@ -18616,6 +18854,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     openaiListModels: {
@@ -18641,6 +18880,7 @@ export interface operations {
             403: components["responses"]["OpenAIErrorReply"];
             429: components["responses"]["OpenAIErrorReply"];
             500: components["responses"]["OpenAIErrorReply"];
+            default: components["responses"]["OpenAIDefaultErrorReply"];
         };
     };
     openaiChatCompletions: {
@@ -18685,6 +18925,7 @@ export interface operations {
             429: components["responses"]["OpenAIErrorReply"];
             500: components["responses"]["OpenAIErrorReply"];
             503: components["responses"]["OpenAIErrorReply"];
+            default: components["responses"]["OpenAIDefaultErrorReply"];
         };
     };
     adminListAgents: {
@@ -18712,6 +18953,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSetAgentStatus: {
@@ -18743,6 +18985,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminSetAgentShortName: {
@@ -18775,6 +19018,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetPublicAccess: {
@@ -18799,6 +19043,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutPublicAccess: {
@@ -18833,6 +19078,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getMaintenance: {
@@ -18856,6 +19102,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetMaintenance: {
@@ -18880,6 +19127,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutMaintenance: {
@@ -18914,6 +19162,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listMyBreakGlassSessions: {
@@ -18937,6 +19186,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listMyOAuthGrants: {
@@ -18960,6 +19210,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     revokeMyOAuthGrant: {
@@ -18976,6 +19227,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getOAuthConsent: {
@@ -19010,6 +19262,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     decideOAuthConsent: {
@@ -19042,6 +19295,7 @@ export interface operations {
             401: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     searchObjects: {
@@ -19071,6 +19325,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamBreakGlassSessions: {
@@ -19098,6 +19353,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamConversations: {
@@ -19131,6 +19387,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetBreakGlassSettings: {
@@ -19155,6 +19412,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutBreakGlassSettings: {
@@ -19189,6 +19447,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListBreakGlassSessions: {
@@ -19222,6 +19481,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminStartBreakGlassSession: {
@@ -19252,6 +19512,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetBreakGlassSession: {
@@ -19278,6 +19539,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListBreakGlassReads: {
@@ -19309,6 +19571,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminApproveBreakGlassSession: {
@@ -19336,6 +19599,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDenyBreakGlassSession: {
@@ -19368,6 +19632,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminEndBreakGlassSession: {
@@ -19395,6 +19660,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListAccessLog: {
@@ -19430,6 +19696,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetAnalytics: {
@@ -19463,6 +19730,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetGapCounts: {
@@ -19494,6 +19762,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminExportAnalyticsDaily: {
@@ -19529,6 +19798,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListModerationEvents: {
@@ -19565,6 +19835,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetSystemOne: {
@@ -19589,6 +19860,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutSystemOne: {
@@ -19623,6 +19895,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetRerank: {
@@ -19647,6 +19920,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutRerank: {
@@ -19681,6 +19955,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetParsing: {
@@ -19705,6 +19980,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutParsing: {
@@ -19739,6 +20015,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminTestParsing: {
@@ -19767,6 +20044,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListDocumentProblems: {
@@ -19790,6 +20068,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRetryDocumentProblems: {
@@ -19821,6 +20100,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminNotifyDocumentProblems: {
@@ -19851,6 +20131,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getSystemOneStatus: {
@@ -19874,6 +20155,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getRerankStatus: {
@@ -19897,6 +20179,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetModerationPolicy: {
@@ -19924,6 +20207,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutModerationPolicy: {
@@ -19961,6 +20245,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminTestModeration: {
@@ -19990,6 +20275,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetCostSettings: {
@@ -20014,6 +20300,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateCostSettings: {
@@ -20048,6 +20335,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListCostPrices: {
@@ -20071,6 +20359,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetModelPrices: {
@@ -20097,6 +20386,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminAddModelPrices: {
@@ -20129,6 +20419,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeleteModelPrice: {
@@ -20156,6 +20447,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetCostReport: {
@@ -20186,6 +20478,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminExportCostReport: {
@@ -20218,6 +20511,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListBudgets: {
@@ -20241,6 +20535,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetTeamBudget: {
@@ -20269,6 +20564,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminUpdateTeamBudget: {
@@ -20307,6 +20603,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGrantBudgetExtension: {
@@ -20339,6 +20636,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminRevokeBudgetExtension: {
@@ -20367,6 +20665,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeamSpend: {
@@ -20398,6 +20697,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeamBudgetStatus: {
@@ -20424,6 +20724,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationSets: {
@@ -20453,6 +20754,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createEvaluationSet: {
@@ -20486,6 +20788,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getEvaluationSet: {
@@ -20514,6 +20817,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteEvaluationSet: {
@@ -20532,6 +20836,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateEvaluationSet: {
@@ -20571,6 +20876,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationQuestions: {
@@ -20598,6 +20904,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createEvaluationQuestion: {
@@ -20632,6 +20939,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     importEvaluationQuestions: {
@@ -20665,6 +20973,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     exportEvaluationQuestions: {
@@ -20690,6 +20999,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getEvaluationQuestion: {
@@ -20719,6 +21029,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteEvaluationQuestion: {
@@ -20738,6 +21049,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateEvaluationQuestion: {
@@ -20778,6 +21090,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationSetProblems: {
@@ -20805,6 +21118,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationDocuments: {
@@ -20835,6 +21149,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationTargetDocuments: {
@@ -20867,6 +21182,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     checkEvaluationQuestion: {
@@ -20898,6 +21214,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listEvaluationRuns: {
@@ -20927,6 +21244,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     startEvaluationRun: {
@@ -20960,6 +21278,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     compareEvaluationRuns: {
@@ -20991,6 +21310,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getEvaluationRun: {
@@ -21019,6 +21339,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     cancelEvaluationRun: {
@@ -21048,6 +21369,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listGapTopics: {
@@ -21079,6 +21401,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getGapTopic: {
@@ -21106,6 +21429,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     dismissGapTopic: {
@@ -21139,6 +21463,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     reopenGapTopic: {
@@ -21167,6 +21492,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getGapSettings: {
@@ -21193,6 +21519,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateGapSettings: {
@@ -21230,6 +21557,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     fixGapTopic: {
@@ -21258,6 +21586,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     addGapTopicSource: {
@@ -21286,6 +21615,7 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     addGapQuestionToEvaluations: {
@@ -21320,6 +21650,7 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
             422: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetEvaluationSettings: {
@@ -21344,6 +21675,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutEvaluationSettings: {
@@ -21378,6 +21710,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetTeamRequestSettings: {
@@ -21402,6 +21735,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutTeamRequestSettings: {
@@ -21436,6 +21770,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listMyTeamRequests: {
@@ -21459,6 +21794,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createTeamRequest: {
@@ -21488,6 +21824,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     withdrawTeamRequest: {
@@ -21504,6 +21841,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminListTeamRequests: {
@@ -21530,6 +21868,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetTeamRequest: {
@@ -21557,6 +21896,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminApproveTeamRequest: {
@@ -21595,6 +21935,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminDeclineTeamRequest: {
@@ -21633,6 +21974,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetAnswerCacheSettings: {
@@ -21657,6 +21999,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutAnswerCacheSettings: {
@@ -21691,6 +22034,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetMCPSettings: {
@@ -21715,6 +22059,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutMCPSettings: {
@@ -21749,6 +22094,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamWebhooks: {
@@ -21776,6 +22122,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createTeamWebhook: {
@@ -21809,6 +22156,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getTeamWebhook: {
@@ -21838,6 +22186,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteTeamWebhook: {
@@ -21856,6 +22205,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updateTeamWebhook: {
@@ -21896,6 +22246,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     rotateTeamWebhookSecret: {
@@ -21924,6 +22275,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     testTeamWebhook: {
@@ -21953,6 +22305,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listTeamWebhookDeliveries: {
@@ -21981,6 +22334,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     redeliverTeamWebhook: {
@@ -22011,6 +22365,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listPlatformWebhooks: {
@@ -22035,6 +22390,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createPlatformWebhook: {
@@ -22065,6 +22421,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     getPlatformWebhook: {
@@ -22092,6 +22449,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deletePlatformWebhook: {
@@ -22108,6 +22466,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     updatePlatformWebhook: {
@@ -22146,6 +22505,7 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     rotatePlatformWebhookSecret: {
@@ -22172,6 +22532,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     testPlatformWebhook: {
@@ -22199,6 +22560,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listPlatformWebhookDeliveries: {
@@ -22225,6 +22587,7 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     redeliverPlatformWebhook: {
@@ -22253,6 +22616,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listWebhookEvents: {
@@ -22275,6 +22639,7 @@ export interface operations {
                     };
                 };
             };
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     listWebhookDestinations: {
@@ -22297,6 +22662,7 @@ export interface operations {
                     };
                 };
             };
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     createWebhookDestination: {
@@ -22326,6 +22692,7 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     deleteWebhookDestination: {
@@ -22342,6 +22709,7 @@ export interface operations {
             200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminGetWebhookSettings: {
@@ -22366,6 +22734,7 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
     adminPutWebhookSettings: {
@@ -22399,6 +22768,7 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
         };
     };
 }
