@@ -5,8 +5,8 @@
  * environment sets (read-only, with its variable), and links to the areas that keep their own settings pages.
  * Platform admins change things; auditors read them, with the reason.
  */
-import { Link } from "@tanstack/react-router";
-import type { ReactElement } from "react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { useEffect, type ReactElement } from "react";
 import { Card } from "@/components/ui/card/card";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
@@ -66,6 +66,15 @@ function EnvironmentCard() {
 export function AdminSettingsPage() {
   const isAdmin = useIsPlatformAdmin();
   const costs = useCostSettings();
+  const hash = useLocation({ select: (location) => location.hash });
+  useEffect(() => {
+    // On reload the browser/router can follow the hash while GeneralSettings
+    // is still a short loading placeholder. Re-anchor once that layout settles,
+    // but not on background refetches or saves (AD-146).
+    if (hash === "features" && !costs.isLoading) {
+      document.getElementById("features")?.scrollIntoView({ block: "start" });
+    }
+  }, [hash, costs.isLoading]);
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader title="Settings" description="The platform's general settings and feature switches. Areas with settings of their own are linked at the end." />

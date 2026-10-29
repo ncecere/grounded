@@ -3,7 +3,7 @@
  * they are, the budget label never taking an invalid currency (AD-34), the feature switches, what the environment sets
  * (read-only, with its variable), links to the areas with their own settings, and auditors reading it all.
  */
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
@@ -33,6 +33,44 @@ const routes = (role: "platform_admin" | "platform_auditor" = "platform_admin", 
 });
 
 describe("Admin → Settings", () => {
+  it.each(["platform_admin", "platform_auditor"] as const)("scrolls a cold #features entry after async layout settles (%s)", async (role) => {
+    let release!: (value: Schemas["CostSettings"]) => void;
+    const pending = new Promise<Schemas["CostSettings"]>((resolve) => { release = resolve; });
+    mockApi(routes(role, { "GET /v1/admin/costs/settings": () => pending }));
+    const previous = Element.prototype.scrollIntoView;
+    const settledScrolls: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      if (screen.queryByRole("textbox", { name: "Currency" })) settledScrolls.push(this.id);
+    };
+    try {
+      const { qc } = renderApp("/admin/settings#features");
+      expect(await screen.findByText("Loading settings…")).toBeInTheDocument();
+      await act(async () => { release(costs); });
+      expect(await screen.findByRole("textbox", { name: "Currency" })).toBeInTheDocument();
+      await waitFor(() => expect(settledScrolls).toContain("features"));
+      const count = settledScrolls.length;
+      // A background refresh/save must not jump back to the card again.
+      await act(async () => { await qc.invalidateQueries(); });
+      expect(settledScrolls.length).toBe(count);
+    } finally {
+      Element.prototype.scrollIntoView = previous;
+    }
+  });
+
+  it.each(["/admin/settings", "/admin/settings#unknown"])("does not pull an unrelated entry to Features (%s)", async (path) => {
+    mockApi(routes());
+    const previous = Element.prototype.scrollIntoView;
+    const targets: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) { targets.push(this.id); };
+    try {
+      renderApp(path);
+      expect(await screen.findByRole("textbox", { name: "Currency" })).toBeInTheDocument();
+      expect(targets).not.toContain("features");
+    } finally {
+      Element.prototype.scrollIntoView = previous;
+    }
+  });
+
   it("saves the currency, time zone and default budget with If-Match, keeping the cost mode and threshold", async () => {
     const calls = mockApi(routes("platform_admin", { "PUT /v1/admin/costs/settings": (b) => ({ ...costs, ...(b as object), revision: 5 }) }));
     const { container } = renderApp("/admin/settings");
