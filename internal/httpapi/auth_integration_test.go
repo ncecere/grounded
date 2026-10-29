@@ -37,7 +37,7 @@ type testApp struct {
 	Svc    *app.Services
 	Client *http.Client
 	// stopWorker waits for the fixture's jobs to stop before tests run a job manually.
-	stopWorker func()
+	stopWorker func() error
 }
 
 // testWeb stands in for the built UI: index.html and widget.js.
@@ -111,7 +111,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	deps.Auth = auth.NewService(cfg, pool, kvs, metrics, log)
 	handler = httpapi.NewAPIHandler(deps)
 
-	var stopWorker func()
+	var stopWorker func() error
 	if worker {
 		reg, err := app.IngestRegistration(cfg, pool, svc, log)
 		if err != nil {
@@ -124,14 +124,14 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		if err := w.Start(ctx); err != nil {
 			t.Fatal(err)
 		}
-		stopWorker = sync.OnceFunc(func() {
+		stopWorker = sync.OnceValue(func() error {
 			stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if err := w.StopAndCancel(stopCtx); err != nil {
-				t.Errorf("stop fixture worker: %v", err)
-			}
+			return w.StopAndCancel(stopCtx)
 		})
-		t.Cleanup(stopWorker)
+		// Preserve the fixture's existing best-effort cleanup. A test that
+		// requires quiescence must call stopWorker and check its error first.
+		t.Cleanup(func() { _ = stopWorker() })
 	}
 
 	jar, _ := cookiejar.New(nil)

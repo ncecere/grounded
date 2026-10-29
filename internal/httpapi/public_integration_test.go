@@ -115,7 +115,9 @@ func TestAnonymousPublicChatAndRetention(t *testing.T) {
 
 	// Retention: this test owns the deletion counts. The ingestion fixture's
 	// startup-scheduled retention job must not race the manual runner below.
-	env.app.stopWorker()
+	if err := env.app.stopWorker(); err != nil {
+		t.Fatalf("stop worker before manual retention: %v", err)
+	}
 	ctx := context.Background()
 	if _, err := env.app.Pool.Exec(ctx, `UPDATE conversations SET updated_at = now() - interval '25 hours' WHERE id = $1`, conv.ConversationID); err != nil {
 		t.Fatal(err)
