@@ -73,6 +73,12 @@ A profile's **chunker** decides how a page is cut into passages. **Version 1**, 
 
 It is a setting of the profile, fixed once the profile exists (**Add profile → Chunker**, or `chunkerVersion` in the API); an index preview can change **only** the chunker, which builds the same sizes cut again, beside the live index. **Version 2 has not been measured on a real knowledge base with a real embedding model**: preview it on a knowledge base that has evaluation sets and decide by the numbers. An unknown version is refused (`400 invalid_chunker_version`).
 
+### The tables chunker (version 3)
+
+**Version 3** keeps what version 2 does and keeps **tables structured** ([#24](https://github.com/ncecere/grounded/issues/24), the design is in [`DESIGN.md`](../DESIGN.md), "Tables kept structured"). A table that fits one passage is kept whole (it starts the next passage if it does not fit the room left), with a one-line caption above it. A table longer than a passage is cut between rows, and every piece repeats the caption, the header row and the separator row, so a passage with rows always has their column names; no row is lost or repeated, and a row longer than a passage is cut into rows whose cells stay in their own columns. A table inside a list item is kept and cut the same way. Choose it under **Add profile → Chunker → Keep tables whole**, or `chunkerVersion: 3`.
+
+To see what it does to a knowledge base with tables, **Preview new settings**, change **only the chunker** to *Keep tables whole*, and look at the passages and the comparison before switching; the preview, a migration to a profile with version 3 and new documents on such a profile all cut the same passages. PDF text is never a table (the built-in parser reads lines of text, not table structure), so a table in a PDF is cut as paragraphs by every version. **It has not been measured on a real knowledge base with a real embedding model**: decide by the numbers.
+
 ### Reading a comparison
 
 - It measures **retrieval**: whether the page a question expects comes back, and where. It does not measure answer quality.

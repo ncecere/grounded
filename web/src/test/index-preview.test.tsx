@@ -112,11 +112,32 @@ describe("Preview new settings", () => {
       "Keep the current chunker",
       "Standard: a new passage at every heading",
       "Merge short sections",
+      "Keep tables whole",
     ]);
     await userEvent.selectOptions(chunker, "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
     await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
     expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 2 } });
+  });
+
+  it("previews the tables chunker: sends version 3, explains it, and says when a knowledge base already uses it (#24)", async () => {
+    const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const chunker = await within(dialog).findByRole("combobox", { name: "Chunker" });
+    expect(chunker).toHaveAccessibleDescription(/Keep tables whole: .*keeps a table that fits in one passage.*cut by rows.*caption and header row/);
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.selectOptions(chunker, "3");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
+    expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 3 } });
+  });
+
+  it("says when the knowledge base already uses the tables chunker (#24)", async () => {
+    mockApi(routes({ "GET /v1/admin/embedding-profiles": () => [profile("p1", "Nomic 768", { chunkerVersion: 3 }), profile("p2", "Qwen3 768")] }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    expect(await within(dialog).findByText(/overlap, chunker: keep tables whole/)).toBeInTheDocument();
   });
 
   it("says when the knowledge base already uses the merging chunker", async () => {

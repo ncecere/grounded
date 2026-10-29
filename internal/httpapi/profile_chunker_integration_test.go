@@ -30,7 +30,7 @@ func (env *migEnv) newProfile(t *testing.T, key string, body map[string]any, wan
 	return p
 }
 
-// A profile carries its chunker version: 1 unless one is chosen, 2 or 1 as chosen, anything else refused; the version is fixed once the profile is
+// A profile carries its chunker version: 1 unless one is chosen, 1, 2 or 3 as chosen, anything else refused; the version is fixed once the profile is
 // made, and a preview's candidate keeps the live profile's version unless the preview changes it (#19).
 func TestProfileChunkerVersion(t *testing.T) {
 	env := newMigEnv(t)
@@ -46,12 +46,17 @@ func TestProfileChunkerVersion(t *testing.T) {
 	if two.ChunkerVersion != 2 {
 		t.Errorf("chunker version = %d, want 2", two.ChunkerVersion)
 	}
+	b3 := base()
+	b3["chunkerVersion"] = 3
+	if p := env.newProfile(t, "v-three", b3, 201, ""); p.ChunkerVersion != 3 {
+		t.Errorf("chunker version = %d, want 3", p.ChunkerVersion)
+	}
 	zero := base()
 	zero["chunkerVersion"] = 0 // "not given": version 1, like leaving it out
 	if p := env.newProfile(t, "v-zero", zero, 201, ""); p.ChunkerVersion != 1 {
 		t.Errorf("chunkerVersion 0 made version %d, want 1", p.ChunkerVersion)
 	}
-	for _, bad := range []int{3, 99, -1} {
+	for _, bad := range []int{4, 99, -1} {
 		b := base()
 		b["chunkerVersion"] = bad
 		env.newProfile(t, fmt.Sprintf("v-bad%d", bad), b, 400, "invalid_chunker_version")

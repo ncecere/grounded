@@ -7636,7 +7636,7 @@ export interface components {
             chunkOverlap: number;
             /**
              * Format: int32
-             * @description The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+             * @description The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
              * @default 1
              */
             chunkerVersion: number;
@@ -7811,7 +7811,7 @@ export interface components {
                 chunkOverlap?: number;
                 /**
                  * Format: int32
-                 * @description The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+                 * @description The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
                  */
                 chunkerVersion?: number;
             };

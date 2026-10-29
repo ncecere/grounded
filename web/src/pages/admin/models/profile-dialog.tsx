@@ -22,6 +22,7 @@ import { keyProblem } from "@/lib/validation";
 import { useLevelName } from "../../team/common";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
+import { CHUNKER_HELP, CHUNKERS } from "./chunkers";
 import { type Model, type Profile, useModels } from "./common";
 import {
   initialProfileForm,
@@ -176,12 +177,15 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
       </Field>
       <Field
         label="Chunker"
-        description="How a page is cut into passages. Fixed once the profile exists. To see what a different chunker does to a knowledge base before using it, preview it under Migrations."
+        description={`How a page is cut into passages. Fixed once the profile exists. ${CHUNKER_HELP} None has been measured on a real knowledge base: to see what a chunker does to yours before using it, preview it under Migrations.`}
         error={fieldError(serverError, ["invalid_chunker_version"])}
       >
         <NativeSelect value={String(form.chunkerVersion)} onChange={(e) => set("chunkerVersion", Number(e.target.value))}>
-          <option value="1">Standard: a new passage at every heading</option>
-          <option value="2">Merge short sections: joins short neighbouring sections</option>
+          {CHUNKERS.map((c) => (
+            <option key={c.version} value={c.version}>
+              {c.label}
+            </option>
+          ))}
         </NativeSelect>
       </Field>
       <Field label="Description" labelHint="Optional" className={s.span2}>
