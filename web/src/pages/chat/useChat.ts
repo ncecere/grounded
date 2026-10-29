@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { settlePartial } from "./answer-text";
+import { mergeConversation } from "./conversation-sync";
 import {
   type AssistantItem,
   type ChatItem,
@@ -197,5 +198,11 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
 
   const patch = useCallback((key: string, fn: (a: AssistantItem) => AssistantItem) => update(key, fn), []);
 
-  return { items, streaming, error, setError, announcement, send, stop, reset, patch };
+  /**
+   * Adds the messages another tab stored (#128) to what is on screen, without stopping anything still arriving: the
+   * merge runs on the latest items, so an update queued meanwhile (suggestions) is kept.
+   */
+  const adopt = useCallback((stored: ChatItem[]) => setItems((current) => mergeConversation(current, stored) ?? current), []);
+
+  return { items, streaming, error, setError, announcement, send, stop, reset, patch, adopt };
 }
