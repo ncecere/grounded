@@ -101,10 +101,12 @@ describe("the chat page's conversation list (#124)", () => {
     );
     renderApp(chatPath);
     const list = await screen.findByRole("navigation", { name: "Conversations with Registrar assistant" });
-    await within(list).findByRole("link", { name: /^Question 1(?!\d)/ });
+    // The link's accessible name also includes a relative date, which may
+    // start with a digit. Match the title separately from that changing age.
+    expect((await within(list).findByText("Question 1", { exact: true })).closest("a")).toHaveAttribute("href", `${chatPath}?c=c1`);
     expect(within(list).getAllByRole("link")).toHaveLength(50);
     await userEvent.click(within(list).getByRole("button", { name: "Load more" }));
-    expect(await within(list).findByRole("link", { name: /^Question 63(?!\d)/ })).toBeInTheDocument();
+    expect((await within(list).findByText("Question 63", { exact: true })).closest("a")).toHaveAttribute("href", `${chatPath}?c=c63`);
     expect(within(list).getAllByRole("link")).toHaveLength(63);
     expect(within(list).queryByRole("button", { name: "Load more" })).toBeNull();
     const mine = calls.filter((c) => c.url === "/v1/conversations" && c.search.get("agentId") === "ag1");

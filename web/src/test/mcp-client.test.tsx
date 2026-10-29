@@ -210,7 +210,7 @@ describe("Build → Tools", () => {
 
   it("names the server when two servers offer the same tool, and warns about a failing server (BU-07)", async () => {
     const twin: Schemas["MCPToolOption"] = {
-      ...toolOptions[0]!, id: "t2", serverId: "s3", serverName: "Old status", serverHealth: { status: "failing", since: "2026-09-20T10:00:00Z" },
+      ...toolOptions[0]!, id: "t2", serverId: "s3", serverName: "Old status", serverHealth: { status: "failing", since: ago(60) },
     };
     mockApi(routes("open", { "GET /v1/mcp-tools": () => [...toolOptions, twin] }));
     const { container } = renderApp("/teams/registrar/agents/ag1");
