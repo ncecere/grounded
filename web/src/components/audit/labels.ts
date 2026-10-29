@@ -173,6 +173,7 @@ const actionLabels: Record<string, string> = {
   "gap_topic.reopen": "Reopened gap topic",
   "gap_settings.update": "Changed gap report settings",
   "team.invite_create": "Invited member",
+  "team.invite_renew": "Renewed invite",
   "team.invite_revoke": "Revoked invite",
   "team.invite_accept": "Accepted invite",
 };

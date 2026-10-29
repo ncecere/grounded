@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **A value in the wrong format says so.** An email, a date or date-time, or an id of the right JSON kind but the wrong format now returns 400 `invalid_email`, `invalid_date` or `invalid_id` with the expected format, instead of the generic `invalid_json` "does not fit this operation". Bodies that are not JSON, unknown fields and values of the wrong kind stay `invalid_json`. (#146, partial)
+- **Inviting an address again renews its open invite.** The same invite gets a new expiry (and role), the invite email is sent again, and the audit log records `team.invite_renew` ("Renewed invite", with the previous expiry and role) instead of a second "Invited member". (#146, partial)
 - **Settings links to Features land correctly after a reload.** The page re-anchors `#features` once the asynchronously loaded general settings above it settle, for admins and auditors. Ordinary page entries and background refetches/saves do not force another scroll. (#146, partial)
 
 - **Display names cannot hide or reorder their identity with control/formatting characters.** New and renamed teams, agents, KBs, sources and API keys, and explicit conversation titles, reject control characters, bidi controls, zero-width joiners and other invisible formatting. Uploaded filenames are refused before storage instead of being silently cleaned into another identity. Ordinary Unicode names remain supported; existing names are not rewritten, and initial conversation titles omit hidden characters without changing the message. Joiner-based emoji/scripts must use a label without the joiner; this does not prevent all Unicode confusables. (#119)
