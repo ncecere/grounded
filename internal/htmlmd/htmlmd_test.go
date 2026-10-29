@@ -376,8 +376,8 @@ func TestNonContentNeverRendered(t *testing.T) {
 // Ported from yoink TestCleanHTMLDropsActiveAttributes.
 func TestActiveURLsDropped(t *testing.T) {
 	res := convert(t, `<div style="background:url(javascript:bad)"><a href="data:text/html,bad" target="_blank" ping="https://evil.com">link</a><img src="data:image/png;base64,AAAA" alt="inline"><img src="/x" srcset="https://evil.com 2x"><a href="vbscript:bad">vb</a><a href="java&#x09;script:bad">tab</a><p onclick="bad">okay</p></div>`, Options{BaseURL: mustURL(t, "https://example.com/")})
-	assertContains(t, res.Markdown, "link", "okay", "![](<https://example.com/x>)", "vb", "tab")
-	assertNotContains(t, res.Markdown, "data:", "evil", "javascript", "vbscript", "bad", "inline")
+	assertContains(t, res.Markdown, "link", "okay", "vb", "tab")
+	assertNotContains(t, res.Markdown, "![](", "data:", "evil", "javascript", "vbscript", "bad", "inline")
 	if len(res.Links) != 0 {
 		t.Fatalf("unsafe links: %v", res.Links)
 	}
@@ -478,4 +478,12 @@ func TestConvertCharsetAfterSniffWindow(t *testing.T) {
 	if res, err := Convert(latin, Options{}); err != nil || !strings.Contains(res.Markdown, "café") {
 		t.Fatalf("declared charset: %q %v", res.Markdown, err)
 	}
+}
+
+// #132: an image with no alt text left "![](<x>)" in the passages; one with alt text is kept as before.
+func TestImagesWithoutAltTextAreDropped(t *testing.T) {
+	res := convert(t, `<p>Parking badge <img src="/badge.png"> issued.</p><p><img src="/a.png" alt=""><img src="/b.png" alt="  "></p>
+<p><a href="/page"><img src="/c.png"></a></p><p>Front <img src="/front.png" alt="Front of the building"> door.</p>`, Options{BaseURL: mustURL(t, "https://example.com/")})
+	assertContains(t, res.Markdown, "Parking badge", "issued.", "![Front of the building](<https://example.com/front.png>)", "door.")
+	assertNotContains(t, res.Markdown, "![](", "badge.png", "a.png", "b.png", "c.png", "[](")
 }

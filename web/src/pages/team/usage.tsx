@@ -13,7 +13,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Stack } from "@/components/ui/layout/layout";
 import { timeZoneNote } from "@/lib/costs";
-import { TeamSpendCard, teamSpendQuery } from "./spend";
+import { TeamSpendCard, useTeamSpend } from "./spend";
 import type { Schemas } from "../../api/client";
 import { formatAmount, formatLimit, limitGroups, teamLimitsQuery } from "../../lib/limits";
 import { terms } from "../../lib/terms";
@@ -86,7 +86,7 @@ function useRequestMoreHref() {
  * the daily limits' midnight UTC), the spend for owners and admins, and the usage meters.
  */
 export function UsageTab({ team, showSpend }: { team: string; showSpend: boolean }) {
-  const spend = useQuery({ ...teamSpendQuery(team), enabled: showSpend });
+  const spend = useTeamSpend(team, showSpend);
   return (
     <Stack gap={6}>
       <p className={s.note}>{timeZoneNote(spend.data?.timeZone)}</p>

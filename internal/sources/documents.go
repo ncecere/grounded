@@ -264,7 +264,7 @@ func limitResult(name string, err error) (UploadResult, error) {
 func checkContent(name, ext string, sn *sniffer, maxBytes int64) (UploadResult, bool) {
 	switch {
 	case sn.n > maxBytes:
-		return reject(name, "too_large", "The file is larger than the upload limit", http.StatusRequestEntityTooLarge), false
+		return reject(name, "too_large", "The file is larger than the upload limit of "+limits.FormatBytes(maxBytes), http.StatusRequestEntityTooLarge), false
 	case sn.n == 0:
 		return reject(name, "empty_file", "The file is empty", http.StatusBadRequest), false
 	case !headMatches(ext, sn.head):

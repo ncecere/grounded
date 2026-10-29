@@ -4552,6 +4552,9 @@ paths:
         classification's max audience is exceeded (field audience); 409
         public_disabled while public access is off and 409
         moderation_not_ready without a working public moderation policy.
+        409 no_changes when the draft is exactly the published version (the
+        editor shows "No changes since version N" and offers no Publish): no
+        identical version is created.
         Publishing to a wider audience than before notifies the team's owners.
       requestBody:
         required: false
@@ -7392,9 +7395,11 @@ paths:
       operationId: getTeamBudgetStatus
       summary: Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
       description: >-
-        Every member sees the state (none without a budget) and whether it
-        is enforced (a Track-only budget has a state but never blocks); only
-        owners, admins and platform readers get the amounts.
+        Every member sees the state (none without a budget), whether it
+        is enforced (a Track-only budget has a state but never blocks) and the
+        team's effective cost mode (off: nothing is tracked, and the spend
+        endpoint answers 404 costs_off); only owners, admins and platform
+        readers get the amounts.
       responses:
         default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
@@ -9790,9 +9795,16 @@ components:
           items: { $ref: "#/components/schemas/CostReportRow" }
     TeamBudgetBanner:
       type: object
-      required: [state, enforced]
+      required: [state, enforced, mode]
       properties:
         state: { $ref: "#/components/schemas/BudgetState" }
+        mode:
+          allOf:
+            - $ref: "#/components/schemas/CostMode"
+          description: >-
+            The team's effective cost mode (its own, or the platform's while it inherits). "off" means cost
+            tracking is off for the team: GET /v1/teams/{team}/spend answers 404 costs_off, so a client does
+            not ask for it
         enforced:
           type: boolean
           description: "false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits"
@@ -12961,7 +12973,7 @@ components:
         instructions: { type: string, maxLength: 20000 }
         chatModelId: { type: string, format: uuid, nullable: true }
         temperature: { type: number, format: double, minimum: 0, maximum: 2 }
-        maxOutputTokens: { type: integer, minimum: 1 }
+        maxOutputTokens: { type: integer, minimum: 1, maximum: 1000000 }
         reasoningEffort: { $ref: "#/components/schemas/ReasoningEffort" }
         kbs:
           type: array
@@ -13003,7 +13015,7 @@ components:
         instructions: { type: string, maxLength: 20000 }
         chatModelId: { type: string, format: uuid, nullable: true }
         temperature: { type: number, format: double, minimum: 0, maximum: 2, nullable: true }
-        maxOutputTokens: { type: integer, minimum: 1, nullable: true }
+        maxOutputTokens: { type: integer, minimum: 1, maximum: 1000000, nullable: true }
         reasoningEffort: { type: string, enum: [off, low, medium, high, ""] }
         kbs:
           type: array

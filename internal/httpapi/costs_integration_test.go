@@ -66,7 +66,7 @@ func TestBudgetEnforcement(t *testing.T) {
 		t.Fatalf("spend while off = %d %s", code, e)
 	}
 	var banner apitypes.TeamBudgetBanner
-	if code := member.get(env.base+"/budget-status", &banner); code != 200 || banner.State != "none" || banner.Amounts != nil {
+	if code := member.get(env.base+"/budget-status", &banner); code != 200 || banner.State != "none" || banner.Amounts != nil || banner.Mode != apitypes.CostModeOff { // #132: the client learns costs are off here, not from a 404
 		t.Fatalf("banner while off = %d %+v", code, banner)
 	}
 	// Admin writes need a revision.
@@ -128,7 +128,7 @@ func TestBudgetEnforcement(t *testing.T) {
 	if code, _, e := v.ask(pub.Id, "Where do students buy a parking permit?"); code != 503 || e != "agent_unavailable" {
 		t.Fatalf("anonymous chat at 100%% = %d %s", code, e)
 	}
-	if code := member.get(env.base+"/budget-status", &banner); code != 200 || banner.State != "exhausted" || banner.Amounts != nil || banner.ResetsAt == nil {
+	if code := member.get(env.base+"/budget-status", &banner); code != 200 || banner.State != "exhausted" || banner.Mode != apitypes.CostModeEnforce || banner.Amounts != nil || banner.ResetsAt == nil {
 		t.Fatalf("member banner = %d %+v", code, banner)
 	}
 	if code := owner.get(env.base+"/budget-status", &banner); code != 200 || banner.Amounts == nil || banner.Amounts.Currency != "USD" {
@@ -238,7 +238,7 @@ func trackOnlyBudget(t *testing.T, env *publishEnv, chatPath string) {
 		}
 	}
 	var banner apitypes.TeamBudgetBanner
-	if code := env.owner.get(env.base+"/budget-status", &banner); code != 200 || banner.Enforced || banner.State == "none" || banner.Amounts == nil {
+	if code := env.owner.get(env.base+"/budget-status", &banner); code != 200 || banner.Enforced || banner.Mode != apitypes.CostModeTrack || banner.State == "none" || banner.Amounts == nil {
 		t.Fatalf("track-only banner = %d %+v", code, banner)
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM notification_events WHERE type LIKE 'team.budget%'`); n != events {

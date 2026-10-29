@@ -127,20 +127,26 @@ export function KBsPage() {
   );
 }
 
+/** A problem with the passages-per-search number (1 to 50, whole), as the form says it; null when it is fine. */
+const topKProblem = (value: string) => {
+  const n = Number(value.trim());
+  return value.trim() !== "" && Number.isInteger(n) && n >= 1 && n <= 50 ? null : "Enter a whole number from 1 to 50.";
+};
+
 function CreateKBDialog({ onClose }: { onClose: () => void }) {
   const { slug } = useTeam();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const formId = useId();
   const profiles = useEmbeddingProfiles();
-  const [form, setForm] = useState({ name: "", description: "", embeddingProfileId: "", topK: 8 });
+  const [form, setForm] = useState({ name: "", description: "", embeddingProfileId: "", topK: "8" });
   const embeddingProfileId = form.embeddingProfileId || profiles.data?.find((p) => p.isDefault)?.id || profiles.data?.[0]?.id || "";
   const create = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.POST("/v1/teams/{team}/kbs", {
           params: { path: { team: slug } },
-          body: { name: form.name.trim(), description: form.description, topK: form.topK, embeddingProfileId: embeddingProfileId || undefined },
+          body: { name: form.name.trim(), description: form.description, topK: Number(form.topK), embeddingProfileId: embeddingProfileId || undefined },
         }),
       ),
     onSuccess: (kb) => {
@@ -192,8 +198,9 @@ function CreateKBDialog({ onClose }: { onClose: () => void }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Results per query (top-k)" description="Between 1 and 50.">
-            <Input type="number" required min={1} max={50} value={form.topK} onChange={(e) => setForm({ ...form, topK: Number(e.target.value) })} />
+          {/* No min, max or step on the input: the browser's own "Please enter a valid value" would replace this message (#132). */}
+          <Field label="Results per query (top-k)" description="Between 1 and 50." name="topK" validate={(v) => topKProblem(String(v ?? ""))}>
+            <Input type="number" step="any" value={form.topK} onChange={(e) => setForm({ ...form, topK: e.target.value })} />
           </Field>
           <ApiErrorAlert error={create.error} />
         </Form>

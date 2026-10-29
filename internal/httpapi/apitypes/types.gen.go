@@ -11266,7 +11266,10 @@ type TeamBudgetBanner struct {
 	} `json:"amounts,omitempty"`
 
 	// Enforced false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits
-	Enforced bool       `json:"enforced"`
+	Enforced bool `json:"enforced"`
+
+	// Mode The team's effective cost mode (its own, or the platform's while it inherits). "off" means cost tracking is off for the team: GET /v1/teams/{team}/spend answers 404 costs_off, so a client does not ask for it
+	Mode     CostMode   `json:"mode"`
 	ResetsAt *time.Time `json:"resetsAt,omitempty"`
 
 	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.

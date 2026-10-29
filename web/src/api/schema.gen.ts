@@ -2754,7 +2754,7 @@ export interface paths {
         put?: never;
         /**
          * Validate the draft strictly and publish it as a new immutable version (editors)
-         * @description The draft's audience becomes the agent's grant. 403 audience_forbidden when an editor publishes beyond the team; 422 agent_invalid when the classification's max audience is exceeded (field audience); 409 public_disabled while public access is off and 409 moderation_not_ready without a working public moderation policy. Publishing to a wider audience than before notifies the team's owners.
+         * @description The draft's audience becomes the agent's grant. 403 audience_forbidden when an editor publishes beyond the team; 422 agent_invalid when the classification's max audience is exceeded (field audience); 409 public_disabled while public access is off and 409 moderation_not_ready without a working public moderation policy. 409 no_changes when the draft is exactly the published version (the editor shows "No changes since version N" and offers no Publish): no identical version is created. Publishing to a wider audience than before notifies the team's owners.
          */
         post: operations["publishAgent"];
         delete?: never;
@@ -4525,7 +4525,7 @@ export interface paths {
         };
         /**
          * Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
-         * @description Every member sees the state (none without a budget) and whether it is enforced (a Track-only budget has a state but never blocks); only owners, admins and platform readers get the amounts.
+         * @description Every member sees the state (none without a budget), whether it is enforced (a Track-only budget has a state but never blocks) and the team's effective cost mode (off: nothing is tracked, and the spend endpoint answers 404 costs_off); only owners, admins and platform readers get the amounts.
          */
         get: operations["getTeamBudgetStatus"];
         put?: never;
@@ -5837,6 +5837,8 @@ export interface components {
         };
         TeamBudgetBanner: {
             state: components["schemas"]["BudgetState"];
+            /** @description The team's effective cost mode (its own, or the platform's while it inherits). "off" means cost tracking is off for the team: GET /v1/teams/{team}/spend answers 404 costs_off, so a client does not ask for it */
+            mode: components["schemas"]["CostMode"];
             /** @description false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits */
             enforced: boolean;
             /** Format: date-time */

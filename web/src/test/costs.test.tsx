@@ -439,9 +439,21 @@ describe("the team's spend and banner", () => {
   });
 
   it("stays out of the way while cost tracking is off", async () => {
-    const calls = mockApi({ "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team") });
+    // The budget status says the mode (#132), so the spend, which would answer 404, is not asked for.
+    const calls = mockApi({
+      "GET /v1/teams/registrar/budget-status": () => ({ state: "none", enforced: false, mode: "off" }),
+      "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team"),
+    });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
     await waitFor(() => expect(calls).toHaveLength(1));
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(calls.filter((c) => c.url.endsWith("/spend"))).toHaveLength(0);
+  });
+
+  it("stays out of the way when the status cannot be read and the spend answers 404", async () => {
+    const calls = mockApi({ "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team") });
+    const { container } = renderBare(<TeamSpendCard team="registrar" />);
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/spend"))).toHaveLength(1));
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 

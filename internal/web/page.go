@@ -59,6 +59,13 @@ func (r *run) page(ctx context.Context, rawURL string, depth int) error {
 	if v.known, v.found, err = r.document(ctx, rawURL); err != nil {
 		return err
 	}
+	// A link to a download (an archive, an installer, a picture) is skipped without a request: fetching it would wait for the
+	// origin's turn only to find it unsupported or redirected away, and a page of thousands of them looks like a hung crawl (#132).
+	// A URL that already has a document is still fetched: it was a page once, and must be seen to be kept.
+	if depth > 0 && !v.found && crawl.IsDownload(rawURL) {
+		v.c.skipped = 1
+		return v.mark(ctx, "skipped", "unsupported_content", 0)
+	}
 	etag, lastModified := "", ""
 	v.stale = v.found && parse.StaleHTML(v.known.Parser)
 	if v.found && v.known.Status != "failed" && !v.stale {

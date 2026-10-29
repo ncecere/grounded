@@ -16,7 +16,8 @@ import { toast } from "@/components/ui/toast/toast";
 import s from "../shared.module.css";
 import { agentKey, agentsKey, useClassificationLevels, useKBs, useTeam } from "../team/common";
 import { capabilityLabels, capabilityTones, modelDescription, modelOptions } from "./build/model-section";
-import { defaultChatModel, defaultConfig, slugify, useChatModels } from "./common";
+import { slugFromName } from "@/lib/slug";
+import { defaultChatModel, defaultConfig, useChatModels } from "./common";
 import { useAgentTemplates } from "./templates";
 import a from "./agents.module.css";
 
@@ -49,7 +50,7 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
   const [modelId, setModelId] = useState("");
   const [picked, setPicked] = useState<Picked>({});
   const [submitted, setSubmitted] = useState(false);
-  const shownSlug = slugEdited ? slug : slugify(name);
+  const shownSlug = slugEdited ? slug : slugFromName(name, 60);
   // Until one is picked: the platform's first healthy model, not just the first by name (AD-02).
   const model = modelId ? models.data?.find((m) => m.id === modelId) : defaultChatModel(models.data);
   const template = templates.data?.find((t) => t.id === templateId);
