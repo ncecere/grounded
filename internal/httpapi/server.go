@@ -176,9 +176,17 @@ func apiRoutes(d Deps) []route {
 // session requires a browser session.
 func (a *api) session(h http.HandlerFunc) http.Handler { return a.Auth.RequireSession(h) }
 
-// admin requires a session, then a platform admin or auditor. Write
-// operations additionally require platform_admin inside the service.
-func (a *api) admin(h http.HandlerFunc) http.Handler { return a.session(a.requirePlatformRead(h)) }
+// admin requires a session, then platform read/write access before handlers
+// inspect revisions or bodies. Services still check authorization themselves.
+func (a *api) admin(h http.HandlerFunc) http.Handler {
+	return a.session(a.requirePlatformAccess(h, false))
+}
+
+// adminRead explicitly admits auditors to a read-only POST (preview/preflight).
+// Do not use it for a write, even one that only changes operational state.
+func (a *api) adminRead(h http.HandlerFunc) http.Handler {
+	return a.session(a.requirePlatformAccess(h, true))
+}
 
 // either accepts a session or an API key; scopes are enforced by services.
 func (a *api) either(h http.HandlerFunc) http.Handler { return a.sessionOrKey(h) }

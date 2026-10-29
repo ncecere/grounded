@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **API-key errors match the contract.** Unknown or incorrectly cased scopes return `400 invalid_scopes`, while known scopes above a caller's role still return 403. Revoking another person's invisible key returns the same `404 key_not_found` as an unknown key instead of revealing its existence. Bearer scheme names are case-insensitive for REST, OpenAI-compatible and MCP API-key/OAuth authentication; secrets remain case-sensitive. (#119, partial)
 
 - **OpenAI error envelopes also cover shared middleware.** Expired/suspended browser sessions, CSRF refusals, per-user rate limits, authentication-store failures, invalid URL text and a panic before response headers keep the OpenAI `message`, `type`, `code` and `param` fields. Retry-After, cookie clearing, internal-error redaction and native API/session behavior are preserved. (#116)
+- **Auditors get a clear 403 before admin-write validation.** Admin routes reject write actions before checking `If-Match` or the body, instead of inviting an auditor to retry with a revision they cannot use. Read-only POST previews for SSO group rules and profile-migration preflight still admit auditors; services retain their own authorization checks. (#146, partial)
 
 ## [0.6.2] - 2026-10-29
 

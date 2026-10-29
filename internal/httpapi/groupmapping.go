@@ -17,7 +17,7 @@ func (a *api) groupMappingRoutes() []route {
 		{"GET", "/v1/admin/group-mapping", a.admin(a.adminGetGroupMapping)},
 		{"GET", "/v1/admin/group-mapping/rules", a.admin(a.adminListGroupRules)},
 		{"POST", "/v1/admin/group-mapping/rules", a.admin(a.adminCreateGroupRule)},
-		{"POST", "/v1/admin/group-mapping/preview", a.admin(a.adminPreviewGroupRule)},
+		{"POST", "/v1/admin/group-mapping/preview", a.adminRead(a.adminPreviewGroupRule)},
 		{"GET", "/v1/admin/group-mapping/rules/{ruleId}", a.admin(a.adminGetGroupRule)},
 		{"PATCH", "/v1/admin/group-mapping/rules/{ruleId}", a.admin(a.adminUpdateGroupRule)},
 		{"DELETE", "/v1/admin/group-mapping/rules/{ruleId}", a.admin(a.adminDeleteGroupRule)},

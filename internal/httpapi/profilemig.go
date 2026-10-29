@@ -24,7 +24,7 @@ func (a *api) profileMigrationRoutes() []route {
 		{"GET", "/v1/admin/profile-migrations", a.admin(a.adminListProfileMigrations)},
 		{"POST", "/v1/admin/profile-migrations", a.admin(a.adminStartProfileMigration)},
 		{"POST", "/v1/admin/profile-migrations/preview", a.admin(a.adminPreviewProfileMigration)},
-		{"POST", "/v1/admin/profile-migrations/preflight", a.admin(a.adminPreflightProfileMigration)},
+		{"POST", "/v1/admin/profile-migrations/preflight", a.adminRead(a.adminPreflightProfileMigration)},
 		{"GET", "/v1/admin/profile-migrations/{migrationId}", a.admin(a.adminGetProfileMigration)},
 		{"GET", "/v1/admin/profile-migrations/{migrationId}/preview", a.admin(a.adminPreviewComparison)},
 		{"POST", "/v1/admin/profile-migrations/{migrationId}/cancel", a.admin(a.migrationAction(a.ProfileMigrations.Cancel))},

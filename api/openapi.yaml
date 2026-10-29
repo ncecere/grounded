@@ -19,6 +19,11 @@ info:
     are not supported. Public writes remain same-origin, including the widget's
     iframe hosted by Grounded.
 
+    Platform auditors may read admin metadata, including explicitly read-only
+    POST previews, but admin writes require a platform admin. Authorization is
+    checked before the write's If-Match revision and request-body validation:
+    an auditor receives 403 forbidden, not 428 revision_required.
+
     Every route served by the application must be listed here; a test enforces it.
     The one exception is the MCP server (`POST /mcp`), which speaks JSON-RPC
     (the Model Context Protocol) and is described in docs/mcp.md.

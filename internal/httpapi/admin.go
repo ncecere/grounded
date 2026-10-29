@@ -14,12 +14,18 @@ import (
 	"github.com/ncecere/grounded/internal/teams"
 )
 
-// requirePlatformRead admits platform admins and auditors. Services check
-// again (defence in depth); this gives admin routes a uniform 403.
-func (a *api) requirePlatformRead(next http.HandlerFunc) http.HandlerFunc {
+// requirePlatformAccess checks authorization before revision/body validation
+// (#146). A read-only POST must opt in explicitly; auditors never gain write
+// access by adding If-Match or by sending a well-formed body.
+func (a *api) requirePlatformAccess(next http.HandlerFunc, readOnly bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.actor(r).CanReadPlatform() {
+		actor := a.actor(r)
+		if !actor.CanReadPlatform() {
 			httpx.Error(w, http.StatusForbidden, "forbidden", "Platform administration requires the platform admin or auditor role")
+			return
+		}
+		if !readOnly && r.Method != http.MethodGet && r.Method != http.MethodHead && !actor.IsPlatformAdmin() {
+			httpx.Error(w, http.StatusForbidden, "forbidden", "Only platform admins can change platform settings or run admin actions")
 			return
 		}
 		next(w, r)
