@@ -92,7 +92,7 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await expect(answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem")).toHaveCount(1);
   await a11y(page, "public answer");
   // The source card opens the cited passage beside the conversation, through the visitor's own session.
-  await answer.getByRole("button", { name: /^Show source 1: / }).click();
+  await answer.getByRole("button", { name: /^Show source 1: /i }).click();
   const viewer = page.getByTestId("source-viewer");
   await expect(viewer.getByTestId("cited-passage")).toContainText(handbook.answer);
   await expect(viewer.getByRole("button", { name: "Open full document" })).toHaveCount(0);
@@ -243,7 +243,7 @@ test("on a phone: the agent's name fits the bar, the source sheet focuses its ti
       expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
       await a11y(page, "public answer on a phone");
       await answer.getByRole("button", { name: "Used 1 source" }).click();
-      await answer.getByRole("button", { name: /^Show source 1: / }).click();
+      await answer.getByRole("button", { name: /^Show source 1: /i }).click();
       const sheet = page.getByRole("dialog").filter({ has: page.getByTestId("source-viewer") });
       await expect(sheet.getByTestId("cited-passage")).toContainText(handbook.answer);
       await expect(sheet.getByRole("heading", { level: 2 })).toBeFocused();

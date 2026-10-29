@@ -178,12 +178,12 @@ describe("admin limits page", () => {
     renderWith(<LimitsPage />, { platformRole: "platform_admin" });
     const resources = await screen.findByRole("table", { name: "Team resources: defaults and ceilings" });
     // Data sources is at its built-in 100: no hint, whatever the ceiling.
-    expect(within(resources).queryByRole("button", { name: "Use the built-in default for Data sources" })).toBeNull();
-    const back = within(resources).getByRole("button", { name: "Use the built-in default for Knowledge bases" });
+    expect(within(resources).queryByRole("button", { name: "Use it: the built-in default for Data sources" })).toBeNull();
+    const back = within(resources).getByRole("button", { name: "Use it: the built-in default for Knowledge bases" });
     expect(within(resources).getByText(/Built-in default: 100/)).toBeInTheDocument();
     await userEvent.click(back);
     expect(within(resources).getByRole("textbox", { name: "Default for Knowledge bases" })).toHaveValue("100");
-    expect(within(resources).queryByRole("button", { name: "Use the built-in default for Knowledge bases" })).toBeNull();
+    expect(within(resources).queryByRole("button", { name: "Use it: the built-in default for Knowledge bases" })).toBeNull();
     expect(screen.getByRole("button", { name: "Save settings" })).toBeInTheDocument();
   });
 

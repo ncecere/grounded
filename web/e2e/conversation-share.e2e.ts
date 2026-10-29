@@ -56,7 +56,7 @@ test("share a conversation: make a link, a team member reads it, others cannot, 
     await expect(member.getByRole("link", { name: /Ask Parking helper/ })).toHaveAttribute("href", `/a/${team}/${agent.slug}`);
     await a11y(member, "a shared conversation");
     await answer.getByRole("button", { name: "Used 1 source" }).click();
-    await answer.getByRole("button", { name: /^Show source 1: / }).click();
+    await answer.getByRole("button", { name: /^Show source 1: /i }).click();
     await expect(member.getByText("Cited passage").first()).toBeVisible();
     // The conversation and the source scroll in their own panes: the page itself never grows past the window.
     expect(await member.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);

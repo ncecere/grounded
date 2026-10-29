@@ -45,7 +45,7 @@ describe("admin agents", () => {
     const table = await screen.findByRole("table", { name: "Agents" });
     await within(table).findByText("Registrar assistant");
     expect(within(table).queryByText("Advising bot")).toBeNull();
-    await userEvent.click(within(table).getByRole("button", { name: "Registrar assistant" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^Registrar assistant/ }));
     const sheet = await screen.findByRole("region", { name: "Registrar assistant" });
     expect(router.state.location.search).toMatchObject({ record: "ag1", audience: "team" });
     await userEvent.type(within(sheet).getByRole("textbox", { name: "Short name" }), "reg");

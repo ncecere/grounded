@@ -111,7 +111,7 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
                                 <span className={s.muted}>In the catalog</span>
                               ) : (
                                 isAdmin && (
-                                  <Button size="sm" variant="ghost" aria-label={`Add ${id} as a model`} onClick={() => onAddModel({ connectionId: conn.id, upstreamModel: id })}>
+                                  <Button size="sm" variant="ghost" aria-label={`Add as model: ${id}`} onClick={() => onAddModel({ connectionId: conn.id, upstreamModel: id })}>
                                     <Plus aria-hidden /> Add as model
                                   </Button>
                                 )

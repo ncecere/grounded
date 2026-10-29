@@ -61,7 +61,7 @@ describe("admin catalog", () => {
     const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
     expect(await within(table).findByText("2 published agents")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(within(table).getByRole("button", { name: "GPT-OSS 120B" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^GPT-OSS 120B/ }));
     const sheet = await screen.findByRole("region", { name: "GPT-OSS 120B" });
     expect(within(sheet).getByText("Public moderation")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: /Delete/ })).toBeDisabled();
@@ -85,7 +85,7 @@ describe("admin catalog", () => {
     const offered = await within(sheet).findByRole("list", { name: "Models offered by the proxy" });
     expect(within(sheet).getByText("DNS 2.0 ms · connect 1.0 ms · TLS 12 ms · first byte 60 ms")).toBeInTheDocument();
     expect(within(offered).getByText("In the catalog")).toBeInTheDocument();
-    await userEvent.click(within(offered).getByRole("button", { name: "Add openai/qwen3-32b as a model" }));
+    await userEvent.click(within(offered).getByRole("button", { name: "Add as model: openai/qwen3-32b" }));
     const form = await screen.findByRole("region", { name: "Add model" });
     expect(within(form).getByRole("combobox", { name: /Upstream model ID/ })).toHaveValue("openai/qwen3-32b");
     expect(within(form).getByRole("textbox", { name: /Key/ })).toHaveValue("qwen3-32b");

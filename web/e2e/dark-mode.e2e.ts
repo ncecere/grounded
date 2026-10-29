@@ -60,7 +60,7 @@ test("follows the system's dark setting, keeps a Light or Dark choice, and pages
   await expect(answer).toContainText(handbook.answer);
   await a11y(page, "chat answer in dark");
   await answer.getByRole("button", { name: "Used 1 source" }).click();
-  await answer.getByRole("button", { name: /^Show source 1: / }).click();
+  await answer.getByRole("button", { name: /^Show source 1: /i }).click();
   await expect(page.getByTestId("source-viewer").getByTestId("cited-passage")).toContainText(handbook.answer);
   await a11y(page, "source viewer in dark");
 
