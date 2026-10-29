@@ -521,6 +521,98 @@ func webhookDestinationsAndURLs(t *testing.T, env *hookEnv) {
 	}
 }
 
+// A host name has labels of 1-63 characters and at most 253 in all (RFC 1035): a destination pattern or a webhook address that cannot be one
+// is refused, and a long one is the longest that is allowed (#140).
+func webhookHostNameLengths(t *testing.T, env *hookEnv) {
+	label63, label64 := strings.Repeat("a", 63), strings.Repeat("a", 64)
+	for name, p := range map[string]string{
+		"a 64-character label":           label64 + ".example.org",
+		"a 70-character label":           strings.Repeat("b", 70) + ".example.org",
+		"a 64-character label, wildcard": "*." + label64 + ".example.org",
+		"a 64-character later label":     "hooks." + label64 + ".org",
+		"254 characters":                 strings.Repeat(label63+".", 3) + strings.Repeat("c", 62),
+	} {
+		code, e := env.admin.call("POST", "/v1/admin/webhook-destinations", map[string]any{"pattern": p}, nil, nil)
+		if code != 400 || e != "invalid_pattern" {
+			t.Errorf("%s: %d %s, want 400 invalid_pattern", name, code, e)
+		}
+	}
+	// 253 characters in labels of 63 or fewer is fine, as is a 63-character label.
+	long := strings.Repeat(label63+".", 3) + strings.Repeat("c", 61) // 63*3 + 3 dots + 61 = 253
+	wild := "*." + strings.Repeat(label63+".", 3) + strings.Repeat("c", 59)
+	if len(long) != 253 || len(wild) != 253 {
+		t.Fatalf("test names are %d and %d characters", len(long), len(wild))
+	}
+	for _, p := range []string{label63 + ".example.org", long, wild} {
+		code, e := env.admin.call("POST", "/v1/admin/webhook-destinations", map[string]any{"pattern": p}, nil, nil)
+		mustCode(t, "approve "+p[:20]+"…", code, e, 201, "")
+	}
+	// A webhook is not made for an address that cannot be a host name either, even where a wildcard would cover it.
+	code, e := env.tadmin.call("POST", env.base+"/webhooks", map[string]any{"url": "https://" + label64 + ".example.com/x", "events": []string{"agent.published"}, "enabled": true}, nil, nil)
+	mustCode(t, "a webhook to a 64-character label", code, e, 400, "invalid_host")
+	env.make(t, env.tadmin, env.base, "ok", "agent.published")
+}
+
+// A team admin can turn off and edit a webhook whose destination was withdrawn (the docs: "the webhooks stay, and you can approve the
+// destination again"); nothing is sent to it, and it cannot be turned on or pointed at a host that is not approved (#140).
+func webhookWithdrawnDestinationCanBeSwitchedOffAndEdited(t *testing.T, env *hookEnv) {
+	c := env.make(t, env.tadmin, env.base, "stays", "agent.published")
+	path := env.base + "/webhooks/" + c.Webhook.Id.String()
+	var dests []apitypes.WebhookDestination
+	env.tadmin.get("/v1/webhook-destinations", &dests)
+	code, e := env.admin.call("DELETE", "/v1/admin/webhook-destinations/"+dests[0].Id.String(), nil, nil, nil)
+	mustCode(t, "withdraw the destination", code, e, 200, "")
+
+	cur := env.get(t, env.tadmin, path)
+	patch := func(body map[string]any, into *apitypes.Webhook) (int, string) {
+		t.Helper()
+		return env.tadmin.call("PATCH", path, body, into, ifMatch(cur.Revision))
+	}
+	// Editing what is not the address or the switch: the webhook stays on, and still is not sent to.
+	var got apitypes.Webhook
+	code, e = patch(map[string]any{"url": cur.Url, "events": []string{"agent.published", "source.synced"}, "description": "renamed", "enabled": true}, &got)
+	mustCode(t, "edit the events and description", code, e, 200, "")
+	if got.Description != "renamed" || len(got.Events) != 2 || !got.Enabled {
+		t.Errorf("after the edit: %+v", got)
+	}
+	cur = got
+	// Pointing it at another host that is not approved is still refused; so is an address that was never approved.
+	for _, u := range []string{"https://hooks.other.example.org/x", "https://hooks.example.com/other"} {
+		if code, e = patch(map[string]any{"url": u, "events": cur.Events, "enabled": false}, nil); code != 400 || e != "destination_not_approved" {
+			t.Errorf("new address %s: %d %s, want 400 destination_not_approved", u, code, e)
+		}
+	}
+	// Turning it off works, and turning it on again does not until the destination is approved again.
+	code, e = patch(map[string]any{"url": cur.Url, "events": cur.Events, "enabled": false}, &got)
+	mustCode(t, "turn off", code, e, 200, "")
+	if got.Enabled {
+		t.Errorf("still on: %+v", got)
+	}
+	cur = got
+	if code, e = patch(map[string]any{"url": cur.Url, "events": cur.Events, "enabled": true}, nil); code != 400 || e != "destination_not_approved" {
+		t.Errorf("turn on without the destination: %d %s, want 400 destination_not_approved", code, e)
+	}
+	code, e = patch(map[string]any{"url": cur.Url, "events": cur.Events, "description": "still editable", "enabled": false}, &got)
+	mustCode(t, "edit while off", code, e, 200, "")
+	cur = got
+
+	// Nothing is delivered to it, on or off.
+	before := len(env.rx.calls())
+	mustCode(t, "test event", firstOf(env.tadmin.call("POST", path+"/test", nil, nil, nil)), "", 202, "")
+	if d := env.waitStatus(t, env.tadmin, path, "failed"); len(env.rx.calls()) != before {
+		t.Errorf("a delivery reached the withdrawn destination: %+v", d)
+	}
+
+	// Approved again: it turns on.
+	code, e = env.admin.call("POST", "/v1/admin/webhook-destinations", map[string]any{"pattern": "*.example.com"}, nil, nil)
+	mustCode(t, "approve again", code, e, 201, "")
+	code, e = patch(map[string]any{"url": cur.Url, "events": cur.Events, "enabled": true}, &got)
+	mustCode(t, "turn on once approved again", code, e, 200, "")
+	if !got.Enabled {
+		t.Errorf("not on: %+v", got)
+	}
+}
+
 func webhookSwitchOffRecordsNothingAndKeepsWhatExists(t *testing.T, env *hookEnv) {
 	c := env.make(t, env.tadmin, env.base, "keep", "agent.published")
 	path := env.base + "/webhooks/" + c.Webhook.Id.String()
@@ -775,6 +867,8 @@ func TestWebhookManagement(t *testing.T) {
 	env := newHookEnv(t)
 	for name, fn := range map[string]func(*testing.T, *hookEnv){
 		"destinations and addresses":  webhookDestinationsAndURLs,
+		"host name lengths":           webhookHostNameLengths,
+		"a withdrawn destination":     webhookWithdrawnDestinationCanBeSwitchedOffAndEdited,
 		"who manages what":            webhookWhoManagesWhat,
 		"rotate, redeliver and audit": webhookRotateRedeliverAndAudit,
 	} {

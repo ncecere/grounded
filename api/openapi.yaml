@@ -5279,7 +5279,8 @@ paths:
         carries the raw model text; message_end.text is the final text (unknown
         [n] markers removed, [1, 2] written as [1][2], markers removed in
         citation mode none). Closing the connection stops the answer; the
-        partial answer is saved with stopReason aborted.
+        partial answer is saved with stopReason aborted. A conversationId that
+        is not an ID is 400 invalid_id.
       requestBody:
         required: true
         content:
@@ -5506,7 +5507,7 @@ paths:
         only if showName. It is a snapshot: later messages are not in it. The link ends when you revoke it, delete the conversation (or
         retention removes it), or the agent is disabled, unpublished or deleted. The response holds the link once. 409 nothing_to_share
         (no finished answer yet), agent_unavailable, public_share_unavailable, too_many_shares (10 per conversation). 404 for anyone but the
-        conversation's user; 403 for an API key.
+        conversation's user; 401 unauthorized for an API key, even a personal one that can read the conversation (a link is a signed-in person's own act).
       requestBody:
         required: true
         content:
@@ -8391,8 +8392,10 @@ paths:
       operationId: adminApproveTeamRequest
       summary: Approve a pending request and create the team (platform admins)
       description: >-
-        One step: the team is created with the requester (or the person they named) as owner and the request is decided; a failure (409
-        slug_taken, 404 template_not_found, 409 request_already_decided) leaves the request pending and no team behind. starterTemplateId
+        One step: the team is created with the requester (or the person they named, or ownerEmail) as owner and the request is decided; a failure
+        (409 slug_taken, 404 template_not_found, 409 request_already_decided, 409 owner_suspended) leaves the request pending and no team behind.
+        A team is never created with a suspended person as its only owner: when the would-be owner is suspended (ownerSuspended on the
+        request), the reviewer must name a different owner in ownerEmail. starterTemplateId
         also starts the team with one agent made from that template.
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
@@ -8627,6 +8630,10 @@ paths:
       tags: [webhooks]
       operationId: updateTeamWebhook
       summary: Change a webhook (If-Match); turning it on again clears what paused it
+      description: >-
+        A webhook whose destination was withdrawn since stays: it can be turned off and its description and events changed (nothing is sent
+        to it), but not turned on, and its address cannot be changed to a host that is not approved (400 destination_not_approved) until a
+        platform admin approves the destination again.
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       requestBody:
@@ -8825,6 +8832,10 @@ paths:
       tags: [webhooks]
       operationId: updatePlatformWebhook
       summary: Change a webhook (If-Match); turning it on again clears what paused it
+      description: >-
+        A webhook whose destination was withdrawn since stays: it can be turned off and its description and events changed (nothing is sent
+        to it), but not turned on, and its address cannot be changed to a host that is not approved (400 destination_not_approved) until a
+        platform admin approves the destination again.
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       requestBody:
@@ -15721,13 +15732,14 @@ components:
       enum: [pending, approved, declined, withdrawn]
     TeamRequest:
       type: object
-      required: [id, name, purpose, ownerEmail, classification, status, decisionReason, teamSlug, teamName, revision, createdAt]
+      required: [id, name, purpose, ownerEmail, classification, approvedClassification, status, decisionReason, teamSlug, teamName, revision, createdAt]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         purpose: { type: string }
         ownerEmail: { type: string, description: 'Who should own the team ("" is the requester)' }
-        classification: { type: string, description: The highest classification the team's data will need }
+        classification: { type: string, description: The highest classification the team's data will need, as asked for }
+        approvedClassification: { type: string, description: 'The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved)' }
         status: { $ref: "#/components/schemas/TeamRequestStatus" }
         decisionReason: { type: string, description: The reviewer's reason for a declined request }
         decidedAt: { type: string, format: date-time, nullable: true }
@@ -15755,13 +15767,14 @@ components:
         classification: { type: string, description: The highest classification the team's data will need }
     AdminTeamRequest:
       type: object
-      required: [id, name, purpose, ownerEmail, classification, status, decisionReason, teamSlug, teamName, revision, createdAt, requesterId, requesterEmail, requesterName, deciderEmail]
+      required: [id, name, purpose, ownerEmail, classification, approvedClassification, status, decisionReason, teamSlug, teamName, revision, createdAt, requesterId, requesterEmail, requesterName, deciderEmail, ownerSuspended]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         purpose: { type: string }
         ownerEmail: { type: string }
         classification: { type: string }
+        approvedClassification: { type: string, description: '"" unless the request is approved' }
         status: { $ref: "#/components/schemas/TeamRequestStatus" }
         decisionReason: { type: string }
         decidedAt: { type: string, format: date-time, nullable: true }
@@ -15773,6 +15786,7 @@ components:
         requesterEmail: { type: string }
         requesterName: { type: string }
         deciderEmail: { type: string }
+        ownerSuspended: { type: boolean, description: 'A pending request whose would-be owner (the person named, else the requester) has a suspended account: approving it needs another owner (ownerEmail)' }
     TeamRequestApprove:
       type: object
       required: [slug]
@@ -15780,6 +15794,7 @@ components:
         slug: { type: string, description: The team's address (same rules as team slugs); the request has none }
         name: { type: string, maxLength: 100, description: Keeps the requested name when empty }
         maxClassification: { type: string, description: Keeps the requested classification when empty }
+        ownerEmail: { type: string, description: 'Owns the team instead of the person named in the request or the requester. Required when that person is suspended (409 owner_suspended otherwise); the requester is told when someone else owns the team' }
         starterTemplateId: { type: string, description: 'Also start the team with one agent made from this agent template (GET /v1/agent-templates)' }
     TeamRequestDecline:
       type: object

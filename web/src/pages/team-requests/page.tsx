@@ -17,7 +17,7 @@ import { toast } from "@/components/ui/toast/toast";
 import { useJoinTeamHelp } from "@/components/layout/join-team";
 import { useCurrentUser } from "@/session";
 import { ClassificationBadge, useClassificationLevels } from "../team/common";
-import { type TeamRequest, RequestStatusBadge, myTeamRequestsKey, myTeamRequestsQuery } from "./common";
+import { type TeamRequest, RequestStatusBadge, myTeamRequestsKey, myTeamRequestsQuery, standingClassification } from "./common";
 import { NewRequestDialog } from "./new-request-dialog";
 
 /** The team of an approved request is the person's own to open unless they named someone else as its owner (then they are not on it). */
@@ -27,7 +27,17 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"], myE
   return [
     { id: "name", header: "Team", accessor: "name", sortable: true, rowHeader: true, hideable: false, cell: (r) => <CellText primary={r.name} secondary={r.purpose} /> },
     { id: "status", header: "Status", accessor: "status", sortable: true, cell: (r) => <RequestStatusBadge status={r.status} /> },
-    { id: "classification", header: "Classification", accessor: "classification", cell: (r) => <ClassificationBadge levels={levels} value={r.classification} /> },
+    {
+      id: "classification",
+      header: "Classification",
+      accessor: standingClassification,
+      // An approval may change the level: the page shows the one the team got, and what was asked for when it differs.
+      cell: (r) => {
+        const level = standingClassification(r);
+        const asked = levels?.find((l) => l.key === r.classification)?.name ?? r.classification;
+        return level === r.classification ? <ClassificationBadge levels={levels} value={level} /> : <CellText primary={<ClassificationBadge levels={levels} value={level} />} secondary={`Asked for ${asked}`} />;
+      },
+    },
     { id: "owner", header: "Owner", accessor: (r) => r.ownerEmail, muted: true, defaultHidden: true, cell: (r) => r.ownerEmail || "You" },
     { id: "requested", header: "Requested", accessor: "createdAt", sortable: true, muted: true, cell: (r) => <RelativeTime value={r.createdAt} /> },
     {
@@ -93,6 +103,8 @@ export function TeamRequestsPage() {
           { label: "Open team", icon: <UsersRound aria-hidden />, hidden: !(r.status === "approved" && r.teamSlug && isMyTeam(r, user.email)), render: <Link to="/teams/$team" params={{ team: r.teamSlug }} /> },
           { label: "Withdraw…", icon: <Undo2 aria-hidden />, danger: true, hidden: r.status !== "pending", onSelect: () => setWithdrawing(r) },
         ]}
+        // On a phone each row stacks (a table of five columns scrolled sideways with its Status clipped, #140).
+        tableProps={{ stack: true }}
         empty={{ icon: <UsersRound />, title: "You haven't asked for a team.", description: m?.canAsk ? "Use New request to ask for one." : undefined }}
       />
       {asking && <NewRequestDialog onClose={() => setAsking(false)} />}

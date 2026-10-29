@@ -18,6 +18,7 @@ const req = (extra: Partial<Schemas["TeamRequest"]> = {}): Schemas["TeamRequest"
   purpose: "Run library technology together.",
   ownerEmail: "",
   classification: "open",
+  approvedClassification: "",
   status: "pending",
   decisionReason: "",
   decidedAt: null,
@@ -42,6 +43,7 @@ const adminReq = (extra: Partial<Schemas["AdminTeamRequest"]> = {}): Schemas["Ad
   requesterEmail: "sam@example.edu",
   requesterName: "Sam Student",
   deciderEmail: "",
+  ownerSuspended: false,
   ...extra,
 });
 const settings = (extra: Partial<Schemas["TeamRequestSettings"]> = {}): Schemas["TeamRequestSettings"] => ({ enabled: true, maxOpen: 2, allowedGroup: "", revision: 4, updatedAt: "2026-10-15T08:00:00Z", ...extra });

@@ -15,7 +15,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
-import { type Webhook, type WebhookCreated, type WebhookScope, destinationsQuery, eventsQuery, webhookCalls, webhooksKey } from "./api";
+import { type Webhook, type WebhookCreated, type WebhookScope, destinationCovers, destinationsQuery, eventsQuery, webhookCalls, webhooksKey } from "./api";
 import { pausedReason, pausedText } from "./status";
 
 /** Which field a server error code is about (the others are shown above the buttons). */
@@ -66,6 +66,9 @@ export function WebhookDialog({ scope, webhook, onClose, onCreated }: Props) {
   const urlError = (submitted && !url.trim() ? "Enter the address the events are sent to." : undefined) ?? onField("url");
   const eventsError = (submitted && chosen.length === 0 ? "Choose at least one event." : undefined) ?? onField("events");
   const patterns = destinations.data ?? [];
+  // Its host was approved when the webhook was made and has been withdrawn since: nothing is sent to it (checked before every delivery), it
+  // can still be turned off and edited, and it cannot be turned on or pointed at another unapproved host until the platform approves it again.
+  const withdrawn = !!webhook && destinations.isSuccess && !destinationCovers(patterns, webhook.url);
   return (
     <FormDialog
       size="lg"
@@ -83,6 +86,12 @@ export function WebhookDialog({ scope, webhook, onClose, onCreated }: Props) {
       {paused && (
         <Alert tone="warning" title={`Paused: ${paused}`}>
           {pausedText[paused]} Save it with <strong>Turned on</strong> checked to start sending again.
+        </Alert>
+      )}
+      {withdrawn && (
+        <Alert tone="warning" title="This address is no longer an approved destination">
+          Nothing is sent to it. You can turn the webhook off, or change its description and events. To turn it on again, a platform admin must approve the host again under
+          Admin → Webhooks.
         </Alert>
       )}
       <Field

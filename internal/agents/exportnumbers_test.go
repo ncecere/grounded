@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
 // TestExportNumbers (v0.4.2 US-03): an export numbers sources as the chat
@@ -53,5 +55,32 @@ func TestExportMarkdownZone(t *testing.T) {
 	md := ExportMarkdown(ConversationView{Messages: []MessageView{{Role: "user", Text: "Hi", CreatedAt: at}}}, ny)
 	if !strings.Contains(md, "(2026-10-04 10:01 EDT)") {
 		t.Fatalf("markdown = %s", md)
+	}
+}
+
+// A router's export says which agent answered each message (#140): the heading names the router, so without the line under it nobody
+// reading the file could tell who wrote the answer. Answers that were not routed carry no such line.
+func TestExportMarkdownNamesTheAgentThatAnswered(t *testing.T) {
+	at := time.Date(2026, 10, 4, 14, 1, 0, 0, time.UTC)
+	v := ConversationView{
+		Agent: dbgen.Agent{Name: "Front door", Slug: "front-door"}, TeamSlug: "help",
+		Messages: []MessageView{
+			{Role: "user", Text: "Where do I park?", CreatedAt: at},
+			{Role: "assistant", Text: "Buy a permit online.", CreatedAt: at, RoutedTo: &RoutedView{Name: "Parking help", Slug: "parking", TeamSlug: "facilities", TeamName: "Facilities"}},
+			{Role: "assistant", Text: "Hello!", CreatedAt: at},
+			{Role: "assistant", Text: "Ask the library.", CreatedAt: at, RoutedTo: &RoutedView{Name: "Library help", TeamSlug: "library", Gone: true}},
+		},
+	}
+	md := ExportMarkdown(v, time.UTC)
+	for _, want := range []string{"_Answered by Parking help · Facilities_", "_Answered by Library help · library (no longer available)_"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("export lacks %q:\n%s", want, md)
+		}
+	}
+	if n := strings.Count(md, "Answered by"); n != 2 {
+		t.Errorf("%d \"Answered by\" lines, want 2 (the small talk answer has none):\n%s", n, md)
+	}
+	if !strings.Contains(md, "## Front door (2026-10-04 14:01 UTC)\n\n_Answered by Parking help") {
+		t.Errorf("the line is not under the heading:\n%s", md)
 	}
 }

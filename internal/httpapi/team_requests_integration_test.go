@@ -394,3 +394,85 @@ func TestTeamRequestDecisions(t *testing.T) {
 		}
 	}
 }
+
+// Approving a request whose would-be owner is suspended (#140): the reviewer is told up front (ownerSuspended), approval is refused until
+// they name a different owner, and no team is left behind. The requester's page shows the level that was approved, not the one asked for.
+func TestTeamRequestApprovalRefusesASuspendedOwner(t *testing.T) {
+	e := newReqEnv(t)
+	e.configure(t, true, 9, "")
+	setStatus := func(s *session, status string) {
+		t.Helper()
+		if _, err := e.app.Pool.Exec(context.Background(), "UPDATE users SET status = $1 WHERE id = $2::uuid", status, s.me.User.Id.String()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	teams := func() int { return e.app.count(t, `SELECT count(*) FROM teams`) }
+	before := teams()
+
+	req := e.ask(t, e.user, "Suspended asker")
+	setStatus(e.user, "suspended")
+	r, rev := e.adminRequest(t, req.Id.String())
+	if !r.OwnerSuspended {
+		t.Errorf("the reviewer is not told the requester is suspended: %+v", r)
+	}
+	path := "/v1/admin/team-requests/" + r.Id.String()
+	code, c := e.admin.call("POST", path+"/approve", map[string]any{"slug": "suspended-asker"}, nil, ifMatch(rev))
+	mustCode(t, "approve with a suspended requester", code, c, 409, "owner_suspended")
+	code, c = e.admin.call("POST", path+"/approve", map[string]any{"slug": "suspended-asker", "ownerEmail": "USER@localhost"}, nil, ifMatch(rev))
+	mustCode(t, "name the suspended requester as owner", code, c, 409, "owner_suspended")
+	code, c = e.admin.call("POST", path+"/approve", map[string]any{"slug": "suspended-asker", "ownerEmail": "not an email"}, nil, ifMatch(rev))
+	mustCode(t, "name an invalid owner", code, c, 400, "")
+	if got, _ := e.adminRequest(t, req.Id.String()); got.Status != "pending" || teams() != before {
+		t.Errorf("a refused approval changed things: %+v, %d new teams", got, teams()-before)
+	}
+
+	// A different, explicit owner: the team is theirs, the suspended requester is not on it and is told.
+	var done apitypes.AdminTeamRequest
+	code, c = e.admin.call("POST", path+"/approve", map[string]any{"slug": "suspended-asker", "ownerEmail": "Casey@Localhost", "maxClassification": "sensitive"}, &done, ifMatch(rev))
+	mustCode(t, "approve with another owner", code, c, 200, "")
+	if done.Status != "approved" || done.OwnerSuspended || done.Classification != "open" || done.ApprovedClassification != "sensitive" {
+		t.Errorf("approved = %+v", done)
+	}
+	e.casey.refresh()
+	if n := e.app.count(t, `SELECT count(*) FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.slug = 'suspended-asker' AND m.user_id = $1::uuid AND m.role = 'owner'`, e.casey.me.User.Id.String()); n != 1 {
+		t.Errorf("casey owns the team: %d", n)
+	}
+	if n := e.app.count(t, `SELECT count(*) FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.slug = 'suspended-asker' AND m.user_id = $1::uuid`, e.user.me.User.Id.String()); n != 0 {
+		t.Errorf("the suspended requester is on the team: %d", n)
+	}
+
+	// A request that names a suspended owner is refused the same way, and not once the account is active again.
+	setStatus(e.user, "active")
+	var named apitypes.TeamRequest
+	code, c = e.user.call("POST", "/v1/team-requests", map[string]any{"name": "Names Casey", "purpose": "x", "classification": "open", "ownerEmail": "casey@localhost"}, &named, nil)
+	mustCode(t, "ask naming casey", code, c, 201, "")
+	setStatus(e.casey, "suspended")
+	r, rev = e.adminRequest(t, named.Id.String())
+	if !r.OwnerSuspended {
+		t.Errorf("the reviewer is not told the named owner is suspended: %+v", r)
+	}
+	path = "/v1/admin/team-requests/" + r.Id.String()
+	code, c = e.admin.call("POST", path+"/approve", map[string]any{"slug": "names-casey"}, nil, ifMatch(rev))
+	mustCode(t, "approve naming a suspended owner", code, c, 409, "owner_suspended")
+	setStatus(e.casey, "active")
+	if r, _ = e.adminRequest(t, named.Id.String()); r.OwnerSuspended {
+		t.Errorf("still flagged once the account is active: %+v", r)
+	}
+	code, c = e.admin.call("POST", path+"/approve", map[string]any{"slug": "names-casey"}, &done, ifMatch(rev))
+	mustCode(t, "approve once the owner is active", code, c, 200, "")
+
+	// The requester's page: the approved level, and what was asked for kept beside it.
+	var seen *apitypes.TeamRequest
+	m := e.mine(t, e.user)
+	for i := range m.Items {
+		if m.Items[i].Id == req.Id {
+			seen = &m.Items[i]
+		}
+	}
+	if seen == nil || seen.Classification != "open" || seen.ApprovedClassification != "sensitive" {
+		t.Errorf("the requester sees %+v, want asked open and approved sensitive", seen)
+	}
+	if m.Items[0].Status == "approved" && m.Items[0].Id != req.Id && m.Items[0].ApprovedClassification != "open" {
+		t.Errorf("approved without a change shows %q", m.Items[0].ApprovedClassification)
+	}
+}

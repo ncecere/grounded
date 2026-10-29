@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestClientIP(t *testing.T) {
@@ -250,5 +252,50 @@ func TestDecodeNamesTheProblem(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// An ID in a body that is not one is invalid_id, as in a path, and names the field; it is not "invalid_json" (#140).
+func TestDecodeNamesAnIDThatIsNotOne(t *testing.T) {
+	type body struct {
+		Message        string      `json:"message"`
+		ConversationID *uuid.UUID  `json:"conversationId,omitempty"`
+		AgentID        uuid.UUID   `json:"agentId"`
+		Other          []uuid.UUID `json:"other,omitempty"`
+	}
+	good := "123e4567-e89b-12d3-a456-426614174000"
+	for name, tc := range map[string]struct{ in, field string }{
+		"too short":      {`{"message":"hi","conversationId":"abc"}`, `"conversationId"`},
+		"not hex":        {`{"conversationId":"zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"}`, `"conversationId"`},
+		"empty":          {`{"conversationId":""}`, `"conversationId"`},
+		"a number":       {`{"conversationId":5}`, `"conversationId"`},
+		"the second one": {`{"conversationId":"` + good + `","agentId":"nope"}`, `"agentId"`},
+		"in a list":      {`{"other":["nope"]}`, "An ID in the request body"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest("POST", "/", strings.NewReader(tc.in))
+			r.Header.Set("Content-Type", "application/json")
+			var b body
+			if Decode(w, r, &b) {
+				t.Fatal("accepted")
+			}
+			var env struct {
+				Error struct{ Code, Message string }
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+				t.Fatalf("not an error envelope: %s", w.Body)
+			}
+			if w.Code != http.StatusBadRequest || env.Error.Code != "invalid_id" || !strings.Contains(env.Error.Message, tc.field) {
+				t.Errorf("got %d %s, want 400 invalid_id naming %s", w.Code, w.Body, tc.field)
+			}
+		})
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"conversationId":"`+good+`","agentId":"`+good+`"}`))
+	r.Header.Set("Content-Type", "application/json")
+	var b body
+	if !Decode(w, r, &b) || b.ConversationID == nil || b.ConversationID.String() != good {
+		t.Errorf("a valid ID was refused: %d %s", w.Code, w.Body)
 	}
 }

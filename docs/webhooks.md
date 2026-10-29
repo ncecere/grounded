@@ -6,7 +6,7 @@ Design: [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §5 (roadmap F3). Cod
 
 ## Who sets them up
 
-- **Platform admins** turn webhooks on (**Admin → Settings → Features → Webhooks**; off by default) and **approve destinations** (**Admin → Webhooks**): host patterns such as `hooks.example.edu` or `*.example.edu` (the host and every subdomain). A webhook can only be sent to an approved host. Withdrawing a destination stops what is sent there at once.
+- **Platform admins** turn webhooks on (**Admin → Settings → Features → Webhooks**; off by default) and **approve destinations** (**Admin → Webhooks**): host patterns such as `hooks.example.edu` or `*.example.edu` (the host and every subdomain). A webhook can only be sent to an approved host. Withdrawing a destination stops what is sent there at once; the webhooks stay, and a team admin can still turn one off or change its description and events (not turn it on, or point it at another unapproved host) until a platform admin approves the destination again. A host name has at most 253 characters, each part between dots at most 63 (RFC 1035): longer patterns are refused.
 - **Team admins and owners** create webhooks for their team (**Team settings → Webhooks**). Editors and members don't see them.
 - **Platform admins** also create **platform webhooks** (**Admin → Webhooks**) for platform events.
 
