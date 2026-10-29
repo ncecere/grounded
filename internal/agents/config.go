@@ -3,8 +3,10 @@ package agents
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -150,7 +152,7 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&in); err != nil {
-		return Config{}, invalidConfig([]Problem{{Field: "config", Problem: "The configuration is not valid: " + jsonProblem(err)}})
+		return Config{}, invalidConfig([]Problem{jsonProblem(err)})
 	}
 	c, problems := normalize(in)
 	if len(problems) > 0 {
@@ -168,10 +170,41 @@ func DecodeConfig(raw json.RawMessage) Config {
 	return c
 }
 
-func jsonProblem(err error) string {
-	msg := err.Error()
-	msg = strings.TrimPrefix(msg, "json: ")
-	return msg
+func jsonProblem(err error) Problem {
+	var typed *json.UnmarshalTypeError
+	if errors.As(err, &typed) {
+		field := typed.Field
+		if field == "" {
+			field = "config"
+		}
+		if runes := []rune(field); len(runes) > 80 {
+			field = string(runes[:80]) + "…"
+		}
+		return Problem{Field: field, Problem: field + " must be " + configJSONKind(typed.Type)}
+	}
+	return Problem{Field: "config", Problem: "The configuration is not valid: " + strings.TrimPrefix(err.Error(), "json: ")}
+}
+
+// configJSONKind describes the input kind, never an internal Go type name.
+func configJSONKind(t reflect.Type) string {
+	if t == nil {
+		return "a different kind of value"
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return "text"
+	case reflect.Bool:
+		return "true or false"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "a whole number"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.Slice, reflect.Array:
+		return "a list"
+	case reflect.Struct, reflect.Map:
+		return "an object"
+	}
+	return "a different kind of value"
 }
 
 func invalidConfig(p []Problem) error {
