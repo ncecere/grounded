@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -121,6 +122,9 @@ type profileFields struct {
 
 func applyProfile(cur profileFields, p Profile) (profileFields, error) {
 	if p.Name != nil {
+		if err := displaytext.Validate(*p.Name, "invalid_name", "Name"); err != nil {
+			return cur, err
+		}
 		cur.name = strings.TrimSpace(*p.Name)
 	}
 	if n := len([]rune(cur.name)); n < 1 || n > 80 {
@@ -246,6 +250,10 @@ func (s *Service) insertDraft(ctx context.Context, q *dbgen.Queries, a authz.Act
 	}
 	pf, err := applyProfile(start, in.Profile)
 	if err != nil {
+		return dbgen.Agent{}, err
+	}
+	// A legacy template can supply the name without an explicit Profile.Name.
+	if err := displaytext.Validate(pf.name, "invalid_name", "Name"); err != nil {
 		return dbgen.Agent{}, err
 	}
 	if !explicitSlug {

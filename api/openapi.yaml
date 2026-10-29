@@ -24,6 +24,25 @@ info:
     checked before the write's If-Match revision and request-body validation:
     an auditor receives 403 forbidden, not 428 revision_required.
 
+    New or renamed team (including team-request), agent, knowledge-base, source
+    and API-key names, and
+    explicitly renamed conversation titles, reject Unicode control/format
+    characters (including bidi controls and zero-width joiners), other default
+    ignorable code points, and line/paragraph separators. Ordinary Unicode
+    letters, combining marks and emoji variation selectors remain supported;
+    joiner-based emoji sequences must use a name without the joiner. Errors are
+    400 invalid_name or invalid_title. Existing stored names are not rewritten;
+    updating an unrelated field does not require renaming a legacy object.
+    Initial conversation titles derived from a question omit hidden characters
+    (falling back to New conversation); the question and message history are not
+    rewritten. Uploaded filenames follow the same character policy after MIME
+    header parsing and before application basename cleanup or persistence: a bad
+    file is rejected with per-file invalid_filename in the existing batch
+    response, rather than silently changing its identity. An unparseable multipart
+    header can instead reject the request with 400 invalid_upload. The
+    original filename may be echoed in that JSON result and must still be escaped
+    by clients. This does not prevent all visually confusable Unicode names.
+
     Every route served by the application must be listed here; a test enforces it.
     The one exception is the MCP server (`POST /mcp`), which speaks JSON-RPC
     (the Model Context Protocol) and is described in docs/mcp.md.
