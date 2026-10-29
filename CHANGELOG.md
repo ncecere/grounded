@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **OpenAI error envelopes also cover shared middleware.** Expired/suspended browser sessions, CSRF refusals, per-user rate limits, authentication-store failures, invalid URL text and a panic before response headers keep the OpenAI `message`, `type`, `code` and `param` fields. Retry-After, cookie clearing, internal-error redaction and native API/session behavior are preserved. (#116)
 - **Auditors get a clear 403 before admin-write validation.** Admin routes reject write actions before checking `If-Match` or the body, instead of inviting an auditor to retry with a revision they cannot use. Read-only POST previews for SSO group rules and profile-migration preflight still admit auditors; services retain their own authorization checks. (#146, partial)
+- **Admin validation and guidance:** creating a connection with an explicit zero timeout now rejects it as an update already did (omitting it still selects 60 seconds). A chat model cannot declare more output tokens than its known context window, including partial updates. Retention errors explain the 0/keep option; the platform-disable reason names the five-character minimum and counts Unicode characters consistently. MCP's off message and answer-cache comments point to Admin → Settings → Features. (#146, partial)
 
 ## [0.6.2] - 2026-10-29
 

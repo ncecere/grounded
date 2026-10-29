@@ -1,12 +1,13 @@
-import { Api, type Schemas } from "./support/api";
-import { createTeam } from "./support/arrange";
-import { expect, test } from "./support/fixtures";
+import { Api, type Schemas } from "../support/api";
+import { createTeam } from "../support/arrange";
+import { expect, test } from "../support/fixtures";
 
 /*
  * Webhooks (v0.6.0, F3), across people: a platform admin turns them on in Settings → Features and approves *.example.com in Admin → Webhooks;
  * a team editor and a member see no Webhooks tab; the team's owner makes a webhook to hooks.example.com for agent.published, sees its secret
  * once, sends a test event (the host does not resolve here, so the delivery is not delivered), changes the description, rotates the secret
- * and deletes the webhook. The switch is the platform's and no other spec depends on it, so it is left on.
+ * and deletes the webhook. The global switch changes other teams' tab visibility:
+ * run in the serial platform project, after the parallel team-navigation specs.
  */
 test("webhooks: turn on, approve a destination, make one, test it, change it, rotate its secret, delete it", async ({ as, admin, a11y }) => {
   test.setTimeout(180_000);

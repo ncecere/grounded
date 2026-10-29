@@ -98,7 +98,7 @@ func (a *api) mcpHandler() http.Handler {
 			return
 		}
 		if !on {
-			mcpError(w, http.StatusNotFound, "mcp_off", "The MCP server is off. A platform admin can turn it on under Admin, Overview, Features.")
+			mcpError(w, http.StatusNotFound, "mcp_off", "The MCP server is off. A platform admin can turn it on under Admin, Settings, Features.")
 			return
 		}
 		if r.Method != http.MethodPost {

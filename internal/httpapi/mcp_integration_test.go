@@ -124,6 +124,9 @@ func TestMCPSwitchAndKeys(t *testing.T) {
 	// Off by default: 404 with a JSON-RPC error, whatever the key.
 	res, body := mcpRaw(t, url, "POST", key.Secret, listTools)
 	wantRefusal(t, "while off", res, body, 404, -32004, "mcp_off")
+	if !strings.Contains(body.Error.Message, "Admin, Settings, Features") {
+		t.Fatalf("MCP setup points to the wrong page: %s", body.Error.Message)
+	}
 	if _, err := mcpConnect(t, url, key.Secret, ""); err == nil {
 		t.Fatal("a client connected while the server is off")
 	}

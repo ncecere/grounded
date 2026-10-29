@@ -9010,10 +9010,12 @@ type ModelCompatThinkingOff string
 // ModelCreate defines model for ModelCreate.
 type ModelCreate struct {
 	// Compat OpenAI-compatibility flags for proxy quirks (DESIGN.md §10). Omitted flags use defaults. A PATCH that sends compat replaces all flags, so send the flags to keep too.
-	Compat        *ModelCompat       `json:"compat,omitempty"`
-	ConnectionId  openapi_types.UUID `json:"connectionId"`
-	ContextWindow *int32             `json:"contextWindow,omitempty"`
-	Description   *string            `json:"description,omitempty"`
+	Compat       *ModelCompat       `json:"compat,omitempty"`
+	ConnectionId openapi_types.UUID `json:"connectionId"`
+
+	// ContextWindow Chat models only. When both are known, maxOutputTokens must not exceed contextWindow.
+	ContextWindow *int32  `json:"contextWindow,omitempty"`
+	Description   *string `json:"description,omitempty"`
 
 	// Dimensions Required for embedding models
 	Dimensions  *int32 `json:"dimensions,omitempty"`
@@ -9022,11 +9024,13 @@ type ModelCreate struct {
 	Key         string `json:"key"`
 
 	// Kind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
-	Kind              ModelKind        `json:"kind"`
-	MaxClassification string           `json:"maxClassification"`
-	MaxInputTokens    *int32           `json:"maxInputTokens,omitempty"`
-	MaxOutputTokens   *int32           `json:"maxOutputTokens,omitempty"`
-	ModerationFamily  *GuardrailFamily `json:"moderationFamily,omitempty"`
+	Kind              ModelKind `json:"kind"`
+	MaxClassification string    `json:"maxClassification"`
+	MaxInputTokens    *int32    `json:"maxInputTokens,omitempty"`
+
+	// MaxOutputTokens Maximum output tokens; must not exceed a chat model's known contextWindow (400 invalid_max_output_tokens).
+	MaxOutputTokens  *int32           `json:"maxOutputTokens,omitempty"`
+	ModerationFamily *GuardrailFamily `json:"moderationFamily,omitempty"`
 
 	// ModerationProvider How a moderation model is called (ADR-0019): an OpenAI-compatible /moderations endpoint, a guardrail model over /chat/completions, or any chat model as a JSON classifier. system_one is reported for SystemOne models (kind systemone), which moderation policies use directly; new moderation models cannot choose it (ADR-0020).
 	ModerationProvider *ModerationProvider `json:"moderationProvider,omitempty"`
@@ -9130,16 +9134,20 @@ type ModelTestResult struct {
 // ModelUpdate defines model for ModelUpdate.
 type ModelUpdate struct {
 	// Compat OpenAI-compatibility flags for proxy quirks (DESIGN.md §10). Omitted flags use defaults. A PATCH that sends compat replaces all flags, so send the flags to keep too.
-	Compat            *ModelCompat     `json:"compat,omitempty"`
-	ContextWindow     *int32           `json:"contextWindow,omitempty"`
-	Description       *string          `json:"description,omitempty"`
-	Dimensions        *int32           `json:"dimensions,omitempty"`
-	DisplayName       *string          `json:"displayName,omitempty"`
-	Enabled           *bool            `json:"enabled,omitempty"`
-	MaxClassification *string          `json:"maxClassification,omitempty"`
-	MaxInputTokens    *int32           `json:"maxInputTokens,omitempty"`
-	MaxOutputTokens   *int32           `json:"maxOutputTokens,omitempty"`
-	ModerationFamily  *GuardrailFamily `json:"moderationFamily,omitempty"`
+	Compat *ModelCompat `json:"compat,omitempty"`
+
+	// ContextWindow Chat models only. The resulting maxOutputTokens must not exceed contextWindow.
+	ContextWindow     *int32  `json:"contextWindow,omitempty"`
+	Description       *string `json:"description,omitempty"`
+	Dimensions        *int32  `json:"dimensions,omitempty"`
+	DisplayName       *string `json:"displayName,omitempty"`
+	Enabled           *bool   `json:"enabled,omitempty"`
+	MaxClassification *string `json:"maxClassification,omitempty"`
+	MaxInputTokens    *int32  `json:"maxInputTokens,omitempty"`
+
+	// MaxOutputTokens Maximum output tokens; must not exceed the chat model's resulting contextWindow (400 invalid_max_output_tokens).
+	MaxOutputTokens  *int32           `json:"maxOutputTokens,omitempty"`
+	ModerationFamily *GuardrailFamily `json:"moderationFamily,omitempty"`
 
 	// ModerationProvider How a moderation model is called (ADR-0019): an OpenAI-compatible /moderations endpoint, a guardrail model over /chat/completions, or any chat model as a JSON classifier. system_one is reported for SystemOne models (kind systemone), which moderation policies use directly; new moderation models cannot choose it (ADR-0020).
 	ModerationProvider *ModerationProvider `json:"moderationProvider,omitempty"`

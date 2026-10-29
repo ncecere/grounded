@@ -274,6 +274,12 @@ func TestAgentKillSwitchPolicyAndAccessLog(t *testing.T) {
 	statusPath := "/v1/admin/agents/" + ag.Id.String() + "/status"
 	code, e := env.admin.call("POST", statusPath, map[string]string{"status": "disabled_by_platform"}, nil, nil)
 	mustCode(t, "no reason", code, e, 400, "reason_required")
+	for _, reason := range []string{"four", "  four  ", "😀😀😀😀"} {
+		code, raw := env.admin.raw("POST", statusPath, map[string]string{"status": "disabled_by_platform", "reason": reason}, nil)
+		if code != 400 || !strings.Contains(string(raw), "at least 5 characters") {
+			t.Fatalf("short reason must explain the minimum length: %d %s", code, raw)
+		}
+	}
 	code, e = env.auditor.call("POST", statusPath, map[string]string{"status": "disabled_by_platform", "reason": "testing"}, nil, nil)
 	mustCode(t, "auditor kills", code, e, 403, "forbidden")
 	var aa apitypes.AdminAgent
