@@ -213,6 +213,21 @@ func TestRetrievalAndEmbeddingSettings(t *testing.T) {
 	}
 }
 
+// Near-duplicate boilerplate matching is off unless the install turns it on (#23).
+func TestBoilerplateFuzzySetting(t *testing.T) {
+	c, err := LoadFrom("", env(nil))
+	if err != nil || c.Boilerplate.Fuzzy {
+		t.Fatalf("default: %+v %v", c.Boilerplate, err)
+	}
+	c, err = LoadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "true", "BOILERPLATE_RATIO": "0.3"}))
+	if err != nil || !c.Boilerplate.Fuzzy || c.Boilerplate.Ratio != 0.3 || !c.Boilerplate.Web {
+		t.Fatalf("on: %+v %v", c.Boilerplate, err)
+	}
+	if _, err := LoadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "maybe"})); err == nil || !strings.Contains(err.Error(), "BOILERPLATE_FUZZY") {
+		t.Errorf("not a boolean: %v", err)
+	}
+}
+
 func TestInstanceSettings(t *testing.T) {
 	d := Defaults()
 	if d.Instance.Name != "Grounded" || d.Instance.OrgName != "" || d.Instance.Theme != "neutral" ||

@@ -126,7 +126,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     // The row's button opens it; its one-line title keeps the full text as a tooltip.
-    const title = await screen.findByRole("button", { name: "Scanned form" });
+    const title = await screen.findByRole("button", { name: /^Scanned form/ });
     expect(within(title).getByText("Scanned form")).toHaveAttribute("title", "Scanned form");
     expect(screen.getByText("PDF · 586 KiB")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Failed" }));
@@ -152,7 +152,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     });
     const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "Scanned form" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Scanned form/ }));
     const sheet = await screen.findByRole("region", { name: "Scanned form" });
     expect(sheet).toHaveTextContent("PDF · 586 KiB");
     const previews = await within(sheet).findByRole("list", { name: "Passage previews" });
@@ -171,7 +171,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     });
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "Scanned form" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Scanned form/ }));
     const sheet = await screen.findByRole("region", { name: "Scanned form" });
     expect(await within(sheet).findByText("This PDF has no text to read (it may be a scan).")).toBeInTheDocument();
     expect(within(sheet).queryByText("pdf: no text layer on page 1")).toBeNull();
@@ -196,7 +196,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     });
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Pages/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "Fees" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Fees/ }));
     const sheet = await screen.findByRole("region", { name: "Fees" });
     expect(await within(sheet).findByText("The 2019 fee is in the fee schedule.")).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Re-fetch page" }));

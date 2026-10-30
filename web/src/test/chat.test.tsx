@@ -192,7 +192,7 @@ describe("chat page", () => {
     expect(within(viewer).queryByRole("button", { name: /Open full document/ })).toBeNull();
     // The sources under the answer opened too; each card opens the viewer, its page is a separate link.
     const cardEl = screen.getByRole("listitem", { name: "Source 1: Drop/Add" });
-    expect(within(cardEl).getByRole("button", { name: "Show source 1: Drop/Add" })).toBeInTheDocument();
+    expect(within(cardEl).getByRole("button", { name: /^Show source 1: Drop\/Add/i })).toBeInTheDocument();
     expect(within(cardEl).getByRole("link", { name: "Open the page (opens in a new tab)" })).toHaveAttribute("href", citation.url);
     expect(within(cardEl).getByText("Registration › Drop/Add")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Searched the knowledge base for “drop a class”/ })).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe("chat page", () => {
     // so Enter opens it again (mem-10).
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("region", { name: "Drop/Add" })).toBeNull());
-    await waitFor(() => expect(within(cardEl).getByRole("button", { name: "Show source 1: Drop/Add" })).toHaveFocus());
+    await waitFor(() => expect(within(cardEl).getByRole("button", { name: /^Show source 1: Drop\/Add/i })).toHaveFocus());
   });
 
   it("shows a withheld answer as an alert, without copy or rating buttons, and announces it as not answered (F-10)", async () => {

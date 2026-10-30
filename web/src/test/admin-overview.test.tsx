@@ -208,7 +208,7 @@ describe("admin overview", () => {
     const row = await featureRow("MCP server");
     expect(await within(row).findByText("Off")).toBeInTheDocument();
     expect(within(row).getByText("No AI tool can connect over MCP. API keys with the MCP scope are kept.")).toBeInTheDocument();
-    const guide = within(row).getByRole("link", { name: "MCP server setup guide (opens in a new tab)" });
+    const guide = within(row).getByRole("link", { name: "Setup guide: MCP server (opens in a new tab)" });
     // The public docs site (versioned with releases), not the repository's main branch.
     expect(guide).toHaveAttribute("href", "https://docs.grounded.bitop.dev/docs/using/mcp");
     expect(guide).toHaveAttribute("target", "_blank");
@@ -244,7 +244,7 @@ describe("admin overview", () => {
     const row = await featureRow("OAuth sign-in for MCP clients");
     expect(within(row).getByText("Experimental")).toBeInTheDocument();
     expect(await within(row).findByText("AI tools connect with API keys only.")).toBeInTheDocument();
-    const guide = within(row).getByRole("link", { name: "How OAuth sign-in works (opens in a new tab)" });
+    const guide = within(row).getByRole("link", { name: "How it works: OAuth sign-in (opens in a new tab)" });
     expect(guide).toHaveAttribute("href", "https://docs.grounded.bitop.dev/docs/self-hosting/mcp-server");
     await userEvent.click(within(row).getByRole("switch", { name: "Allow OAuth sign-in" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));

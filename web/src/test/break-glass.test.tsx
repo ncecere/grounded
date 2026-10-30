@@ -80,7 +80,7 @@ describe("Admin → Break-glass", () => {
     expect(await screen.findByText("Ended")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(within(rows[1]!).getByRole("button", { name: /Open the session on Office of the Registrar by Pat Admin/ }));
+    await userEvent.click(within(rows[1]!).getByRole("button", { name: /Review the session on Office of the Registrar by Pat Admin/ }));
     const sheet = await screen.findByRole("region", { name: "Break-glass: Office of the Registrar" });
     expect(within(sheet).getByText(reason)).toBeInTheDocument();
     expect(within(sheet).getByText("Nothing was read.")).toBeInTheDocument();

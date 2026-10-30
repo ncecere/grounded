@@ -157,10 +157,15 @@ func (r *refresh) step(ctx context.Context) (bool, error) {
 	} else if err != nil {
 		return false, err
 	}
-	eff := r.p.Boilerplate.Resolve(r.src.Type, SettingsOf(row.Enabled.Bool, row.Enabled.Valid, row.MinDocs, row.Ratio))
+	eff := r.p.Boilerplate.Resolve(r.src.Type, SettingsOf(row.Enabled, row.Fuzzy, row.MinDocs, row.Ratio))
 	if eff.Enabled {
 		if n, err := r.backfill(ctx); err != nil || n > 0 {
 			return false, err
+		}
+		if eff.Fuzzy {
+			if n, err := r.backfillSketches(ctx); err != nil || n > 0 {
+				return false, err
+			}
 		}
 	}
 	if due(row) {
@@ -234,7 +239,7 @@ func (r *refresh) classify(ctx context.Context, row dbgen.SourceBoilerplate, eff
 	threshold := eff.Threshold(int(docs))
 	next := classified{}
 	if eff.Enabled {
-		if next, err = r.count(ctx, threshold); err != nil {
+		if next, err = r.p.classifyBlocks(ctx, r.q, r.src.ID, eff, threshold); err != nil {
 			return err
 		}
 	}
@@ -273,10 +278,22 @@ func (r *refresh) classify(ctx context.Context, row dbgen.SourceBoilerplate, eff
 	})
 }
 
-// count finds the blocks in at least threshold documents and their
+// classifyBlocks finds a source's boilerplate blocks at a threshold: the
+// blocks in at least that many documents and, with near-duplicate matching
+// on, the clusters of similar blocks in that many. It is the classification
+// of the refresh and of an index preview alike.
+func (p *Processor) classifyBlocks(ctx context.Context, q *dbgen.Queries, sourceID uuid.UUID, eff boilerplate.Effective, threshold int) (classified, error) {
+	out, err := countRepeated(ctx, q, sourceID, threshold)
+	if err != nil || !eff.Fuzzy {
+		return out, err
+	}
+	return out, p.addClusters(ctx, sourceID, threshold, out)
+}
+
+// countRepeated finds the blocks in at least threshold documents and their
 // canonical copies.
-func (r *refresh) count(ctx context.Context, threshold int) (classified, error) {
-	rows, err := r.q.RepeatedBlocks(ctx, dbgen.RepeatedBlocksParams{SourceID: r.src.ID, Threshold: int32(threshold)})
+func countRepeated(ctx context.Context, q *dbgen.Queries, sourceID uuid.UUID, threshold int) (classified, error) {
+	rows, err := q.RepeatedBlocks(ctx, dbgen.RepeatedBlocksParams{SourceID: sourceID, Threshold: int32(threshold)})
 	if err != nil || len(rows) == 0 {
 		return classified{}, err
 	}
@@ -284,9 +301,9 @@ func (r *refresh) count(ctx context.Context, threshold int) (classified, error) 
 	hashes := make([]int64, len(rows))
 	for i, b := range rows {
 		hashes[i] = b.BlockHash
-		out[b.BlockHash] = dbgen.ListBoilerplateBlocksRow{BlockHash: b.BlockHash, DocCount: b.Docs}
+		out[b.BlockHash] = dbgen.ListBoilerplateBlocksRow{BlockHash: b.BlockHash, DocCount: b.Docs, Variants: 1}
 	}
-	canon, err := r.q.CanonicalDocuments(ctx, dbgen.CanonicalDocumentsParams{SourceID: r.src.ID, Hashes: hashes})
+	canon, err := q.CanonicalDocuments(ctx, dbgen.CanonicalDocumentsParams{SourceID: sourceID, Hashes: hashes})
 	if err != nil {
 		return nil, err
 	}
@@ -331,10 +348,20 @@ func (r *refresh) addSamples(ctx context.Context, c classified) error {
 			continue // shown without text
 		}
 		for _, b := range chunk.Blocks(md) {
-			if h := boilerplate.Hash(b.Text); slices.Contains(hashes, h) && c[h].Sample == "" {
-				row := c[h]
+			h := boilerplate.Hash(b.Text)
+			if !slices.Contains(hashes, h) {
+				continue
+			}
+			if row := c[h]; row.Sample == "" {
 				row.Sample = boilerplate.Sample(b.Text)
 				c[h] = row
+			}
+			// A cluster is shown by its first block, which the canonical
+			// document may not have: it shows the variant it has.
+			if m := c[h].MemberOf; m != nil && c[*m].Sample == "" {
+				row := c[*m]
+				row.Sample = boilerplate.Sample(b.Text)
+				c[*m] = row
 			}
 		}
 	}
@@ -343,19 +370,21 @@ func (r *refresh) addSamples(ctx context.Context, c classified) error {
 
 // insertBlocksSQL writes a classification in one statement.
 const insertBlocksSQL = `
-INSERT INTO source_boilerplate_blocks (source_id, block_hash, doc_count, sample, canonical_document_id)
-SELECT $1, u.h, u.c, u.s, u.d
-FROM unnest($2::bigint[], $3::int[], $4::text[], $5::uuid[]) AS u(h, c, s, d)`
+INSERT INTO source_boilerplate_blocks (source_id, block_hash, doc_count, sample, canonical_document_id, variants, member_of)
+SELECT $1, u.h, u.c, u.s, u.d, u.v, u.m
+FROM unnest($2::bigint[], $3::int[], $4::text[], $5::uuid[], $6::int[], $7::bigint[]) AS u(h, c, s, d, v, m)`
 
 func insertBlocks(ctx context.Context, tx pgx.Tx, sourceID uuid.UUID, c classified) error {
 	if len(c) == 0 {
 		return nil
 	}
 	hashes, counts, samples, docs := make([]int64, 0, len(c)), make([]int32, 0, len(c)), make([]string, 0, len(c)), make([]uuid.NullUUID, 0, len(c))
+	variants, members := make([]int32, 0, len(c)), make([]*int64, 0, len(c))
 	for h, b := range c {
 		hashes, counts, samples, docs = append(hashes, h), append(counts, b.DocCount), append(samples, b.Sample), append(docs, b.CanonicalDocumentID)
+		variants, members = append(variants, max(b.Variants, 1)), append(members, b.MemberOf)
 	}
-	_, err := tx.Exec(ctx, insertBlocksSQL, sourceID, hashes, counts, samples, docs)
+	_, err := tx.Exec(ctx, insertBlocksSQL, sourceID, hashes, counts, samples, docs, variants, members)
 	return err
 }
 

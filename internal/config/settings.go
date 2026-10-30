@@ -161,6 +161,7 @@ var settings = append([]setting{
 	{key: "BOILERPLATE_UPLOAD", apply: boolean(func(c *Config) *bool { return &c.Boilerplate.Upload })},
 	{key: "BOILERPLATE_MIN_DOCS", apply: integer(func(c *Config) *int { return &c.Boilerplate.MinDocs }, 2, 100000)},
 	{key: "BOILERPLATE_RATIO", apply: float(func(c *Config) *float64 { return &c.Boilerplate.Ratio }, 0.05, 1)},
+	{key: "BOILERPLATE_FUZZY", apply: boolean(func(c *Config) *bool { return &c.Boilerplate.Fuzzy })},
 	{key: "VECTOR_EF_SEARCH", apply: integer(func(c *Config) *int { return &c.VectorEfSearch }, 10, 1000)},
 	{key: "RETRIEVAL_VECTOR_WEIGHT", apply: float(func(c *Config) *float64 { return &c.RetrievalVectorWeight }, 0, 1)},
 	{key: "RETRIEVAL_KEYWORD_WEIGHT", apply: float(func(c *Config) *float64 { return &c.RetrievalKeywordWeight }, 0, 1)},

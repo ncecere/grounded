@@ -137,7 +137,7 @@ WHERE id = @id AND candidate_of IS NOT NULL AND status <> 'retired';
 
 -- A switched index preview's profile becomes an ordinary one: a knowledge base uses it now.
 -- name: PromoteCandidateProfile :exec
-UPDATE embedding_profiles SET candidate_of = NULL, revision = revision + 1, updated_at = now()
+UPDATE embedding_profiles SET candidate_of = NULL, boilerplate_fuzzy = false, revision = revision + 1, updated_at = now()
 WHERE id = @id AND candidate_of IS NOT NULL;
 
 -- Discarded candidates whose vector table is still there and nothing holds any more: no passages, no set (the cleanup job

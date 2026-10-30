@@ -37,6 +37,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
   const [docPrefix, setDocPrefix] = useState("");
   const [queryPrefix, setQueryPrefix] = useState("");
   const [chunker, setChunker] = useState(""); // "" keeps the current profile's
+  const [fuzzy, setFuzzy] = useState(""); // "" keeps the sources' own settings; "on" judges with near-duplicate matching (#23)
   const [grace, setGrace] = useState("");
   const kb = kbs.data?.find((k) => k.id === kbId);
   const live = profiles.data?.find((x) => x.id === kb?.profile.id);
@@ -49,6 +50,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
     ...(docPrefix !== "" ? { documentPrefix: docPrefix } : {}),
     ...(queryPrefix !== "" ? { queryPrefix } : {}),
     ...(chunker !== "" ? { chunkerVersion: Number(chunker) } : {}),
+    ...(fuzzy === "on" ? { boilerplateFuzzy: true } : {}),
   };
   const graceDays = whole(grace);
   const graceInvalid = grace.trim() !== "" && (graceDays === undefined || graceDays < 0 || graceDays > 90);
@@ -118,6 +120,15 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
                 {c.previewLabel}
               </option>
             ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Repeated blocks"
+          description="Near-duplicate blocks (a menu with a different item highlighted, a footer with a different date) are left out too, in the sources that remove repeated blocks. Switching turns this on for those sources."
+        >
+          <NativeSelect value={fuzzy} onChange={(e) => setFuzzy(e.target.value)} disabled={!kb}>
+            <option value="">Keep each source's setting</option>
+            <option value="on">Treat near-duplicate blocks as one</option>
           </NativeSelect>
         </Field>
         <Field label="Name" description="Shown while it is a preview. Default: the profile's name and (new settings).">

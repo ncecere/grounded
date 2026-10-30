@@ -42,6 +42,14 @@ Exit: API spec/generated types agree, negative/authz and method regressions pass
 
 Exit: each remaining tracker bullet has test or documented investigation evidence; keyboard, mobile (390px) and accessibility checks plus cluster QA walks reviewed. Separate external docs PRs where required.
 
+## Deferred contract steps (recorded, not part of v0.6.3; #195)
+
+Staged by ADR-0013 (follow-up of 2026-10-30; details and rationale in [`docs/operations/upgrades.md`](../docs/operations/upgrades.md#staged-constraints)). Each needs its own migration, upgrade-test steps and CHANGELOG entry; do not fold them into a patch release.
+
+- [ ] **Agent template names, unique index (a later release; the next minor at the earliest, once nothing older than v0.6.3 can run).** Migration: rename Unicode-only twins that old pods saved (as 00054 does), `CREATE UNIQUE INDEX CONCURRENTLY agent_templates_name_fold_key ON agent_templates (lower(name COLLATE "und-x-icu"))`, drop `agent_templates_name_fold_idx`. Upgrade test: with the v0.6.3 image as the old one, a new-schema twin write must be refused as `409`, not a 500. The code already recognises the index name (`isTemplateNameTaken`).
+- [ ] **Agent template names, old index contract (the release after that).** Drop `agent_templates_name_key`; remove its name from `isTemplateNameTaken`.
+- [ ] *(Optional, low value)* Remove the audit-log lookup for an empty `team_requests.approved_classification` after a bounded batch backfill outside a migration; until then the lookup is indexed (`audit_log_target_idx`) and only runs for old approved rows.
+
 ## Wave 3 — ingestion/retrieval quality (version chosen after measured scope)
 
 1. **#25:** establish repeatable reranker/chunker comparisons and per-stage latency measurement on authorized nonproduction real-model data. Reuse the existing 96-question set if accessible; large-corpus quality remains blocked until representative questions exist.

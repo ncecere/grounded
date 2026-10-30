@@ -72,7 +72,8 @@ export function AdminSettingsPage() {
     // is still a short loading placeholder. Re-anchor once that layout settles,
     // but not on background refetches or saves (AD-146).
     if (hash === "features" && !costs.isLoading) {
-      document.getElementById("features")?.scrollIntoView({ block: "start" });
+      // Optional call: environments without layout (jsdom) have no scrollIntoView, and the anchor is a nicety.
+      document.getElementById("features")?.scrollIntoView?.({ block: "start" });
     }
   }, [hash, costs.isLoading]);
   return (
