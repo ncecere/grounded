@@ -180,7 +180,7 @@ function PlatformLimitRow({ it, f, isAdmin, submitted, onChange }: RowProps) {
             <span className={`${s.secondary} ${l.builtIn}`}>
               Built-in default: {formatLimit(it.unit, it.period, it.builtInDefault)}
               {isAdmin && (
-                <Button size="sm" variant="ghost" aria-label={`Use the built-in default for ${it.label}`} onClick={() => onChange({ ...f, def: builtIn })}>
+                <Button size="sm" variant="ghost" aria-label={`Use it: the built-in default for ${it.label}`} onClick={() => onChange({ ...f, def: builtIn })}>
                   Use it
                 </Button>
               )}

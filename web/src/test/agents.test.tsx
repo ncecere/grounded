@@ -145,7 +145,7 @@ describe("team agents list", () => {
     expect(await screen.findByRole("menuitem", { name: "Try it" })).toHaveAttribute("href", expect.stringContaining("test=open"));
     expect(screen.queryByRole("menuitem", { name: "Test" })).toBeNull();
     await userEvent.keyboard("{Escape}");
-    await userEvent.click(screen.getByRole("button", { name: /^Not published, / }));
+    await userEvent.click(screen.getByRole("button", { name: /^Not published / }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ status: "draft" }));
     expect(within(table).queryByText("Registrar assistant")).toBeNull();
     expect(within(table).getByText("Draft helper")).toBeInTheDocument();

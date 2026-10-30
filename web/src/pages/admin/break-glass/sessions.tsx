@@ -19,6 +19,8 @@ export function OpenSessionsCard({ onOpen }: { onOpen: (id: string) => void }) {
   const me = useCurrentUser();
   const list = [...(q.data?.items ?? [])].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
   const pending = list.filter((x) => x.status === "pending").length;
+  // The button's name starts with the word it shows (WCAG 2.5.3, Label in Name).
+  const openVerb = (x: BreakGlassSession) => (x.status === "pending" && x.requestedBy.id !== me.user.id && me.capabilities.platformAdmin ? "Review" : "Open");
   return (
     <Card title="Open sessions" description="Requests waiting for a second admin, and sessions that can read now.">
       <QueryView
@@ -52,8 +54,8 @@ export function OpenSessionsCard({ onOpen }: { onOpen: (id: string) => void }) {
               </Td>
               <Td>
                 <TableActions>
-                  <Button size="sm" variant="secondary" aria-label={`Open the session on ${x.team.name} by ${personName(x.requestedBy)}`} onClick={() => onOpen(x.id)}>
-                    {x.status === "pending" && x.requestedBy.id !== me.user.id && me.capabilities.platformAdmin ? "Review" : "Open"}
+                  <Button size="sm" variant="secondary" aria-label={`${openVerb(x)} the session on ${x.team.name} by ${personName(x.requestedBy)}`} onClick={() => onOpen(x.id)}>
+                    {openVerb(x)}
                   </Button>
                 </TableActions>
               </Td>

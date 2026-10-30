@@ -25,11 +25,12 @@ import styles from "./sources.module.css";
  *
  * With `onSelect`, the card is a button that opens the source somewhere in
  * the app (e.g. a side panel with the passage); its `href` then becomes a
- * separate "open the link" icon link beside it. `selectLabel` names the
- * button ("Show source 2: Leave policy"); its meta and description describe
- * it.
+ * separate "open the link" icon link beside it. The button is named by what
+ * it shows (number, title, meta and description), so its name always contains
+ * its visible text (WCAG 2.5.3, Label in Name). `selectAction` is read before
+ * that text without being shown ("Show source 2: Leave policy ...").
  *
- *   <Source index={2} title="Leave policy" href={url} onSelect={() => openViewer(2)} selectLabel="Show source 2: Leave policy" />
+ *   <Source index={2} title="Leave policy" href={url} onSelect={() => openViewer(2)} selectAction="Show" />
  */
 
 export type SourcesProps = Omit<Collapsible.Root.Props, "className" | "onOpenChange"> & {
@@ -88,7 +89,12 @@ export type SourceProps = Omit<ComponentPropsWithRef<"li">, "title"> & {
   index?: number;
   /** Makes the card a button that opens the source in the app; the href becomes a separate link beside it. */
   onSelect?: () => void;
-  /** The button's accessible name with onSelect (default: its title and number). */
+  /** A word read before the card's text with onSelect, not shown ("Show": "Show Source 2: Leave policy ..."). */
+  selectAction?: string;
+  /**
+   * Replaces the button's whole accessible name with onSelect (default: what it shows). Because the card shows its meta
+   * and description, the name must contain them too (WCAG 2.5.3); prefer `selectAction`.
+   */
   selectLabel?: string;
   /** The separate link's accessible name with onSelect and href (default "Open the link"); "(opens in a new tab)" is added. */
   linkLabel?: string;
@@ -103,7 +109,7 @@ function hostname(href: string | undefined) {
   }
 }
 
-export function Source({ title, href, description, meta, icon, index, onSelect, selectLabel, linkLabel, className, ...props }: SourceProps) {
+export function Source({ title, href, description, meta, icon, index, onSelect, selectAction, selectLabel, linkLabel, className, ...props }: SourceProps) {
   const id = useId();
   const metaText = meta ?? hostname(href);
   const body = (
@@ -142,6 +148,11 @@ export function Source({ title, href, description, meta, icon, index, onSelect, 
     return (
       <li {...props} className={cx(styles.source, className)} data-selectable="">
         <button type="button" className={styles.row} onClick={onSelect} aria-label={selectLabel} aria-describedby={selectLabel ? describedBy : undefined}>
+          {selectAction && !selectLabel && (
+            <>
+              <span className="sr-only">{selectAction}</span>{" "}
+            </>
+          )}
           {body}
         </button>
         {href && (

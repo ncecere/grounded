@@ -248,7 +248,10 @@ export type DataTableProps<T> = Omit<TableProps, "columns" | "children" | "empty
    * buttons (put them in other cells or `rowActions`).
    */
   onRowClick?: (row: T) => void;
-  /** Optional accessible name of the row's open button, e.g. (r) => `Open ${r.name}` (default: the cell's content). */
+  /**
+   * Optional accessible name of the row's open button (default: the cell's content). The button shows the whole cell,
+   * so a name that leaves out part of it (a name cell with a second line) fails WCAG 2.5.3: start with the cell's text.
+   */
   rowClickLabel?: (row: T) => string;
   /** Accessible (visually hidden) header of the actions column (default "Actions"). */
   rowActionsLabel?: string;
