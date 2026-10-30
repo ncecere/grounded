@@ -168,7 +168,7 @@ func (q *Queries) GetConnection(ctx context.Context, id uuid.UUID) (ModelConnect
 }
 
 const getEmbeddingProfile = `-- name: GetEmbeddingProfile :one
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, p.boilerplate_fuzzy, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, p.boilerplate_fuzzy, p.parent_tokens, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
 WHERE p.id = $1
@@ -206,6 +206,7 @@ func (q *Queries) GetEmbeddingProfile(ctx context.Context, id uuid.UUID) (GetEmb
 		&i.EmbeddingProfile.DefaultKeywordWeight,
 		&i.EmbeddingProfile.CandidateOf,
 		&i.EmbeddingProfile.BoilerplateFuzzy,
+		&i.EmbeddingProfile.ParentTokens,
 		&i.Model.ID,
 		&i.Model.ConnectionID,
 		&i.Model.Key,
@@ -331,11 +332,11 @@ func (q *Queries) InsertConnection(ctx context.Context, arg InsertConnectionPara
 const insertEmbeddingProfile = `-- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version, parent_tokens)
 VALUES ($1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10, $11,
-        $12, $13, $14, $15, $16)
-RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy
+        $12, $13, $14, $15, $16, $17)
+RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy, parent_tokens
 `
 
 type InsertEmbeddingProfileParams struct {
@@ -355,6 +356,7 @@ type InsertEmbeddingProfileParams struct {
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
 	ChunkerVersion       int32
+	ParentTokens         int32
 }
 
 func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddingProfileParams) (EmbeddingProfile, error) {
@@ -375,6 +377,7 @@ func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddin
 		arg.DefaultKeywordWeight,
 		arg.CandidateOf,
 		arg.ChunkerVersion,
+		arg.ParentTokens,
 	)
 	var i EmbeddingProfile
 	err := row.Scan(
@@ -401,6 +404,7 @@ func (q *Queries) InsertEmbeddingProfile(ctx context.Context, arg InsertEmbeddin
 		&i.DefaultKeywordWeight,
 		&i.CandidateOf,
 		&i.BoilerplateFuzzy,
+		&i.ParentTokens,
 	)
 	return i, err
 }
@@ -553,7 +557,7 @@ func (q *Queries) ListConnections(ctx context.Context) ([]ListConnectionsRow, er
 }
 
 const listEmbeddingProfiles = `-- name: ListEmbeddingProfiles :many
-SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, p.boilerplate_fuzzy, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
+SELECT p.id, p.key, p.name, p.description, p.model_id, p.dimensions, p.storage_type, p.document_prefix, p.query_prefix, p.chunk_size, p.chunk_overlap, p.chunker_version, p.status, p.is_default, p.revision, p.created_by, p.created_at, p.updated_at, p.output_dimensions, p.default_vector_weight, p.default_keyword_weight, p.candidate_of, p.boilerplate_fuzzy, p.parent_tokens, m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds, m.thinking_off_result, m.thinking_off_checked_at
 FROM embedding_profiles p
 JOIN models m ON m.id = p.model_id
 WHERE p.candidate_of IS NULL
@@ -599,6 +603,7 @@ func (q *Queries) ListEmbeddingProfiles(ctx context.Context) ([]ListEmbeddingPro
 			&i.EmbeddingProfile.DefaultKeywordWeight,
 			&i.EmbeddingProfile.CandidateOf,
 			&i.EmbeddingProfile.BoilerplateFuzzy,
+			&i.EmbeddingProfile.ParentTokens,
 			&i.Model.ID,
 			&i.Model.ConnectionID,
 			&i.Model.Key,
@@ -882,7 +887,7 @@ func (q *Queries) LockConnection(ctx context.Context, id uuid.UUID) (ModelConnec
 }
 
 const lockEmbeddingProfile = `-- name: LockEmbeddingProfile :one
-SELECT id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy FROM embedding_profiles WHERE id = $1 FOR UPDATE
+SELECT id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy, parent_tokens FROM embedding_profiles WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockEmbeddingProfile(ctx context.Context, id uuid.UUID) (EmbeddingProfile, error) {
@@ -912,6 +917,7 @@ func (q *Queries) LockEmbeddingProfile(ctx context.Context, id uuid.UUID) (Embed
 		&i.DefaultKeywordWeight,
 		&i.CandidateOf,
 		&i.BoilerplateFuzzy,
+		&i.ParentTokens,
 	)
 	return i, err
 }
@@ -1062,7 +1068,7 @@ SET name = $1, description = $2, status = $3, is_default = $4,
     default_vector_weight = $5, default_keyword_weight = $6,
     revision = revision + 1, updated_at = now()
 WHERE id = $7
-RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy
+RETURNING id, key, name, description, model_id, dimensions, storage_type, document_prefix, query_prefix, chunk_size, chunk_overlap, chunker_version, status, is_default, revision, created_by, created_at, updated_at, output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, boilerplate_fuzzy, parent_tokens
 `
 
 type UpdateEmbeddingProfileParams struct {
@@ -1110,6 +1116,7 @@ func (q *Queries) UpdateEmbeddingProfile(ctx context.Context, arg UpdateEmbeddin
 		&i.DefaultKeywordWeight,
 		&i.CandidateOf,
 		&i.BoilerplateFuzzy,
+		&i.ParentTokens,
 	)
 	return i, err
 }

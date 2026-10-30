@@ -6282,7 +6282,7 @@ type ChatUsage struct {
 
 // Citation A source referenced by [n] in the answer. Uploaded files are cited by title only; url is set only for web pages in snippet_link mode.
 type Citation struct {
-	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages. With parent set, it is the matched passage: the one that ranked, inside the section the model read.
 	ChunkId *openapi_types.UUID `json:"chunkId,omitempty"`
 
 	// Confidence The model's confidence in the verification
@@ -6298,6 +6298,9 @@ type Citation struct {
 	N         int               `json:"n"`
 	PageEnd   *int32            `json:"pageEnd,omitempty"`
 	PageStart *int32            `json:"pageStart,omitempty"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent *CitationParent `json:"parent,omitempty"`
 
 	// Server The MCP server's name (kind tool)
 	Server   *string            `json:"server,omitempty"`
@@ -6334,6 +6337,27 @@ type CitationMarkerVerification string
 
 // CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 type CitationMode string
+
+// CitationParent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+type CitationParent struct {
+	// First Ordinal of the section's first passage in the document
+	First int32 `json:"first"`
+
+	// Last Ordinal of its last passage
+	Last int32 `json:"last"`
+
+	// Matched How many of the search's matching passages were in this section (they are one source)
+	Matched int32 `json:"matched"`
+
+	// Passages Passages in the section
+	Passages int32 `json:"passages"`
+
+	// Sha256 SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section
+	Sha256 string `json:"sha256"`
+
+	// Tokens The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
+	Tokens int32 `json:"tokens"`
+}
 
 // CitationTotals SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 type CitationTotals struct {
@@ -6378,21 +6402,24 @@ type CitationTotals struct {
 	Verified      int64 `json:"verified"`
 }
 
-// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none.
+// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint.
 type CitedPassage struct {
 	// Claims The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
 	Claims     []Claim            `json:"claims"`
 	DocumentId openapi_types.UUID `json:"documentId"`
 
 	// DocumentTeam The source's team (slug), when the caller may open the whole document (its editors, admins and owners)
-	DocumentTeam *string            `json:"documentTeam,omitempty"`
-	Filename     *string            `json:"filename,omitempty"`
-	HeadingPath  []string           `json:"headingPath"`
-	N            int                `json:"n"`
-	Passages     []ContextPassage   `json:"passages"`
-	SourceId     openapi_types.UUID `json:"sourceId"`
-	Status       CitedPassageStatus `json:"status"`
-	Title        string             `json:"title"`
+	DocumentTeam *string  `json:"documentTeam,omitempty"`
+	Filename     *string  `json:"filename,omitempty"`
+	HeadingPath  []string `json:"headingPath"`
+	N            int      `json:"n"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent   *CitationParent    `json:"parent,omitempty"`
+	Passages []ContextPassage   `json:"passages"`
+	SourceId openapi_types.UUID `json:"sourceId"`
+	Status   CitedPassageStatus `json:"status"`
+	Title    string             `json:"title"`
 
 	// Url The web page, when the answer's citation links it (snippet_link mode)
 	Url *string `json:"url,omitempty"`
@@ -6604,10 +6631,13 @@ type ConnectionUpdate struct {
 
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
-	// Cited The passage the answer cited (or around named)
+	// Cited The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section
 	Cited       bool     `json:"cited"`
 	Content     string   `json:"content"`
 	HeadingPath []string `json:"headingPath"`
+
+	// Matched With a parent: the passage that matched the question, inside the section
+	Matched *bool `json:"matched,omitempty"`
 
 	// Ordinal Position in the document, from 0
 	Ordinal int32 `json:"ordinal"`
@@ -7338,7 +7368,10 @@ type EmbeddingProfile struct {
 
 	// OutputDimensions Fewer dimensions than the model's, stored after Matryoshka truncation; null when the profile stores the model's own dimensions
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
-	QueryPrefix      string `json:"queryPrefix"`
+
+	// ParentTokens Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents
+	ParentTokens int32  `json:"parentTokens"`
+	QueryPrefix  string `json:"queryPrefix"`
 
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision    Revision                    `json:"revision"`
@@ -7378,6 +7411,9 @@ type EmbeddingProfileCreate struct {
 	//
 	// Example: 768
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
+
+	// ParentTokens Parent/child retrieval, opt-in (docs/parent-child-retrieval.md): the most tokens of the section around a matched passage that an agent's model is given. 0 or omitted (the default) means no parents, and the profile is indexed and searched as before. Otherwise at least twice the passage size and at most 8192. Fixed once created. A value outside that is refused (400 invalid_parent_tokens).
+	ParentTokens *int32 `json:"parentTokens,omitempty"`
 
 	// QueryPrefix Example: search_query:
 	QueryPrefix *string                            `json:"queryPrefix,omitempty"`
@@ -10304,9 +10340,12 @@ type ProfileMigrationPreview struct {
 		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`
 
 		// Name The candidate's name (default the profile's name plus "(new settings)")
-		Name        *string                                    `json:"name,omitempty"`
-		QueryPrefix *string                                    `json:"queryPrefix,omitempty"`
-		StorageType *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
+		Name *string `json:"name,omitempty"`
+
+		// ParentTokens Parent/child retrieval: the parent size of the new index (0 turns parents off, omit to keep the profile's). A preview that changes only this leaves the passages and so the ranking as they are. Anything else outside 0 or twice the passage size to 8192 is refused (400 invalid_parent_tokens).
+		ParentTokens *int32                                     `json:"parentTokens,omitempty"`
+		QueryPrefix  *string                                    `json:"queryPrefix,omitempty"`
+		StorageType  *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
 	} `json:"changes"`
 
 	// GraceDays Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
@@ -12974,9 +13013,12 @@ type ListDocumentPassagesParams struct {
 
 // GetDocumentTextParams defines parameters for GetDocumentText.
 type GetDocumentTextParams struct {
-	From   *int                `form:"from,omitempty" json:"from,omitempty"`
-	Limit  *int                `form:"limit,omitempty" json:"limit,omitempty"`
-	Around *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	From         *int                `form:"from,omitempty" json:"from,omitempty"`
+	Limit        *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	Around       *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	ParentFirst  *int                `form:"parentFirst,omitempty" json:"parentFirst,omitempty"`
+	ParentLast   *int                `form:"parentLast,omitempty" json:"parentLast,omitempty"`
+	ParentSha256 *string             `form:"parentSha256,omitempty" json:"parentSha256,omitempty"`
 }
 
 // GetTeamSpendParams defines parameters for GetTeamSpend.

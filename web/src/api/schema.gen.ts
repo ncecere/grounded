@@ -1781,7 +1781,7 @@ export interface paths {
         };
         /**
          * A document's text as passages, for the team's editors, admins and owners
-         * @description The whole document for the source viewer (docs/v0.4.0.md §5): its passages in order from the passage at ordinal from (limit at a time), with the text a passage repeats from the one before it (chunk overlap) left out. With around (a passage ID), the passage with its neighbours (about a page) instead, marked cited; 404 passage_not_found when the document no longer has that passage. Members get 403: they see cited passages in context from their answers.
+         * @description The whole document for the source viewer (docs/v0.4.0.md §5): its passages in order from the passage at ordinal from (limit at a time), with the text a passage repeats from the one before it (chunk overlap) left out. With around (a passage ID), the passage with its neighbours (about a page) instead, marked cited; 404 passage_not_found when the document no longer has that passage. With parentFirst, parentLast and parentSha256 (a citation's parent, docs/parent-child-retrieval.md) the section of those passages instead, every passage marked cited and the one named by around marked matched; 404 passage_not_found unless the document's passages there still make exactly the text with that hash. Members get 403: they see cited passages in context from their answers.
          */
         get: operations["getDocumentText"];
         put?: never;
@@ -7592,6 +7592,11 @@ export interface components {
             chunkOverlap: number;
             /** Format: int32 */
             chunkerVersion: number;
+            /**
+             * Format: int32
+             * @description Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents
+             */
+            parentTokens: number;
             /** @description Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use. */
             boilerplateFuzzy: boolean;
             /** @enum {string} */
@@ -7650,6 +7655,11 @@ export interface components {
              * @default 1
              */
             chunkerVersion: number;
+            /**
+             * Format: int32
+             * @description Parent/child retrieval, opt-in (docs/parent-child-retrieval.md): the most tokens of the section around a matched passage that an agent's model is given. 0 or omitted (the default) means no parents, and the profile is indexed and searched as before. Otherwise at least twice the passage size and at most 8192. Fixed once created. A value outside that is refused (400 invalid_parent_tokens).
+             */
+            parentTokens?: number;
             isDefault?: boolean;
         };
         EmbeddingProfileUpdate: {
@@ -7824,6 +7834,11 @@ export interface components {
                  * @description The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
                  */
                 chunkerVersion?: number;
+                /**
+                 * Format: int32
+                 * @description Parent/child retrieval: the parent size of the new index (0 turns parents off, omit to keep the profile's). A preview that changes only this leaves the passages and so the ranking as they are. Anything else outside 0 or twice the passage size to 8192 is refused (400 invalid_parent_tokens).
+                 */
+                parentTokens?: number;
                 /** @description Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now. */
                 boilerplateFuzzy?: boolean;
             };
@@ -8484,10 +8499,12 @@ export interface components {
             pageStart: number;
             /** Format: int32 */
             pageEnd: number;
-            /** @description The passage the answer cited (or around named) */
+            /** @description The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section */
             cited: boolean;
+            /** @description With a parent: the passage that matched the question, inside the section */
+            matched?: boolean;
         };
-        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. */
+        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint. */
         CitedPassage: {
             n: number;
             /** @enum {string} */
@@ -8506,6 +8523,7 @@ export interface components {
             claims: components["schemas"]["Claim"][];
             /** @description The source's team (slug), when the caller may open the whole document (its editors, admins and owners) */
             documentTeam?: string;
+            parent?: components["schemas"]["CitationParent"];
         };
         DocumentText: {
             /** Format: uuid */
@@ -10189,9 +10207,10 @@ export interface components {
             url?: string;
             /**
              * Format: uuid
-             * @description The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+             * @description The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages. With parent set, it is the matched passage: the one that ranked, inside the section the model read.
              */
             chunkId?: string;
+            parent?: components["schemas"]["CitationParent"];
             /**
              * @description Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
              * @enum {string}
@@ -10215,6 +10234,36 @@ export interface components {
             tool?: string;
             /** @description The tool's result was cut to the size the model reads (kind tool) */
             truncated?: boolean;
+        };
+        /** @description Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage. */
+        CitationParent: {
+            /**
+             * Format: int32
+             * @description Ordinal of the section's first passage in the document
+             */
+            first: number;
+            /**
+             * Format: int32
+             * @description Ordinal of its last passage
+             */
+            last: number;
+            /**
+             * Format: int32
+             * @description Passages in the section
+             */
+            passages: number;
+            /**
+             * Format: int32
+             * @description The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
+             */
+            tokens: number;
+            /**
+             * Format: int32
+             * @description How many of the search's matching passages were in this section (they are one source)
+             */
+            matched: number;
+            /** @description SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section */
+            sha256: string;
         };
         /** @description The citation check of one [n] marker. */
         CitationMarker: {
@@ -15802,6 +15851,9 @@ export interface operations {
                 from?: number;
                 limit?: number;
                 around?: string;
+                parentFirst?: number;
+                parentLast?: number;
+                parentSha256?: string;
             };
             header?: never;
             path: {

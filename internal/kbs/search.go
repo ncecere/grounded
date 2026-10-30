@@ -87,6 +87,9 @@ type SearchParams struct {
 	Filter MetadataFilter // already normalized
 	User   string         // gateway usage tag
 	Cache  *EmbedCache    // optional
+	// CollapseParents merges the hits that share a parent (profiles with parents, docs/parent-child-retrieval.md) into the best-ranked one
+	// before the best TopK are kept, and sets each hit's Parent. Agents set it; retrieval for people and callers returns passages as before.
+	CollapseParents bool
 }
 
 // SearchResult is an internal search result. EmbedTokens is 0 when the query
@@ -152,7 +155,17 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 			return res, err
 		}
 	}
-	ranked := fuse(ctx, kb.ID, vhits, lexical, weights, k)
+	collapse := p.CollapseParents && target.Profile.ParentTokens > 0 && !s.ParentExpansionOff
+	keep := k
+	if collapse {
+		keep = len(vhits) + len(lexical) // every candidate: siblings are merged before the cut, so they do not crowd out other matches
+	}
+	ranked := fuse(ctx, kb.ID, vhits, lexical, weights, keep)
+	if collapse {
+		if ranked, err = s.collapseParents(ctx, prof.ID, target.Profile.ParentTokens, sourceIDs, ranked, k); err != nil {
+			return res, err
+		}
+	}
 	if err := s.fillDistances(ctx, prof, vec, ranked); err != nil {
 		return res, err
 	}
