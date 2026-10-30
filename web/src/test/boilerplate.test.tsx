@@ -73,11 +73,60 @@ describe("Repeated blocks card", () => {
     expect(await screen.findByText("Turning off: repeated blocks are being restored.")).toBeInTheDocument();
   });
 
-  it("is read-only for members, and hidden when off with nothing removed", async () => {
+  it("lets editors opt in to near-duplicate matching, keeping the other overrides (#23)", async () => {
+    let src = webSource({ boilerplate: { ...found, overrides: { minDocs: 5 } } });
+    const calls = mockApi({
+      ...webRoutes(src),
+      "GET /v1/teams/registrar/sources/s1": () => src,
+      "PATCH /v1/teams/registrar/sources/s1": () => {
+        src = { ...src, revision: 6, boilerplate: { ...found, fuzzy: true, pending: true, overrides: { minDocs: 5, fuzzy: true } } };
+        return src;
+      },
+    });
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    const toggle = await screen.findByRole("switch", { name: /Also remove near-duplicate blocks/ });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).not.toHaveAttribute("aria-disabled", "true");
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(toggle);
+    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ boilerplate: { minDocs: 5, fuzzy: true } }));
+    expect(calls.find((c) => c.method === "PATCH")?.headers.get("If-Match")).toBe('"5"');
+    await waitFor(() => expect(screen.getByRole("switch", { name: /Also remove near-duplicate blocks/ })).toBeChecked());
+    // The other switch is untouched.
+    expect(screen.getByRole("switch", { name: /Remove repeated blocks/ })).toBeChecked();
+  });
+
+  it("needs removal to be on first, and says so", async () => {
+    mockApi(webRoutes(webSource({ boilerplate: boilerplate({ enabled: false }) })));
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    const toggle = await screen.findByRole("switch", { name: /Also remove near-duplicate blocks/ });
+    expect(toggle).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/Turn on “Remove repeated blocks” first\./)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("lists a cluster once, with its variants", async () => {
+    mockApi({
+      ...webRoutes(webSource({ boilerplate: boilerplate({ ...found, fuzzy: true }) })),
+      "GET /v1/teams/registrar/sources/s1/boilerplate": () => [
+        { text: "Home Admissions Academics Registrar Student life Contact us", documents: 120, variants: 10 },
+        { text: "QUICKLINKS", documents: 29, variants: 1 },
+      ],
+    });
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    const card = (await screen.findByRole("heading", { name: "Repeated blocks" })).closest("section")!;
+    await userEvent.click(within(card).getByRole("button", { name: "Show the most repeated blocks" }));
+    const list = await within(card).findByRole("list", { name: "Most repeated blocks" });
+    expect(within(list).getByText("120 pages, 10 variants")).toBeInTheDocument();
+    expect(within(list).getByText("29 pages")).toBeInTheDocument();
+  });
+
+  it("is read-only for members (no switches), and hidden when off with nothing removed", async () => {
     mockApi(webRoutes(webSource({ boilerplate: found })));
     const { unmount } = renderWith(<SourceDetail sourceId="s1" />, { role: "member" });
     expect(await screen.findByText("12 repeated blocks removed from 147 pages")).toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: /Remove repeated blocks/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /near-duplicate/ })).not.toBeInTheDocument();
     unmount();
     vi.unstubAllGlobals();
     mockApi(webRoutes(webSource({ boilerplate: boilerplate({ enabled: false }) })));

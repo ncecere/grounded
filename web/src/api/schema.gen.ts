@@ -7592,6 +7592,8 @@ export interface components {
             chunkOverlap: number;
             /** Format: int32 */
             chunkerVersion: number;
+            /** @description Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use. */
+            boilerplateFuzzy: boolean;
             /** @enum {string} */
             status: "active" | "retired";
             isDefault: boolean;
@@ -7822,6 +7824,8 @@ export interface components {
                  * @description The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
                  */
                 chunkerVersion?: number;
+                /** @description Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now. */
+                boilerplateFuzzy?: boolean;
             };
         };
         /**
@@ -8127,11 +8131,12 @@ export interface components {
             ocrState?: "on" | "source_off" | "platform_off" | "not_approved";
         };
         /**
-         * @description A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+         * @description A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
          * @example {
          *       "enabled": true,
          *       "minDocs": 5,
-         *       "ratio": 0.2
+         *       "ratio": 0.2,
+         *       "fuzzy": false
          *     }
          */
         BoilerplateSettings: {
@@ -8144,6 +8149,8 @@ export interface components {
              * @description ... and in at least this share of the source's documents
              */
             ratio?: number;
+            /** @description Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a different date). Off unless the install turns it on; it only has an effect while enabled is true. Try it first in an index preview (changes.boilerplateFuzzy). */
+            fuzzy?: boolean;
         };
         /** @description Repeated-boilerplate suppression for a source: the settings in force and what they remove. A block is repeated when at least max(minDocs, ceil(ratio x documents)) documents contain it; one copy stays in the document with the shortest URL. */
         SourceBoilerplate: {
@@ -8151,10 +8158,12 @@ export interface components {
             minDocs: number;
             /** Format: double */
             ratio: number;
+            /** @description Near-duplicate blocks count as one (in force: the source's override, else the platform default) */
+            fuzzy: boolean;
             overrides: components["schemas"]["BoilerplateSettings"];
             /**
              * Format: int64
-             * @description Distinct blocks classified as repeated
+             * @description Distinct blocks classified as repeated; the near-duplicate variants of one block count once
              */
             repeatedBlocks: number;
             /**
@@ -8183,7 +8192,8 @@ export interface components {
         /**
          * @example {
          *       "text": "QUICKLINKS",
-         *       "documents": 29
+         *       "documents": 29,
+         *       "variants": 1
          *     }
          */
         BoilerplateBlock: {
@@ -8191,9 +8201,14 @@ export interface components {
             text: string;
             /**
              * Format: int32
-             * @description Documents that contain it
+             * @description Documents that contain it (or one of its near-duplicate variants)
              */
             documents: number;
+            /**
+             * Format: int32
+             * @description Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match
+             */
+            variants: number;
         };
         DataSourceCreate: {
             name: string;
