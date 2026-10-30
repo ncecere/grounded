@@ -46,6 +46,8 @@ func (staleSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 	res := Result{State: StateMeasured, Counts: map[string]int64{"ready": ready, "ageUnknown": env.sum(func(c *Coverage) int32 { return c.ReadyNoDate })}}
 	for _, r := range rows {
 		res.Found = r.Total
+		// Old by processing date, yet a crawl saw the page after the cutoff: "recentlyConfirmed" (a flag, not an exclusion).
+		res.Counts["recentlyConfirmed"] = r.RecentlyConfirmed
 		f := Finding{SourceID: r.SourceID, DocumentID: r.DocumentID, Value: ageDays(env.AsOf, r.ProcessedAt), ObservedAt: r.ProcessedAt}
 		if !isEpoch(r.ConfirmedAt) {
 			f.ConfirmedAt = r.ConfirmedAt

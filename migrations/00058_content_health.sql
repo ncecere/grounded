@@ -77,6 +77,20 @@ CREATE TABLE content_health_sources (
     link_crawl_at    timestamptz,
     link_truncated   boolean     NOT NULL DEFAULT false,
     link_failed      integer     NOT NULL DEFAULT 0,
+    -- The crawl whose record was read (no foreign key: a pruned crawl must not delete coverage). A read compares it with the
+    -- source's latest completed crawl, and hides the report's URLs once a newer one exists.
+    link_crawl_id    uuid,
+    -- The source's revision and classification when the report collected it: a read hides this source's URLs once either
+    -- changed (a retargeted or reclassified source is not the one the crawl observed).
+    source_revision        bigint NOT NULL DEFAULT 0,
+    source_classification  text   NOT NULL DEFAULT '' CHECK (char_length(source_classification) <= 64),
+    -- Not cited: whether this source's documents could be judged ('judged'), and why not: 'not_served' (no active published agent
+    -- reaches it through a knowledge base), 'too_few_answers' (fewer than the minimum of such agents' kept answers since it was
+    -- reachable), or '' (the signal did not measure it). exposed_since is when it was reachable (the later of its attachment
+    -- to the knowledge base and the agent's publish time, rounded up to the next UTC day), never an invented time.
+    cite_state       text        NOT NULL DEFAULT '' CHECK (cite_state IN ('', 'judged', 'not_served', 'too_few_answers')),
+    exposed_since    timestamptz,
+    exposure_answers integer     NOT NULL DEFAULT 0,
     PRIMARY KEY (report_id, source_id)
 );
 CREATE INDEX content_health_sources_source_idx ON content_health_sources (source_id);
@@ -91,23 +105,22 @@ CREATE TABLE content_health_findings (
     team_id     uuid        NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     source_id   uuid        NOT NULL REFERENCES data_sources (id) ON DELETE CASCADE,
     document_id uuid        REFERENCES documents (id) ON DELETE CASCADE,
-    -- The failed URL of a broken link; '' for every other signal.
+    -- The failed URL of a broken link, without credentials, query or fragment (its path may still be sensitive); '' for every other signal.
     ref         text        NOT NULL DEFAULT '' CHECK (char_length(ref) <= 2048),
-    -- Duplicates: which group (from 1), and how many documents it truly has; 0 for every other signal.
+    -- Duplicates: which group (from 1), and how many documents it truly had when the report was made; 0 for every other signal.
     group_no    integer     NOT NULL DEFAULT 0,
     group_size  integer     NOT NULL DEFAULT 0,
     -- An enum: a link's failure kind, a failure's reason class, ...
     code        text        NOT NULL DEFAULT '' CHECK (char_length(code) <= 64),
     -- The raw error code of a failed document, or the HTTP status of a failed link.
     detail      text        NOT NULL DEFAULT '' CHECK (char_length(detail) <= 64),
-    -- A number: age in days, the HTTP status of a link (0: a network error); 0 otherwise.
+    -- A number: age in days, the HTTP status of a link (0: a network error), the kept answers that could have cited a document
+    -- of its source (not cited); 0 otherwise.
     value       bigint      NOT NULL DEFAULT 0,
     -- When the fact was true: the last processing, the crawl's end, the failure's time. NULL when unknown.
     observed_at timestamptz,
     -- Web pages: when a crawl last confirmed the page exists, when a crawl record is kept.
     confirmed_at timestamptz,
-    -- Never cited: whether the document's source is in a knowledge base (else it could never be cited).
-    in_kb       boolean     NOT NULL DEFAULT false,
     PRIMARY KEY (report_id, signal, ord)
 );
 -- Deleting a document or a source (a crawl does it in bulk) finds its findings by these.

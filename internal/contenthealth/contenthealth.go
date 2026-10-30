@@ -43,6 +43,9 @@ const (
 	MinAnswers = 50
 	// MaxAnswerScan is the most answer events one report reads; more makes the signal unavailable.
 	MaxAnswerScan = 1_000_000
+	// MaxAgents is the most agents of a team whose answer events one report reads (the events are found through the agents'
+	// index); a team with more makes the signal unavailable, never a silently partial answer.
+	MaxAgents = 5000
 
 	// MaxFindingsPerSignal is the most findings stored for a signal; the true count is stored too.
 	MaxFindingsPerSignal = 1000
@@ -58,7 +61,8 @@ const (
 
 	// DefaultCooldown is the pause between the start of one report and the next.
 	DefaultCooldown = 10 * time.Minute
-	// SignalTimeout bounds one signal; ReportTimeout the whole job.
+	// SignalTimeout bounds one signal as a context deadline of the report's own queries (the driver then cancels the running
+	// statement on the server); it is not a server-side statement_timeout. ReportTimeout bounds the whole job.
 	SignalTimeout = 45 * time.Second
 	ReportTimeout = 10 * time.Minute
 	// NotFinishedAfter is how long a document may be pending, queued or processing before it counts as not finished.
@@ -108,7 +112,9 @@ type Service struct {
 	Log             *slog.Logger
 	// Signals are the signals a report collects, in order (Registry).
 	Signals []Signal
-	q       *dbgen.Queries
+	// afterLock is a test seam: it runs inside the store's transaction once the live sources and documents are locked.
+	afterLock func()
+	q         *dbgen.Queries
 }
 
 // New returns a Service with the five built-in signals.

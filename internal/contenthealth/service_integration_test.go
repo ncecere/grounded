@@ -85,9 +85,10 @@ func TestSwitch(t *testing.T) {
 	f := newFixture(t)
 	rep := f.make(CreateInput{})
 	f.exec(`UPDATE content_health_settings SET enabled = false`)
+	// While off the list holds stubs only (so a team can still cancel or delete what is kept): no signal, count or finding.
 	l, err := f.svc.List(f.ctx, f.ownerA, f.slugA)
-	if err != nil || l.Enabled || len(l.Reports) != 0 {
-		t.Fatalf("list while off = %+v, %v; want disabled and empty", l, err)
+	if err != nil || l.Enabled || len(l.Reports) != 1 || l.Reports[0].ID != rep.ID || len(l.Reports[0].Signals) != 0 {
+		t.Fatalf("list while off = %+v, %v; want disabled with the report as a stub without signals", l, err)
 	}
 	_, err = f.svc.Create(f.ctx, f.ownerA, f.slugA, CreateInput{})
 	wantStatus(t, "create while off", err, http.StatusConflict, "content_health_off")

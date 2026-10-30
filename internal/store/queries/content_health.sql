@@ -7,6 +7,10 @@
 -- name: GetContentHealthSettings :one
 SELECT * FROM content_health_settings;
 
+-- Read under a share lock, so a report's store and the switch being turned off are ordered: the switch's own update waits.
+-- name: GetContentHealthSettingsShare :one
+SELECT * FROM content_health_settings FOR SHARE;
+
 -- name: LockContentHealthSettings :one
 SELECT * FROM content_health_settings FOR UPDATE;
 
@@ -64,6 +68,11 @@ UPDATE content_health_reports
 SET status = 'cancelled', finished_at = now(), expires_at = now() + make_interval(days => @retention_days::int)
 WHERE id = @id AND team_id = @team_id AND status IN ('queued', 'running');
 
+-- Claims a running report for its store: a cancel or a delete of it waits until the store commits, and a report that is no
+-- longer running (cancelled, deleted, or removed with its team) is not claimed (no rows).
+-- name: ClaimContentHealthReport :one
+SELECT id FROM content_health_reports WHERE id = $1 AND status = 'running' FOR UPDATE;
+
 -- name: ContentHealthReportStatus :one
 SELECT status FROM content_health_reports WHERE id = $1;
 
@@ -91,9 +100,10 @@ WHERE r.status NOT IN ('queued', 'running')
 
 -- ---- what a report reads ---------------------------------------------------------------------
 
--- The team's own sources in the scope (never a platform-shared one: team_id is the team's).
+-- The team's own sources in the scope (never a platform-shared one: team_id is the team's), with the revision and classification
+-- the report saw them at.
 -- name: ContentHealthScopeSources :many
-SELECT s.id, s.type::text AS type
+SELECT s.id, s.type::text AS type, s.revision, s.classification::text AS classification
 FROM data_sources s
 WHERE s.team_id = @team_id
   AND (sqlc.narg(source_id)::uuid IS NULL OR s.id = sqlc.narg(source_id)::uuid)
@@ -102,6 +112,27 @@ WHERE s.team_id = @team_id
         WHERE k.source_id = s.id AND k.kb_id = sqlc.narg(kb_id)::uuid AND b.team_id = @team_id))
 ORDER BY s.id
 LIMIT @page_size;
+
+-- The scope's sources that still exist, locked against deletion until the store commits (a source deleted meanwhile is skipped,
+-- never a foreign key error). In id order, so two stores cannot deadlock.
+-- name: ContentHealthLockScopeSources :many
+SELECT s.id
+FROM data_sources s
+WHERE s.team_id = @team_id AND s.id = ANY(@source_ids::uuid[])
+  AND (sqlc.narg(source_id)::uuid IS NULL OR s.id = sqlc.narg(source_id)::uuid)
+  AND (sqlc.narg(kb_id)::uuid IS NULL OR EXISTS (
+        SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id
+        WHERE k.source_id = s.id AND k.kb_id = sqlc.narg(kb_id)::uuid AND b.team_id = @team_id))
+ORDER BY s.id
+FOR KEY SHARE OF s;
+
+-- The documents a snapshot refers to that still exist in their source, locked the same way.
+-- name: ContentHealthLockDocuments :many
+SELECT d.id, d.source_id
+FROM documents d
+WHERE d.team_id = @team_id AND d.id = ANY(@document_ids::uuid[])
+ORDER BY d.id
+FOR KEY SHARE OF d;
 
 -- name: ContentHealthSourceCounts :many
 SELECT d.source_id,
@@ -118,7 +149,9 @@ GROUP BY d.source_id;
 -- name: ContentHealthStale :many
 SELECT d.id AS document_id, d.source_id, d.processed_at::timestamptz AS processed_at,
        coalesce((SELECT c.finished_at FROM web_crawls c WHERE c.id = d.last_seen_crawl_id), 'epoch'::timestamptz)::timestamptz AS confirmed_at,
-       (count(*) OVER ())::bigint AS total
+       (count(*) OVER ())::bigint AS total,
+       -- Pages a crawl saw again after the cutoff: old by processing date, but confirmed by a recent crawl.
+       (count(*) FILTER (WHERE (SELECT c.finished_at FROM web_crawls c WHERE c.id = d.last_seen_crawl_id) > @cutoff::timestamptz) OVER ())::bigint AS recently_confirmed
 FROM documents d
 WHERE d.team_id = @team_id AND d.source_id = ANY(@source_ids::uuid[])
   AND d.status = 'ready' AND d.processed_at IS NOT NULL AND d.processed_at <= @cutoff::timestamptz
@@ -148,46 +181,86 @@ FROM (SELECT x.id, x.source_id, x.sha256, x.processed_at,
 WHERE y.n <= @per_group::int
 ORDER BY y.sha256, y.n;
 
--- The team's agents: the answer events of the window are theirs.
+-- The team's agents (deleted ones too: their kept events are still the team's), in a fixed order. The caller asks for one more
+-- than its cap, so more agents than the cap is detected, never silently cut.
 -- name: ContentHealthTeamAgents :many
-SELECT id FROM agents WHERE team_id = @team_id LIMIT 5000;
+SELECT id FROM agents WHERE team_id = @team_id ORDER BY id LIMIT @cap::int;
 
--- Answers in [from, to], counted up to @cap_plus_one (more means the scan is too big). Draft test chats are not use.
--- Events are content-free (no question, answer, user or conversation).
+-- Answers that could have cited something: a retained, content-free event of a real answer (not a draft test chat) that is not
+-- an error, a refusal, an answer with no context, one with no retrieved passage, or one moderation blocked. The denominator of
+-- the minimum, and of each source's exposure. Counted up to @cap_plus_one (more means the scan is too big).
 -- name: ContentHealthAnswerCount :one
 SELECT count(*)::bigint AS answers
 FROM (SELECT 1 FROM message_events e
       WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz
+        AND e.error_code = '' AND NOT e.refused AND NOT e.no_context AND e.hit_count > 0
+        AND coalesce(e.moderation_input->>'decision', '') NOT IN ('block', 'support') AND coalesce(e.moderation_output->>'decision', '') NOT IN ('block', 'support')
       LIMIT @cap_plus_one::int) x;
 
 -- The earliest of those answers (called only when their number is within the bound).
 -- name: ContentHealthFirstAnswer :one
 SELECT coalesce(min(e.created_at), 'epoch'::timestamptz)::timestamptz AS first_at
 FROM message_events e
-WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz;
+WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz
+  AND e.error_code = '' AND NOT e.refused AND NOT e.no_context AND e.hit_count > 0
+  AND coalesce(e.moderation_input->>'decision', '') NOT IN ('block', 'support') AND coalesce(e.moderation_output->>'decision', '') NOT IN ('block', 'support');
 
--- Documents that existed when observation began and that no answer in the window cited.
+-- Per source of the scope: whether an active, published agent of the team reaches it through a knowledge base, since when (the
+-- later of the source's attachment to the knowledge base and the agent's publish time, as the next UTC day: a conservative
+-- bound, never earlier than the facts), and how many answers of such agents were kept after that. A source no agent reaches has
+-- no row. Events are summed by agent and UTC day first, so the work follows the agents and days, not the answers.
+-- name: ContentHealthSourceExposure :many
+WITH pairs AS (
+    SELECT ks.source_id, a.id AS agent_id, min(greatest(ks.created_at, v.published_at)) AS since
+    FROM agents a
+    JOIN agent_versions v ON v.id = a.published_version_id
+    JOIN agent_version_kbs vk ON vk.version_id = v.id
+    JOIN knowledge_bases b ON b.id = vk.kb_id AND b.team_id = a.team_id
+    JOIN kb_sources ks ON ks.kb_id = b.id
+    WHERE a.team_id = @team_id AND a.deleted_at IS NULL AND a.status = 'active' AND ks.source_id = ANY(@source_ids::uuid[])
+    GROUP BY ks.source_id, a.id
+), daily AS (
+    SELECT e.agent_id, (e.created_at AT TIME ZONE 'UTC')::date AS day, count(*) AS n
+    FROM message_events e
+    WHERE e.agent_id IN (SELECT agent_id FROM pairs) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz
+      AND e.error_code = '' AND NOT e.refused AND NOT e.no_context AND e.hit_count > 0
+      AND coalesce(e.moderation_input->>'decision', '') NOT IN ('block', 'support') AND coalesce(e.moderation_output->>'decision', '') NOT IN ('block', 'support')
+    GROUP BY 1, 2
+)
+SELECT p.source_id,
+       ((((min(p.since) AT TIME ZONE 'UTC')::date + 1)::timestamp) AT TIME ZONE 'UTC')::timestamptz AS exposed_from,
+       (count(DISTINCT p.agent_id))::int AS agents,
+       coalesce(sum(d.n), 0)::bigint AS answers
+FROM pairs p
+LEFT JOIN daily d ON d.agent_id = p.agent_id AND d.day > (p.since AT TIME ZONE 'UTC')::date
+GROUP BY p.source_id
+ORDER BY p.source_id;
+
+-- Ready documents of the sources the signal may judge (@eligible_sources, each with the time its exposure began and the answers
+-- since) that existed then and that no retained answer cited in the observation window.
 -- name: ContentHealthNeverCited :many
-WITH cited AS MATERIALIZED (
+WITH elig AS (
+    SELECT unnest(@eligible_sources::uuid[]) AS source_id, unnest(@eligible_from::timestamptz[]) AS from_at, unnest(@eligible_answers::int[]) AS answers
+), cited AS MATERIALIZED (
     SELECT DISTINCT doc FROM message_events e, unnest(e.cited_document_ids) AS doc
     WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @observed_since::timestamptz AND e.created_at <= @as_of::timestamptz
 )
-SELECT d.id AS document_id, d.source_id, d.created_at::timestamptz AS created_at,
-       EXISTS (SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id WHERE k.source_id = d.source_id AND b.team_id = @team_id) AS in_kb,
+SELECT d.id AS document_id, d.source_id, d.created_at::timestamptz AS created_at, l.answers::bigint AS answers,
        (count(*) OVER ())::bigint AS total
 FROM documents d
-WHERE d.team_id = @team_id AND d.source_id = ANY(@source_ids::uuid[]) AND d.status = 'ready'
-  AND d.created_at <= @observed_since::timestamptz
+JOIN elig l ON l.source_id = d.source_id
+WHERE d.team_id = @team_id AND d.status = 'ready' AND d.created_at <= l.from_at
   AND NOT EXISTS (SELECT 1 FROM cited c WHERE c.doc = d.id)
 ORDER BY d.created_at, d.id
 LIMIT @page_size;
 
--- Ready documents the not-cited signal could judge, and those too new to judge.
+-- Ready documents of the judged sources that existed when their exposure began, and those added later (too new to judge).
 -- name: ContentHealthJudgeable :one
-SELECT (count(*) FILTER (WHERE d.created_at <= @observed_since::timestamptz))::bigint AS judged,
-       (count(*) FILTER (WHERE d.created_at > @observed_since::timestamptz))::bigint AS too_new
+SELECT (count(*) FILTER (WHERE d.created_at <= l.from_at))::bigint AS judged,
+       (count(*) FILTER (WHERE d.created_at > l.from_at))::bigint AS too_new
 FROM documents d
-WHERE d.team_id = @team_id AND d.source_id = ANY(@source_ids::uuid[]) AND d.status = 'ready';
+JOIN (SELECT unnest(@eligible_sources::uuid[]) AS source_id, unnest(@eligible_from::timestamptz[]) AS from_at) l ON l.source_id = d.source_id
+WHERE d.team_id = @team_id AND d.status = 'ready';
 
 -- Failed, needs-OCR and not-finished documents (the classes of Admin → Parsing & OCR, and not_finished).
 -- name: ContentHealthIngestionFailures :many
@@ -219,57 +292,118 @@ ORDER BY c.source_id, c.finished_at DESC, c.id;
 -- name: ContentHealthFrontierCount :one
 SELECT count(*)::bigint FROM web_frontier WHERE crawl_id = $1;
 
--- The URLs a crawl tried and failed to fetch (its own record; skipped URLs are not failures).
+-- The URLs a crawl tried and failed to fetch (its own record; skipped URLs are not failures), as the report may keep them: without
+-- credentials (userinfo), query or fragment, each address once. The path may still hold something sensitive: the report says so.
 -- name: ContentHealthFrontierFailures :many
-SELECT f.url::text AS url, f.reason::text AS reason, f.http_status, f.updated_at::timestamptz AS failed_at, (count(*) OVER ())::bigint AS total
-FROM web_frontier f
-WHERE f.crawl_id = @crawl_id AND f.status = 'failed'
-ORDER BY f.url
+SELECT d.url::text AS url, d.reason::text AS reason, d.http_status, d.failed_at::timestamptz AS failed_at, (count(*) OVER ())::bigint AS total
+FROM (SELECT DISTINCT ON (s.url) s.url, s.reason, s.http_status, s.failed_at
+      FROM (SELECT regexp_replace(regexp_replace(f.url, '[?#].*$', ''), '^([A-Za-z][A-Za-z0-9+.-]*://)[^/]*@', '\1') AS url, f.url AS raw,
+                   f.reason, f.http_status, f.updated_at AS failed_at
+            FROM web_frontier f WHERE f.crawl_id = @crawl_id AND f.status = 'failed') s
+      ORDER BY s.url, s.raw) d
+ORDER BY d.url
 LIMIT @page_size;
 
 -- ---- what a report stores --------------------------------------------------------------------
 
 -- name: InsertContentHealthSource :exec
 INSERT INTO content_health_sources (report_id, source_id, source_type, documents, ready, ready_no_date, ready_no_hash,
-                                    link_state, link_reason, link_crawl_at, link_truncated, link_failed)
+                                    link_state, link_reason, link_crawl_at, link_truncated, link_failed, link_crawl_id,
+                                    source_revision, source_classification, cite_state, exposed_since, exposure_answers)
 VALUES (@report_id, @source_id, @source_type, @documents, @ready, @ready_no_date, @ready_no_hash,
-        @link_state, @link_reason, @link_crawl_at, @link_truncated, @link_failed)
+        @link_state, @link_reason, @link_crawl_at, @link_truncated, @link_failed, @link_crawl_id,
+        @source_revision, @source_classification, @cite_state, @exposed_since, @exposure_answers)
 ON CONFLICT (report_id, source_id) DO NOTHING;
 
 -- Findings are inserted by internal/contenthealth (multi-array unnest, which sqlc cannot analyse).
 
 -- ---- what a reader sees ----------------------------------------------------------------------
+--
+-- A snapshot is a record of one moment. Every read joins it to the team's rows as they are NOW and shows a finding only while
+-- it still holds: its source and document exist and are this team's, its source is still inside the report's scope (the
+-- source, or the knowledge base it was chosen by), a broken link's source still has the revision and classification the crawl
+-- was read at and no newer completed crawl has replaced that observation, and a duplicate still shares its bytes with a
+-- document of a different source of the report. Names are read now, never from the snapshot.
 
--- A page of findings, joined to the team's live sources and documents: one whose document or source is gone
--- (or is not this team's) is not returned. Names are read now, never from the snapshot.
+-- A page of one signal's findings.
 -- name: ListContentHealthFindings :many
-SELECT f.signal, f.ord, f.source_id, s.name AS source_name, s.type::text AS source_type, f.document_id, f.ref, f.group_no, f.group_size, f.code,
-       f.detail, f.value, f.observed_at, f.confirmed_at, f.in_kb,
-       coalesce(d.title, '')::text AS title, coalesce(d.filename, '')::text AS filename, coalesce(d.url, '')::text AS doc_url,
-       coalesce(d.kind, '')::text AS kind, coalesce(d.updated_at > r.as_of, false)::bool AS changed_since
-FROM content_health_findings f
-JOIN content_health_reports r ON r.id = f.report_id AND r.team_id = f.team_id
-JOIN data_sources s ON s.id = f.source_id AND s.team_id = f.team_id
-LEFT JOIN documents d ON d.id = f.document_id AND d.source_id = f.source_id AND d.team_id = f.team_id
-WHERE f.report_id = @report_id AND f.team_id = @team_id AND f.signal = @signal AND f.ord > @after_ord::int
-  AND (f.document_id IS NULL OR d.id IS NOT NULL)
-ORDER BY f.ord
+WITH live AS (
+    SELECT f.signal, f.ord, f.source_id, s.name AS source_name, s.type::text AS source_type, f.document_id, f.ref, f.group_no, f.group_size,
+           f.code, f.detail, f.value, f.observed_at, f.confirmed_at,
+           coalesce(d.title, '')::text AS title, coalesce(d.filename, '')::text AS filename, coalesce(d.url, '')::text AS doc_url,
+           coalesce(d.kind, '')::text AS kind, coalesce(d.updated_at > r.as_of, false)::bool AS changed_since,
+           coalesce(d.status, '')::text AS doc_status, coalesce(d.sha256, '')::text AS doc_sha
+    FROM content_health_findings f
+    JOIN content_health_reports r ON r.id = f.report_id AND r.team_id = f.team_id
+    JOIN data_sources s ON s.id = f.source_id AND s.team_id = f.team_id
+    LEFT JOIN content_health_sources c ON c.report_id = f.report_id AND c.source_id = f.source_id
+    LEFT JOIN documents d ON d.id = f.document_id AND d.source_id = f.source_id AND d.team_id = f.team_id
+    WHERE f.report_id = @report_id AND f.team_id = @team_id AND f.signal = @signal
+      AND (f.document_id IS NULL OR d.id IS NOT NULL)
+      AND (r.scope_source_id IS NULL OR r.scope_source_id = f.source_id)
+      AND (r.scope_kb_id IS NULL OR EXISTS (SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id
+                                            WHERE k.kb_id = r.scope_kb_id AND k.source_id = f.source_id AND b.team_id = r.team_id))
+      AND (f.signal <> 'broken_link' OR (c.source_revision = s.revision AND c.source_classification = s.classification
+           AND c.link_crawl_id IS NOT DISTINCT FROM (SELECT w.id FROM web_crawls w WHERE w.source_id = c.source_id AND w.status = 'completed'
+                                                     AND w.finished_at IS NOT NULL ORDER BY w.finished_at DESC, w.id LIMIT 1)))
+), dup AS (
+    SELECT l.group_no, l.doc_sha FROM live l
+    WHERE l.signal = 'duplicate' AND l.doc_status = 'ready' AND l.doc_sha <> ''
+    GROUP BY l.group_no, l.doc_sha HAVING count(DISTINCT l.source_id) >= 2
+)
+SELECT l.signal, l.ord, l.source_id, l.source_name, l.source_type, l.document_id, l.ref, l.group_no, l.group_size, l.code, l.detail, l.value,
+       l.observed_at, l.confirmed_at, l.title, l.filename, l.doc_url, l.kind, l.changed_since
+FROM live l
+WHERE l.ord > @after_ord::int
+  AND (l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM dup x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready'))
+ORDER BY l.ord
 LIMIT @page_size;
 
--- What is still listed, by signal (the same joins as the page).
+-- What is still listed, by signal (the same rules as the page): findings, and for duplicates groups, which still span at
+-- least two of the report's sources.
 -- name: CountContentHealthFindings :many
-SELECT f.signal::text AS signal, count(*)::bigint AS listed
-FROM content_health_findings f
-JOIN data_sources s ON s.id = f.source_id AND s.team_id = f.team_id
-LEFT JOIN documents d ON d.id = f.document_id AND d.source_id = f.source_id AND d.team_id = f.team_id
-WHERE f.report_id = @report_id AND f.team_id = @team_id AND (f.document_id IS NULL OR d.id IS NOT NULL)
-GROUP BY f.signal;
+WITH live AS (
+    SELECT f.signal, f.group_no, f.source_id, coalesce(d.status, '')::text AS doc_status, coalesce(d.sha256, '')::text AS doc_sha
+    FROM content_health_findings f
+    JOIN content_health_reports r ON r.id = f.report_id AND r.team_id = f.team_id
+    JOIN data_sources s ON s.id = f.source_id AND s.team_id = f.team_id
+    LEFT JOIN content_health_sources c ON c.report_id = f.report_id AND c.source_id = f.source_id
+    LEFT JOIN documents d ON d.id = f.document_id AND d.source_id = f.source_id AND d.team_id = f.team_id
+    WHERE f.report_id = @report_id AND f.team_id = @team_id
+      AND (f.document_id IS NULL OR d.id IS NOT NULL)
+      AND (r.scope_source_id IS NULL OR r.scope_source_id = f.source_id)
+      AND (r.scope_kb_id IS NULL OR EXISTS (SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id
+                                            WHERE k.kb_id = r.scope_kb_id AND k.source_id = f.source_id AND b.team_id = r.team_id))
+      AND (f.signal <> 'broken_link' OR (c.source_revision = s.revision AND c.source_classification = s.classification
+           AND c.link_crawl_id IS NOT DISTINCT FROM (SELECT w.id FROM web_crawls w WHERE w.source_id = c.source_id AND w.status = 'completed'
+                                                     AND w.finished_at IS NOT NULL ORDER BY w.finished_at DESC, w.id LIMIT 1)))
+), dup AS (
+    SELECT l.group_no, l.doc_sha FROM live l
+    WHERE l.signal = 'duplicate' AND l.doc_status = 'ready' AND l.doc_sha <> ''
+    GROUP BY l.group_no, l.doc_sha HAVING count(DISTINCT l.source_id) >= 2
+)
+SELECT l.signal::text AS signal,
+       (CASE WHEN l.signal = 'duplicate' THEN count(DISTINCT l.group_no) ELSE count(*) END)::bigint AS listed
+FROM live l
+WHERE l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM dup x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready')
+GROUP BY l.signal;
 
+-- The sources the report covered that are still in its scope, with whether their URLs are still shown: 'current', 'source_changed'
+-- (revision or classification changed since the crawl was read), 'crawl_changed' (a newer completed crawl exists), or 'none' (no
+-- URLs were observed).
 -- name: ListContentHealthSources :many
 SELECT c.report_id, c.source_id, s.name AS source_name, c.source_type, c.documents, c.ready, c.ready_no_date, c.ready_no_hash, c.link_state,
-       c.link_reason, c.link_crawl_at, c.link_truncated, c.link_failed
+       c.link_reason, c.link_crawl_at, c.link_truncated, c.link_failed, c.cite_state, c.exposed_since, c.exposure_answers,
+       (CASE WHEN c.link_state <> 'observed' THEN 'none'
+             WHEN c.source_revision <> s.revision OR c.source_classification <> s.classification THEN 'source_changed'
+             WHEN c.link_crawl_id IS DISTINCT FROM (SELECT w.id FROM web_crawls w WHERE w.source_id = c.source_id AND w.status = 'completed'
+                                                    AND w.finished_at IS NOT NULL ORDER BY w.finished_at DESC, w.id LIMIT 1) THEN 'crawl_changed'
+             ELSE 'current' END)::text AS link_refs
 FROM content_health_sources c
 JOIN content_health_reports r ON r.id = c.report_id
 JOIN data_sources s ON s.id = c.source_id AND s.team_id = r.team_id
 WHERE c.report_id = @report_id AND r.team_id = @team_id
+  AND (r.scope_source_id IS NULL OR r.scope_source_id = c.source_id)
+  AND (r.scope_kb_id IS NULL OR EXISTS (SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id
+                                        WHERE k.kb_id = r.scope_kb_id AND k.source_id = c.source_id AND b.team_id = r.team_id))
 ORDER BY s.name, c.source_id;

@@ -282,7 +282,6 @@ type ContentHealthFinding struct {
 	Value       int64
 	ObservedAt  *time.Time
 	ConfirmedAt *time.Time
-	InKb        bool
 }
 
 type ContentHealthPacing struct {
@@ -317,18 +316,24 @@ type ContentHealthSetting struct {
 }
 
 type ContentHealthSource struct {
-	ReportID      uuid.UUID
-	SourceID      uuid.UUID
-	SourceType    string
-	Documents     int32
-	Ready         int32
-	ReadyNoDate   int32
-	ReadyNoHash   int32
-	LinkState     string
-	LinkReason    string
-	LinkCrawlAt   *time.Time
-	LinkTruncated bool
-	LinkFailed    int32
+	ReportID             uuid.UUID
+	SourceID             uuid.UUID
+	SourceType           string
+	Documents            int32
+	Ready                int32
+	ReadyNoDate          int32
+	ReadyNoHash          int32
+	LinkState            string
+	LinkReason           string
+	LinkCrawlAt          *time.Time
+	LinkTruncated        bool
+	LinkFailed           int32
+	LinkCrawlID          uuid.NullUUID
+	SourceRevision       int64
+	SourceClassification string
+	CiteState            string
+	ExposedSince         *time.Time
+	ExposureAnswers      int32
 }
 
 type Conversation struct {

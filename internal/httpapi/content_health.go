@@ -69,7 +69,8 @@ func (a *api) getContentHealthReport(w http.ResponseWriter, r *http.Request) {
 		out.Sources[i] = apitypes.ContentHealthSourceCoverage{
 			SourceId: c.SourceID, Name: c.Name, Type: c.Type, Documents: c.Documents, Ready: c.Ready, ReadyWithoutDate: c.ReadyNoDate, ReadyWithoutHash: c.ReadyNoHash,
 			LinkState: apitypes.ContentHealthSourceCoverageLinkState(c.LinkState), LinkReason: c.LinkReason, LinkCrawlAt: c.LinkCrawlAt, LinkTruncated: c.LinkTruncated,
-			LinkFailed: c.LinkFailed,
+			LinkFailed: c.LinkFailed, LinkRefs: apitypes.ContentHealthSourceCoverageLinkRefs(c.LinkRefs), CiteState: apitypes.ContentHealthSourceCoverageCiteState(c.CiteState),
+			ExposedSince: c.ExposedSince, ExposureAnswers: c.ExposureAnswers,
 		}
 	}
 	httpx.JSON(w, http.StatusOK, out)
@@ -195,7 +196,7 @@ func toAPIContentHealthFinding(f contenthealth.FindingView) apitypes.ContentHeal
 	out := apitypes.ContentHealthFinding{
 		Signal: apitypes.ContentHealthSignalName(f.Signal), Ord: f.Ord, SourceId: f.SourceID, SourceName: f.SourceName, SourceType: f.SourceType, Title: f.Title,
 		Filename: f.Filename, Url: f.URL, Kind: f.Kind, Ref: f.Ref, GroupNo: f.GroupNo, GroupSize: f.GroupSize, Code: f.Code, Detail: f.Detail, Value: f.Value,
-		ObservedAt: f.ObservedAt, ConfirmedAt: f.ConfirmedAt, InKnowledgeBase: f.InKB, ChangedSinceReport: f.ChangedSince,
+		ObservedAt: f.ObservedAt, ConfirmedAt: f.ConfirmedAt, ChangedSinceReport: f.ChangedSince,
 	}
 	if f.DocumentID != nil {
 		id := *f.DocumentID

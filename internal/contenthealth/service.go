@@ -154,13 +154,11 @@ func optID(id *uuid.UUID) uuid.NullUUID {
 }
 
 // Cancel stops a report that is queued or running. A queued one is cancelled at once; a running one stops at its next step
-// and stores nothing more.
+// and stores nothing more. It works while the platform switch is off too (a team can always stop what is being made), for the
+// same people as every other action: nobody else, ever. Off, it returns the report as a stub, without what it found.
 func (s *Service) Cancel(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) (Report, error) {
 	acc, err := s.access(ctx, a, teamRef, true)
 	if err != nil {
-		return Report{}, err
-	}
-	if err := s.requireEnabled(ctx); err != nil {
 		return Report{}, err
 	}
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
@@ -182,17 +180,21 @@ func (s *Service) Cancel(ctx context.Context, a authz.Actor, teamRef string, id 
 		return Report{}, err
 	}
 	observability.ContentHealthReports.WithLabelValues(StatusCancelled).Inc()
+	if on, err := s.enabled(ctx); err != nil {
+		return Report{}, err
+	} else if !on {
+		row, err := s.q.GetContentHealthReport(ctx, dbgen.GetContentHealthReportParams{ID: id, TeamID: acc.Team.ID})
+		return stubOf(row), notFoundReport(err)
+	}
 	return s.Get(ctx, a, teamRef, id)
 }
 
-// Delete removes a report that has ended, with its findings. Deleting is always allowed to the team's editors; a report in
-// progress must be cancelled first.
+// Delete removes a report that has ended, with its findings. It is always allowed to the team's editors, admins and owners of an
+// active team, also while the platform switch is off: switching the feature off must not strand a copy nobody can remove. A report
+// in progress must be cancelled first.
 func (s *Service) Delete(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) error {
 	acc, err := s.access(ctx, a, teamRef, true)
 	if err != nil {
-		return err
-	}
-	if err := s.requireEnabled(ctx); err != nil {
 		return err
 	}
 	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {

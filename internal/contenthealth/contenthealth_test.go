@@ -96,9 +96,12 @@ func imports(t *testing.T, path string) []string {
 	return out
 }
 
-// The report reads the database and nothing else: no network client, no crawler, no model, no retrieval or answering code.
+// The package's own files import no network client, crawler, model, retrieval or answering package. This is about what the
+// package imports directly: other packages it uses (teams, through webhooks, reaches net/http) are not checked here, and the
+// absence of calls is shown by TestReportMakesNoHTTPRequestsAndCallsNoModel, not by this test.
 func TestPackageMakesNoNetworkCallsAndImportsNoQueryPath(t *testing.T) {
-	forbidden := []string{"net/http", "net", "net/url", "/internal/crawl", "/internal/web", "/internal/gateway", "/internal/llm",
+	// net/url only parses an address (sanitizeURL); it dials nothing. net and net/http are what would.
+	forbidden := []string{"net/http", "net", "/internal/crawl", "/internal/web", "/internal/gateway", "/internal/llm",
 		"/internal/catalog", "/internal/agents", "/internal/agentloop", "/internal/kbs", "/internal/search", "/internal/vectorstore", "/internal/rerank",
 		"/internal/systemone", "/internal/httpx", "/internal/mcpclient", "/internal/ocr", "/internal/parse", "/internal/ingest", "/internal/answercache",
 		"/internal/webhooks", "/internal/notify"}

@@ -23,6 +23,7 @@ type fixture struct {
 	pool    *pgxpool.Pool
 	svc     *Service
 	profile uuid.UUID
+	chat    uuid.UUID
 
 	teamA, teamB uuid.UUID
 	slugA, slugB string
@@ -40,6 +41,7 @@ func newFixture(t *testing.T) *fixture {
 	f.exec(`INSERT INTO model_connections (id, name, base_url) VALUES ($1, 'c', 'http://x/v1')`, conn)
 	f.exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification, dimensions) VALUES ($1, $2, 'e', 'e', 'E', 'embedding', 'open', 4)`, model, conn)
 	f.profile = f.id(`INSERT INTO embedding_profiles (key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap) VALUES ('p', 'P', $1, 4, 'halfvec', 512, 0) RETURNING id`, model)
+	f.chat = f.id(`INSERT INTO models (connection_id, key, upstream_model, display_name, kind, max_classification) VALUES ($1, 'chat', 'chat', 'Chat', 'chat', 'restricted') RETURNING id`, conn)
 	f.teamA = f.id(`INSERT INTO teams (slug, name, max_classification) VALUES ($1, 'Registrar', 'restricted') RETURNING id`, f.slugA)
 	f.teamB = f.id(`INSERT INTO teams (slug, name, max_classification) VALUES ($1, 'Library', 'restricted') RETURNING id`, f.slugB)
 	f.ownerA, f.adminA = f.person("owner-a", f.teamA, "owner"), f.person("admin-a", f.teamA, "admin")
@@ -201,19 +203,83 @@ func (f *fixture) collect(team uuid.UUID, asOf time.Time, staleDays, window int,
 	return results{out}
 }
 
-// agent adds an agent to a team, for answer events.
+// agent adds an agent to a team that is not published: its answers count as the team's, but it reaches no source.
 func (f *fixture) agent(team uuid.UUID) uuid.UUID {
 	return f.id(`INSERT INTO agents (team_id, slug, name) VALUES ($1, $2, 'Helper') RETURNING id`, team, fmt.Sprintf("helper-%d", time.Now().UnixNano()))
 }
 
-// answers adds n answer events of the agent at time t, each citing the documents, on the channel.
+// answers adds n answer events of the agent at time t, each citing the documents, on the channel. They are real answers: a
+// retrieved passage, no error, no refusal (see event for the others).
 func (f *fixture) answers(team, agent uuid.UUID, n int, t time.Time, channel string, cited ...uuid.UUID) {
 	f.t.Helper()
-	if cited == nil {
-		cited = []uuid.UUID{}
+	f.event(team, agent, n, t, event{channel: channel, cited: cited})
+}
+
+// event describes answer events that are not a plain answer.
+type event struct {
+	channel    string
+	cited      []uuid.UUID
+	refused    bool
+	noContext  bool
+	errCode    string
+	noPassages bool
+	moderation string // the output moderation decision ("block"), or none
+}
+
+func (f *fixture) event(team, agent uuid.UUID, n int, t time.Time, e event) {
+	f.t.Helper()
+	if e.cited == nil {
+		e.cited = []uuid.UUID{}
 	}
-	f.exec(`INSERT INTO message_events (team_id, agent_id, channel, audience_type, created_at, cited_document_ids)
-		SELECT $1, $2, $3, 'team', $4, $5 FROM generate_series(1, $6)`, team, agent, channel, t, cited, n)
+	if e.channel == "" {
+		e.channel = "ui"
+	}
+	hits := 3
+	if e.noPassages {
+		hits = 0
+	}
+	var mod any
+	if e.moderation != "" {
+		mod = `{"decision":"` + e.moderation + `"}`
+	}
+	f.exec(`INSERT INTO message_events (team_id, agent_id, channel, audience_type, created_at, cited_document_ids, refused, no_context, error_code, hit_count, moderation_output)
+		SELECT $1, $2, $3, 'team', $4, $5, $6, $7, $8, $9, $10::jsonb FROM generate_series(1, $11)`,
+		team, agent, e.channel, t, e.cited, e.refused, e.noContext, e.errCode, hits, mod, n)
+}
+
+// kb adds a knowledge base of a team that holds the sources, each attached at the time given (zero: long ago).
+func (f *fixture) kb(team uuid.UUID, attached time.Time, sources ...uuid.UUID) uuid.UUID {
+	f.t.Helper()
+	if attached.IsZero() {
+		attached = time.Now().AddDate(-5, 0, 0)
+	}
+	kb := f.id(`INSERT INTO knowledge_bases (team_id, name, embedding_profile_id) VALUES ($1, $2, $3) RETURNING id`, team, "KB "+uuid.NewString(), f.profile)
+	for _, s := range sources {
+		f.exec(`INSERT INTO kb_sources (kb_id, source_id, created_at) VALUES ($1, $2, $3)`, kb, s, attached)
+	}
+	return kb
+}
+
+// publish makes the agent serve the knowledge bases from the time given (zero: long ago) as a new published version.
+func (f *fixture) publish(agent uuid.UUID, published time.Time, kbs ...uuid.UUID) {
+	f.t.Helper()
+	if published.IsZero() {
+		published = time.Now().AddDate(-5, 0, 0)
+	}
+	n := f.count(`SELECT count(*) FROM agent_versions WHERE agent_id = $1`, agent) + 1
+	version := f.id(`INSERT INTO agent_versions (agent_id, version, config, chat_model_id, effective_rank, published_at) VALUES ($1, $2, '{}', $3, 0, $4) RETURNING id`, agent, n, f.chat, published)
+	for _, kb := range kbs {
+		f.exec(`INSERT INTO agent_version_kbs (version_id, kb_id) VALUES ($1, $2)`, version, kb)
+	}
+	f.exec(`UPDATE agents SET published_version_id = $1 WHERE id = $2`, version, agent)
+}
+
+// served adds an agent of the team that has long served the sources through a knowledge base: the usual case.
+func (f *fixture) served(team uuid.UUID, sources ...uuid.UUID) uuid.UUID {
+	f.t.Helper()
+	agent := f.agent(team)
+	f.publish(agent, time.Time{}, f.kb(team, time.Time{}, sources...))
+	return agent
 }
 
 func ids(fs []Finding) []uuid.UUID {

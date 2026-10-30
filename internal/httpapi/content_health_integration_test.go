@@ -227,3 +227,84 @@ func TestContentHealthIsClosedToEveryoneElse(t *testing.T) {
 		t.Errorf("a team owner reading the platform switch = %d", code)
 	}
 }
+
+// While the platform switch is off, the team's editors, admins and owners can still stop a report being made and delete what is
+// kept (the list shows stubs: no signal, count or finding), and nobody else can do either: not a member, an auditor, a platform
+// admin (also under break-glass), any API key. Opening a report or its findings and making one stay closed.
+func TestContentHealthCancelAndDeleteWorkWhileOff(t *testing.T) {
+	env := newAgentEnv(t)
+	setContentHealth(t, env.admin, true)
+	reports := env.base + "/content-health/reports"
+	if _, err := env.app.Pool.Exec(context.Background(), `UPDATE documents SET processed_at = now() - interval '3 years' WHERE source_id = $1`, env.upload.Id); err != nil {
+		t.Fatal(err)
+	}
+	var made apitypes.ContentHealthReport
+	code, e := env.owner.call("POST", reports, map[string]any{"staleDays": 30}, &made, nil)
+	mustCode(t, "make a report", code, e, 202, "")
+	waitReport(t, env.owner, reports+"/"+made.Id.String())
+	// A report nobody has started yet (no job): it can be cancelled while off.
+	var queued string
+	if err := env.app.Pool.QueryRow(context.Background(), `INSERT INTO content_health_reports (team_id, stale_days, citation_window_days, status, created_at)
+		SELECT team_id, 365, 90, 'queued', now() - interval '1 hour' FROM data_sources WHERE id = $1 RETURNING id`, env.upload.Id.String()).Scan(&queued); err != nil {
+		t.Fatal(err)
+	}
+	setContentHealth(t, env.admin, false)
+	one, wait := reports+"/"+made.Id.String(), reports+"/"+queued
+
+	closed := func(who string, call func(method, path string) int) {
+		for _, r := range []struct{ method, path string }{{"GET", reports}, {"POST", wait + "/cancel"}, {"DELETE", one}} {
+			if code := call(r.method, r.path); code != 404 && code != 401 && code != 403 {
+				t.Errorf("%s %s %s while off = %d, want it closed", who, r.method, r.path, code)
+			}
+		}
+	}
+	for who, s := range map[string]*session{"a member": env.member, "an auditor": env.auditor, "a platform admin": env.admin} {
+		closed(who, func(method, path string) int { code, _ := s.raw(method, path, map[string]any{}, nil); return code })
+	}
+	for _, kind := range []string{"personal", "service"} {
+		key := createKey(t, env.owner, env.base, map[string]any{"name": kind + " off", "kind": kind, "scopes": []string{"query", "ingest", "manage"}})
+		closed(kind+" key", func(method, path string) int {
+			code, _ := keyCall(t, env.app.URL, method, path, key.Secret, map[string]any{}, nil)
+			return code
+		})
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM content_health_reports WHERE status = 'queued'`) + env.scalar(t, `SELECT count(*) FROM content_health_reports WHERE status = 'completed'`); n != 2 {
+		t.Fatalf("a caller who may not act changed a report while off (%d left)", n)
+	}
+
+	// The team's editor sees stubs only, can't open the report or make one, and can cancel and delete.
+	var list apitypes.ContentHealthReportList
+	if code := env.editor.get(reports, &list); code != 200 || list.Enabled || len(list.Reports) != 2 {
+		t.Fatalf("list while off = %d %+v, want 2 stubs", code, list)
+	}
+	for _, r := range list.Reports {
+		if len(r.Signals) != 0 {
+			t.Errorf("a stub carries signals: %+v", r.Signals)
+		}
+	}
+	if code := env.editor.get(one, nil); code != 404 {
+		t.Errorf("opening a report while off = %d, want 404", code)
+	}
+	if code := env.editor.get(one+"/findings?signal=stale", nil); code != 404 {
+		t.Errorf("findings while off = %d, want 404", code)
+	}
+	code, e = env.editor.call("POST", reports, map[string]any{}, nil, nil)
+	mustCode(t, "make a report while off", code, e, 409, "content_health_off")
+	var cancelled apitypes.ContentHealthReport
+	code, e = env.editor.call("POST", wait+"/cancel", nil, &cancelled, nil)
+	mustCode(t, "cancel while off", code, e, 200, "")
+	if cancelled.Status != "cancelled" || len(cancelled.Signals) != 0 {
+		t.Errorf("cancelled while off = %+v, want a cancelled stub", cancelled)
+	}
+	if code, raw := env.tadmin.raw("DELETE", one, nil, nil); code != http.StatusNoContent || len(raw) != 0 {
+		t.Fatalf("delete while off = %d %s", code, raw)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM content_health_findings`); n != 0 {
+		t.Errorf("%d findings left after deleting while off", n)
+	}
+	for _, action := range []string{"content_health.cancel", "content_health.delete"} {
+		if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = $1`, action); n != 1 {
+			t.Errorf("%d audit entries for %s", n, action)
+		}
+	}
+}

@@ -1150,6 +1150,54 @@ func (e ContentHealthSignalName) Valid() bool {
 	}
 }
 
+// Defines values for ContentHealthSourceCoverageCiteState.
+const (
+	ContentHealthSourceCoverageCiteStateEmpty         ContentHealthSourceCoverageCiteState = ""
+	ContentHealthSourceCoverageCiteStateJudged        ContentHealthSourceCoverageCiteState = "judged"
+	ContentHealthSourceCoverageCiteStateNotServed     ContentHealthSourceCoverageCiteState = "not_served"
+	ContentHealthSourceCoverageCiteStateTooFewAnswers ContentHealthSourceCoverageCiteState = "too_few_answers"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageCiteState enum.
+func (e ContentHealthSourceCoverageCiteState) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageCiteStateEmpty:
+		return true
+	case ContentHealthSourceCoverageCiteStateJudged:
+		return true
+	case ContentHealthSourceCoverageCiteStateNotServed:
+		return true
+	case ContentHealthSourceCoverageCiteStateTooFewAnswers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSourceCoverageLinkRefs.
+const (
+	ContentHealthSourceCoverageLinkRefsCrawlChanged  ContentHealthSourceCoverageLinkRefs = "crawl_changed"
+	ContentHealthSourceCoverageLinkRefsCurrent       ContentHealthSourceCoverageLinkRefs = "current"
+	ContentHealthSourceCoverageLinkRefsNone          ContentHealthSourceCoverageLinkRefs = "none"
+	ContentHealthSourceCoverageLinkRefsSourceChanged ContentHealthSourceCoverageLinkRefs = "source_changed"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageLinkRefs enum.
+func (e ContentHealthSourceCoverageLinkRefs) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageLinkRefsCrawlChanged:
+		return true
+	case ContentHealthSourceCoverageLinkRefsCurrent:
+		return true
+	case ContentHealthSourceCoverageLinkRefsNone:
+		return true
+	case ContentHealthSourceCoverageLinkRefsSourceChanged:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContentHealthSourceCoverageLinkState.
 const (
 	ContentHealthSourceCoverageLinkStateNotApplicable ContentHealthSourceCoverageLinkState = "not_applicable"
@@ -6713,21 +6761,18 @@ type ContentHealthFinding struct {
 	// GroupNo Duplicates: the group, from 1 (0 for other signals)
 	GroupNo int32 `json:"groupNo"`
 
-	// GroupSize Duplicates: how many documents the group really has, which may be more than are listed
-	GroupSize int32 `json:"groupSize"`
-
-	// InKnowledgeBase never_cited: whether the document's source is in a knowledge base (otherwise it could never be cited)
-	InKnowledgeBase bool   `json:"inKnowledgeBase"`
-	Kind            string `json:"kind"`
+	// GroupSize Duplicates: how many documents the group had when the report was made, which may be more than are listed
+	GroupSize int32  `json:"groupSize"`
+	Kind      string `json:"kind"`
 
 	// ObservedAt When the fact was true: last processing (stale, duplicates), the crawl's end (broken_link), the document's creation (never_cited), the last change of a failed document
 	ObservedAt *time.Time `json:"observedAt,omitempty"`
 	Ord        int32      `json:"ord"`
 
-	// Ref A broken link: the URL the crawl failed to fetch
+	// Ref A broken link: the URL the crawl failed to fetch, without credentials, query or fragment (its path can still be sensitive; it is stored only for the team's editors and hidden once the source or crawl changed)
 	Ref string `json:"ref"`
 
-	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
 	Signal   ContentHealthSignalName `json:"signal"`
 	SourceId openapi_types.UUID      `json:"sourceId"`
 
@@ -6741,7 +6786,7 @@ type ContentHealthFinding struct {
 	// Url A web document's address
 	Url string `json:"url"`
 
-	// Value stale: age in days; broken_link: the HTTP status (0: a network error)
+	// Value stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable
 	Value int64 `json:"value"`
 }
 
@@ -6851,22 +6896,22 @@ type ContentHealthSettingsUpdate struct {
 
 // ContentHealthSignal defines model for ContentHealthSignal.
 type ContentHealthSignal struct {
-	// Counts Numbers that qualify the measurement, such as answers (answers seen), judged and tooNew (documents), ready, ageUnknown, withoutHash, sourcesObserved and sourcesUnknown
+	// Counts Numbers that qualify the measurement, as of the report: answers (kept answers that could have cited something, team-wide), minAnswers, judged, tooNew, notServed and fewAnswers (documents of sources left out), sourcesJudged, ready, ageUnknown, recentlyConfirmed, withoutHash, sourcesObserved, sourcesUnknown, addressesNotKept, and vanished (findings whose source or document was deleted between collecting and storing)
 	Counts map[string]int64 `json:"counts"`
 
-	// Found How many the report found (for duplicates, groups) when it was made
+	// Found How many the report found when it was made, in the unit of the signal (for duplicates, groups), less any that had vanished before it was stored (counts.vanished)
 	Found int64 `json:"found"`
 
-	// Listed How many findings are still listed (findings follow deletions, and at most maxFindingsPerSignal are kept)
+	// Listed How many still hold now, in the same unit as found: findings follow deletions, scope and source changes, and at most maxFindingsPerSignal are kept; for duplicates, groups that still span two sources of the report
 	Listed int64 `json:"listed"`
 
-	// ObservedSince Not cited: when observation began (the later of the window's start and the first answer event left)
+	// ObservedSince Not cited: when the team-wide window began (the later of the window's start and the team's first retained answer event). It is when events begin, not when any document became reachable by an agent: see each source's exposedSince
 	ObservedSince *time.Time `json:"observedSince,omitempty"`
 
-	// Reason Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers or timed_out ('' when measured)
+	// Reason Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers, too_many_agents, no_exposure or timed_out ('' when measured)
 	Reason string `json:"reason"`
 
-	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
 	Signal ContentHealthSignalName `json:"signal"`
 
 	// State measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
@@ -6879,21 +6924,32 @@ type ContentHealthSignal struct {
 // ContentHealthSignalState measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
 type ContentHealthSignalState string
 
-// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
 type ContentHealthSignalName string
 
 // ContentHealthSourceCoverage defines model for ContentHealthSourceCoverage.
 type ContentHealthSourceCoverage struct {
-	Documents int32 `json:"documents"`
+	// CiteState Not cited: judged (an active published agent reaches the source and enough answers were kept since); not_served (no active published agent reaches it through a knowledge base: not judged); too_few_answers (fewer than minAnswers answers of agents that reach it since it was reachable: not judged); empty when the signal did not measure it
+	CiteState ContentHealthSourceCoverageCiteState `json:"citeState"`
+	Documents int32                                `json:"documents"`
+
+	// ExposedSince Not cited: when the source became reachable by an active published agent (the later of its attachment to the knowledge base and the agent's publish time, rounded up to the next UTC day). Earlier reachability is not recorded and not used
+	ExposedSince *time.Time `json:"exposedSince,omitempty"`
+
+	// ExposureAnswers Not cited: kept answers that could have cited something, of agents that reach the source, since exposedSince
+	ExposureAnswers int32 `json:"exposureAnswers"`
 
 	// LinkCrawlAt When the crawl whose record was read finished
 	LinkCrawlAt *time.Time `json:"linkCrawlAt,omitempty"`
 
-	// LinkFailed URLs that crawl failed to fetch
+	// LinkFailed URLs that crawl failed to fetch (as of the report; each address once, without credentials, query or fragment)
 	LinkFailed int32 `json:"linkFailed"`
 
-	// LinkReason Why unknown: never_crawled, page_refetch_latest or no_crawl_record
+	// LinkReason Why unknown: never_crawled, page_refetch_latest, no_crawl_record or signal_timed_out
 	LinkReason string `json:"linkReason"`
+
+	// LinkRefs Whether this source's failed addresses are still shown: current; source_changed (its revision or classification changed since the crawl was read); crawl_changed (a newer completed crawl exists); none (no addresses were observed)
+	LinkRefs ContentHealthSourceCoverageLinkRefs `json:"linkRefs"`
 
 	// LinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
 	LinkState ContentHealthSourceCoverageLinkState `json:"linkState"`
@@ -6913,6 +6969,12 @@ type ContentHealthSourceCoverage struct {
 	SourceId         openapi_types.UUID `json:"sourceId"`
 	Type             string             `json:"type"`
 }
+
+// ContentHealthSourceCoverageCiteState Not cited: judged (an active published agent reaches the source and enough answers were kept since); not_served (no active published agent reaches it through a knowledge base: not judged); too_few_answers (fewer than minAnswers answers of agents that reach it since it was reachable: not judged); empty when the signal did not measure it
+type ContentHealthSourceCoverageCiteState string
+
+// ContentHealthSourceCoverageLinkRefs Whether this source's failed addresses are still shown: current; source_changed (its revision or classification changed since the crawl was read); crawl_changed (a newer completed crawl exists); none (no addresses were observed)
+type ContentHealthSourceCoverageLinkRefs string
 
 // ContentHealthSourceCoverageLinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
 type ContentHealthSourceCoverageLinkState string
