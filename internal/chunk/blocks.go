@@ -37,10 +37,11 @@ type block struct {
 	lead, trail       string
 	leadTok, trailTok int
 
-	indent     int // list: indentation of the first item
-	headerEnd  int // table: end of the header + separator lines (0 = no header)
-	openEnd    int // code: end of the opening fence line
-	closeStart int // code: start of the closing fence line (len(text) when unclosed)
+	headSplit  bool // table, version 3: the header was too big to repeat, so the caption, header and separator are a piece of their own (rowSpans)
+	indent     int  // list: indentation of the first item
+	headerEnd  int  // table: end of the header + separator lines (0 = no header)
+	openEnd    int  // code: end of the opening fence line
+	closeStart int  // code: start of the closing fence line (len(text) when unclosed)
 }
 
 func (b *block) pageAt(off int) int {
@@ -92,6 +93,7 @@ type headingEntry struct {
 }
 
 type blockParser struct {
+	tables    bool // version 3: a table row always ends a list or paragraph (see textLine)
 	doc       string
 	page      int
 	paginated bool
@@ -114,8 +116,11 @@ type blockParser struct {
 
 // parseBlocks splits a normalized document into blocks and reports whether it
 // contains page markers.
-func parseBlocks(doc string) ([]*block, bool) {
-	p := &blockParser{doc: doc, page: 1, path: []string{}}
+func parseBlocks(doc string) ([]*block, bool) { return parseBlocksFor(doc, false) }
+
+// parseBlocksFor is parseBlocks for a chunker version: with tables set (version 3) a table inside a list item becomes a block of its own.
+func parseBlocksFor(doc string, tables bool) ([]*block, bool) {
+	p := &blockParser{doc: doc, page: 1, path: []string{}, tables: tables}
 	for pos := 0; pos < len(doc); {
 		end := strings.IndexByte(doc[pos:], '\n')
 		if end < 0 {
@@ -193,6 +198,9 @@ func (p *blockParser) textLine(line string, s, e int) {
 			p.end = e
 			return
 		}
+		if p.tables && isTable && p.cur == kindList {
+			p.splitCaption()
+		}
 		p.flush()
 	}
 	k := kindPara
@@ -205,12 +213,33 @@ func (p *blockParser) textLine(line string, s, e int) {
 	p.open, p.cur, p.start, p.end = true, k, s, e
 }
 
+// splitCaption ends the open list before its last paragraph when that is a short one-line paragraph, indented under an item, that a table follows (version
+// 3): it is the table's caption, and a block of its own it can join the table (joinCaptions).
+func (p *blockParser) splitCaption() {
+	text := p.doc[p.start:p.end]
+	i := strings.LastIndex(text, "\n\n")
+	if i <= 0 {
+		return
+	}
+	last := text[i+2:]
+	if item, _ := listItem(last); item || strings.Contains(last, "\n") || indentOf(last) == 0 {
+		return
+	}
+	end := p.end
+	p.end = p.start + i
+	p.flush()
+	p.open, p.cur, p.start, p.end = true, kindPara, p.start+i+2, end
+}
+
 // continues reports whether a text line belongs to the open block.
 func (p *blockParser) continues(line string, isTable, item, interrupts bool) bool {
 	switch p.cur {
 	case kindTable:
 		return isTable
 	case kindList:
+		if p.tables {
+			return !isTable // an indented table inside an item is a block of its own, so it can be kept whole
+		}
 		return !isTable || indentOf(line) > 0 // item, nested content, or lazy continuation
 	case kindPara:
 		return !isTable && !(item && interrupts)

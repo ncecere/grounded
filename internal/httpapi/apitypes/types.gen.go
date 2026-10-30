@@ -7358,7 +7358,7 @@ type EmbeddingProfileCreate struct {
 	ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
 	ChunkSize    *int32 `json:"chunkSize,omitempty"`
 
-	// ChunkerVersion The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+	// ChunkerVersion The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
 	ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 	// DefaultFusionWeights Omit to use the platform default
@@ -10298,7 +10298,7 @@ type ProfileMigrationPreview struct {
 		ChunkOverlap     *int32 `json:"chunkOverlap,omitempty"`
 		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
-		// ChunkerVersion The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
 		ChunkerVersion *int32              `json:"chunkerVersion,omitempty"`
 		DocumentPrefix *string             `json:"documentPrefix,omitempty"`
 		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`

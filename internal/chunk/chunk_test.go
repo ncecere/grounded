@@ -80,6 +80,9 @@ func checkInvariants(t testing.TB, md string, o Options, cs []Chunk) {
 	// and repeated table headers/fences only add words. The word counter
 	// never cuts inside a word; the real one may, so compare characters.
 	want := sourceWords(md)
+	if o.Version >= Version3 {
+		want = withoutPathOnlyHeadings(md, cs)
+	}
 	var got []string
 	for _, c := range cs {
 		got = append(got, strings.Fields(c.Content)...)
@@ -101,6 +104,31 @@ func checkInvariants(t testing.TB, md string, o Options, cs []Chunk) {
 		}
 		t.Errorf("text lost or reordered: word %d %q not found in order", j, w)
 	}
+}
+
+// withoutPathOnlyHeadings is sourceWords without the heading lines that version 3 leaves out of a passage's text because a table needed the room: a
+// heading that is in no passage's text but is the last element of some passage's heading path (the table's). Every other word must still be there.
+func withoutPathOnlyHeadings(md string, cs []Chunk) []string {
+	var all strings.Builder
+	last := map[string]bool{}
+	for _, c := range cs {
+		all.WriteString(c.Content + "\n")
+		for _, h := range c.HeadingPath {
+			last[h] = true
+		}
+	}
+	text := all.String()
+	var out []string
+	for _, l := range strings.Split(strings.ReplaceAll(strings.ReplaceAll(md, "\r\n", "\n"), "\r", "\n"), "\n") {
+		if _, ok := parse.ParsePageMarker(l); ok {
+			continue
+		}
+		if _, h, ok := atxHeading(strings.TrimRight(l, " \t")); ok && last[h] && !strings.Contains(text, strings.TrimSpace(l)) {
+			continue
+		}
+		out = append(out, strings.Fields(l)...)
+	}
+	return out
 }
 
 func markerTextInProse(md string) bool {
@@ -707,7 +735,7 @@ func FuzzSplit(f *testing.F) {
 			return
 		}
 		m := 1 + int(max%300)
-		for _, version := range []int32{Version1, Version2} {
+		for _, version := range []int32{Version1, Version2, Version3} {
 			o := opts(m, int(overlap)%m)
 			o.Version = version
 			cs, err := Split(md, o)

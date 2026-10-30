@@ -11491,7 +11491,7 @@ components:
         queryPrefix: { type: string, example: "search_query: " }
         chunkSize: { type: integer, format: int32, default: 512 }
         chunkOverlap: { type: integer, format: int32, default: 0 }
-        chunkerVersion: { type: integer, format: int32, minimum: 1, default: 1, description: "The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version)." }
+        chunkerVersion: { type: integer, format: int32, minimum: 1, default: 1, description: "The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version)." }
         isDefault: { type: boolean }
     EmbeddingProfileUpdate:
       type: object
@@ -11649,9 +11649,12 @@ components:
               format: int32
               minimum: 1
               description: >-
-                The chunker: 1, the original, or 2, which merges short
-                neighbouring sections and drops chunks with no body. Anything
-                else is refused (400 invalid_chunker_version).
+                The chunker: 1, the original; 2, which merges short
+                neighbouring sections and drops chunks with no body; or 3,
+                which does what 2 does and keeps tables structured (a table
+                that fits stays whole, a longer one is cut by rows with its
+                caption and header row in every piece). Anything else is
+                refused (400 invalid_chunker_version).
             boilerplateFuzzy:
               type: boolean
               description: >-

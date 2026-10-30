@@ -13,6 +13,7 @@ import { Input, NativeSelect } from "@/components/ui/input/input";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
+import { CHUNKER_HELP, CHUNKERS, chunkerNow } from "../models/chunkers";
 import { adminKBsQuery, type Migration, migrationsKey } from "./common";
 import p from "./profile-migrations.module.css";
 
@@ -89,7 +90,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
       </Field>
       <p className={s.settingDescription}>
         {live
-          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap, ${live.chunkerVersion === 2 ? "chunker: merge short sections" : "standard chunker"}. Leave a setting empty to keep it.`
+          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap, ${chunkerNow(live.chunkerVersion)}. Leave a setting empty to keep it.`
           : "Fill in only what should change; the rest keeps the current profile's."}
       </p>
       <div className={s.grid2}>
@@ -111,11 +112,14 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
               ))}
           </NativeSelect>
         </Field>
-        <Field label="Chunker" description="How pages are cut into passages. Merge short sections joins short neighbouring sections and drops passages that are only a heading.">
+        <Field label="Chunker" description={`How pages are cut into passages. ${CHUNKER_HELP}`}>
           <NativeSelect value={chunker} onChange={(e) => setChunker(e.target.value)} disabled={!kb}>
             <option value="">Keep the current chunker</option>
-            <option value="1">Standard: a new passage at every heading</option>
-            <option value="2">Merge short sections</option>
+            {CHUNKERS.map((c) => (
+              <option key={c.version} value={c.version}>
+                {c.previewLabel}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
         <Field
