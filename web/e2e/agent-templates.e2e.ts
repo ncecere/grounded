@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, unique } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -7,7 +8,7 @@ import { expect, test } from "./support/fixtures";
  * team saves it as a template, renames it and deletes it; the editor sees the saved template in New agent while it exists.
  */
 test("agent templates: start from one, save one, rename and delete it", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "tmpl", members: { admin: "editor" } });
   await owner.dispose();

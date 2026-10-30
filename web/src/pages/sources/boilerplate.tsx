@@ -63,6 +63,7 @@ export function BoilerplateCard({ source }: { source: DataSource }) {
           </Disclosure>
         )}
         {owner.canEdit && <EnabledSwitch source={source} />}
+        {owner.canEdit && <FuzzySwitch source={source} />}
       </div>
     </Card>
   );
@@ -82,7 +83,10 @@ function TopBlocks({ source }: { source: DataSource }) {
       {(blocks.data ?? []).map((blk, i) => (
         <li key={i} className={b.item}>
           <span className={b.text}>{blk.text ? `${blk.text}${blk.text.length >= 80 ? "…" : ""}` : <em>(text unavailable)</em>}</span>
-          <span className={b.count}>{plural(blk.documents, unit)}</span>
+          <span className={b.count}>
+            {plural(blk.documents, unit)}
+            {blk.variants > 1 ? `, ${plural(blk.variants, "variant")}` : ""}
+          </span>
         </li>
       ))}
     </ol>
@@ -112,6 +116,39 @@ function EnabledSwitch({ source }: { source: DataSource }) {
         description="Changing this re-checks every page from its stored text; nothing is fetched again."
         checked={bp.enabled}
         disabled={toggle.isPending}
+        onCheckedChange={(v) => toggle.mutate(v)}
+      />
+      {toggle.error ? <ErrorAlert error={toggle.error} title="Couldn't change the setting" /> : null}
+    </>
+  );
+}
+
+/** Near-duplicate matching (#23): off unless chosen; it only has an effect while removal is on. */
+function FuzzySwitch({ source }: { source: DataSource }) {
+  const owner = useSourceOwner();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateSource(source);
+  const bp = source.boilerplate;
+  const toggle = useMutation({
+    mutationFn: (fuzzy: boolean) => owner.api.update(source, { boilerplate: { ...bp.overrides, fuzzy } }),
+    onSuccess: (updated) => {
+      qc.setQueryData(owner.keys.source(source.id), updated);
+      toast.success(
+        updated.boilerplate.fuzzy ? "Near-duplicate blocks will be removed too" : "Only identical repeated blocks will be removed",
+        "The pages are re-checked in the background.",
+      );
+    },
+    onSettled: invalidate,
+  });
+  return (
+    <>
+      <Switch
+        label="Also remove near-duplicate blocks"
+        description={`Treats blocks that differ a little from page to page as one repeated block: a menu with a different item highlighted, a footer with a different date. Blocks that only share words are kept. ${
+          bp.enabled ? "A platform admin can try it first with Preview new settings, under Admin, Embedding profiles." : "Turn on “Remove repeated blocks” first."
+        }`}
+        checked={bp.fuzzy}
+        disabled={toggle.isPending || !bp.enabled}
         onCheckedChange={(v) => toggle.mutate(v)}
       />
       {toggle.error ? <ErrorAlert error={toggle.error} title="Couldn't change the setting" /> : null}

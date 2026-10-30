@@ -20,6 +20,8 @@ const (
 	maxSubRender = 12
 	// maxColspan bounds padding for a single table cell.
 	maxColspan = 64
+	// maxRowspan bounds how many rows a cell with a rowspan is repeated in.
+	maxRowspan = 64
 )
 
 // renderSpan marks rendered bytes (code fences, and structures containing

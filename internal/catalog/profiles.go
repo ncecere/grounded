@@ -45,10 +45,13 @@ type ProfileInput struct {
 	StorageType                 string
 	DocumentPrefix, QueryPrefix string
 	ChunkSize, ChunkOverlap     int32
-	// ChunkerVersion is the chunker that cuts the profile's passages (internal/chunk): 1, the original, or 2, which merges short neighbouring
-	// sections; 0 means 1. Immutable afterwards, like the sizes (ADR-0007).
+	// ChunkerVersion is the chunker that cuts the profile's passages (internal/chunk): 1, the original; 2, which merges short neighbouring
+	// sections; 3, which also keeps tables structured; 0 means 1. Immutable afterwards, like the sizes (ADR-0007).
 	ChunkerVersion int32
-	IsDefault      bool
+	// ParentTokens is the parent size of parent/child retrieval (docs/parent-child-retrieval.md): 0, the default, means no parents; otherwise
+	// at least twice ChunkSize and at most chunk.MaxParentTokens. Immutable afterwards, like the sizes (ADR-0007).
+	ParentTokens int32
+	IsDefault    bool
 	// Contextual marks a profile whose sets are built with contextual chunks for the sources that opted in (ADR-0028). Only an index
 	// preview's candidate is made with it; immutable afterwards.
 	Contextual bool
@@ -95,7 +98,7 @@ func profileSnapshot(p dbgen.EmbeddingProfile) map[string]any {
 	m := map[string]any{
 		"key": p.Key, "name": p.Name, "modelId": p.ModelID, "dimensions": p.Dimensions, "storageType": p.StorageType,
 		"documentPrefix": p.DocumentPrefix, "queryPrefix": p.QueryPrefix, "chunkSize": p.ChunkSize,
-		"chunkOverlap": p.ChunkOverlap, "chunkerVersion": p.ChunkerVersion, "status": p.Status, "isDefault": p.IsDefault,
+		"chunkOverlap": p.ChunkOverlap, "chunkerVersion": p.ChunkerVersion, "parentTokens": p.ParentTokens, "status": p.Status, "isDefault": p.IsDefault,
 		"outputDimensions": p.OutputDimensions, "defaultVectorWeight": p.DefaultVectorWeight, "defaultKeywordWeight": p.DefaultKeywordWeight,
 	}
 	if p.Contextual { // only when set, so the audit of every other profile is what it was
@@ -169,7 +172,7 @@ func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileIn
 		p, err := q.InsertEmbeddingProfile(ctx, dbgen.InsertEmbeddingProfileParams{
 			Key: in.Key, Name: in.Name, Description: in.Description, ModelID: m.ID, Dimensions: dims,
 			StorageType: in.StorageType, DocumentPrefix: in.DocumentPrefix, QueryPrefix: in.QueryPrefix,
-			ChunkSize: in.ChunkSize, ChunkOverlap: in.ChunkOverlap, ChunkerVersion: in.ChunkerVersion,
+			ChunkSize: in.ChunkSize, ChunkOverlap: in.ChunkOverlap, ChunkerVersion: in.ChunkerVersion, ParentTokens: in.ParentTokens,
 			CreatedBy:        uuid.NullUUID{UUID: a.UserID, Valid: true},
 			OutputDimensions: in.OutputDimensions, DefaultVectorWeight: vw, DefaultKeywordWeight: kw, CandidateOf: candidateOf,
 		})
@@ -243,9 +246,24 @@ func checkProfileInput(in *ProfileInput) (int32, error) {
 		in.ChunkerVersion = chunk.Version1
 	}
 	if !chunk.ValidVersion(in.ChunkerVersion) {
-		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original) or 2 (merges short neighbouring sections)")
+		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original), 2 (merges short neighbouring sections) or 3 (also keeps tables structured)")
+	}
+	if err := checkParentTokens(in.ParentTokens, in.ChunkSize); err != nil {
+		return 0, err
 	}
 	return limit, in.DefaultWeights.validate()
+}
+
+// checkParentTokens: 0 (no parents), or a parent of at least two passages and at most chunk.MaxParentTokens.
+func checkParentTokens(parent, chunkSize int32) error {
+	if parent == 0 {
+		return nil
+	}
+	if parent < 0 || parent > chunk.MaxParentTokens || parent < 2*chunkSize {
+		return apperr.Invalid("invalid_parent_tokens",
+			fmt.Sprintf("The parent size must be 0 (no parents) or between twice the passage size (%d) and %d tokens", 2*chunkSize, chunk.MaxParentTokens))
+	}
+	return nil
 }
 
 // profileModel loads a profile's model: an enabled embedding model.

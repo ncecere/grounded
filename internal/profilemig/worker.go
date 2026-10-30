@@ -83,6 +83,12 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 		return err
 	}
 	deadline := time.Now().Add(w.budget())
+	// A preview with near-duplicate boilerplate matching on classifies the source first (bounded: it resumes in the next invocation).
+	if ready, err := w.P.PrepareSetBoilerplate(ctx, src, target.Profile, deadline); err != nil {
+		return err
+	} else if !ready {
+		return river.JobSnooze(0)
+	}
 	for {
 		docs, err := q.PendingSetDocuments(ctx, dbgen.PendingSetDocumentsParams{SourceID: src.ID, ProfileID: args.ProfileID, MaxRows: setBatch})
 		if err != nil {

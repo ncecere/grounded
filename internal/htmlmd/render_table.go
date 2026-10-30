@@ -49,6 +49,14 @@ type tableCollector struct {
 	markers   []string
 	caption   *xhtml.Node
 	cellBytes int
+	carry     []rowspan // by column: the cell of an earlier row that still covers it
+}
+
+// rowspan is a cell that continues into the rows below it. Markdown has no spanning cell, so each of those rows repeats the cell's text in its column:
+// a row then reads on its own, and the cells after it stay in their columns.
+type rowspan struct {
+	left int
+	text string
 }
 
 func (t *tableCollector) marker(n *xhtml.Node) {
@@ -84,7 +92,7 @@ func (t *tableCollector) visit(n *xhtml.Node) {
 	}
 }
 
-// row renders a <tr>'s cells; a colspan adds empty cells.
+// row renders a <tr>'s cells; a colspan adds empty cells, and a column that an earlier cell's rowspan covers repeats that cell's text.
 func (t *tableCollector) row(tr *xhtml.Node) []string {
 	var row []string
 	for c := tr.FirstChild; c != nil; c = c.NextSibling {
@@ -95,18 +103,51 @@ func (t *tableCollector) row(tr *xhtml.Node) []string {
 		if c.Type != xhtml.ElementNode || (c.Data != "td" && c.Data != "th") {
 			continue
 		}
-		row = append(row, t.cell(c))
+		row = t.covered(row)
+		text := t.cell(c)
+		cols := 1
 		if span, err := strconv.Atoi(strings.TrimSpace(attr(c, "colspan"))); err == nil && span > 1 {
-			for i := 1; i < min(span, maxColspan); i++ {
-				row = append(row, "")
+			cols = min(span, maxColspan)
+		}
+		rows := 1
+		if span, err := strconv.Atoi(strings.TrimSpace(attr(c, "rowspan"))); err == nil && span > 1 {
+			rows = min(span, maxRowspan)
+		}
+		for i := range cols {
+			cell := ""
+			if i == 0 {
+				cell = text
 			}
+			row = append(row, cell)
+			t.cover(len(row)-1, rows-1, cell)
 		}
 		if t.cellBytes > t.st.limit {
 			t.st.truncated = true
 			break
 		}
 	}
+	return t.covered(row)
+}
+
+// covered appends the text of every column, from the next one on, that an earlier row's cell still covers.
+func (t *tableCollector) covered(row []string) []string {
+	for col := len(row); col < len(t.carry) && t.carry[col].left > 0; col = len(row) {
+		t.carry[col].left--
+		row = append(row, t.carry[col].text)
+		t.cellBytes += len(t.carry[col].text)
+	}
 	return row
+}
+
+// cover records that the cell in column col continues into the next left rows.
+func (t *tableCollector) cover(col, left int, text string) {
+	if left <= 0 {
+		return
+	}
+	for len(t.carry) <= col {
+		t.carry = append(t.carry, rowspan{})
+	}
+	t.carry[col] = rowspan{left: left, text: text}
 }
 
 // cell renders a cell's content on one line, with pipes escaped.

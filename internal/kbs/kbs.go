@@ -42,7 +42,10 @@ type Service struct {
 	SystemOne *systemone.Service
 	// Rerank is the platform's reranking (nil: searches aren't reranked).
 	Rerank *rerank.Service
-	q      *dbgen.Queries
+	// ParentExpansionOff turns parent/child retrieval off for every profile (RETRIEVAL_PARENT_EXPANSION=false): searches neither collapse
+	// siblings nor expand parents, and the parent columns are ignored. The zero value leaves it on for profiles that have parents.
+	ParentExpansionOff bool
+	q                  *dbgen.Queries
 
 	countMu sync.Mutex
 	counts  map[uuid.UUID]cachedCount

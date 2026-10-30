@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -66,7 +67,7 @@ test("⌘K stays responsive through quick open, type and close cycles with slow 
 });
 
 test("on a 390px phone the sidebar is a drawer and a page header keeps only its primary action", async ({ admin, a11y, as }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(scaled(90_000));
   const alex = await Api.signIn("alex");
   const team = await createTeam(admin, alex, { prefix: "phone" });
   const { agent } = await publishedAgent(alex, team, { name: "Phone helper" });

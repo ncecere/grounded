@@ -19,13 +19,17 @@ import (
 //     the merged chunk, so nothing loses its title.
 //   - A chunk with no body (only headings, rules and images) is dropped, unless every chunk of the document is like that. Version 1 drops only
 //     such chunks that contain an image (ImageOnly).
+//
+// Version 3 keeps everything version 2 does and keeps tables structured (tables.go, docs/DESIGN.md "Tables"): a table that fits stays whole, an
+// over-long one is cut by rows with its caption and header row repeated in every piece, and no row is lost, duplicated or cut across two passages.
 const (
 	Version1 = 1
 	Version2 = 2
+	Version3 = 3
 )
 
 // ValidVersion reports whether v is a chunker version Split knows (0 means version 1).
-func ValidVersion(v int32) bool { return v == 0 || v == Version1 || v == Version2 }
+func ValidVersion(v int32) bool { return v == 0 || v == Version1 || v == Version2 || v == Version3 }
 
 func checkVersion(v int32) error {
 	if !ValidVersion(v) {

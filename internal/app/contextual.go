@@ -8,10 +8,32 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/costs"
+	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
 )
+
+// wireContextual connects opt-in context generation after the core services and
+// knowledge workflows exist. Its settings alone never start generation.
+func wireContextual(s *Services, cfg config.Config) error {
+	counter, err := chunk.NewTokenCounter()
+	if err != nil {
+		return err
+	}
+	s.Contextual = contextual.New(s.pool, s.Teams, counter, s.log)
+	s.Contextual.Enabled = func() bool { return cfg.ContextualChunks }
+	s.Contextual.Price = costsPricer(s.Costs)
+	s.Contextual.LimitRaised = func(ctx context.Context, team uuid.NullUUID) {
+		if _, err := ingest.WakeContextWaiting(ctx, s.pool, s.jobs, team); err != nil {
+			s.log.WarnContext(ctx, "could not wake documents waiting for a contextual chunks limit", "err", err)
+		}
+	}
+	s.ProfileMigrations.Contextual = s.Contextual
+	return nil
+}
 
 // costsPricer gives the contextual-chunks estimate a model's chat prices: per million input and output tokens, since the calls are recorded
 // as chat tokens of the model (docs/contextual-chunks.md section 5). A missing price is reported as unknown, never as zero.

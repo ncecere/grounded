@@ -107,6 +107,7 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 	}
 	r := newRetriever(s.KBs, resolved, cfg, llm.UserTag(t.Team.Slug, t.Agent.Slug))
 	r.planRerank(ctx, cfg)
+	r.noExpand = true // a retrieval check reads ranks, not the text a model would be given
 	found, _, err := r.search(ctx, question, depth)
 	if err != nil {
 		return nil, err

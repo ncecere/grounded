@@ -1,3 +1,4 @@
+import { scaled } from "../../test-scale";
 import { Api, type Schemas } from "../support/api";
 import { createTeam } from "../support/arrange";
 import { expect, test } from "../support/fixtures";
@@ -10,7 +11,7 @@ import { expect, test } from "../support/fixtures";
  * run in the serial platform project, after the parallel team-navigation specs.
  */
 test("webhooks: turn on, approve a destination, make one, test it, change it, rotate its secret, delete it", async ({ as, admin, a11y }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(scaled(180_000));
   const address = "https://hooks.example.com/grounded";
   const ownerApi = await Api.signIn("alex");
   const team = await createTeam(admin, ownerApi, { prefix: "hooks", members: { blair: "editor", casey: "member" } });

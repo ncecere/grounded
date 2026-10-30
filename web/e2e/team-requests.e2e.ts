@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api, type Schemas } from "./support/api";
 import { unique } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -8,7 +9,7 @@ import { expect, test } from "./support/fixtures";
  * outcomes; the admin turns the feature off and the page says so. The switch is the platform's, so the test puts it back.
  */
 test("team requests: turn on, ask, approve with a first agent, decline with a reason, turn off", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const requester = await Api.signIn("user");
   // A retry starts clean: nothing the person left open counts against their limit.
   for (const r of (await requester.get<Schemas["TeamRequestsOverview"]>("/v1/team-requests")).items.filter((i) => i.status === "pending")) {

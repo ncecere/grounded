@@ -104,10 +104,10 @@ SELECT * FROM embedding_profiles WHERE id = $1 FOR UPDATE;
 -- name: InsertEmbeddingProfile :one
 INSERT INTO embedding_profiles (key, name, description, model_id, dimensions, storage_type,
                                 document_prefix, query_prefix, chunk_size, chunk_overlap, created_by,
-                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version)
+                                output_dimensions, default_vector_weight, default_keyword_weight, candidate_of, chunker_version, parent_tokens)
 VALUES (@key, @name, @description, @model_id, @dimensions, @storage_type,
         @document_prefix, @query_prefix, @chunk_size, @chunk_overlap, @created_by,
-        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight), sqlc.narg(candidate_of), @chunker_version)
+        sqlc.narg(output_dimensions), sqlc.narg(default_vector_weight), sqlc.narg(default_keyword_weight), sqlc.narg(candidate_of), @chunker_version, @parent_tokens)
 RETURNING *;
 
 -- name: UpdateEmbeddingProfile :one
@@ -137,7 +137,7 @@ WHERE id = @id AND candidate_of IS NOT NULL AND status <> 'retired';
 
 -- A switched index preview's profile becomes an ordinary one: a knowledge base uses it now.
 -- name: PromoteCandidateProfile :exec
-UPDATE embedding_profiles SET candidate_of = NULL, revision = revision + 1, updated_at = now()
+UPDATE embedding_profiles SET candidate_of = NULL, boilerplate_fuzzy = false, revision = revision + 1, updated_at = now()
 WHERE id = @id AND candidate_of IS NOT NULL;
 
 -- Discarded candidates whose vector table is still there and nothing holds any more: no passages, no set (the cleanup job

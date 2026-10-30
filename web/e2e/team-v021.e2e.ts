@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -11,7 +12,7 @@ import { expect, test } from "./support/fixtures";
  * its own mode, so the platform stays Off and other specs are unaffected.
  */
 test("quality and spend, crawl domains on Data sources, and the agent's version menu", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "v021" });
   const { agent, kb } = await publishedAgent(owner, team, { name: "Quality helper" });

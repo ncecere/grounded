@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, handbook } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -9,14 +10,14 @@ import { expect, test } from "./support/fixtures";
  * rows it names.
  */
 test("a filter clears a hidden selection, and bulk Delete deletes exactly what it names", async ({ as, admin, a11y }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(scaled(90_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "docsel" });
   const base = `/v1/teams/${team}`;
   const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Selection files", classification: "open" });
   await owner.upload(team, src.id, [handbook, { name: "office-hours.txt", body: "The transportation office is open 9 to 5 on weekdays.\n" }]);
   const docs = async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items;
-  await expect.poll(async () => (await docs()).map((d) => d.status), { timeout: 30_000 }).toEqual(["ready", "ready"]);
+  await expect.poll(async () => (await docs()).map((d) => d.status), { timeout: scaled(30_000) }).toEqual(["ready", "ready"]);
   const page = await as("alex");
 
   await page.goto(`/teams/${team}/sources/${src.id}?tab=documents`);

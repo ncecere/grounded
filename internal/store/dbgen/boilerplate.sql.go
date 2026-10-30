@@ -53,9 +53,9 @@ func (q *Queries) BoilerplateBlocksIn(ctx context.Context, arg BoilerplateBlocks
 
 const boilerplateSummaries = `-- name: BoilerplateSummaries :many
 
-SELECT sb.source_id, sb.enabled, sb.min_docs, sb.ratio, sb.rev, sb.documents, sb.threshold,
+SELECT sb.source_id, sb.enabled, sb.min_docs, sb.ratio, sb.fuzzy, sb.rev, sb.documents, sb.threshold,
        sb.requested_at, sb.refreshed_at,
-       (SELECT count(*) FROM source_boilerplate_blocks b WHERE b.source_id = sb.source_id)::bigint AS blocks,
+       (SELECT count(*) FROM source_boilerplate_blocks b WHERE b.source_id = sb.source_id AND b.member_of IS NULL)::bigint AS blocks,
        (SELECT count(*) FROM document_blocks db
         WHERE db.source_id = sb.source_id AND cardinality(db.dropped) > 0)::bigint AS pages,
        EXISTS (SELECT 1 FROM document_blocks db JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
@@ -69,6 +69,7 @@ type BoilerplateSummariesRow struct {
 	Enabled     pgtype.Bool
 	MinDocs     *int32
 	Ratio       *float64
+	Fuzzy       pgtype.Bool
 	Rev         int32
 	Documents   int32
 	Threshold   int32
@@ -94,6 +95,7 @@ func (q *Queries) BoilerplateSummaries(ctx context.Context, sourceIds []uuid.UUI
 			&i.Enabled,
 			&i.MinDocs,
 			&i.Ratio,
+			&i.Fuzzy,
 			&i.Rev,
 			&i.Documents,
 			&i.Threshold,
@@ -282,6 +284,47 @@ func (q *Queries) DocumentsMissingBlocks(ctx context.Context, arg DocumentsMissi
 	return items, nil
 }
 
+const documentsMissingSketches = `-- name: DocumentsMissingSketches :many
+SELECT d.id, d.blob_key FROM document_blocks db
+JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
+WHERE db.source_id = $1 AND db.sketch_version < $2
+ORDER BY d.id
+LIMIT $3
+`
+
+type DocumentsMissingSketchesParams struct {
+	SourceID      uuid.UUID
+	SketchVersion int16
+	MaxRows       int32
+}
+
+type DocumentsMissingSketchesRow struct {
+	ID      uuid.UUID
+	BlobKey string
+}
+
+// Ready documents with recorded blocks but no sketches yet (near-duplicate matching was switched on after they
+// were processed).
+func (q *Queries) DocumentsMissingSketches(ctx context.Context, arg DocumentsMissingSketchesParams) ([]DocumentsMissingSketchesRow, error) {
+	rows, err := q.db.Query(ctx, documentsMissingSketches, arg.SourceID, arg.SketchVersion, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DocumentsMissingSketchesRow{}
+	for rows.Next() {
+		var i DocumentsMissingSketchesRow
+		if err := rows.Scan(&i.ID, &i.BlobKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const finishBoilerplateRefresh = `-- name: FinishBoilerplateRefresh :exec
 UPDATE source_boilerplate
 SET rev = $1, documents = $2, threshold = $3, refreshed_at = $4
@@ -307,10 +350,32 @@ func (q *Queries) FinishBoilerplateRefresh(ctx context.Context, arg FinishBoiler
 	return err
 }
 
+const getSetBoilerplate = `-- name: GetSetBoilerplate :one
+SELECT source_id, profile_id, classified_at, documents, threshold FROM set_boilerplate WHERE source_id = $1 AND profile_id = $2
+`
+
+type GetSetBoilerplateParams struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+}
+
+func (q *Queries) GetSetBoilerplate(ctx context.Context, arg GetSetBoilerplateParams) (SetBoilerplate, error) {
+	row := q.db.QueryRow(ctx, getSetBoilerplate, arg.SourceID, arg.ProfileID)
+	var i SetBoilerplate
+	err := row.Scan(
+		&i.SourceID,
+		&i.ProfileID,
+		&i.ClassifiedAt,
+		&i.Documents,
+		&i.Threshold,
+	)
+	return i, err
+}
+
 const getSourceBoilerplate = `-- name: GetSourceBoilerplate :one
 
 
-SELECT source_id, enabled, min_docs, ratio, rev, requested_at, refreshed_at, documents, threshold FROM source_boilerplate WHERE source_id = $1
+SELECT source_id, enabled, min_docs, ratio, rev, requested_at, refreshed_at, documents, threshold, fuzzy FROM source_boilerplate WHERE source_id = $1
 `
 
 // Repeated-boilerplate suppression (ADR-0021, internal/ingest boilerplate*.go).
@@ -328,6 +393,7 @@ func (q *Queries) GetSourceBoilerplate(ctx context.Context, sourceID uuid.UUID) 
 		&i.RefreshedAt,
 		&i.Documents,
 		&i.Threshold,
+		&i.Fuzzy,
 	)
 	return i, err
 }
@@ -343,8 +409,31 @@ func (q *Queries) GetSourceBoilerplateRev(ctx context.Context, sourceID uuid.UUI
 	return rev, err
 }
 
+const insertSetBoilerplate = `-- name: InsertSetBoilerplate :exec
+INSERT INTO set_boilerplate (source_id, profile_id, documents, threshold)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (source_id, profile_id) DO NOTHING
+`
+
+type InsertSetBoilerplateParams struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+	Documents int32
+	Threshold int32
+}
+
+func (q *Queries) InsertSetBoilerplate(ctx context.Context, arg InsertSetBoilerplateParams) error {
+	_, err := q.db.Exec(ctx, insertSetBoilerplate,
+		arg.SourceID,
+		arg.ProfileID,
+		arg.Documents,
+		arg.Threshold,
+	)
+	return err
+}
+
 const listBoilerplateBlocks = `-- name: ListBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample, canonical_document_id FROM source_boilerplate_blocks
+SELECT block_hash, doc_count, sample, canonical_document_id, variants, member_of FROM source_boilerplate_blocks
 WHERE source_id = $1
 `
 
@@ -353,6 +442,8 @@ type ListBoilerplateBlocksRow struct {
 	DocCount            int32
 	Sample              string
 	CanonicalDocumentID uuid.NullUUID
+	Variants            int32
+	MemberOf            *int64
 }
 
 func (q *Queries) ListBoilerplateBlocks(ctx context.Context, sourceID uuid.UUID) ([]ListBoilerplateBlocksRow, error) {
@@ -369,6 +460,8 @@ func (q *Queries) ListBoilerplateBlocks(ctx context.Context, sourceID uuid.UUID)
 			&i.DocCount,
 			&i.Sample,
 			&i.CanonicalDocumentID,
+			&i.Variants,
+			&i.MemberOf,
 		); err != nil {
 			return nil, err
 		}
@@ -447,11 +540,50 @@ func (q *Queries) RequestBoilerplateRefresh(ctx context.Context, sourceID uuid.U
 	return err
 }
 
+const setBoilerplateBlocksIn = `-- name: SetBoilerplateBlocksIn :many
+
+SELECT block_hash, canonical_document_id FROM set_boilerplate_blocks
+WHERE source_id = $1 AND profile_id = $2 AND block_hash = ANY($3::bigint[])
+`
+
+type SetBoilerplateBlocksInParams struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+	Hashes    []int64
+}
+
+type SetBoilerplateBlocksInRow struct {
+	BlockHash           int64
+	CanonicalDocumentID uuid.NullUUID
+}
+
+// ---- index preview with near-duplicate matching (#23) ----------------------------------------------------------
+// The blocks a candidate profile's set drops, among one document's hashes.
+func (q *Queries) SetBoilerplateBlocksIn(ctx context.Context, arg SetBoilerplateBlocksInParams) ([]SetBoilerplateBlocksInRow, error) {
+	rows, err := q.db.Query(ctx, setBoilerplateBlocksIn, arg.SourceID, arg.ProfileID, arg.Hashes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SetBoilerplateBlocksInRow{}
+	for rows.Next() {
+		var i SetBoilerplateBlocksInRow
+		if err := rows.Scan(&i.BlockHash, &i.CanonicalDocumentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setBoilerplateSettings = `-- name: SetBoilerplateSettings :exec
-INSERT INTO source_boilerplate (source_id, enabled, min_docs, ratio, requested_at)
-VALUES ($1, $2, $3, $4, now())
+INSERT INTO source_boilerplate (source_id, enabled, min_docs, ratio, fuzzy, requested_at)
+VALUES ($1, $2, $3, $4, $5, now())
 ON CONFLICT (source_id) DO UPDATE
-SET enabled = EXCLUDED.enabled, min_docs = EXCLUDED.min_docs, ratio = EXCLUDED.ratio, requested_at = now()
+SET enabled = EXCLUDED.enabled, min_docs = EXCLUDED.min_docs, ratio = EXCLUDED.ratio, fuzzy = EXCLUDED.fuzzy, requested_at = now()
 `
 
 type SetBoilerplateSettingsParams struct {
@@ -459,6 +591,7 @@ type SetBoilerplateSettingsParams struct {
 	Enabled  pgtype.Bool
 	MinDocs  *int32
 	Ratio    *float64
+	Fuzzy    pgtype.Bool
 }
 
 // Replaces a source's overrides (NULL = inherit) and asks for a refresh.
@@ -468,7 +601,17 @@ func (q *Queries) SetBoilerplateSettings(ctx context.Context, arg SetBoilerplate
 		arg.Enabled,
 		arg.MinDocs,
 		arg.Ratio,
+		arg.Fuzzy,
 	)
+	return err
+}
+
+const setCandidateBoilerplateFuzzy = `-- name: SetCandidateBoilerplateFuzzy :exec
+UPDATE embedding_profiles SET boilerplate_fuzzy = true WHERE id = $1 AND candidate_of IS NOT NULL
+`
+
+func (q *Queries) SetCandidateBoilerplateFuzzy(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, setCandidateBoilerplateFuzzy, id)
 	return err
 }
 
@@ -500,6 +643,46 @@ type SetDocumentChunkStatsParams struct {
 func (q *Queries) SetDocumentChunkStats(ctx context.Context, arg SetDocumentChunkStatsParams) error {
 	_, err := q.db.Exec(ctx, setDocumentChunkStats, arg.ChunkCount, arg.TokenCount, arg.ID)
 	return err
+}
+
+const setDocumentSketches = `-- name: SetDocumentSketches :exec
+UPDATE document_blocks
+SET sketch_version = $1, fuzzy_hashes = $2, sketches = $3
+WHERE document_id = $4
+  AND (sketch_version <> $1 OR fuzzy_hashes <> $2 OR sketches <> $3)
+`
+
+type SetDocumentSketchesParams struct {
+	SketchVersion int16
+	FuzzyHashes   []int64
+	Sketches      []byte
+	DocumentID    uuid.UUID
+}
+
+// Near-duplicate matching (#23): the eligible blocks of a document and their sketches, or (version 0) none.
+func (q *Queries) SetDocumentSketches(ctx context.Context, arg SetDocumentSketchesParams) error {
+	_, err := q.db.Exec(ctx, setDocumentSketches,
+		arg.SketchVersion,
+		arg.FuzzyHashes,
+		arg.Sketches,
+		arg.DocumentID,
+	)
+	return err
+}
+
+const setSourceBoilerplateFuzzy = `-- name: SetSourceBoilerplateFuzzy :execrows
+INSERT INTO source_boilerplate (source_id, fuzzy, requested_at) VALUES ($1, true, now())
+ON CONFLICT (source_id) DO UPDATE SET fuzzy = true, requested_at = now()
+WHERE source_boilerplate.fuzzy IS DISTINCT FROM true
+`
+
+// A source's own override of near-duplicate matching, keeping the others (the switch of a preview with it on).
+func (q *Queries) SetSourceBoilerplateFuzzy(ctx context.Context, sourceID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, setSourceBoilerplateFuzzy, sourceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const sourcesDueForBoilerplate = `-- name: SourcesDueForBoilerplate :many
@@ -591,8 +774,8 @@ func (q *Queries) StaleDocumentBlocks(ctx context.Context, arg StaleDocumentBloc
 }
 
 const topBoilerplateBlocks = `-- name: TopBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample FROM source_boilerplate_blocks
-WHERE source_id = $1
+SELECT block_hash, doc_count, sample, variants FROM source_boilerplate_blocks
+WHERE source_id = $1 AND member_of IS NULL
 ORDER BY doc_count DESC, sample
 LIMIT $2
 `
@@ -606,6 +789,7 @@ type TopBoilerplateBlocksRow struct {
 	BlockHash int64
 	DocCount  int32
 	Sample    string
+	Variants  int32
 }
 
 func (q *Queries) TopBoilerplateBlocks(ctx context.Context, arg TopBoilerplateBlocksParams) ([]TopBoilerplateBlocksRow, error) {
@@ -617,7 +801,12 @@ func (q *Queries) TopBoilerplateBlocks(ctx context.Context, arg TopBoilerplateBl
 	items := []TopBoilerplateBlocksRow{}
 	for rows.Next() {
 		var i TopBoilerplateBlocksRow
-		if err := rows.Scan(&i.BlockHash, &i.DocCount, &i.Sample); err != nil {
+		if err := rows.Scan(
+			&i.BlockHash,
+			&i.DocCount,
+			&i.Sample,
+			&i.Variants,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

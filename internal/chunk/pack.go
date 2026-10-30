@@ -50,6 +50,9 @@ type splitter struct {
 	floor  int
 	secTok []int
 	parent []string
+
+	// Version 3 (tables.go): tables are kept structured.
+	tables bool
 }
 
 func newSplitter(opts Options) *splitter {
@@ -76,6 +79,10 @@ func (sp *splitter) prepare(blocks []*block) {
 		// than not repeating it.
 		if 2*(b.leadTok+b.trailTok) > sp.max {
 			b.lead, b.trail, b.leadTok, b.trailTok = "", "", 0, 0
+			b.headSplit = sp.tables && b.kind == kindTable
+		}
+		if sp.tables && b.kind == kindTable && b.tokens > sp.max-b.leadTok-b.trailTok && sp.fitRows(b) {
+			b.tokens = sp.count(b.text)
 		}
 	})
 }
@@ -93,6 +100,8 @@ func (sp *splitter) pack(blocks []*block) [][]unit {
 		switch {
 		case sp.cost(whole) <= sp.max:
 			sp.push(whole)
+		case sp.tables && b.kind == kindTable:
+			sp.addTable(b, whole)
 		case b.tokens <= sp.max && sp.body > 0:
 			sp.add(whole) // keep the block intact in a new chunk
 		default:
@@ -231,6 +240,9 @@ func (sp *splitter) overlapFrom(units []unit, budget int) []unit {
 	used := 0
 	for i := len(units) - 1; i >= 0 && budget > 0; i-- {
 		u := units[i]
+		if sp.tables && u.b.kind == kindTable {
+			break // version 3 never repeats a table row
+		}
 		segs := overlapSegments(u.b, span{u.start, u.end})
 		if len(segs) == 0 {
 			break

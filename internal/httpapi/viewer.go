@@ -6,11 +6,13 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/agents"
+	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/sources"
@@ -79,6 +81,7 @@ func toAPICitedPassage(p agents.CitedPassage) apitypes.CitedPassage {
 		N: c.N, Status: apitypes.CitedPassageStatus(p.Status), DocumentId: c.DocumentID, SourceId: c.SourceID, Title: c.Title,
 		HeadingPath: hp, Passages: toAPIContextPassages(p.Passages), Claims: viaJSON[[]apitypes.Claim](p.Claims),
 		Url: optString(c.URL), Filename: optString(c.Filename), DocumentTeam: optString(p.DocumentTeam),
+		Parent: viaJSON[*apitypes.CitationParent](p.Parent),
 	}
 	if out.Claims == nil {
 		out.Claims = []apitypes.Claim{}
@@ -90,7 +93,7 @@ func toAPIContextPassages(ps []sources.ContextPassage) []apitypes.ContextPassage
 	out := make([]apitypes.ContextPassage, len(ps))
 	for i, p := range ps {
 		out[i] = apitypes.ContextPassage{Ordinal: p.Ordinal, Content: p.Content, HeadingPath: p.HeadingPath, PageStart: p.PageStart,
-			PageEnd: p.PageEnd, Cited: p.Cited}
+			PageEnd: p.PageEnd, Cited: p.Cited, Matched: matchedFlag(p.Matched)}
 	}
 	return out
 }
@@ -157,5 +160,29 @@ func documentTextQuery(w http.ResponseWriter, r *http.Request) (sources.Document
 		}
 		tq.Around = &id
 	}
+	return parentTextQuery(w, q, tq)
+}
+
+// parentTextQuery reads ?parentFirst=, ?parentLast= and ?parentSha256= (all three, or none): a citation's parent.
+func parentTextQuery(w http.ResponseWriter, q url.Values, tq sources.DocumentTextQuery) (sources.DocumentTextQuery, bool) {
+	first, last, sum := q.Get("parentFirst"), q.Get("parentLast"), q.Get("parentSha256")
+	if first == "" && last == "" && sum == "" {
+		return tq, true
+	}
+	f, errF := strconv.ParseInt(first, 10, 32)
+	l, errL := strconv.ParseInt(last, 10, 32)
+	if errF != nil || errL != nil || f < 0 || l < f || l-f >= chunk.MaxParentChildren || len(sum) != 64 {
+		httpx.Error(w, http.StatusBadRequest, "invalid_parent", "parentFirst, parentLast and parentSha256 name a parent together")
+		return tq, false
+	}
+	tq.Parent = &sources.ParentQuery{First: int32(f), Last: int32(l), SHA256: sum}
 	return tq, true
+}
+
+// matchedFlag is nil unless set: only a cited parent has a matched passage.
+func matchedFlag(b bool) *bool {
+	if !b {
+		return nil
+	}
+	return &b
 }

@@ -65,13 +65,10 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		return err
 	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
-		var version int32
-		var status string
-		err := tx.QueryRow(ctx, "SELECT version, status FROM documents WHERE id = $1 FOR UPDATE", doc.ID).Scan(&version, &status)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (version != doc.Version || status != "processing")) {
-			return errSuperseded
-		} else if err != nil {
+		if current, err := lockDocumentVersion(ctx, tx, doc.ID, doc.Version, "processing"); err != nil {
 			return err
+		} else if !current {
+			return errSuperseded
 		}
 		q := dbgen.New(tx)
 		if ok, err := setWritable(ctx, q, doc.SourceID, prof.ID); err != nil {
@@ -84,6 +81,9 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		}
 		if _, err := tx.Exec(ctx, insertChunksSQL, doc.ID, doc.SourceID, ids, ordinals, contents, headings, starts, ends, tokens, prof.ID); err != nil {
 			return fmt.Errorf("insert chunks: %w", err)
+		}
+		if err := setParents(ctx, tx, doc.ID, prof.ID, res.target.Profile.ParentTokens, res.chunks); err != nil {
+			return err
 		}
 		if err := p.Vectors.Upsert(ctx, tx, prof, recs); err != nil {
 			return fmt.Errorf("insert vectors: %w", err)

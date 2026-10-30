@@ -258,7 +258,7 @@ func TestVersions(t *testing.T) {
 	if a := mustSplit(t, md, one); strings.Join(contents(a), "|") != strings.Join(contents(zero), "|") {
 		t.Error("version 0 and version 1 differ")
 	}
-	for _, v := range []int32{-1, 3, 99} {
+	for _, v := range []int32{-1, 4, 99} {
 		o := opts(40, 0)
 		o.Version = v
 		if _, err := Split(md, o); err == nil || !strings.Contains(err.Error(), "unknown version") {
@@ -268,7 +268,7 @@ func TestVersions(t *testing.T) {
 			t.Errorf("ValidVersion(%d) = true", v)
 		}
 	}
-	for _, v := range []int32{0, 1, 2} {
+	for _, v := range []int32{0, 1, 2, 3} {
 		if !ValidVersion(v) {
 			t.Errorf("ValidVersion(%d) = false", v)
 		}

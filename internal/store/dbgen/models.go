@@ -250,6 +250,8 @@ type Chunk struct {
 	TokenCount  int32
 	ContentTsv  interface{}
 	ProfileID   uuid.UUID
+	ParentFirst *int32
+	ParentLast  *int32
 }
 
 type ClassificationLevel struct {
@@ -265,6 +267,75 @@ type ClassificationLevel struct {
 	ConversationRetentionDays *int32
 	AllowedSourceTypes        []string
 	DirectRetrieve            bool
+}
+
+type ContentHealthFinding struct {
+	ReportID    uuid.UUID
+	Signal      string
+	Ord         int32
+	TeamID      uuid.UUID
+	SourceID    uuid.UUID
+	DocumentID  uuid.NullUUID
+	Ref         string
+	GroupNo     int32
+	GroupSize   int32
+	Code        string
+	Detail      string
+	Value       int64
+	ObservedAt  *time.Time
+	ConfirmedAt *time.Time
+}
+
+type ContentHealthPacing struct {
+	TeamID uuid.UUID
+	LastAt time.Time
+}
+
+type ContentHealthReport struct {
+	ID                 uuid.UUID
+	TeamID             uuid.UUID
+	ScopeSourceID      uuid.NullUUID
+	ScopeKbID          uuid.NullUUID
+	StaleDays          int32
+	CitationWindowDays int32
+	Status             string
+	AsOf               *time.Time
+	RequestedBy        uuid.NullUUID
+	Signals            json.RawMessage
+	ErrorCode          string
+	CreatedAt          time.Time
+	StartedAt          *time.Time
+	FinishedAt         *time.Time
+	ExpiresAt          *time.Time
+}
+
+type ContentHealthSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
+type ContentHealthSource struct {
+	ReportID             uuid.UUID
+	SourceID             uuid.UUID
+	SourceType           string
+	Documents            int32
+	Ready                int32
+	ReadyNoDate          int32
+	ReadyNoHash          int32
+	LinkState            string
+	LinkReason           string
+	LinkCrawlAt          *time.Time
+	LinkTruncated        bool
+	LinkFailed           int32
+	LinkCrawlID          uuid.NullUUID
+	SourceRevision       int64
+	SourceClassification string
+	CiteState            string
+	ExposedSince         *time.Time
+	ExposureAnswers      int32
 }
 
 type ContextualCache struct {
@@ -415,11 +486,14 @@ type Document struct {
 }
 
 type DocumentBlock struct {
-	DocumentID uuid.UUID
-	SourceID   uuid.UUID
-	Hashes     []int64
-	Dropped    []int64
-	Rev        int32
+	DocumentID    uuid.UUID
+	SourceID      uuid.UUID
+	Hashes        []int64
+	Dropped       []int64
+	Rev           int32
+	SketchVersion int16
+	FuzzyHashes   []int64
+	Sketches      []byte
 }
 
 type DocumentContextual struct {
@@ -457,6 +531,8 @@ type EmbeddingProfile struct {
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
+	BoilerplateFuzzy     bool
+	ParentTokens         int32
 	Contextual           bool
 }
 
@@ -1046,6 +1122,21 @@ type Session struct {
 	ExpiresAt   time.Time
 }
 
+type SetBoilerplate struct {
+	SourceID     uuid.UUID
+	ProfileID    uuid.UUID
+	ClassifiedAt time.Time
+	Documents    int32
+	Threshold    int32
+}
+
+type SetBoilerplateBlock struct {
+	SourceID            uuid.UUID
+	ProfileID           uuid.UUID
+	BlockHash           int64
+	CanonicalDocumentID uuid.NullUUID
+}
+
 type SetContextual struct {
 	SourceID      uuid.UUID
 	ProfileID     uuid.UUID
@@ -1065,6 +1156,7 @@ type SourceBoilerplate struct {
 	RefreshedAt *time.Time
 	Documents   int32
 	Threshold   int32
+	Fuzzy       pgtype.Bool
 }
 
 type SourceBoilerplateBlock struct {
@@ -1073,6 +1165,8 @@ type SourceBoilerplateBlock struct {
 	DocCount            int32
 	Sample              string
 	CanonicalDocumentID uuid.NullUUID
+	Variants            int32
+	MemberOf            *int64
 }
 
 type SourceContextual struct {

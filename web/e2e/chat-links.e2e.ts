@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { composerClips } from "./support/layout";
@@ -30,7 +31,7 @@ test("a link to a deleted conversation says it isn't available, without a reques
 });
 
 test("the chat's composer isn't cut off at the bottom, at any size, with the source viewer open too (BU-19)", async ({ as, admin }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(scaled(90_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "composer" });
   await publishedAgent(owner, team, { name: "Composer helper" });

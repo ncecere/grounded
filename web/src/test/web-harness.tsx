@@ -85,6 +85,7 @@ export const boilerplate = (extra: Partial<Schemas["SourceBoilerplate"]> = {}): 
   enabled: true,
   minDocs: 5,
   ratio: 0.2,
+  fuzzy: false,
   overrides: {},
   repeatedBlocks: 0,
   pagesAffected: 0,

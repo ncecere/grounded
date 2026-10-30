@@ -22,7 +22,9 @@ import { keyProblem } from "@/lib/validation";
 import { useLevelName } from "../../team/common";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
+import { CHUNKER_HELP, CHUNKERS } from "./chunkers";
 import { type Model, type Profile, useModels } from "./common";
+import { ParentSizeField } from "./parents";
 import {
   initialProfileForm,
   missingPrefixes,
@@ -103,7 +105,7 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
           <PrefixWarning form={form} hint={hint} onUse={() => setForm((f) => ({ ...f, documentPrefix: hint!.documentPrefix, queryPrefix: hint!.queryPrefix }))} />
           <FusionDefaultsFields value={form.fusion} onChange={(f) => set("fusion", f)} errors={submitted ? errors : {}} />
           <Checkbox label="Make this the default profile" checked={form.isDefault} onCheckedChange={(v) => set("isDefault", v)} />
-          {!fieldError(serverError, ["invalid_chunk_size", "invalid_chunk_overlap"]) && <ErrorAlert error={serverError} />}
+          {!fieldError(serverError, ["invalid_chunk_size", "invalid_chunk_overlap", "invalid_parent_tokens"]) && <ErrorAlert error={serverError} />}
         </Form>
       )}
     </Dialog>
@@ -176,14 +178,18 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
       </Field>
       <Field
         label="Chunker"
-        description="How a page is cut into passages. Fixed once the profile exists. To see what a different chunker does to a knowledge base before using it, preview it under Migrations."
+        description={`How a page is cut into passages. Fixed once the profile exists. ${CHUNKER_HELP} None has been measured on a real knowledge base: to see what a chunker does to yours before using it, preview it under Migrations.`}
         error={fieldError(serverError, ["invalid_chunker_version"])}
       >
         <NativeSelect value={String(form.chunkerVersion)} onChange={(e) => set("chunkerVersion", Number(e.target.value))}>
-          <option value="1">Standard: a new passage at every heading</option>
-          <option value="2">Merge short sections: joins short neighbouring sections</option>
+          {CHUNKERS.map((c) => (
+            <option key={c.version} value={c.version}>
+              {c.label}
+            </option>
+          ))}
         </NativeSelect>
       </Field>
+      <ParentSizeField value={form.parentTokens} onChange={(v) => set("parentTokens", v)} error={errors.parentTokens ?? fieldError(serverError, ["invalid_parent_tokens"])} />
       <Field label="Description" labelHint="Optional" className={s.span2}>
         <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
       </Field>

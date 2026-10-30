@@ -134,6 +134,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
     else if (sub === "/evaluations") crumbs.push({ label: "Evaluations" });
     // Editors and above only: others get the not-found page under the team.
     else if (sub === "/gaps" && ["editor", "admin", "owner"].includes(team.data?.role ?? "")) crumbs.push({ label: "Gaps" });
+    else if (sub === "/content-health" && ["editor", "admin", "owner"].includes(team.data?.role ?? "")) crumbs.push({ label: "Content health" });
     else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
     return crumbs;

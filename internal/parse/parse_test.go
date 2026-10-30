@@ -134,6 +134,46 @@ func TestDOCX(t *testing.T) {
 	absent(t, doc.Markdown, "deleted words")
 }
 
+// Tables in the formats that have them come out as Markdown pipe tables the chunker keeps structured (chunker version 3, #24): a header row, a separator,
+// one line per row, and merged cells that keep every other cell in its column.
+func TestDOCXTableMergedCells(t *testing.T) {
+	cell := func(text, props string) string {
+		return `<w:tc>` + props + wPara("", text) + `</w:tc>`
+	}
+	body := wPara("Heading1", "Fees") + wPara("", "Fee schedule") +
+		`<w:tbl>` +
+		`<w:tr>` + cell("Term", "") + cell("Charge", `<w:tcPr><w:gridSpan w:val="2"/></w:tcPr>`) + cell("Due", "") + `</w:tr>` +
+		`<w:tr>` + cell("Fall", `<w:tcPr><w:vMerge w:val="restart"/></w:tcPr>`) + cell("Tuition", "") + cell("$900", "") + cell("Aug 1", "") + `</w:tr>` +
+		`<w:tr>` + cell("", `<w:tcPr><w:vMerge/></w:tcPr>`) + cell("Lab", "") + cell("$40", "") + cell("Aug 1", "") + `</w:tr>` +
+		`</w:tbl>` + wPara("", "Paid at registration.")
+	doc := mustParse(t, "fees.docx", docxFile(t, body, ""))
+	contains(t, doc.Markdown,
+		"Fee schedule\n\n| Term | Charge |  | Due |\n| --- | --- | --- | --- |\n| Fall | Tuition | $900 | Aug 1 |\n| Fall | Lab | $40 | Aug 1 |\n\nPaid at registration.")
+}
+
+func TestPPTXTableMergedCells(t *testing.T) {
+	data := pptxFile(t, []slide{{title: "Fees", table: [][]string{{"Term", "span2:Charge", "~", "Due"}, {"Fall", "Tuition", "$900", "Aug 1"}, {"Spring", "Lab", "$40", "Aug 1"}}}})
+	doc := mustParse(t, "fees.pptx", data)
+	contains(t, doc.Markdown, "| Term | Charge |  | Due |\n| --- | --- | --- | --- |\n| Fall | Tuition | $900 | Aug 1 |\n| Spring | Lab | $40 | Aug 1 |")
+}
+
+// A PDF has no table structure to read: its text comes out as paragraphs, so a table in a PDF is never a pipe table, in any chunker version. This
+// pins that (a PDF table is out of scope for #24), so a parser change that starts to emit tables is noticed and documented.
+func TestPDFTableTextIsNotAPipeTable(t *testing.T) {
+	data := pdfFileAt(t, [][]pdfTextAt{{
+		{11, 72, 700, "Term"}, {11, 200, 700, "Deadline"},
+		{11, 72, 686, "Fall"}, {11, 200, 686, "November 1"},
+		{11, 72, 672, "Spring"}, {11, 200, 672, "July 1"},
+	}})
+	doc := mustParse(t, "deadlines.pdf", data)
+	contains(t, doc.Markdown, "Fall", "November 1")
+	for _, line := range strings.Split(doc.Markdown, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "|") {
+			t.Errorf("a PDF produced a table line: %q", line)
+		}
+	}
+}
+
 func TestDOCXDecompressionLimit(t *testing.T) {
 	big := wPara("", strings.Repeat("A", 200_000))
 	data := docxFile(t, big, "")
@@ -304,7 +344,7 @@ func TestTikaClient(t *testing.T) {
 			_, _ = w.Write([]byte("Apache Tika 3.2.0"))
 		case r.Method == http.MethodPut && r.URL.Path == "/tika/html":
 			_, _ = w.Write([]byte(`<html><head><title>Scanned Memo</title></head><body>` +
-				`<div class="page"><h1>Memo</h1><p>First page text.</p></div>` +
+				`<div class="page"><h1>Memo</h1><p>First page text.</p><table><thead><tr><th>Term</th><th>Date</th></tr></thead><tbody><tr><td>Fall</td><td>Aug 25</td></tr></tbody></table></div>` +
 				`<div class="page"><p>Second page text.</p></div></body></html>`))
 		default:
 			http.Error(w, "bad", http.StatusBadRequest)
@@ -322,7 +362,7 @@ func TestTikaClient(t *testing.T) {
 	if doc.Title != "Scanned Memo" || doc.Pages != 2 {
 		t.Errorf("doc = %+v", doc)
 	}
-	contains(t, doc.Markdown, PageMarker(1), "# Memo", "First page text.", PageMarker(2), "Second page text.")
+	contains(t, doc.Markdown, PageMarker(1), "# Memo", "First page text.", "| Term | Date |\n| --- | --- |\n| Fall | Aug 25 |", PageMarker(2), "Second page text.")
 }
 
 func TestPageMarkers(t *testing.T) {

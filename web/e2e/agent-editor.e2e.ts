@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import type { CDPSession, Page } from "@playwright/test";
 import { Api } from "./support/api";
 import { chatModel, createTeam, publishedAgent } from "./support/arrange";
@@ -33,7 +34,7 @@ async function overflow(page: Page) {
 const sections = ["Model", "Knowledge", "Tools", "Answering", "Safety", "Advanced"];
 
 test("the Build tab fits the window at every size, with every section open and scrolled", async ({ as, admin, a11y }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(scaled(150_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "build-fit" });
   const { agent } = await publishedAgent(owner, team, { name: "Fit helper" });
@@ -87,7 +88,7 @@ test("the Build tab fits the window at every size, with every section open and s
     // Unchecking the only knowledge base adds "Fix these before publishing" above the split.
     await page.getByRole("button", { name: /^Knowledge/ }).click();
     await page.getByRole("checkbox", { name: /Fit helper KB/ }).uncheck();
-    await expect(page.getByText("Fix these before publishing")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Fix these before publishing")).toBeVisible({ timeout: scaled(15_000) });
     await a11y(page, "build with a problem list");
     await expect.poll(async () => (await overflow(page)).extra).toBe(0);
     await page.getByRole("checkbox", { name: /Fit helper KB/ }).check();
@@ -129,7 +130,7 @@ test("a widget key's secret shows after Create key, with origins added with Ente
 });
 
 test("the Share tab follows publishing to Public at once, and editors can't change the public agent's name or look", async ({ as, admin, a11y }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(scaled(90_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "share-live", members: { casey: "editor" } });
   const { agent } = await publishedAgent(owner, team, { name: "Share helper" });
@@ -146,7 +147,7 @@ test("the Share tab follows publishing to Public at once, and editors can't chan
   await page.getByRole("button", { name: "Publish" }).click();
   const publish = page.getByRole("dialog", { name: /^Publish version 2/ });
   await publish.getByRole("button", { name: "Publish" }).click();
-  await expect(publish).toBeHidden({ timeout: 30_000 });
+  await expect(publish).toBeHidden({ timeout: scaled(30_000) });
   // Without a reload (BU-03).
   await expect(page.getByText("Both work without signing in.")).toBeVisible();
   await expect(page.getByText("Sign-in needed")).toHaveCount(0);

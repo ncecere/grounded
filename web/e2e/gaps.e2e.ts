@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -10,7 +11,7 @@ import { expect, test } from "./support/fixtures";
  * the member can't open the Gaps page.
  */
 test("gap report: share a question on a thumbs-down; editors see it pending, members can't open Gaps", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "gaps", members: { alex: "editor", blair: "member" } });
   const { agent } = await publishedAgent(owner, team, { name: "Parking helper" });

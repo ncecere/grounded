@@ -190,6 +190,33 @@ func TestTables(t *testing.T) {
 	}
 }
 
+// A cell with a rowspan used to leave the rows below it a cell short, so their cells slid into the wrong columns (#24). Each row now repeats the text of
+// the cell above that covers it, so every row reads on its own under the header.
+func TestTableRowspan(t *testing.T) {
+	source := `<table><thead><tr><th>Term</th><th>Event</th><th>Date</th></tr></thead><tbody>` +
+		`<tr><td rowspan="3">Fall</td><td>Classes begin</td><td>Aug 25</td></tr>` +
+		`<tr><td>Drop deadline</td><td>Sep 8</td></tr>` +
+		`<tr><td>Finals</td><td>Dec 15</td></tr>` +
+		`<tr><td>Spring</td><td rowspan="2" colspan="2">Same week</td></tr><tr><td>Break</td></tr></tbody></table>`
+	res := convert(t, source, Options{})
+	want := "| Term | Event | Date |\n" +
+		"| --- | --- | --- |\n" +
+		"| Fall | Classes begin | Aug 25 |\n" +
+		"| Fall | Drop deadline | Sep 8 |\n" +
+		"| Fall | Finals | Dec 15 |\n" +
+		"| Spring | Same week |  |\n" +
+		"| Break | Same week |  |\n"
+	if res.Markdown != want {
+		t.Fatalf("rowspan:\n%s\nwant\n%s", res.Markdown, want)
+	}
+	// A huge rowspan is bounded, and a table in a list item keeps its columns.
+	res = convert(t, `<ul><li>Fees<table><tr><th>A</th><th>B</th></tr><tr><td rowspan="100000">x</td><td>1</td></tr><tr><td>2</td></tr></table></li></ul>`, Options{})
+	assertContains(t, res.Markdown, "  | A | B |", "  | x | 1 |", "  | x | 2 |")
+	if n := strings.Count(res.Markdown, "\n"); n > 200 {
+		t.Errorf("a huge rowspan made %d lines", n)
+	}
+}
+
 // Ported from yoink TestExtractionTableEscapes.
 func TestTableEscapes(t *testing.T) {
 	res := convert(t, `<main><table><tr><th>Value</th></tr><tr><td>A \| B <a href="/linked">label [x]</a> <strong>strong</strong> <code>x|y</code><br>next<br>last &lt;literal&gt;</td></tr></table></main>`, Options{BaseURL: mustURL(t, "https://quality.invalid/source"), MainContentOnly: true})

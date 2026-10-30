@@ -114,8 +114,6 @@ type flight struct {
 	done chan struct{}
 	text string
 	err  error
-	in   int
-	out  int
 }
 
 func (g *Generator) init() {

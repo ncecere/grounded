@@ -209,6 +209,12 @@ var (
 		Help: "The gap topics job's work by kind (embedded, assigned, new_topic, merged, confirmed, reopened, resolved, labelled, pruned).",
 	}, []string{"kind"})
 
+	// ContentHealthReports counts content health reports that ended (docs/content-health.md) by status.
+	ContentHealthReports = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_content_health_reports_total",
+		Help: "Content health reports that ended, by status (completed, failed, cancelled).",
+	}, []string{"status"})
+
 	// AnswerCacheLookups counts the answer cache's lookups
 	// (docs/answer-cache.md): hits by match (exact, near) and misses by
 	// reason; AnswerCacheTokensSaved the model tokens hits didn't spend.
@@ -236,7 +242,7 @@ func appCollectors() []prometheus.Collector {
 		ModerationFirstRelease, ModerationChunkChecks,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
 		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
-		GapQuestions, GapTopicChanges, AnswerCacheLookups, AnswerCacheTokensSaved, ValkeyErrors,
+		GapQuestions, GapTopicChanges, ContentHealthReports, AnswerCacheLookups, AnswerCacheTokensSaved, ValkeyErrors,
 	}
 }
 

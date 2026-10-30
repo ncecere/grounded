@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -10,7 +11,7 @@ import { expect, test } from "./support/fixtures";
  * it counted and clears the saved answers after confirming.
  */
 test("saved answers: an editor turns them on, a repeated question is reused, the editor clears them", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "cache", members: { alex: "editor" } });
   const { agent } = await publishedAgent(owner, team, { name: "Permit helper" });

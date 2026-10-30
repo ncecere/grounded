@@ -99,7 +99,15 @@ func pptxFile(t testing.TB, slides []slide) []byte {
 			for _, row := range s.table {
 				body.WriteString(`<a:tr>`)
 				for _, c := range row {
-					body.WriteString(`<a:tc><a:txBody><a:p><a:r><a:t>` + c + `</a:t></a:r></a:p></a:txBody></a:tc>`)
+					// "span2:text" is a cell that spans two columns; "~" is the cell it covers (hMerge), as PowerPoint writes a merge.
+					attrs, text := "", c
+					switch {
+					case c == "~":
+						attrs, text = ` hMerge="1"`, ""
+					case strings.HasPrefix(c, "span2:"):
+						attrs, text = ` gridSpan="2"`, strings.TrimPrefix(c, "span2:")
+					}
+					body.WriteString(`<a:tc` + attrs + `><a:txBody><a:p><a:r><a:t>` + text + `</a:t></a:r></a:p></a:txBody></a:tc>`)
 				}
 				body.WriteString(`</a:tr>`)
 			}

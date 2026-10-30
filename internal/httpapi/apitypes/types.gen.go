@@ -1075,6 +1075,150 @@ func (e ConnectionTestResultProbe) Valid() bool {
 	}
 }
 
+// Defines values for ContentHealthReportStatus.
+const (
+	ContentHealthReportStatusCancelled ContentHealthReportStatus = "cancelled"
+	ContentHealthReportStatusCompleted ContentHealthReportStatus = "completed"
+	ContentHealthReportStatusFailed    ContentHealthReportStatus = "failed"
+	ContentHealthReportStatusQueued    ContentHealthReportStatus = "queued"
+	ContentHealthReportStatusRunning   ContentHealthReportStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthReportStatus enum.
+func (e ContentHealthReportStatus) Valid() bool {
+	switch e {
+	case ContentHealthReportStatusCancelled:
+		return true
+	case ContentHealthReportStatusCompleted:
+		return true
+	case ContentHealthReportStatusFailed:
+		return true
+	case ContentHealthReportStatusQueued:
+		return true
+	case ContentHealthReportStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSignalState.
+const (
+	ContentHealthSignalStateMeasured      ContentHealthSignalState = "measured"
+	ContentHealthSignalStateNotApplicable ContentHealthSignalState = "not_applicable"
+	ContentHealthSignalStateUnavailable   ContentHealthSignalState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSignalState enum.
+func (e ContentHealthSignalState) Valid() bool {
+	switch e {
+	case ContentHealthSignalStateMeasured:
+		return true
+	case ContentHealthSignalStateNotApplicable:
+		return true
+	case ContentHealthSignalStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSignalName.
+const (
+	BrokenLink       ContentHealthSignalName = "broken_link"
+	Duplicate        ContentHealthSignalName = "duplicate"
+	IngestionFailure ContentHealthSignalName = "ingestion_failure"
+	NeverCited       ContentHealthSignalName = "never_cited"
+	Stale            ContentHealthSignalName = "stale"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSignalName enum.
+func (e ContentHealthSignalName) Valid() bool {
+	switch e {
+	case BrokenLink:
+		return true
+	case Duplicate:
+		return true
+	case IngestionFailure:
+		return true
+	case NeverCited:
+		return true
+	case Stale:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSourceCoverageCiteState.
+const (
+	ContentHealthSourceCoverageCiteStateEmpty         ContentHealthSourceCoverageCiteState = ""
+	ContentHealthSourceCoverageCiteStateJudged        ContentHealthSourceCoverageCiteState = "judged"
+	ContentHealthSourceCoverageCiteStateNotServed     ContentHealthSourceCoverageCiteState = "not_served"
+	ContentHealthSourceCoverageCiteStateTooFewAnswers ContentHealthSourceCoverageCiteState = "too_few_answers"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageCiteState enum.
+func (e ContentHealthSourceCoverageCiteState) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageCiteStateEmpty:
+		return true
+	case ContentHealthSourceCoverageCiteStateJudged:
+		return true
+	case ContentHealthSourceCoverageCiteStateNotServed:
+		return true
+	case ContentHealthSourceCoverageCiteStateTooFewAnswers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSourceCoverageLinkRefs.
+const (
+	ContentHealthSourceCoverageLinkRefsCrawlChanged  ContentHealthSourceCoverageLinkRefs = "crawl_changed"
+	ContentHealthSourceCoverageLinkRefsCurrent       ContentHealthSourceCoverageLinkRefs = "current"
+	ContentHealthSourceCoverageLinkRefsNone          ContentHealthSourceCoverageLinkRefs = "none"
+	ContentHealthSourceCoverageLinkRefsSourceChanged ContentHealthSourceCoverageLinkRefs = "source_changed"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageLinkRefs enum.
+func (e ContentHealthSourceCoverageLinkRefs) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageLinkRefsCrawlChanged:
+		return true
+	case ContentHealthSourceCoverageLinkRefsCurrent:
+		return true
+	case ContentHealthSourceCoverageLinkRefsNone:
+		return true
+	case ContentHealthSourceCoverageLinkRefsSourceChanged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSourceCoverageLinkState.
+const (
+	ContentHealthSourceCoverageLinkStateNotApplicable ContentHealthSourceCoverageLinkState = "not_applicable"
+	ContentHealthSourceCoverageLinkStateObserved      ContentHealthSourceCoverageLinkState = "observed"
+	ContentHealthSourceCoverageLinkStateUnknown       ContentHealthSourceCoverageLinkState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageLinkState enum.
+func (e ContentHealthSourceCoverageLinkState) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageLinkStateNotApplicable:
+		return true
+	case ContentHealthSourceCoverageLinkStateObserved:
+		return true
+	case ContentHealthSourceCoverageLinkStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContextualChunksFailurePolicy.
 const (
 	ContextualChunksFailurePolicyFail  ContextualChunksFailurePolicy = "fail"
@@ -5795,21 +5939,27 @@ type AuthConfig struct {
 	TeamRequestUrl *string `json:"teamRequestUrl,omitempty"`
 }
 
-// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS"}
+// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS","variants":1}
 type BoilerplateBlock struct {
-	// Documents Documents that contain it
+	// Documents Documents that contain it (or one of its near-duplicate variants)
 	Documents int32 `json:"documents"`
 
 	// Text The first 80 characters of the block, without Markdown
 	Text string `json:"text"`
+
+	// Variants Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match
+	Variants int32 `json:"variants"`
 }
 
-// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 //
-// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 type BoilerplateSettings struct {
 	// Enabled Leave repeated blocks out of chunks
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Fuzzy Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a different date). Off unless the install turns it on; it only has an effect while enabled is true. Try it first in an index preview (changes.boilerplateFuzzy).
+	Fuzzy *bool `json:"fuzzy,omitempty"`
 
 	// MinDocs A block must be in at least this many documents
 	MinDocs *int `json:"minDocs,omitempty"`
@@ -6330,7 +6480,7 @@ type ChatUsage struct {
 
 // Citation A source referenced by [n] in the answer. Uploaded files are cited by title only; url is set only for web pages in snippet_link mode.
 type Citation struct {
-	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages. With parent set, it is the matched passage: the one that ranked, inside the section the model read.
 	ChunkId *openapi_types.UUID `json:"chunkId,omitempty"`
 
 	// Confidence The model's confidence in the verification
@@ -6346,6 +6496,9 @@ type Citation struct {
 	N         int               `json:"n"`
 	PageEnd   *int32            `json:"pageEnd,omitempty"`
 	PageStart *int32            `json:"pageStart,omitempty"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent *CitationParent `json:"parent,omitempty"`
 
 	// Server The MCP server's name (kind tool)
 	Server   *string            `json:"server,omitempty"`
@@ -6382,6 +6535,27 @@ type CitationMarkerVerification string
 
 // CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 type CitationMode string
+
+// CitationParent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+type CitationParent struct {
+	// First Ordinal of the section's first passage in the document
+	First int32 `json:"first"`
+
+	// Last Ordinal of its last passage
+	Last int32 `json:"last"`
+
+	// Matched How many of the search's matching passages were in this section (they are one source)
+	Matched int32 `json:"matched"`
+
+	// Passages Passages in the section
+	Passages int32 `json:"passages"`
+
+	// Sha256 SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section
+	Sha256 string `json:"sha256"`
+
+	// Tokens The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
+	Tokens int32 `json:"tokens"`
+}
 
 // CitationTotals SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 type CitationTotals struct {
@@ -6426,21 +6600,24 @@ type CitationTotals struct {
 	Verified      int64 `json:"verified"`
 }
 
-// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none.
+// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint.
 type CitedPassage struct {
 	// Claims The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
 	Claims     []Claim            `json:"claims"`
 	DocumentId openapi_types.UUID `json:"documentId"`
 
 	// DocumentTeam The source's team (slug), when the caller may open the whole document (its editors, admins and owners)
-	DocumentTeam *string            `json:"documentTeam,omitempty"`
-	Filename     *string            `json:"filename,omitempty"`
-	HeadingPath  []string           `json:"headingPath"`
-	N            int                `json:"n"`
-	Passages     []ContextPassage   `json:"passages"`
-	SourceId     openapi_types.UUID `json:"sourceId"`
-	Status       CitedPassageStatus `json:"status"`
-	Title        string             `json:"title"`
+	DocumentTeam *string  `json:"documentTeam,omitempty"`
+	Filename     *string  `json:"filename,omitempty"`
+	HeadingPath  []string `json:"headingPath"`
+	N            int      `json:"n"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent   *CitationParent    `json:"parent,omitempty"`
+	Passages []ContextPassage   `json:"passages"`
+	SourceId openapi_types.UUID `json:"sourceId"`
+	Status   CitedPassageStatus `json:"status"`
+	Title    string             `json:"title"`
 
 	// Url The web page, when the answer's citation links it (snippet_link mode)
 	Url *string `json:"url,omitempty"`
@@ -6650,12 +6827,254 @@ type ConnectionUpdate struct {
 	TimeoutSeconds    *int32 `json:"timeoutSeconds,omitempty"`
 }
 
+// ContentHealthFinding defines model for ContentHealthFinding.
+type ContentHealthFinding struct {
+	// ChangedSinceReport The document changed after the report began
+	ChangedSinceReport bool `json:"changedSinceReport"`
+
+	// Code broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished
+	Code string `json:"code"`
+
+	// ConfirmedAt stale web pages: when a crawl last confirmed the page exists, if a crawl record is kept
+	ConfirmedAt *time.Time `json:"confirmedAt,omitempty"`
+
+	// Detail ingestion_failure: the document's error code
+	Detail string `json:"detail"`
+
+	// DocumentId Null for a failed link
+	DocumentId *openapi_types.UUID `json:"documentId,omitempty"`
+	Filename   string              `json:"filename"`
+
+	// GroupNo Duplicates: the group, from 1 (0 for other signals)
+	GroupNo int32 `json:"groupNo"`
+
+	// GroupSize Duplicates: how many documents the group had when the report was made, which may be more than are listed
+	GroupSize int32  `json:"groupSize"`
+	Kind      string `json:"kind"`
+
+	// ObservedAt When the fact was true: last processing (stale, duplicates), the crawl's end (broken_link), the document's creation (never_cited), the last change of a failed document
+	ObservedAt *time.Time `json:"observedAt,omitempty"`
+	Ord        int32      `json:"ord"`
+
+	// Ref A broken link: the URL the crawl failed to fetch, without credentials, query or fragment (its path can still be sensitive; it is stored only for the team's editors and hidden once the source or crawl changed)
+	Ref string `json:"ref"`
+
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	Signal   ContentHealthSignalName `json:"signal"`
+	SourceId openapi_types.UUID      `json:"sourceId"`
+
+	// SourceName The source's current name
+	SourceName string `json:"sourceName"`
+	SourceType string `json:"sourceType"`
+
+	// Title The document's current title (read now, not stored in the report)
+	Title string `json:"title"`
+
+	// Url A web document's address
+	Url string `json:"url"`
+
+	// Value stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable
+	Value int64 `json:"value"`
+}
+
+// ContentHealthFindingPage defines model for ContentHealthFindingPage.
+type ContentHealthFindingPage struct {
+	Items      []ContentHealthFinding `json:"items"`
+	NextCursor *string                `json:"nextCursor"`
+}
+
+// ContentHealthLimits defines model for ContentHealthLimits.
+type ContentHealthLimits struct {
+	// CooldownSeconds Pause between the start of one report and the next
+	CooldownSeconds           int32 `json:"cooldownSeconds"`
+	DefaultCitationWindowDays int32 `json:"defaultCitationWindowDays"`
+	DefaultStaleDays          int32 `json:"defaultStaleDays"`
+
+	// KeepReports Reports kept per team
+	KeepReports           int32 `json:"keepReports"`
+	MaxCitationWindowDays int32 `json:"maxCitationWindowDays"`
+
+	// MaxFindingsPerSignal Findings stored per signal; the true count is kept too
+	MaxFindingsPerSignal int32 `json:"maxFindingsPerSignal"`
+	MaxStaleDays         int32 `json:"maxStaleDays"`
+
+	// MinAnswers Answers the window must hold before not-cited says anything
+	MinAnswers            int32 `json:"minAnswers"`
+	MinCitationWindowDays int32 `json:"minCitationWindowDays"`
+	MinStaleDays          int32 `json:"minStaleDays"`
+
+	// PageSize Most findings in a page
+	PageSize int32 `json:"pageSize"`
+
+	// RetentionDays Days a report is kept after it ended
+	RetentionDays int32 `json:"retentionDays"`
+}
+
+// ContentHealthReport defines model for ContentHealthReport.
+type ContentHealthReport struct {
+	// AsOf The instant every age and window is measured from (null until the report starts)
+	AsOf               *time.Time `json:"asOf,omitempty"`
+	CitationWindowDays int32      `json:"citationWindowDays"`
+	CreatedAt          time.Time  `json:"createdAt"`
+
+	// ErrorCode A failed report's coarse reason: internal, timed_out, too_many_sources or disabled
+	ErrorCode string `json:"errorCode"`
+
+	// ExpiresAt When the report is deleted
+	ExpiresAt       *time.Time          `json:"expiresAt,omitempty"`
+	FinishedAt      *time.Time          `json:"finishedAt,omitempty"`
+	Id              openapi_types.UUID  `json:"id"`
+	KnowledgeBaseId *openapi_types.UUID `json:"knowledgeBaseId,omitempty"`
+
+	// Signals One result per signal once the report completed
+	Signals   []ContentHealthSignal     `json:"signals"`
+	SourceId  *openapi_types.UUID       `json:"sourceId,omitempty"`
+	StaleDays int32                     `json:"staleDays"`
+	StartedAt *time.Time                `json:"startedAt,omitempty"`
+	Status    ContentHealthReportStatus `json:"status"`
+}
+
+// ContentHealthReportStatus defines model for ContentHealthReport.Status.
+type ContentHealthReportStatus string
+
+// ContentHealthReportDetail defines model for ContentHealthReportDetail.
+type ContentHealthReportDetail struct {
+	Report  ContentHealthReport           `json:"report"`
+	Sources []ContentHealthSourceCoverage `json:"sources"`
+}
+
+// ContentHealthReportInput Thresholds and scope; every field is optional (the defaults are in the limits of the list).
+type ContentHealthReportInput struct {
+	// CitationWindowDays How far back answers are read for not-cited documents (14 to 365; default 90)
+	CitationWindowDays *int32 `json:"citationWindowDays,omitempty"`
+
+	// KnowledgeBaseId Only the sources of this knowledge base of the team (not with sourceId)
+	KnowledgeBaseId *openapi_types.UUID `json:"knowledgeBaseId,omitempty"`
+
+	// SourceId Only this source of the team (not with knowledgeBaseId)
+	SourceId *openapi_types.UUID `json:"sourceId,omitempty"`
+
+	// StaleDays A document last processed at least this many days before the report began is stale (30 to 3650; default 365)
+	StaleDays *int32 `json:"staleDays,omitempty"`
+}
+
+// ContentHealthReportList defines model for ContentHealthReportList.
+type ContentHealthReportList struct {
+	// Enabled The platform switch
+	Enabled bool                  `json:"enabled"`
+	Limits  ContentHealthLimits   `json:"limits"`
+	Reports []ContentHealthReport `json:"reports"`
+}
+
+// ContentHealthSettings defines model for ContentHealthSettings.
+type ContentHealthSettings struct {
+	// Enabled Off by default
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ContentHealthSettingsUpdate defines model for ContentHealthSettingsUpdate.
+type ContentHealthSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ContentHealthSignal defines model for ContentHealthSignal.
+type ContentHealthSignal struct {
+	// Counts Numbers that qualify the measurement, as of the report: answers (kept answers that could have cited something, team-wide), minAnswers, judged, tooNew, notServed and fewAnswers (documents of sources left out), sourcesJudged, ready, ageUnknown, recentlyConfirmed, withoutHash, sourcesObserved, sourcesUnknown, addressesNotKept, and vanished (findings whose source or document was deleted between collecting and storing)
+	Counts map[string]int64 `json:"counts"`
+
+	// Found How many the report found when it was made, in the unit of the signal (for duplicates, groups), less any that had vanished before it was stored (counts.vanished)
+	Found int64 `json:"found"`
+
+	// Listed How many still hold now, in the same unit as found: findings follow deletions, scope and source changes, and at most maxFindingsPerSignal are kept; for duplicates, groups that still span two sources of the report
+	Listed int64 `json:"listed"`
+
+	// ObservedSince Not cited: when the team-wide window began (the later of the window's start and the team's first retained answer event). It is when events begin, not when any document became reachable by an agent: see each source's exposedSince
+	ObservedSince *time.Time `json:"observedSince,omitempty"`
+
+	// Reason Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers, too_many_agents, no_exposure or timed_out ('' when measured)
+	Reason string `json:"reason"`
+
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	Signal ContentHealthSignalName `json:"signal"`
+
+	// State measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
+	State ContentHealthSignalState `json:"state"`
+
+	// Truncated More were found than are listed
+	Truncated bool `json:"truncated"`
+}
+
+// ContentHealthSignalState measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
+type ContentHealthSignalState string
+
+// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+type ContentHealthSignalName string
+
+// ContentHealthSourceCoverage defines model for ContentHealthSourceCoverage.
+type ContentHealthSourceCoverage struct {
+	// CiteState Not cited: judged (an active published agent reaches the source and enough answers were kept since); not_served (no active published agent reaches it through a knowledge base: not judged); too_few_answers (fewer than minAnswers answers of agents that reach it since it was reachable: not judged); empty when the signal did not measure it
+	CiteState ContentHealthSourceCoverageCiteState `json:"citeState"`
+	Documents int32                                `json:"documents"`
+
+	// ExposedSince Not cited: when the source became reachable by an active published agent (the later of its attachment to the knowledge base and the agent's publish time, rounded up to the next UTC day). Earlier reachability is not recorded and not used
+	ExposedSince *time.Time `json:"exposedSince,omitempty"`
+
+	// ExposureAnswers Not cited: kept answers that could have cited something, of agents that reach the source, since exposedSince
+	ExposureAnswers int32 `json:"exposureAnswers"`
+
+	// LinkCrawlAt When the crawl whose record was read finished
+	LinkCrawlAt *time.Time `json:"linkCrawlAt,omitempty"`
+
+	// LinkFailed URLs that crawl failed to fetch (as of the report; each address once, without credentials, query or fragment)
+	LinkFailed int32 `json:"linkFailed"`
+
+	// LinkReason Why unknown: never_crawled, page_refetch_latest, no_crawl_record or signal_timed_out
+	LinkReason string `json:"linkReason"`
+
+	// LinkRefs Whether this source's failed addresses are still shown: current; source_changed (its revision or classification changed since the crawl was read); crawl_changed (a newer completed crawl exists); none (no addresses were observed)
+	LinkRefs ContentHealthSourceCoverageLinkRefs `json:"linkRefs"`
+
+	// LinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
+	LinkState ContentHealthSourceCoverageLinkState `json:"linkState"`
+
+	// LinkTruncated That crawl stopped at a limit, so pages beyond it were not visited
+	LinkTruncated bool `json:"linkTruncated"`
+
+	// Name The source's current name
+	Name  string `json:"name"`
+	Ready int32  `json:"ready"`
+
+	// ReadyWithoutDate Ready documents with no processing date (age unknown, not judged)
+	ReadyWithoutDate int32 `json:"readyWithoutDate"`
+
+	// ReadyWithoutHash Ready documents with no hash (counted, not compared)
+	ReadyWithoutHash int32              `json:"readyWithoutHash"`
+	SourceId         openapi_types.UUID `json:"sourceId"`
+	Type             string             `json:"type"`
+}
+
+// ContentHealthSourceCoverageCiteState Not cited: judged (an active published agent reaches the source and enough answers were kept since); not_served (no active published agent reaches it through a knowledge base: not judged); too_few_answers (fewer than minAnswers answers of agents that reach it since it was reachable: not judged); empty when the signal did not measure it
+type ContentHealthSourceCoverageCiteState string
+
+// ContentHealthSourceCoverageLinkRefs Whether this source's failed addresses are still shown: current; source_changed (its revision or classification changed since the crawl was read); crawl_changed (a newer completed crawl exists); none (no addresses were observed)
+type ContentHealthSourceCoverageLinkRefs string
+
+// ContentHealthSourceCoverageLinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
+type ContentHealthSourceCoverageLinkState string
+
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
-	// Cited The passage the answer cited (or around named)
+	// Cited The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section
 	Cited       bool     `json:"cited"`
 	Content     string   `json:"content"`
 	HeadingPath []string `json:"headingPath"`
+
+	// Matched With a parent: the passage that matched the question, inside the section
+	Matched *bool `json:"matched,omitempty"`
 
 	// Ordinal Position in the document, from 0
 	Ordinal int32 `json:"ordinal"`
@@ -7349,9 +7768,9 @@ type DataSourceType string
 
 // DataSourceCreate defines model for DataSourceCreate.
 type DataSourceCreate struct {
-	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Boilerplate    *BoilerplateSettings `json:"boilerplate,omitempty"`
 	Classification string               `json:"classification"`
 	Description    *string              `json:"description,omitempty"`
@@ -7633,6 +8052,9 @@ type DomainReviewDecision string
 
 // EmbeddingProfile defines model for EmbeddingProfile.
 type EmbeddingProfile struct {
+	// BoilerplateFuzzy Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use.
+	BoilerplateFuzzy bool `json:"boilerplateFuzzy"`
+
 	// CandidateOf Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
 	CandidateOf    *openapi_types.UUID `json:"candidateOf,omitempty"`
 	ChunkOverlap   int32               `json:"chunkOverlap"`
@@ -7660,7 +8082,10 @@ type EmbeddingProfile struct {
 
 	// OutputDimensions Fewer dimensions than the model's, stored after Matryoshka truncation; null when the profile stores the model's own dimensions
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
-	QueryPrefix      string `json:"queryPrefix"`
+
+	// ParentTokens Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents
+	ParentTokens int32  `json:"parentTokens"`
+	QueryPrefix  string `json:"queryPrefix"`
 
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision    Revision                    `json:"revision"`
@@ -7680,7 +8105,7 @@ type EmbeddingProfileCreate struct {
 	ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
 	ChunkSize    *int32 `json:"chunkSize,omitempty"`
 
-	// ChunkerVersion The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+	// ChunkerVersion The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
 	ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 	// DefaultFusionWeights Omit to use the platform default
@@ -7700,6 +8125,9 @@ type EmbeddingProfileCreate struct {
 	//
 	// Example: 768
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
+
+	// ParentTokens Parent/child retrieval, opt-in (docs/parent-child-retrieval.md): the most tokens of the section around a matched passage that an agent's model is given. 0 or omitted (the default) means no parents, and the profile is indexed and searched as before. Otherwise at least twice the passage size and at most 8192. Fixed once created. A value outside that is refused (400 invalid_parent_tokens).
+	ParentTokens *int32 `json:"parentTokens,omitempty"`
 
 	// QueryPrefix Example: search_query:
 	QueryPrefix *string                            `json:"queryPrefix,omitempty"`
@@ -10621,10 +11049,12 @@ type ProfileMigrationPreflightSource struct {
 type ProfileMigrationPreview struct {
 	// Changes The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
 	Changes struct {
-		ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
-		ChunkSize    *int32 `json:"chunkSize,omitempty"`
+		// BoilerplateFuzzy Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now.
+		BoilerplateFuzzy *bool  `json:"boilerplateFuzzy,omitempty"`
+		ChunkOverlap     *int32 `json:"chunkOverlap,omitempty"`
+		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
-		// ChunkerVersion The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
 		ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 		// ContextualChunks true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written context in front of each passage's embedding input; the passages themselves are unchanged); false builds it without, the way back from a contextual profile. It must be the only passage-affecting change when true: the passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages). Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a model may not process a source's classification. docs/contextual-chunks.md.
@@ -10633,9 +11063,12 @@ type ProfileMigrationPreview struct {
 		ModelId          *openapi_types.UUID `json:"modelId,omitempty"`
 
 		// Name The candidate's name (default the profile's name plus "(new settings)")
-		Name        *string                                    `json:"name,omitempty"`
-		QueryPrefix *string                                    `json:"queryPrefix,omitempty"`
-		StorageType *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
+		Name *string `json:"name,omitempty"`
+
+		// ParentTokens Parent/child retrieval: the parent size of the new index (0 turns parents off, omit to keep the profile's). A preview that changes only this leaves the passages and so the ranking as they are. Anything else outside 0 or twice the passage size to 8192 is refused (400 invalid_parent_tokens).
+		ParentTokens *int32                                     `json:"parentTokens,omitempty"`
+		QueryPrefix  *string                                    `json:"queryPrefix,omitempty"`
+		StorageType  *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
 	} `json:"changes"`
 
 	// GraceDays Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
@@ -11374,11 +11807,14 @@ type SourceBoilerplate struct {
 	// DocumentsCounted Documents counted at the last refresh
 	DocumentsCounted int32 `json:"documentsCounted"`
 	Enabled          bool  `json:"enabled"`
-	MinDocs          int   `json:"minDocs"`
 
-	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Fuzzy Near-duplicate blocks count as one (in force: the source's override, else the platform default)
+	Fuzzy   bool `json:"fuzzy"`
+	MinDocs int  `json:"minDocs"`
+
+	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Overrides BoilerplateSettings `json:"overrides"`
 
 	// PagesAffected Documents they were removed from
@@ -11391,7 +11827,7 @@ type SourceBoilerplate struct {
 	// RefreshedAt When the last refresh was requested (null before the first)
 	RefreshedAt *time.Time `json:"refreshedAt"`
 
-	// RepeatedBlocks Distinct blocks classified as repeated
+	// RepeatedBlocks Distinct blocks classified as repeated; the near-duplicate variants of one block count once
 	RepeatedBlocks int64 `json:"repeatedBlocks"`
 
 	// Threshold Documents a block needed at the last refresh
@@ -12300,6 +12736,12 @@ type BreakGlassSessionIdParam = openapi_types.UUID
 // CitationNumberParam defines model for CitationNumberParam.
 type CitationNumberParam = int
 
+// ContentHealthLimitParam defines model for ContentHealthLimitParam.
+type ContentHealthLimitParam = int
+
+// ContentHealthReportIdParam defines model for ContentHealthReportIdParam.
+type ContentHealthReportIdParam = openapi_types.UUID
+
 // ConversationIdParam defines model for ConversationIdParam.
 type ConversationIdParam = openapi_types.UUID
 
@@ -12815,6 +13257,12 @@ type AdminPutBreakGlassSettingsParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutContentHealthSettingsParams defines parameters for AdminPutContentHealthSettings.
+type AdminPutContentHealthSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminPutEvaluationSettingsParams defines parameters for AdminPutEvaluationSettings.
 type AdminPutEvaluationSettingsParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -13180,6 +13628,15 @@ type ListTeamAuditParams struct {
 // ListTeamAuditParamsActorKind defines parameters for ListTeamAudit.
 type ListTeamAuditParamsActorKind string
 
+// ListContentHealthFindingsParams defines parameters for ListContentHealthFindings.
+type ListContentHealthFindingsParams struct {
+	Signal ContentHealthSignalName `form:"signal" json:"signal"`
+
+	// Cursor nextCursor from the previous page
+	Cursor *CursorParam             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *ContentHealthLimitParam `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListTeamConversationsParams defines parameters for ListTeamConversations.
 type ListTeamConversationsParams struct {
 	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
@@ -13316,9 +13773,12 @@ type ListDocumentPassagesParams struct {
 
 // GetDocumentTextParams defines parameters for GetDocumentText.
 type GetDocumentTextParams struct {
-	From   *int                `form:"from,omitempty" json:"from,omitempty"`
-	Limit  *int                `form:"limit,omitempty" json:"limit,omitempty"`
-	Around *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	From         *int                `form:"from,omitempty" json:"from,omitempty"`
+	Limit        *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	Around       *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	ParentFirst  *int                `form:"parentFirst,omitempty" json:"parentFirst,omitempty"`
+	ParentLast   *int                `form:"parentLast,omitempty" json:"parentLast,omitempty"`
+	ParentSha256 *string             `form:"parentSha256,omitempty" json:"parentSha256,omitempty"`
 }
 
 // GetTeamSpendParams defines parameters for GetTeamSpend.
@@ -13463,6 +13923,9 @@ type AdminPutAnswerCacheSettingsJSONRequestBody = AnswerCacheSettingsUpdate
 
 // AdminPutBreakGlassSettingsJSONRequestBody defines body for AdminPutBreakGlassSettings for application/json ContentType.
 type AdminPutBreakGlassSettingsJSONRequestBody = BreakGlassSettingsUpdate
+
+// AdminPutContentHealthSettingsJSONRequestBody defines body for AdminPutContentHealthSettings for application/json ContentType.
+type AdminPutContentHealthSettingsJSONRequestBody = ContentHealthSettingsUpdate
 
 // AdminPutEvaluationSettingsJSONRequestBody defines body for AdminPutEvaluationSettings for application/json ContentType.
 type AdminPutEvaluationSettingsJSONRequestBody = EvaluationSettingsUpdate
@@ -13616,6 +14079,9 @@ type CreateAPIKeyJSONRequestBody = APIKeyCreate
 
 // UpdateAPIKeyContactJSONRequestBody defines body for UpdateAPIKeyContact for application/json ContentType.
 type UpdateAPIKeyContactJSONRequestBody UpdateAPIKeyContactJSONBody
+
+// CreateContentHealthReportJSONRequestBody defines body for CreateContentHealthReport for application/json ContentType.
+type CreateContentHealthReportJSONRequestBody = ContentHealthReportInput
 
 // CreateDomainRequestJSONRequestBody defines body for CreateDomainRequest for application/json ContentType.
 type CreateDomainRequestJSONRequestBody = DomainRequestCreate

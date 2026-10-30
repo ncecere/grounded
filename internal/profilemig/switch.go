@@ -16,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -86,12 +87,21 @@ func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbge
 // has checked that every document has vectors for the target.
 func (s *Service) doSwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase, by *authz.Actor) error {
 	// An index preview's candidate is an ordinary profile from here on: a knowledge base uses it.
+	cand, err := q.GetEmbeddingProfile(ctx, m.ToProfileID)
+	if err != nil {
+		return err
+	}
 	if err := q.PromoteCandidateProfile(ctx, m.ToProfileID); err != nil {
 		return err
 	}
-	sources, err := s.flip(ctx, q, kb, m.ToProfileID)
+	sources, moved, err := s.flip(ctx, q, kb, m.ToProfileID)
 	if err != nil {
 		return err
+	}
+	if cand.EmbeddingProfile.BoilerplateFuzzy {
+		if err := s.applyFuzzy(ctx, q, tx, kb, m, moved); err != nil {
+			return err
+		}
 	}
 	if m, err = q.SwitchProfileMigration(ctx, m.ID); err != nil {
 		return err
@@ -151,38 +161,63 @@ func (s *Service) Switch(ctx context.Context, a authz.Actor, id uuid.UUID, rev i
 // there when every KB using them has: the old one becomes an extra set,
 // which the cleanup job deletes once nothing needs it. It returns how many
 // sources the KB has.
-func (s *Service) flip(ctx context.Context, q *dbgen.Queries, kb dbgen.KnowledgeBase, profileID uuid.UUID) (int, error) {
+func (s *Service) flip(ctx context.Context, q *dbgen.Queries, kb dbgen.KnowledgeBase, profileID uuid.UUID) (int, []uuid.UUID, error) {
 	if _, err := q.SetKBProfile(ctx, dbgen.SetKBProfileParams{ID: kb.ID, ProfileID: profileID}); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	sources, err := q.KBSources(ctx, kb.ID)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	for _, src := range sources {
 		if err := q.MarkEmbeddingSetReady(ctx, dbgen.MarkEmbeddingSetReadyParams{SourceID: src.ID, ProfileID: profileID}); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 	moving, err := q.SourcesMovingTo(ctx, dbgen.SourcesMovingToParams{KBID: kb.ID, ProfileID: profileID})
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
+	moved := make([]uuid.UUID, 0, len(moving))
 	for _, src := range moving {
 		if _, err := q.InsertEmbeddingSet(ctx, dbgen.InsertEmbeddingSetParams{SourceID: src.ID, ProfileID: src.EmbeddingProfileID, Status: "ready"}); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 		if err := q.DropEmbeddingSetRow(ctx, dbgen.DropEmbeddingSetRowParams{SourceID: src.ID, ProfileID: profileID}); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 		if err := q.SetSourceProfile(ctx, dbgen.SetSourceProfileParams{ID: src.ID, ProfileID: profileID}); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 		if err := q.RecountSourceChunks(ctx, dbgen.RecountSourceChunksParams{SourceID: src.ID, ProfileID: profileID}); err != nil {
-			return 0, err
+			return 0, nil, err
+		}
+		moved = append(moved, src.ID)
+	}
+	return len(sources), moved, nil
+}
+
+// applyFuzzy turns near-duplicate boilerplate matching on for the sources a preview that judged with it now serves, so the settings and the
+// index agree (the refresh finds nothing to change). A source that has it on already is left alone; the others are audited by the system.
+func (s *Service) applyFuzzy(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, kb dbgen.KnowledgeBase, m dbgen.ProfileMigration, sources []uuid.UUID) error {
+	for _, id := range sources {
+		n, err := q.SetSourceBoilerplateFuzzy(ctx, id)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			continue
+		}
+		if err := ingest.RequestRefresh(ctx, s.Jobs, tx, id); err != nil {
+			return err
+		}
+		e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "source.boilerplate_update", TargetType: "data_source", TargetID: id.String(),
+			Metadata: s.meta(m, map[string]any{"fuzzy": true, "via": "index_preview"})}
+		if err := audit.Record(ctx, q, e); err != nil {
+			return err
 		}
 	}
-	return len(sources), nil
+	return nil
 }
 
 var errNoSwitchBack = apperr.Conflict("switch_back_unavailable", "The grace period is over: the old vectors are gone. Start a new migration instead.")
@@ -210,7 +245,7 @@ func (s *Service) SwitchBack(ctx context.Context, a authz.Actor, id uuid.UUID, r
 			return apperr.Conflict("switch_back_unavailable", fmt.Sprintf(
 				"%d documents don't have vectors for the previous profile yet (they changed since the switch). Try again in a minute.", missing))
 		}
-		sources, err := s.flip(ctx, q, kb, m.FromProfileID)
+		sources, _, err := s.flip(ctx, q, kb, m.FromProfileID)
 		if err != nil {
 			return err
 		}

@@ -26,13 +26,12 @@ const WaitContextLimit = "context_limit"
 
 // ctxScope says whose passages are embedded, and for which profile.
 type ctxScope struct {
-	src      dbgen.DataSource
-	docID    uuid.UUID
-	title    string
-	team     uuid.NullUUID
-	user     uuid.NullUUID
-	own      bool // the source's own profile (a live document), not an extra set
-	checkSet bool // ask whether the set still exists (an extra set)
+	src   dbgen.DataSource
+	docID uuid.UUID
+	title string
+	team  uuid.NullUUID
+	user  uuid.NullUUID
+	own   bool // the source's own profile (a live document), not an extra set
 }
 
 // ctxMark is how a document was embedded for a profile; written in the transaction that writes its chunks.

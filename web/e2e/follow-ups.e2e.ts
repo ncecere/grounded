@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -10,7 +11,7 @@ import { expect, test } from "./support/fixtures";
  * question just asked.
  */
 test("follow-up suggestions: chips under the answer ask the question when chosen", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "follow" });
   // Two documents, so the answer to a suggestion still has another passage to suggest.
@@ -52,7 +53,7 @@ test("follow-up suggestions: chips under the answer ask the question when chosen
  * the chips line up with the answer's text (from the start, not centred), and they come into view when they arrive.
  */
 test("follow-up suggestions on a phone: long chips wrap, start at the answer's edge and come into view", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "followphone" });
   const heading = "How long an interlibrary loan item takes to arrive at the branch you picked for pickup";

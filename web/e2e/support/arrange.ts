@@ -1,3 +1,4 @@
+import { scaled } from "../../test-scale";
 import { expect } from "@playwright/test";
 import type { Api, Schemas } from "./api";
 import { type Persona, emailOf } from "./env";
@@ -55,7 +56,7 @@ export async function publishedAgent(
   const src = await api.post<Schemas["DataSource"]>(`${base}/sources`, { name: `${opts.name} files`, classification: "open" });
   await api.upload(team, src.id, docs);
   await expect
-    .poll(async () => (await api.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .poll(async () => (await api.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: scaled(30_000) })
     .toEqual(docs.map(() => "ready"));
   const kb = await api.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: `${opts.name} KB` });
   await api.put(`${base}/kbs/${kb.id}/sources/${src.id}`);

@@ -45,14 +45,23 @@ describe("the limits this run is actually using", () => {
 
 describe("no test sets a limit of its own that the scale would not reach", () => {
   const dir = path.dirname(new URL(import.meta.url).pathname);
-  const files = fs.readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((f) => /\.tsx?$/.test(f) && !f.endsWith("time-scale.test.ts"));
+  const roots = [dir, path.resolve(dir, "../../e2e")];
+  const files = roots.flatMap((root) => fs.readdirSync(root, { recursive: true, encoding: "utf8" })
+    .filter((name) => /\.tsx?$/.test(name) && !name.endsWith("time-scale.test.ts"))
+    .map((name) => path.join(root, name)));
+  const bareLimit = (line: string) => /\btimeout\s*:\s*\d/.test(line) || /\btest\.setTimeout\(\s*[1-9]/.test(line) || /^\s*\}, ?[1-9][\d_]*\);/.test(line);
+
+  it("recognizes browser overrides but not deliberate fixture delays", () => {
+    for (const line of ["test.setTimeout(120_000);", "{ timeout: 30_000 }", "}, 15_000);"]) expect(bareLimit(line), line).toBe(true);
+    for (const line of ["test.setTimeout(scaled(120_000));", "{ timeout: scaled(30_000) }", "setTimeout(resolve, 1500)"]) expect(bareLimit(line), line).toBe(false);
+  });
 
   it("every explicit timeout and per-test limit goes through scaled()", () => {
     const bare: string[] = [];
-    for (const f of files) {
-      fs.readFileSync(path.join(dir, f), "utf8").split("\n").forEach((line, i) => {
-        // `{ timeout: 4000 }` for a findBy/waitFor, and `}, 15_000);` closing an it(...): both would ignore TEST_TIME_SCALE
-        if (/\btimeout: ?\d/.test(line) || /^\s*\}, ?[1-9][\d_]*\);/.test(line)) bare.push(`${f}:${i + 1}: ${line.trim().slice(0, 80)}`);
+    for (const file of files) {
+      fs.readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        // Includes E2E helpers/overrides; intentional network delays and TTL durations are not deadlines.
+        if (bareLimit(line)) bare.push(`${path.relative(path.resolve(dir, "../.."), file)}:${i + 1}: ${line.trim().slice(0, 80)}`);
       });
     }
     expect(bare, "wrap these limits in scaled(...) from test-scale.ts").toEqual([]);

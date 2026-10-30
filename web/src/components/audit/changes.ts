@@ -87,6 +87,8 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       return { enabled: ["MCP server", onOff] };
     case "platform.webhooks":
       return { enabled: ["Webhooks", onOff] };
+    case "platform.content_health":
+      return { enabled: ["Content health reports", onOff] };
     case "platform.answer_cache":
       return { enabled: ["Saved answers", onOff] };
     case "platform.rerank_settings_update":

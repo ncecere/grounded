@@ -85,7 +85,9 @@ function Unavailable({ data, c }: { data: ViewerData; c: Citation }) {
     data.status === "document_deleted"
       ? "This document was deleted after the answer was written."
       : data.status === "passage_changed"
-        ? "This passage is no longer in the document. The document changed after the answer was written."
+        ? data.parent
+          ? "This section is no longer in the document. The document changed after the answer was written."
+          : "This passage is no longer in the document. The document changed after the answer was written."
         : "Only the quoted text of this source can be shown here.";
   return (
     <>
@@ -148,7 +150,8 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
   if (!c) return null;
   const d = data.data;
   const where = [(d?.headingPath ?? c.headingPath).map(headingText).join(" › "), pagesOf(c)].filter(Boolean).join(" · ");
-  const cited = d?.passages.find((p) => p.cited);
+  // With a section, the passage that matched the question is the one to open in the document and to link to.
+  const cited = d?.passages.find((p) => p.matched) ?? d?.passages.find((p) => p.cited);
   const claims = item.claims ?? d?.claims ?? [];
   const team = d?.documentTeam;
   const onKeyDown = (e: KeyboardEvent) => {
@@ -200,7 +203,7 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
       ) : full && team ? (
         <FullDocument key={`${c.documentId}`} team={team} source={c} cited={cited?.ordinal} />
       ) : d?.status === "available" ? (
-        <PassageList passages={d.passages} />
+        <PassageList passages={d.passages} parent={d.parent} />
       ) : d ? (
         <Unavailable data={d} c={c} />
       ) : null}

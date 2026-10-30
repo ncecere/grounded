@@ -59,6 +59,8 @@ type Hit struct {
 	// RerankScore is the rerank model's relevance score (nil when the
 	// search wasn't reranked).
 	RerankScore *float64
+	// Parent is the section around the passage, when the search collapsed parents (agents; docs/parent-child-retrieval.md). nil otherwise.
+	Parent *Parent
 }
 
 // Similarity is 1 - cosine distance, or 0 when unknown.

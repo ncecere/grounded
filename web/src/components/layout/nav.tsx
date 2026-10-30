@@ -1,4 +1,4 @@
-import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet, Webhook } from "lucide-react";
+import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, HeartPulse, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet, Webhook } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -220,6 +220,7 @@ export type TeamPath =
   | "/teams/$team/agents"
   | "/teams/$team/evaluations"
   | "/teams/$team/gaps"
+  | "/teams/$team/content-health"
   | "/teams/$team/settings";
 
 export type TeamNavItem = {
@@ -255,6 +256,13 @@ const teamNav: TeamNavItem[] = [
     icon: icon(CircleHelp),
     editorRole: true,
     keywords: ["gap report", "unanswered questions", "failed questions", "no answer", "topics", "missing content", "shared questions"],
+  },
+  {
+    to: "/teams/$team/content-health",
+    label: "Content health",
+    icon: icon(HeartPulse),
+    editorRole: true,
+    keywords: ["stale pages", "broken links", "duplicates", "never cited", "citation evidence", "parse failures", "ingestion failures", "old documents", "report"],
   },
   { to: "/teams/$team/settings", label: terms.teamSettings, icon: icon(Settings), staff: true },
 ];

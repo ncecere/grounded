@@ -151,13 +151,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 		}
 	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
-		var version int32
-		var status string
-		err := tx.QueryRow(ctx, "SELECT version, status FROM documents WHERE id = $1 FOR UPDATE", d.DocumentID).Scan(&version, &status)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (version != d.Version || status != StatusReady)) {
-			return nil
-		} else if err != nil {
+		if current, err := lockDocumentVersion(ctx, tx, d.DocumentID, d.Version, StatusReady); err != nil {
 			return err
+		} else if !current {
+			return nil
 		}
 		if ok, err := setWritable(ctx, dbgen.New(tx), src.ID, prof.ID); err != nil {
 			return err
@@ -177,6 +174,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 			}
 		}
 		if err := insertFresh(ctx, tx, p, src.ID, d.DocumentID, prof, rc); err != nil {
+			return err
+		}
+		// Kept rows moved, so parent ranges are rebuilt from original passage text.
+		if err := setParents(ctx, tx, d.DocumentID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
 			return err
 		}
 		if err := writeMark(ctx, tx, src.ID, d.DocumentID, rc.mark); err != nil {
@@ -206,7 +207,7 @@ func reorderChunks(ctx context.Context, tx pgx.Tx, docID, profileID uuid.UUID, k
 	if _, err := tx.Exec(ctx, "DELETE FROM chunks WHERE document_id = $1 AND profile_id = $3 AND NOT (id = ANY($2::uuid[]))", docID, keep, profileID); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, "UPDATE chunks SET ordinal = -1 - ordinal WHERE document_id = $1 AND profile_id = $2", docID, profileID); err != nil {
+	if _, err := tx.Exec(ctx, "UPDATE chunks SET ordinal = -1 - ordinal, parent_first = NULL, parent_last = NULL WHERE document_id = $1 AND profile_id = $2", docID, profileID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `UPDATE chunks c SET ordinal = u.o

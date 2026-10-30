@@ -297,7 +297,9 @@ func TestContextualPreviewBuildsBesideTheLiveIndexAndSwitchesExplicitly(t *testi
 	}
 	// The document is embedded twice during the grace period: with context for the new profile and as it is for the old one, which
 	// switching back needs.
-	eventuallyTrue(t, "both profiles embedded", func() bool { return env.chunks(t, src.Id, env.from.Id) == liveBefore+env.chunks(t, src.Id, cand)-int64(len(candRows)) })
+	eventuallyTrue(t, "both profiles embedded", func() bool {
+		return env.chunks(t, src.Id, env.from.Id) == liveBefore+env.chunks(t, src.Id, cand)-int64(len(candRows))
+	})
 	with, without := 0, 0
 	for _, in := range env.proxy.EmbedInputs() {
 		if strings.Contains(in, "\n\n"+chunk.ContextLabel) {

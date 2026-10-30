@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -8,7 +9,7 @@ import { expect, test } from "./support/fixtures";
  * citations, and feedback on the answer.
  */
 test("upload source, knowledge base, agent, publish, streamed chat with citations, feedback", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "flow" });
   await owner.dispose();
@@ -38,7 +39,7 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await expect(upload.getByRole("list", { name: "Upload results" }).getByText(handbook.name)).toBeVisible();
     await a11y(page, "upload results");
     await upload.getByRole("button", { name: "Done" }).click();
-    await expect(page.getByRole("region", { name: "Document counts" }).getByText("1 ready")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("region", { name: "Document counts" }).getByText("1 ready")).toBeVisible({ timeout: scaled(30_000) });
   });
 
   await test.step("create a knowledge base and attach the source", async () => {

@@ -30,6 +30,55 @@ func (q *Queries) AttachSource(ctx context.Context, arg AttachSourceParams) (int
 	return result.RowsAffected(), nil
 }
 
+const chunkParentRefs = `-- name: ChunkParentRefs :many
+SELECT c.id, c.document_id, c.ordinal, c.parent_first, c.parent_last
+FROM chunks c
+WHERE c.id = ANY($1::uuid[]) AND c.profile_id = $2 AND c.source_id = ANY($3::uuid[])
+  AND c.parent_first IS NOT NULL AND c.parent_last IS NOT NULL
+`
+
+type ChunkParentRefsParams struct {
+	Ids       []uuid.UUID
+	ProfileID uuid.UUID
+	SourceIds []uuid.UUID
+}
+
+type ChunkParentRefsRow struct {
+	ID          uuid.UUID
+	DocumentID  uuid.UUID
+	Ordinal     int32
+	ParentFirst *int32
+	ParentLast  *int32
+}
+
+// The parent ranges of ranked passages of one profile and the sources a search may read (parent/child retrieval, ADR-0026). A passage of a
+// profile without parents has none and is not returned.
+func (q *Queries) ChunkParentRefs(ctx context.Context, arg ChunkParentRefsParams) ([]ChunkParentRefsRow, error) {
+	rows, err := q.db.Query(ctx, chunkParentRefs, arg.Ids, arg.ProfileID, arg.SourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ChunkParentRefsRow{}
+	for rows.Next() {
+		var i ChunkParentRefsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.Ordinal,
+			&i.ParentFirst,
+			&i.ParentLast,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteKB = `-- name: DeleteKB :exec
 DELETE FROM knowledge_bases WHERE id = $1
 `
@@ -331,6 +380,74 @@ func (q *Queries) LoadChunks(ctx context.Context, ids []uuid.UUID) ([]LoadChunks
 			&i.Filename,
 			&i.URL,
 			&i.ExternalID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const loadParentPassages = `-- name: LoadParentPassages :many
+SELECT h.id AS hit_id, h.ordinal AS hit_ordinal, h.parent_first AS hit_first, h.parent_last AS hit_last,
+       s.id, s.ordinal, s.content, s.token_count, s.page_start, s.page_end, s.parent_first, s.parent_last
+FROM chunks h
+JOIN documents d ON d.id = h.document_id AND d.source_id = h.source_id AND d.status = 'ready'
+JOIN chunks s ON s.document_id = h.document_id AND s.profile_id = h.profile_id AND s.source_id = h.source_id
+             AND s.ordinal BETWEEN h.parent_first AND h.parent_last
+WHERE h.id = ANY($1::uuid[]) AND h.profile_id = $2 AND h.source_id = ANY($3::uuid[])
+  AND h.parent_first IS NOT NULL AND h.parent_last IS NOT NULL AND h.parent_last - h.parent_first < 64
+ORDER BY h.id, s.ordinal
+`
+
+type LoadParentPassagesParams struct {
+	HitIds    []uuid.UUID
+	ProfileID uuid.UUID
+	SourceIds []uuid.UUID
+}
+
+type LoadParentPassagesRow struct {
+	HitID       uuid.UUID
+	HitOrdinal  int32
+	HitFirst    *int32
+	HitLast     *int32
+	ID          uuid.UUID
+	Ordinal     int32
+	Content     string
+	TokenCount  int32
+	PageStart   int32
+	PageEnd     int32
+	ParentFirst *int32
+	ParentLast  *int32
+}
+
+// The passages of each hit's parent: rows of the same document, source and profile as the hit (never another), in ordinal order, only while
+// the document is ready and the hit's source is one the search may read. The caller checks that the rows are the whole range.
+func (q *Queries) LoadParentPassages(ctx context.Context, arg LoadParentPassagesParams) ([]LoadParentPassagesRow, error) {
+	rows, err := q.db.Query(ctx, loadParentPassages, arg.HitIds, arg.ProfileID, arg.SourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoadParentPassagesRow{}
+	for rows.Next() {
+		var i LoadParentPassagesRow
+		if err := rows.Scan(
+			&i.HitID,
+			&i.HitOrdinal,
+			&i.HitFirst,
+			&i.HitLast,
+			&i.ID,
+			&i.Ordinal,
+			&i.Content,
+			&i.TokenCount,
+			&i.PageStart,
+			&i.PageEnd,
+			&i.ParentFirst,
+			&i.ParentLast,
 		); err != nil {
 			return nil, err
 		}

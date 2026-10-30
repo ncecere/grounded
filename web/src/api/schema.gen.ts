@@ -1846,7 +1846,7 @@ export interface paths {
         };
         /**
          * A document's text as passages, for the team's editors, admins and owners
-         * @description The whole document for the source viewer (docs/v0.4.0.md §5): its passages in order from the passage at ordinal from (limit at a time), with the text a passage repeats from the one before it (chunk overlap) left out. With around (a passage ID), the passage with its neighbours (about a page) instead, marked cited; 404 passage_not_found when the document no longer has that passage. Members get 403: they see cited passages in context from their answers.
+         * @description The whole document for the source viewer (docs/v0.4.0.md §5): its passages in order from the passage at ordinal from (limit at a time), with the text a passage repeats from the one before it (chunk overlap) left out. With around (a passage ID), the passage with its neighbours (about a page) instead, marked cited; 404 passage_not_found when the document no longer has that passage. With parentFirst, parentLast and parentSha256 (a citation's parent, docs/parent-child-retrieval.md) the section of those passages instead, every passage marked cited and the one named by around marked matched; 404 passage_not_found unless the document's passages there still make exactly the text with that hash. Members get 403: they see cited passages in context from their answers.
          */
         get: operations["getDocumentText"];
         put?: never;
@@ -5660,6 +5660,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/content-health/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The team's content health reports, newest first, and whether the feature is on (editors, admins and owners)
+         * @description Reads stored reports only: opening the list computes nothing and makes no network request. At most 5 reports are kept per team, each for 30 days after it ended. While the platform switch is off, enabled is false and the reports are listed as stubs only (status, times, scope and thresholds; no signal, count or finding) so the team can still cancel or delete what is kept; opening a report or its findings stays 404. Members, delegated credentials and callers without a qualifying real team membership get 404; platform privilege cannot substitute for membership.
+         */
+        get: operations["listContentHealthReports"];
+        put?: never;
+        /**
+         * Ask for a report (editors, admins and owners of an active team)
+         * @description Only queues a report: a background job makes it later, reading the team's own documents, sources, the latest crawl's record and the content-free answer events. No model is called and no site is fetched. One report is made at a time per team (409 content_health_active) and a new one waits 10 minutes after the previous began (429 content_health_wait). 409 content_health_off while the platform switch is off. Audited with IDs and thresholds only.
+         */
+        post: operations["createContentHealthReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/content-health/reports/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A report with what it knew about each source (editors, admins and owners) */
+        get: operations["getContentHealthReport"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a report that has ended, with its findings (editors, admins and owners of an active team)
+         * @description A report in progress must be cancelled first (409 content_health_active). Allowed while the platform switch is off, to the same people only (a team can always remove what is kept); 404 for everyone else. Audited.
+         */
+        delete: operations["deleteContentHealthReport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/content-health/reports/{reportId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a report that is queued or running (editors, admins and owners of an active team)
+         * @description A queued report is cancelled at once; a running one stops at its next step and stores nothing more. 409 content_health_ended once it has ended. Allowed while the platform switch is off (the reply is then a stub without signals), to the same people only. Audited.
+         */
+        post: operations["cancelContentHealthReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/content-health/reports/{reportId}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A page of one signal's findings, with the live names of their sources and documents (editors, admins and owners)
+         * @description Reads stored findings, at most 100 a page, joined to the team's current sources and documents and checked again against the live scope on every read: a finding whose document or source was deleted or left the report's scope is not returned; a broken link's address is not returned once its source's revision or classification changed or a newer completed crawl replaced the observation; a duplicate group is returned only while its displayed members form one coherent current-byte group across two sources of the report. An original group that split into multiple different qualifying hash groups is withheld until a fresh report assigns new groups; historical group counts are not rewritten. Duplicates page in whole groups (a page may hold fewer rows than the limit, and at least one group). Links in the app open the source's own page, which authorizes again. Nothing is fetched or recomputed.
+         */
+        get: operations["listContentHealthFindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/settings/content-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether content health reports are on (platform admins and auditors)
+         * @description Platform privilege grants this setting only, not team reports. An independent real team editor/admin/owner membership still grants ordinary access to that team.
+         */
+        get: operations["adminGetContentHealthSettings"];
+        /**
+         * Turn content health reports on or off (platform admins; audited)
+         * @description Off by default. Off means no report can be made (409 content_health_off), queued reports end as failed, and the team pages say it is off; stored reports are kept and return when it is turned on.
+         */
+        put: operations["adminPutContentHealthSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7681,6 +7805,13 @@ export interface components {
             chunkOverlap: number;
             /** Format: int32 */
             chunkerVersion: number;
+            /**
+             * Format: int32
+             * @description Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents
+             */
+            parentTokens: number;
+            /** @description Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use. */
+            boilerplateFuzzy: boolean;
             /** @enum {string} */
             status: "active" | "retired";
             isDefault: boolean;
@@ -7735,10 +7866,15 @@ export interface components {
             chunkOverlap: number;
             /**
              * Format: int32
-             * @description The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+             * @description The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
              * @default 1
              */
             chunkerVersion: number;
+            /**
+             * Format: int32
+             * @description Parent/child retrieval, opt-in (docs/parent-child-retrieval.md): the most tokens of the section around a matched passage that an agent's model is given. 0 or omitted (the default) means no parents, and the profile is indexed and searched as before. Otherwise at least twice the passage size and at most 8192. Fixed once created. A value outside that is refused (400 invalid_parent_tokens).
+             */
+            parentTokens?: number;
             isDefault?: boolean;
         };
         EmbeddingProfileUpdate: {
@@ -7910,9 +8046,16 @@ export interface components {
                 chunkOverlap?: number;
                 /**
                  * Format: int32
-                 * @description The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+                 * @description The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
                  */
                 chunkerVersion?: number;
+                /**
+                 * Format: int32
+                 * @description Parent/child retrieval: the parent size of the new index (0 turns parents off, omit to keep the profile's). A preview that changes only this leaves the passages and so the ranking as they are. Anything else outside 0 or twice the passage size to 8192 is refused (400 invalid_parent_tokens).
+                 */
+                parentTokens?: number;
+                /** @description Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now. */
+                boilerplateFuzzy?: boolean;
                 /** @description true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written context in front of each passage's embedding input; the passages themselves are unchanged); false builds it without, the way back from a contextual profile. It must be the only passage-affecting change when true: the passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages). Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a model may not process a source's classification. docs/contextual-chunks.md. */
                 contextualChunks?: boolean;
             };
@@ -8471,11 +8614,12 @@ export interface components {
             ocrState?: "on" | "source_off" | "platform_off" | "not_approved";
         };
         /**
-         * @description A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+         * @description A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
          * @example {
          *       "enabled": true,
          *       "minDocs": 5,
-         *       "ratio": 0.2
+         *       "ratio": 0.2,
+         *       "fuzzy": false
          *     }
          */
         BoilerplateSettings: {
@@ -8488,6 +8632,8 @@ export interface components {
              * @description ... and in at least this share of the source's documents
              */
             ratio?: number;
+            /** @description Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a different date). Off unless the install turns it on; it only has an effect while enabled is true. Try it first in an index preview (changes.boilerplateFuzzy). */
+            fuzzy?: boolean;
         };
         /** @description Repeated-boilerplate suppression for a source: the settings in force and what they remove. A block is repeated when at least max(minDocs, ceil(ratio x documents)) documents contain it; one copy stays in the document with the shortest URL. */
         SourceBoilerplate: {
@@ -8495,10 +8641,12 @@ export interface components {
             minDocs: number;
             /** Format: double */
             ratio: number;
+            /** @description Near-duplicate blocks count as one (in force: the source's override, else the platform default) */
+            fuzzy: boolean;
             overrides: components["schemas"]["BoilerplateSettings"];
             /**
              * Format: int64
-             * @description Distinct blocks classified as repeated
+             * @description Distinct blocks classified as repeated; the near-duplicate variants of one block count once
              */
             repeatedBlocks: number;
             /**
@@ -8527,7 +8675,8 @@ export interface components {
         /**
          * @example {
          *       "text": "QUICKLINKS",
-         *       "documents": 29
+         *       "documents": 29,
+         *       "variants": 1
          *     }
          */
         BoilerplateBlock: {
@@ -8535,9 +8684,14 @@ export interface components {
             text: string;
             /**
              * Format: int32
-             * @description Documents that contain it
+             * @description Documents that contain it (or one of its near-duplicate variants)
              */
             documents: number;
+            /**
+             * Format: int32
+             * @description Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match
+             */
+            variants: number;
         };
         DataSourceCreate: {
             name: string;
@@ -8813,10 +8967,12 @@ export interface components {
             pageStart: number;
             /** Format: int32 */
             pageEnd: number;
-            /** @description The passage the answer cited (or around named) */
+            /** @description The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section */
             cited: boolean;
+            /** @description With a parent: the passage that matched the question, inside the section */
+            matched?: boolean;
         };
-        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. */
+        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint. */
         CitedPassage: {
             n: number;
             /** @enum {string} */
@@ -8835,6 +8991,7 @@ export interface components {
             claims: components["schemas"]["Claim"][];
             /** @description The source's team (slug), when the caller may open the whole document (its editors, admins and owners) */
             documentTeam?: string;
+            parent?: components["schemas"]["CitationParent"];
         };
         DocumentText: {
             /** Format: uuid */
@@ -10518,9 +10675,10 @@ export interface components {
             url?: string;
             /**
              * Format: uuid
-             * @description The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+             * @description The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages. With parent set, it is the matched passage: the one that ranked, inside the section the model read.
              */
             chunkId?: string;
+            parent?: components["schemas"]["CitationParent"];
             /**
              * @description Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
              * @enum {string}
@@ -10544,6 +10702,36 @@ export interface components {
             tool?: string;
             /** @description The tool's result was cut to the size the model reads (kind tool) */
             truncated?: boolean;
+        };
+        /** @description Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage. */
+        CitationParent: {
+            /**
+             * Format: int32
+             * @description Ordinal of the section's first passage in the document
+             */
+            first: number;
+            /**
+             * Format: int32
+             * @description Ordinal of its last passage
+             */
+            last: number;
+            /**
+             * Format: int32
+             * @description Passages in the section
+             */
+            passages: number;
+            /**
+             * Format: int32
+             * @description The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
+             */
+            tokens: number;
+            /**
+             * Format: int32
+             * @description How many of the search's matching passages were in this section (they are one source)
+             */
+            matched: number;
+            /** @description SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section */
+            sha256: string;
         };
         /** @description The citation check of one [n] marker. */
         CitationMarker: {
@@ -12427,6 +12615,281 @@ export interface components {
             /** Format: date-time */
             lastUsedAt: string | null;
         };
+        /**
+         * @description stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+         * @enum {string}
+         */
+        ContentHealthSignalName: "stale" | "broken_link" | "duplicate" | "never_cited" | "ingestion_failure";
+        ContentHealthSettings: {
+            /** @description Off by default */
+            enabled: boolean;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ContentHealthSettingsUpdate: {
+            enabled: boolean;
+        };
+        /** @description Thresholds and scope; every field is optional (the defaults are in the limits of the list). */
+        ContentHealthReportInput: {
+            /**
+             * Format: int32
+             * @description A document last processed at least this many days before the report began is stale (30 to 3650; default 365)
+             */
+            staleDays?: number;
+            /**
+             * Format: int32
+             * @description How far back answers are read for not-cited documents (14 to 365; default 90)
+             */
+            citationWindowDays?: number;
+            /**
+             * Format: uuid
+             * @description Only this source of the team (not with knowledgeBaseId)
+             */
+            sourceId?: string;
+            /**
+             * Format: uuid
+             * @description Only the sources of this knowledge base of the team (not with sourceId)
+             */
+            knowledgeBaseId?: string;
+        };
+        ContentHealthLimits: {
+            /** Format: int32 */
+            defaultStaleDays: number;
+            /** Format: int32 */
+            minStaleDays: number;
+            /** Format: int32 */
+            maxStaleDays: number;
+            /** Format: int32 */
+            defaultCitationWindowDays: number;
+            /** Format: int32 */
+            minCitationWindowDays: number;
+            /** Format: int32 */
+            maxCitationWindowDays: number;
+            /**
+             * Format: int32
+             * @description Answers the window must hold before not-cited says anything
+             */
+            minAnswers: number;
+            /**
+             * Format: int32
+             * @description Findings stored per signal; the true count is kept too
+             */
+            maxFindingsPerSignal: number;
+            /**
+             * Format: int32
+             * @description Reports kept per team
+             */
+            keepReports: number;
+            /**
+             * Format: int32
+             * @description Days a report is kept after it ended
+             */
+            retentionDays: number;
+            /**
+             * Format: int32
+             * @description Pause between the start of one report and the next
+             */
+            cooldownSeconds: number;
+            /**
+             * Format: int32
+             * @description Most findings in a page
+             */
+            pageSize: number;
+        };
+        ContentHealthSignal: {
+            signal: components["schemas"]["ContentHealthSignalName"];
+            /**
+             * @description measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
+             * @enum {string}
+             */
+            state: "measured" | "not_applicable" | "unavailable";
+            /** @description Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers, too_many_agents, no_exposure or timed_out ('' when measured) */
+            reason: string;
+            /**
+             * Format: int64
+             * @description How many the report found when it was made, in the unit of the signal (for duplicates, groups), less any that had vanished before it was stored (counts.vanished)
+             */
+            found: number;
+            /**
+             * Format: int64
+             * @description How many still hold now, in the same unit as found: findings follow deletions, scope and source changes, and at most maxFindingsPerSignal are kept; for duplicates, groups that still span two sources of the report
+             */
+            listed: number;
+            /** @description More were found than are listed */
+            truncated: boolean;
+            /** @description Numbers that qualify the measurement, as of the report: answers (kept answers that could have cited something, team-wide), minAnswers, judged, tooNew, notServed and fewAnswers (documents of sources left out), sourcesJudged, ready, ageUnknown, recentlyConfirmed, withoutHash, sourcesObserved, sourcesUnknown, addressesNotKept, and vanished (findings whose source or document was deleted between collecting and storing) */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Format: date-time
+             * @description Not cited: when the team-wide window began (the later of the window's start and the team's first retained answer event). It is when events begin, not when any document became reachable by an agent: see each source's exposedSince
+             */
+            observedSince?: string | null;
+        };
+        ContentHealthReport: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed" | "cancelled";
+            /** Format: uuid */
+            sourceId?: string | null;
+            /** Format: uuid */
+            knowledgeBaseId?: string | null;
+            /** Format: int32 */
+            staleDays: number;
+            /** Format: int32 */
+            citationWindowDays: number;
+            /**
+             * Format: date-time
+             * @description The instant every age and window is measured from (null until the report starts)
+             */
+            asOf?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description When the report is deleted
+             */
+            expiresAt?: string | null;
+            /** @description A failed report's coarse reason: internal, timed_out, too_many_sources or disabled */
+            errorCode: string;
+            /** @description One result per signal once the report completed */
+            signals: components["schemas"]["ContentHealthSignal"][];
+        };
+        ContentHealthReportList: {
+            /** @description The platform switch */
+            enabled: boolean;
+            limits: components["schemas"]["ContentHealthLimits"];
+            reports: components["schemas"]["ContentHealthReport"][];
+        };
+        ContentHealthSourceCoverage: {
+            /** Format: uuid */
+            sourceId: string;
+            /** @description The source's current name */
+            name: string;
+            type: string;
+            /** Format: int32 */
+            documents: number;
+            /** Format: int32 */
+            ready: number;
+            /**
+             * Format: int32
+             * @description Ready documents with no processing date (age unknown, not judged)
+             */
+            readyWithoutDate: number;
+            /**
+             * Format: int32
+             * @description Ready documents with no hash (counted, not compared)
+             */
+            readyWithoutHash: number;
+            /**
+             * @description observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
+             * @enum {string}
+             */
+            linkState: "observed" | "unknown" | "not_applicable";
+            /** @description Why unknown: never_crawled, page_refetch_latest, no_crawl_record or signal_timed_out */
+            linkReason: string;
+            /**
+             * Format: date-time
+             * @description When the crawl whose record was read finished
+             */
+            linkCrawlAt?: string | null;
+            /** @description That crawl stopped at a limit, so pages beyond it were not visited */
+            linkTruncated: boolean;
+            /**
+             * Format: int32
+             * @description URLs that crawl failed to fetch (as of the report; each address once, without credentials, query or fragment)
+             */
+            linkFailed: number;
+            /**
+             * @description Whether this source's failed addresses are still shown: current; source_changed (its revision or classification changed since the crawl was read); crawl_changed (a newer completed crawl exists); none (no addresses were observed)
+             * @enum {string}
+             */
+            linkRefs: "current" | "source_changed" | "crawl_changed" | "none";
+            /**
+             * @description Not cited: judged (an active published agent reaches the source and enough answers were kept since); not_served (no active published agent reaches it through a knowledge base: not judged); too_few_answers (fewer than minAnswers answers of agents that reach it since it was reachable: not judged); empty when the signal did not measure it
+             * @enum {string}
+             */
+            citeState: "" | "judged" | "not_served" | "too_few_answers";
+            /**
+             * Format: date-time
+             * @description Not cited: when the source became reachable by an active published agent (the later of its attachment to the knowledge base and the agent's publish time, rounded up to the next UTC day). Earlier reachability is not recorded and not used
+             */
+            exposedSince?: string | null;
+            /**
+             * Format: int32
+             * @description Not cited: kept answers that could have cited something, of agents that reach the source, since exposedSince
+             */
+            exposureAnswers: number;
+        };
+        ContentHealthReportDetail: {
+            report: components["schemas"]["ContentHealthReport"];
+            sources: components["schemas"]["ContentHealthSourceCoverage"][];
+        };
+        ContentHealthFinding: {
+            signal: components["schemas"]["ContentHealthSignalName"];
+            /** Format: int32 */
+            ord: number;
+            /** Format: uuid */
+            sourceId: string;
+            /** @description The source's current name */
+            sourceName: string;
+            sourceType: string;
+            /**
+             * Format: uuid
+             * @description Null for a failed link
+             */
+            documentId?: string | null;
+            /** @description The document's current title (read now, not stored in the report) */
+            title: string;
+            filename: string;
+            /** @description A web document's address */
+            url: string;
+            kind: string;
+            /** @description A broken link: the URL the crawl failed to fetch, without credentials, query or fragment (its path can still be sensitive; it is stored only for the team's editors and hidden once the source or crawl changed) */
+            ref: string;
+            /**
+             * Format: int32
+             * @description Duplicates: the group, from 1 (0 for other signals)
+             */
+            groupNo: number;
+            /**
+             * Format: int32
+             * @description Duplicates: how many documents the group had when the report was made, which may be more than are listed
+             */
+            groupSize: number;
+            /** @description broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished */
+            code: string;
+            /** @description ingestion_failure: the document's error code */
+            detail: string;
+            /**
+             * Format: int64
+             * @description stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable
+             */
+            value: number;
+            /**
+             * Format: date-time
+             * @description When the fact was true: last processing (stale, duplicates), the crawl's end (broken_link), the document's creation (never_cited), the last change of a failed document
+             */
+            observedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description stale web pages: when a crawl last confirmed the page exists, if a crawl record is kept
+             */
+            confirmedAt?: string | null;
+            /** @description The document changed after the report began */
+            changedSinceReport: boolean;
+        };
+        ContentHealthFindingPage: {
+            items: components["schemas"]["ContentHealthFinding"][];
+            nextCursor: string | null;
+        };
     };
     responses: {
         /** @description A crawl run */
@@ -12663,6 +13126,8 @@ export interface components {
         /** @description Team slug or ID */
         TeamParam: string;
         EvaluationSetIdParam: string;
+        ContentHealthReportIdParam: string;
+        ContentHealthLimitParam: number;
         GapTopicIdParam: string;
         EvaluationRunIdParam: string;
         UserIdParam: string;
@@ -16266,6 +16731,9 @@ export interface operations {
                 from?: number;
                 limit?: number;
                 around?: string;
+                parentFirst?: number;
+                parentLast?: number;
+                parentSha256?: string;
             };
             header?: never;
             path: {
@@ -23292,6 +23760,242 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["WebhookSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    listContentHealthReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reports and limits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthReportList"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    createContentHealthReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentHealthReportInput"];
+            };
+        };
+        responses: {
+            /** @description The report was queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthReport"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            429: components["responses"]["RateLimitedReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    getContentHealthReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthReportDetail"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    deleteContentHealthReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    cancelContentHealthReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report, cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthReport"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    listContentHealthFindings: {
+        parameters: {
+            query: {
+                signal: components["schemas"]["ContentHealthSignalName"];
+                /** @description nextCursor from the previous page */
+                cursor?: components["parameters"]["CursorParam"];
+                limit?: components["parameters"]["ContentHealthLimitParam"];
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                reportId: components["parameters"]["ContentHealthReportIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of findings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthFindingPage"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetContentHealthSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutContentHealthSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentHealthSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentHealthSettings"];
                     };
                 };
             };

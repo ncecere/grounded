@@ -37,6 +37,7 @@ type BoilerplateSummary struct {
 type BoilerplateBlock struct {
 	Text      string
 	Documents int32
+	Variants  int32 // near-duplicate variants merged into it, itself included
 }
 
 // validateBoilerplate checks overrides, or nil (no change).
@@ -64,7 +65,7 @@ func (s *Service) boilerplateSummaries(ctx context.Context, srcs []dbgen.DataSou
 	out := make(map[uuid.UUID]BoilerplateSummary, len(srcs))
 	for _, src := range srcs {
 		r := byID[src.ID]
-		set := ingest.SettingsOf(r.Enabled.Bool, r.Enabled.Valid, r.MinDocs, r.Ratio)
+		set := ingest.SettingsOf(r.Enabled, r.Fuzzy, r.MinDocs, r.Ratio)
 		out[src.ID] = BoilerplateSummary{
 			Settings: set, Effective: s.Boilerplate.Resolve(src.Type, set),
 			Blocks: r.Blocks, Pages: r.Pages, Documents: r.Documents, Threshold: r.Threshold, RefreshedAt: r.RefreshedAt,
@@ -97,6 +98,9 @@ func (s *Service) setBoilerplate(ctx context.Context, q *dbgen.Queries, tx pgx.T
 		n := int32(*next.MinDocs)
 		p.MinDocs = &n
 	}
+	if next.Fuzzy != nil {
+		p.Fuzzy = pgtype.Bool{Bool: *next.Fuzzy, Valid: true}
+	}
 	if err := q.SetBoilerplateSettings(ctx, p); err != nil {
 		return err
 	}
@@ -113,7 +117,7 @@ func (s *Service) boilerplateSnapshot(src dbgen.DataSource, set boilerplate.Sett
 	eff := s.Boilerplate.Resolve(src.Type, set)
 	return map[string]any{
 		"overrides": set,
-		"effective": map[string]any{"enabled": eff.Enabled, "minDocs": eff.MinDocs, "ratio": eff.Ratio},
+		"effective": map[string]any{"enabled": eff.Enabled, "minDocs": eff.MinDocs, "ratio": eff.Ratio, "fuzzy": eff.Fuzzy},
 	}
 }
 
@@ -121,7 +125,7 @@ func sameSettings(a, b boilerplate.Settings) bool {
 	eq := func(x, y *float64) bool { return (x == nil) == (y == nil) && (x == nil || *x == *y) }
 	eqi := func(x, y *int) bool { return (x == nil) == (y == nil) && (x == nil || *x == *y) }
 	eqb := func(x, y *bool) bool { return (x == nil) == (y == nil) && (x == nil || *x == *y) }
-	return eqb(a.Enabled, b.Enabled) && eqi(a.MinDocs, b.MinDocs) && eq(a.Ratio, b.Ratio)
+	return eqb(a.Enabled, b.Enabled) && eqi(a.MinDocs, b.MinDocs) && eq(a.Ratio, b.Ratio) && eqb(a.Fuzzy, b.Fuzzy)
 }
 
 // requestBoilerplate schedules a refresh after a change to a source's
@@ -163,7 +167,7 @@ func (s *Service) TopBoilerplate(ctx context.Context, a authz.Actor, o Owner, id
 		if len(text) > 80 {
 			text = text[:80]
 		}
-		out[i] = BoilerplateBlock{Text: string(text), Documents: r.DocCount}
+		out[i] = BoilerplateBlock{Text: string(text), Documents: r.DocCount, Variants: r.Variants}
 	}
 	return out, nil
 }

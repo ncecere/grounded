@@ -1,3 +1,4 @@
+import { scaled } from "../../test-scale";
 import { expect as pollExpect } from "@playwright/test";
 import { Api, type Schemas } from "../support/api";
 import { createTeam } from "../support/arrange";
@@ -34,7 +35,7 @@ test("reranking: an admin sets it up on Admin → Models → Reranking, tests it
   const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Registrar", classification: "open" });
   await owner.upload(team, src.id, docs);
   await pollExpect
-    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: scaled(30_000) })
     .toEqual(["ready", "ready"]);
   const kb = await owner.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: "Registrar help", topK: 2 });
   await owner.put(`${base}/kbs/${kb.id}/sources/${src.id}`);

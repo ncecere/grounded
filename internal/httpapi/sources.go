@@ -125,8 +125,8 @@ func (a *api) withOCRState(r *http.Request, out apitypes.DataSource, src dbgen.D
 
 func toAPIBoilerplate(b sources.BoilerplateSummary) apitypes.SourceBoilerplate {
 	return apitypes.SourceBoilerplate{
-		Enabled: b.Effective.Enabled, MinDocs: b.Effective.MinDocs, Ratio: b.Effective.Ratio,
-		Overrides:      apitypes.BoilerplateSettings{Enabled: b.Settings.Enabled, MinDocs: b.Settings.MinDocs, Ratio: b.Settings.Ratio},
+		Enabled: b.Effective.Enabled, MinDocs: b.Effective.MinDocs, Ratio: b.Effective.Ratio, Fuzzy: b.Effective.Fuzzy,
+		Overrides:      apitypes.BoilerplateSettings{Enabled: b.Settings.Enabled, MinDocs: b.Settings.MinDocs, Ratio: b.Settings.Ratio, Fuzzy: b.Settings.Fuzzy},
 		RepeatedBlocks: b.Blocks, PagesAffected: b.Pages, DocumentsCounted: b.Documents, Threshold: b.Threshold,
 		RefreshedAt: b.RefreshedAt, Pending: b.Pending,
 	}
@@ -137,7 +137,7 @@ func boilerplateInput(in *apitypes.BoilerplateSettings) *boilerplate.Settings {
 	if in == nil {
 		return nil
 	}
-	return &boilerplate.Settings{Enabled: in.Enabled, MinDocs: in.MinDocs, Ratio: in.Ratio}
+	return &boilerplate.Settings{Enabled: in.Enabled, MinDocs: in.MinDocs, Ratio: in.Ratio, Fuzzy: in.Fuzzy}
 }
 
 func toAPIImpact(classification string, rows []sources.Impact, agents []sources.AgentImpact) apitypes.ClassificationImpact {
@@ -352,7 +352,7 @@ func (a *api) listBoilerplate(owner ownerFunc) http.HandlerFunc {
 		}
 		list, err := a.Sources.TopBoilerplate(r.Context(), a.actor(r), owner(r), id, limit)
 		writeList(w, r, list, err, func(b sources.BoilerplateBlock) apitypes.BoilerplateBlock {
-			return apitypes.BoilerplateBlock{Text: b.Text, Documents: b.Documents}
+			return apitypes.BoilerplateBlock{Text: b.Text, Documents: b.Documents, Variants: b.Variants}
 		})
 	}
 }

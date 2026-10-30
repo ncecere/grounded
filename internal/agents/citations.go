@@ -28,6 +28,9 @@ type Citation struct {
 	// ChunkID is the cited passage, for the source viewer (viewer.go); nil
 	// for tools' results and answers from before v0.4.0.
 	ChunkID *uuid.UUID `json:"chunkId,omitempty"`
+	// Parent is set when the model was given the section around the cited passage instead of the passage (parent/child retrieval,
+	// parents.go); ChunkID is then the passage that matched. The snippet is made from the text the model was given.
+	Parent *CitationParent `json:"parent,omitempty"`
 	// Verification and Confidence are set by SystemOne citation checks
 	// (docs/systemone.md §3): verified, unsupported, contradicted or
 	// unchecked, with the model's confidence.
@@ -211,6 +214,7 @@ func citationOf(h numberedHit, mode string) Citation {
 		id := h.ChunkID
 		c.ChunkID = &id
 	}
+	c.Parent = citationParent(h)
 	return c
 }
 
