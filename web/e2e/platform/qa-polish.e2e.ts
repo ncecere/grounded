@@ -1,3 +1,4 @@
+import { scaled } from "../../test-scale";
 import { Api, type Schemas } from "../support/api";
 import { createTeam, unique } from "../support/arrange";
 import { expect, test } from "../support/fixtures";
@@ -10,7 +11,7 @@ import { sidewaysScroll } from "../support/layout";
  * team requests and webhooks switches, so it runs in the serial platform project and puts them back.
  */
 test("the requester's page shows the approved classification, and the tables fit a 390px phone", async ({ as, admin, a11y }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(scaled(180_000));
   const requester = await Api.signIn("user");
   for (const r of (await requester.get<Schemas["TeamRequestsOverview"]>("/v1/team-requests")).items.filter((i) => i.status === "pending")) {
     await requester.post(`/v1/team-requests/${r.id}/withdraw`);
