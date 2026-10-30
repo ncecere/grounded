@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // The signals are collected minutes before they are stored, so what they name can be deleted in between. These tests delete it at
@@ -419,7 +420,7 @@ func TestSignalLimitCancelsTheRunningStatementOnTheServer(t *testing.T) {
 	if s := res.signal("sleeper"); s.State != StateUnavailable || s.Reason != ReasonTimedOut {
 		t.Fatalf("sleeper = %+v, want unavailable (timed out)", s)
 	}
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(testutil.Scale(10 * time.Second))
 	for {
 		n := f.count(`SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state = 'active' AND query LIKE '%pg_sleep(61)%' AND pid <> pg_backend_pid()`)
 		if n == 0 {
