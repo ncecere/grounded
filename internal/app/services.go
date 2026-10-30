@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/contenthealth"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/evals"
@@ -110,6 +111,8 @@ type Services struct {
 	OAuth *oauth.Service
 	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
 	Gaps *gaps.Service
+	// ContentHealth is the content health report (docs/content-health.md).
+	ContentHealth *contenthealth.Service
 	// AnswerCache reuses recent answers (docs/answer-cache.md).
 	AnswerCache *answercache.Service
 	// jobs enqueues River jobs (may be insert-only).
@@ -249,15 +252,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	}, log)
 	s.Sources.OCR = s.OCR
 	s.jobs, s.pool, s.log = jobsClient, pool, log
-	s.ProfileMigrations = profilemig.New(pool, s.Catalog, s.Teams, s.Notify, jobsClient, profilemig.Options{
-		GraceDays: cfg.ProfileMigrationGraceDays, BatchSize: cfg.EmbedBatchSize, BatchTokens: cfg.EmbedBatchTokens,
-	}, log)
-	s.Evaluations = evals.New(pool, s.Teams, s.KBs, s.Agents, s.Limits, s.Notify, jobsClient, log)
-	s.Evaluations.Concurrency = cfg.EvaluationConcurrency
-	// Automatic evaluation runs: after a publish and a profile switch.
-	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
-	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
-	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
+	wireKnowledgeWorkflows(s, cfg)
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
 	s.AnswerCache = answercache.New(pool, log)
@@ -324,6 +319,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			evals.Register(w, s.Evaluations)
 			webhooks.Register(w, s.Webhooks)
 			registerHealth(w, cfg, pool, s, log)
+			contenthealth.Register(w, s.ContentHealth)
 			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check,
 				SystemOne: s.SystemOne.PlatformClient, Log: log})
 		},
@@ -331,6 +327,8 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
 			web.Queue:    {MaxWorkers: cfg.Crawl.Concurrency},
 			evals.Queue:  {MaxWorkers: 2},
+			// One report at a time per process, on a queue of its own: a report never waits behind ingestion, or the other way round.
+			contenthealth.Queue: {MaxWorkers: 1},
 		},
 		Periodic: append([]*river.PeriodicJob{
 			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
@@ -353,6 +351,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			costs.RollupPeriodic(),
 			evals.Periodic(),
 			gaps.Periodic(),
+			contenthealth.PrunePeriodic(),
 		}, healthPeriodic(cfg)...),
 	}, nil
 }

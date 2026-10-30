@@ -8,6 +8,8 @@ export const targetTypeLabels: Record<string, string> = {
   webhook: "Webhook",
   webhook_destination: "Webhook destination",
   webhook_settings: "Webhooks setting",
+  content_health_report: "Content health report",
+  content_health_settings: "Content health setting",
   api_key: "API key",
   break_glass_session: "Break-glass session",
   break_glass_settings: "Break-glass settings",

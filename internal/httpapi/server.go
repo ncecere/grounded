@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/captcha"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/contenthealth"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/gaps"
@@ -111,6 +112,8 @@ type Deps struct {
 	OAuth *oauth.Service
 	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
 	Gaps *gaps.Service
+	// ContentHealth is the content health report (docs/content-health.md).
+	ContentHealth *contenthealth.Service
 	// AnswerCache reuses recent answers (docs/answer-cache.md).
 	AnswerCache *answercache.Service
 }
@@ -165,7 +168,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)
