@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "registry": "/home/nick/.t3/worktrees/bitop-ui-166",
+  "registry": "../../../typescript/bitop-ui",
   "items": {
     "accordion": {
       "files": {

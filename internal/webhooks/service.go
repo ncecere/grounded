@@ -164,11 +164,26 @@ type Input struct {
 }
 
 // normalize checks an input for scope sc and returns it cleaned: the address is https on the default port, a host name an approved
-// destination covers; the events are known, of this scope and at least one.
-func (s *Service) normalize(ctx context.Context, q *dbgen.Queries, sc scope, in Input) (Input, error) {
+// destination covers; the events are known, of this scope and at least one. cur is the webhook being changed (nil on create): one whose
+// destination was withdrawn since can still be turned off and edited (it is not sent to: see notSent), but not turned on or pointed at
+// another host that is not approved.
+func (s *Service) normalize(ctx context.Context, q *dbgen.Queries, sc scope, in Input, cur *dbgen.Webhook) (Input, error) {
 	var err error
-	if in.URL, err = s.checkURL(ctx, q, in.URL); err != nil {
+	var approved bool
+	if in.URL, approved, err = s.checkURL(ctx, q, in.URL); err != nil {
 		return in, err
+	}
+	if changed := cur == nil || in.URL != cur.URL; changed {
+		// Only an address being set is held to it: one saved before still can be turned off or edited.
+		if u, err := url.Parse(in.URL); err != nil || !crawl.ValidDNSLengths(u.Hostname()) {
+			return in, apperr.Invalid("invalid_host", "A host name has at most 253 characters, and each part between dots at most 63")
+		}
+	}
+	if !approved && (cur == nil || in.URL != cur.URL) {
+		return in, errNotApproved
+	}
+	if !approved && in.Enabled && !cur.Enabled {
+		return in, errWithdrawn
 	}
 	in.Description = strings.TrimSpace(in.Description)
 	if len([]rune(in.Description)) > maxDescriptionLength || strings.ContainsAny(in.Description, "\r\n") {
@@ -196,39 +211,42 @@ func (s *Service) normalize(ctx context.Context, q *dbgen.Queries, sc scope, in 
 
 var errURL = apperr.Invalid("invalid_url", "Enter an https address with a host name, such as https://hooks.example.edu/grounded")
 
-// checkURL validates a destination address and returns it normalised.
-func (s *Service) checkURL(ctx context.Context, q *dbgen.Queries, raw string) (string, error) {
+var (
+	errNotApproved = apperr.Invalid("destination_not_approved", "That host is not an approved destination. A platform admin approves destinations under Admin → Webhooks")
+	errWithdrawn   = apperr.Invalid("destination_not_approved", "That host is no longer an approved destination, so this webhook can't be turned on. A platform admin can approve it again under Admin → Webhooks")
+)
+
+// checkURL validates a destination address and returns it normalised, and whether an approved destination covers its host (the caller
+// decides what an address that is not approved means).
+func (s *Service) checkURL(ctx context.Context, q *dbgen.Queries, raw string) (string, bool, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || len(raw) > maxURLLength {
-		return "", errURL
+		return "", false, errURL
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
-		return "", errURL
+		return "", false, errURL
 	}
 	if p := u.Port(); p != "" && p != "443" {
-		return "", apperr.Invalid("invalid_port", "Webhooks are sent to port 443 only")
+		return "", false, apperr.Invalid("invalid_port", "Webhooks are sent to port 443 only")
 	}
 	host := strings.ToLower(u.Hostname())
 	if isIPLiteral(host) {
-		return "", apperr.Invalid("invalid_host", "Use a host name, not an IP address")
+		return "", false, apperr.Invalid("invalid_host", "Use a host name, not an IP address")
 	}
 	norm, err := crawl.NormalizeHostPattern(host, false)
 	if err != nil || strings.HasPrefix(norm, "*") {
-		return "", errURL
+		return "", false, errURL
 	}
 	if (&crawl.Fetcher{}).BlocksPattern(norm) {
-		return "", apperr.Invalid("invalid_host", "Use a host name, not an IP address")
+		return "", false, apperr.Invalid("invalid_host", "Use a host name, not an IP address")
 	}
 	ok, err := hostApproved(ctx, q, norm)
 	if err != nil {
-		return "", err
-	}
-	if !ok {
-		return "", apperr.Invalid("destination_not_approved", "That host is not an approved destination. A platform admin approves destinations under Admin → Webhooks")
+		return "", false, err
 	}
 	u.Host = norm
-	return u.String(), nil
+	return u.String(), ok, nil
 }
 
 // ---- secrets ------------------------------------------------------------------------

@@ -267,3 +267,43 @@ describe("audit log wording", () => {
     expect(entryTitle(e("conversation_share.revoke"))).toBe("Revoked a link to a conversation: Shared conversation");
   });
 });
+
+describe("Share… on a router's conversation (#140)", () => {
+  const routerCard = { ...card("all_authenticated"), router: true };
+  const message = (extra: Record<string, unknown>) => ({ id: "m", seq: 1, role: "assistant", text: "x", citations: [], createdAt: "2026-10-16T09:00:00Z", ...extra });
+  const routedTo = { agentId: "a2", name: "Parking help", slug: "parking", teamSlug: "facilities", teamName: "Facilities", conversationId: "c2" };
+  const routerRoutes = (messages: unknown[]) =>
+    dialogRoutes("all_authenticated", {
+      "GET /v1/agents/registrar/registrar-assistant": () => routerCard,
+      "GET /v1/conversations/c1": () => ({ conversation: { ...conv, userId: "u1" }, messages }),
+    });
+
+  it("says up front that it can't be shared, names the agent that answered and offers no Create link", async () => {
+    mockApi(routerRoutes([message({ id: "m1", seq: 1, role: "user" }), message({ id: "m2", seq: 2, routedTo })]));
+    renderApp("/conversations");
+    const { dialog } = await openShare();
+    const notice = await within(dialog).findByText("This conversation can't be shared");
+    expect(notice).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("sent your question to Parking help (Facilities)");
+    expect(within(dialog).getByRole("link", { name: "Continue there" })).toHaveAttribute("href", "/a/facilities/parking?c=c2");
+    expect(within(dialog).queryByRole("button", { name: "Create link" })).toBeNull();
+    expect(within(dialog).queryByRole("radio")).toBeNull();
+    expect(dialog).toHaveTextContent("You haven't made a link to this conversation.");
+  });
+
+  it("still offers the link while a router's conversation holds only its own answers", async () => {
+    mockApi(routerRoutes([message({ id: "m1", seq: 1, role: "user" }), message({ id: "m2", seq: 2 })]));
+    renderApp("/conversations");
+    const { dialog } = await openShare();
+    expect(await within(dialog).findByRole("button", { name: "Create link" })).toBeInTheDocument();
+    expect(within(dialog).queryByText("This conversation can't be shared")).toBeNull();
+  });
+
+  it("does not look the conversation up for an agent that is not a router", async () => {
+    const calls = mockApi(dialogRoutes("all_authenticated"));
+    renderApp("/conversations");
+    const { dialog } = await openShare();
+    expect(await within(dialog).findByRole("button", { name: "Create link" })).toBeInTheDocument();
+    expect(calls.some((c) => c.url === "/v1/conversations/c1")).toBe(false);
+  });
+});

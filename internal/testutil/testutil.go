@@ -55,6 +55,18 @@ func Logger() *slog.Logger {
 // databases (the compose superuser is fine).
 func NewDB(t testing.TB) (*pgxpool.Pool, string) {
 	t.Helper()
+	return newDB(t, "")
+}
+
+// NewDBInCLocale is NewDB with a database whose collation and character classes are "C" (as a cluster initialised with --locale=C
+// has): lower() and upper() then change ASCII letters only, so a test can see what a case-insensitive index does not catch.
+func NewDBInCLocale(t testing.TB) (*pgxpool.Pool, string) {
+	t.Helper()
+	return newDB(t, " TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'")
+}
+
+func newDB(t testing.TB, createOptions string) (*pgxpool.Pool, string) {
+	t.Helper()
 	adminURL := requireEnv(t, "GROUNDED_TEST_DATABASE_URL")
 	ctx := context.Background()
 	admin, err := pgx.Connect(ctx, adminURL)
@@ -62,7 +74,7 @@ func NewDB(t testing.TB) (*pgxpool.Pool, string) {
 		t.Fatalf("connect admin db: %v", err)
 	}
 	name := "grounded_test_" + randomSuffix()
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
+	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name+createOptions); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
 	_ = admin.Close(ctx)

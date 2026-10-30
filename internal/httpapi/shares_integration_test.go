@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -265,9 +266,12 @@ func TestShareCreationRules(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		var body struct{ Error struct{ Code string } }
+		_ = json.NewDecoder(res.Body).Decode(&body)
 		res.Body.Close()
-		if res.StatusCode != 401 && res.StatusCode != 403 {
-			t.Errorf("an API key: %s %s = %d, want a refusal", m.method, m.path, res.StatusCode)
+		// 401, as the design and the OpenAPI document say (#140): an API key is not a signed-in person, so it is not "forbidden".
+		if res.StatusCode != 401 || body.Error.Code != "unauthorized" {
+			t.Errorf("an API key: %s %s = %d %s, want 401 unauthorized", m.method, m.path, res.StatusCode, body.Error.Code)
 		}
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM conversation_shares`); n != 0 {

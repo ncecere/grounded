@@ -16,13 +16,14 @@ import { Field, Form } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { toast } from "@/components/ui/toast/toast";
+import { cx } from "@/lib/bitop-utils";
 import { type WebhookDestination, destinationsKey, destinationsQuery } from "../../webhooks/api";
 import w from "../../webhooks/webhooks.module.css";
 import d from "./destinations.module.css";
 
 const columns: DataTableColumn<WebhookDestination>[] = [
-  { id: "pattern", header: "Host pattern", accessor: "pattern", sortable: true, rowHeader: true, hideable: false, cell: (r) => <code className={w.mono}>{r.pattern}</code> },
-  { id: "note", header: "Note", accessor: "note", muted: true, cell: (r) => r.note || "—" },
+  { id: "pattern", header: "Host pattern", accessor: "pattern", sortable: true, rowHeader: true, hideable: false, cell: (r) => <code className={cx(w.mono, d.pattern)} title={r.pattern}>{r.pattern}</code> },
+  { id: "note", header: "Note", accessor: "note", muted: true, cell: (r) => <span className={d.note}>{r.note || "—"}</span> },
   { id: "added", header: "Approved", accessor: "createdAt", sortable: true, muted: true, cell: (r) => <RelativeTime value={r.createdAt} /> },
 ];
 
@@ -112,6 +113,7 @@ export function DestinationsCard({ isAdmin }: { isAdmin: boolean }) {
           loading={list.isLoading}
           error={list.error}
           onRetry={() => void list.refetch()}
+          tableProps={{ stack: true }}
           rowActions={(r) => [{ label: "Remove…", icon: <Trash2 aria-hidden />, danger: true, hidden: !isAdmin, onSelect: () => setRemoving(r) }]}
           empty={{ icon: <ShieldCheck />, title: "No destinations are approved.", description: "Until one is, no webhook can be made." }}
         />

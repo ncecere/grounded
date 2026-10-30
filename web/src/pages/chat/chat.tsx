@@ -25,6 +25,7 @@ import { answerKey, useAddedAnswers } from "../team/evaluations/added";
 import { ChatPanel } from "./panel";
 import { needsEvaluation } from "./thread";
 import { itemsFromConversation } from "./stream";
+import { conversationParam, useConversationSync } from "./conversation-sync";
 import { useChat } from "./useChat";
 import { AgentAvatar } from "./welcome";
 import a from "./agent-info.module.css";
@@ -57,7 +58,7 @@ export function ChatByShortNamePage() {
 }
 
 function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknown; data?: Card } }) {
-  const search = useSearch({ strict: false }) as { c?: string };
+  const search = { c: conversationParam(useSearch({ strict: false })) };
   // A link to a conversation with a deleted agent: its transcript, read-only (G2).
   const lookUp = Boolean(search.c) && Boolean(profile.error);
   const stored = useQuery({ ...conversationQuery(search.c ?? ""), enabled: lookUp, retry: false });
@@ -82,8 +83,7 @@ function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknow
 function AgentChat({ card }: { card: Card }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { c?: string };
-  const selected = search.c;
+  const selected = conversationParam(useSearch({ strict: false }));
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [text, setText] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -129,6 +129,7 @@ function AgentChat({ card }: { card: Card }) {
   });
   /** A link to a deleted or unknown conversation: say so once, and the next question starts a new one (US-01). */
   const gone = Boolean(selected) && isNotFound(detail.error);
+  useConversationSync(gone ? undefined : selected, chat);
   const { reset } = chat;
   useEffect(() => {
     current.current = gone ? undefined : selected;

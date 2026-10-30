@@ -259,6 +259,31 @@ describe("changing a webhook", () => {
     expect(row).not.toHaveTextContent("Paused");
   });
 
+  it("tells the person that the destination was withdrawn, and still saves it turned off (#140)", async () => {
+    const gone = "https://hooks.withdrawn.example.net/grounded";
+    const { calls } = setup([hook({ url: gone })]);
+    renderApp("/teams/registrar/settings?tab=webhooks");
+    await rowMenu(gone);
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Edit…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit webhook" });
+    expect(await within(dialog).findByText("This address is no longer an approved destination")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Nothing is sent to it.");
+    await userEvent.click(within(dialog).getByRole("switch", { name: "Turned on" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save webhook" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit webhook" })).toBeNull());
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ url: gone, description: "Registrar notifications", events: ["agent.published"], enabled: false });
+  });
+
+  it("shows no such notice while a pattern covers the address", async () => {
+    setup([hook()]);
+    renderApp("/teams/registrar/settings?tab=webhooks");
+    await rowMenu();
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Edit…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit webhook" });
+    await within(dialog).findByText(/to an approved destination/);
+    expect(within(dialog).queryByText("This address is no longer an approved destination")).toBeNull();
+  });
+
   it("keeps what was typed when someone else changed it first, and a second save uses the new revision", async () => {
     const { calls, store } = setup([hook()]);
     renderApp("/teams/registrar/settings?tab=webhooks");

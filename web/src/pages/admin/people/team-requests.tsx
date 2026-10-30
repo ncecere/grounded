@@ -8,7 +8,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { Stack } from "@/components/ui/layout/layout";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
-import { type AdminTeamRequest, RequestStatusBadge, adminTeamRequestsQuery, statusLabels } from "../../team-requests/common";
+import { type AdminTeamRequest, RequestStatusBadge, adminTeamRequestsQuery, standingClassification, statusLabels } from "../../team-requests/common";
 import { useIsPlatformAdmin } from "../hooks";
 import { ApproveDialog, DeclineDialog, ViewRequestDialog } from "./request-dialogs";
 
@@ -34,7 +34,12 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
       cell: (r) => <CellText primary={r.name} secondary={`${r.requesterName} · ${r.requesterEmail}`} />,
     },
     { id: "status", header: "Status", accessor: "status", sortable: true, cell: (r) => <RequestStatusBadge status={r.status} /> },
-    { id: "classification", header: "Classification", accessor: "classification", cell: (r) => <ClassificationBadge levels={levels} value={r.classification} /> },
+    {
+      id: "classification",
+      header: "Classification",
+      accessor: standingClassification,
+      cell: (r) => <ClassificationBadge levels={levels} value={standingClassification(r)} />,
+    },
     { id: "owner", header: "Owner", accessor: (r) => r.ownerEmail, muted: true, defaultHidden: true, cell: (r) => r.ownerEmail || "The requester" },
     { id: "purpose", header: "Purpose", accessor: "purpose", muted: true, cell: (r) => <span title={r.purpose}>{r.purpose.length > 90 ? `${r.purpose.slice(0, 90)}…` : r.purpose}</span> },
     { id: "requested", header: "Requested", accessor: "createdAt", sortable: true, muted: true, cell: (r) => <RelativeTime value={r.createdAt} /> },
@@ -63,6 +68,7 @@ export function TeamRequestsTab() {
         loading={queue.isLoading}
         error={queue.error}
         onRetry={() => void queue.refetch()}
+        tableProps={{ stack: true }}
         onRowClick={(r) => setViewing(r)}
         rowActions={(r) => [
           { label: "Approve…", icon: <Check aria-hidden />, hidden: !isAdmin || r.status !== "pending", onSelect: () => setApproving(r) },

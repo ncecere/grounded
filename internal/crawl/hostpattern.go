@@ -49,3 +49,25 @@ func NormalizeHostPattern(p string, allowStar bool) (string, error) {
 	}
 	return full, nil
 }
+
+// Longest DNS label and name, in characters (RFC 1035 section 2.3.4: 63 octets a label, 255 in the wire form, so 253 as text).
+const (
+	MaxDNSLabel = 63
+	MaxDNSName  = 253
+)
+
+// ValidDNSLengths reports whether every label of a normalised host or host pattern is 1 to 63 characters and the name (without a
+// leading "*.") at most 253. NormalizeHostPattern does not check it, because the allowlists that use it hold patterns saved before; a
+// place that takes a new host (a webhook destination, a webhook's address) does, since a longer label can never be resolved.
+func ValidDNSLengths(host string) bool {
+	host = strings.TrimPrefix(host, "*.")
+	if host == "" || len(host) > MaxDNSName {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if n := len(label); n < 1 || n > MaxDNSLabel {
+			return false
+		}
+	}
+	return true
+}

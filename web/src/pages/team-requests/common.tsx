@@ -31,3 +31,7 @@ const tones = { pending: "info", approved: "success", declined: "danger", withdr
 export function RequestStatusBadge({ status }: { status: TeamRequestStatus }) {
   return <StatusBadge tone={tones[status]}>{statusLabels[status]}</StatusBadge>;
 }
+
+/** The level a team request stands at: what the reviewer approved once approved (they may change it), what was asked for until then. */
+export const standingClassification = (r: Pick<TeamRequest, "status" | "classification" | "approvedClassification">) =>
+  r.status === "approved" && r.approvedClassification ? r.approvedClassification : r.classification;
