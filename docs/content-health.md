@@ -82,6 +82,7 @@ The snapshot holds **IDs, enums, counts and times only**, plus the one URL a lin
 |---|---|
 | `content_health_settings` | The platform switch (singleton, `enabled` false, revision) |
 | `content_health_reports` | One report: team, scope (source or knowledge base, both optional), thresholds, `as_of`, status, timestamps, expiry, a coarse error code, and per-signal results (state, reason, found, truncated, counts) |
+| `content_health_pacing` | When a team last asked for a report (one row, so deleting a report does not reset the pause) |
 | `content_health_sources` | One row per source in the scope: document counts and link state |
 | `content_health_findings` | One row per finding: signal, source, document (nullable), a link URL (broken links only), group number and size (duplicates), a code, a number, times, a knowledge-base flag |
 
@@ -112,7 +113,7 @@ Every route authorizes again from the database on each request (role, team statu
 
 ## Compatibility
 
-Migration 00058 only **creates** tables (`content_health_*`) and a queue name; it alters no existing table and adds no constraint to one. The previous release neither reads nor writes them, and its workers do not take the new queue, so a rolling update or a rollback is safe; the feature is off until an admin turns it on after the rollout. Destructive changes would ship a release later (ADR-0013). Down: drops the tables.
+Migration 00058 only **creates** tables (`content_health_*`); it alters no existing table. Its foreign keys point from the new tables to existing ones, and the report job and its hourly prune job use the new `content_health` queue, which the previous release's workers do not take. The previous release neither reads nor writes them, and its workers do not take the new queue, so a rolling update or a rollback is safe; the feature is off until an admin turns it on after the rollout. Destructive changes would ship a release later (ADR-0013). Down: drops the tables.
 
 ## Limitations (also in the runbook)
 
@@ -122,4 +123,4 @@ Migration 00058 only **creates** tables (`content_health_*`) and a queue name; i
 
 ## Tests
 
-Unit: the boundary of `staleDays` (one second either side), the effective not-cited window and its minimum, link classification, duplicate scoping, the import rules, and the signal registry. Database integration: each signal against seeded rows (unknown vs zero), duplicates across two teams and with a shared source, deleting a document or source or team, retention (an expired report is gone; a deleted conversation lowers the observed answers), cancellation of a queued and a running report, the bounds (caps, one active, cooldown), the platform switch, and that a chat answer, a crawl and an ingest are unchanged. Authorization: the matrix classifies every operation (owner, admin, editor, member, key, platform staff, break-glass); a dedicated test shows team A's titles and URLs reach nobody else. Web: vitest with axe, keyboard and phone-width cases; a scoped browser run of the page.
+Unit: the boundary of `staleDays` (one second either side), threshold bounds, link classification, the import rules (no network or query-path package, nothing on the query path imports it), the signal registry (no PII signal) and that the migration only creates. Database integration: each signal against seeded rows (unknown vs zero), duplicates across two teams and with a shared source, deleting a document or source or team, retention (an expired report is gone; a deleted conversation lowers the observed answers), cancellation of a queued and a running report, the bounds (caps, one active, cooldown), the platform switch, and that a chat answer, a crawl and an ingest are unchanged. Authorization: the matrix classifies every operation (owner, admin, editor, member, key, platform staff, break-glass); a dedicated test shows team A's titles and URLs reach nobody else. Web: vitest with axe, keyboard and phone-width cases; a scoped browser run of the page.

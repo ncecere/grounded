@@ -240,7 +240,7 @@ Before v0.5.0's design, measure v0.4 with real use: reranking on and off in eval
 | B5 | **Crawling sites behind a login** | Cookie or token injection, or service accounts. | L | Medium | security review |
 | B6 | **Document ACLs** | Honour source permissions at query time (the schema reserves a field for this). | L | High (for B1/B2) | — |
 | B7 | **PII scanning at ingest** | Patterns (national ID numbers, institutional ID formats, card numbers), then model-based detection; block or flag documents. | M | High for compliance | — |
-| B8 | **Content health report** | Stale pages, broken links, duplicates across sources, pages never cited, parse failures. | M | Medium | — |
+| B8 **Done** (unreleased, opt-in; [`content-health.md`](content-health.md), ADR-0027) | **Content health report** | Stale pages, broken links, duplicates across sources, pages never cited, parse failures. Made in the background on request, off by default; every signal says what it observed and what it does not mean. | M | Medium | — |
 | B9 | **Duplicate detection across teams** | Suggest shared sources when several teams crawl the same site. | S | Medium | — |
 | B10 **Done** (v0.4.0 M3) | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. Done as the [source viewer](source-viewer.md): the passage in context beside the answer, "Open the page" with a text fragment, the whole document for editors. | M | Medium–High | viewer permissions |
 | B11 | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |

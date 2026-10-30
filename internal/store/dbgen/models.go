@@ -267,6 +267,70 @@ type ClassificationLevel struct {
 	DirectRetrieve            bool
 }
 
+type ContentHealthFinding struct {
+	ReportID    uuid.UUID
+	Signal      string
+	Ord         int32
+	TeamID      uuid.UUID
+	SourceID    uuid.UUID
+	DocumentID  uuid.NullUUID
+	Ref         string
+	GroupNo     int32
+	GroupSize   int32
+	Code        string
+	Detail      string
+	Value       int64
+	ObservedAt  *time.Time
+	ConfirmedAt *time.Time
+	InKb        bool
+}
+
+type ContentHealthPacing struct {
+	TeamID uuid.UUID
+	LastAt time.Time
+}
+
+type ContentHealthReport struct {
+	ID                 uuid.UUID
+	TeamID             uuid.UUID
+	ScopeSourceID      uuid.NullUUID
+	ScopeKbID          uuid.NullUUID
+	StaleDays          int32
+	CitationWindowDays int32
+	Status             string
+	AsOf               *time.Time
+	RequestedBy        uuid.NullUUID
+	Signals            json.RawMessage
+	ErrorCode          string
+	CreatedAt          time.Time
+	StartedAt          *time.Time
+	FinishedAt         *time.Time
+	ExpiresAt          *time.Time
+}
+
+type ContentHealthSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
+type ContentHealthSource struct {
+	ReportID      uuid.UUID
+	SourceID      uuid.UUID
+	SourceType    string
+	Documents     int32
+	Ready         int32
+	ReadyNoDate   int32
+	ReadyNoHash   int32
+	LinkState     string
+	LinkReason    string
+	LinkCrawlAt   *time.Time
+	LinkTruncated bool
+	LinkFailed    int32
+}
+
 type Conversation struct {
 	ID            uuid.UUID
 	AgentID       uuid.UUID

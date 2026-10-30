@@ -53,6 +53,8 @@ type teamFix struct {
 	evalSet, evalQuestion, evalRun string
 	// A gap topic shown to editors (3 askers) and its shared question.
 	gapTopic, gapShared string
+	// A completed content health report of the team, with findings.
+	healthReport string
 	// ids are every object ID of the team, for the leak check.
 	ids []string
 }
@@ -176,6 +178,10 @@ func newMatrixEnv(t *testing.T) *matrixEnv {
 		"kind": "moderation", "maxClassification": "sensitive", "moderationProvider": "chat_classifier",
 	}, &mod.classifier, nil)
 	mustCode(t, "classifier model", code, e, 201, "")
+	// The content health report is off until a platform admin turns it on (docs/content-health.md): the matrix turns it on so the
+	// teams' reports hold findings with their names, and every operation has real data to leak.
+	path := "/v1/admin/settings/content-health"
+	must(t, agent.admin, "PUT", path, map[string]any{"enabled": true}, ifMatch(revisionOf(t, agent.admin, path)))
 	e2 := &matrixEnv{publishEnv: &publishEnv{moderationEnv: mod}, oidc: p}
 	e2.b = e2.seedTeamB(t)
 	e2.a = e2.seedTeamA(t)
@@ -265,6 +271,8 @@ func (e *matrixEnv) seedCommon(t *testing.T, f *teamFix, prefix string) {
 	e.seedEvaluations(t, f, prefix)
 	f.gapTopic, f.gapShared = e.seedGapTopic(t, f, prefix)
 	f.ids = append(f.ids, f.gapTopic, f.gapShared)
+	f.healthReport = e.seedContentHealth(t, f)
+	f.ids = append(f.ids, f.healthReport)
 }
 
 type stringer string

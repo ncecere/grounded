@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/contenthealth"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/evals"
@@ -110,6 +111,8 @@ type Services struct {
 	OAuth *oauth.Service
 	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
 	Gaps *gaps.Service
+	// ContentHealth is the content health report (docs/content-health.md).
+	ContentHealth *contenthealth.Service
 	// AnswerCache reuses recent answers (docs/answer-cache.md).
 	AnswerCache *answercache.Service
 	// jobs enqueues River jobs (may be insert-only).
@@ -257,6 +260,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
 	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
 	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
+	s.ContentHealth = contenthealth.New(pool, s.Teams, jobsClient, log)
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
 	s.AnswerCache = answercache.New(pool, log)
@@ -323,6 +327,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			evals.Register(w, s.Evaluations)
 			webhooks.Register(w, s.Webhooks)
 			registerHealth(w, cfg, pool, s, log)
+			contenthealth.Register(w, s.ContentHealth)
 			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check,
 				SystemOne: s.SystemOne.PlatformClient, Log: log})
 		},
@@ -330,6 +335,8 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
 			web.Queue:    {MaxWorkers: cfg.Crawl.Concurrency},
 			evals.Queue:  {MaxWorkers: 2},
+			// One report at a time per process, on a queue of its own: a report never waits behind ingestion, or the other way round.
+			contenthealth.Queue: {MaxWorkers: 1},
 		},
 		Periodic: append([]*river.PeriodicJob{
 			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
@@ -352,6 +359,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			costs.RollupPeriodic(),
 			evals.Periodic(),
 			gaps.Periodic(),
+			contenthealth.PrunePeriodic(),
 		}, healthPeriodic(cfg)...),
 	}, nil
 }

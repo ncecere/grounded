@@ -39,6 +39,8 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
       return <Link to="/teams/$team/evaluations/$setId" params={{ team, setId: id }} />;
     case "gap_topic":
       return <Link to="/teams/$team/gaps" params={{ team }} search={{ record: id } as never} />;
+    case "content_health_report":
+      return <Link to="/teams/$team/content-health" params={{ team }} />;
     case "gap_settings":
       return <Link to="/teams/$team/gaps" params={{ team }} search={{ tab: "settings" } as never} />;
     case "evaluation_run": {
@@ -80,6 +82,7 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/teams" search={{ tab: "requests" } as never} />;
     case "team_request_settings":
     case "webhook_settings":
+    case "content_health_settings":
       return <Link to="/admin/settings" />;
     case "webhook":
     case "webhook_destination":

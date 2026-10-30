@@ -275,6 +275,14 @@ source.sync ─► document.fetch ─► document.parse ─► [scan hook] ─�
 - **Questions that need attention** (v0.4.1 A14): a set's page runs the question form's check for every question (`GET …/evaluation-sets/{setId}/problems`, three batched queries whatever the set's size) and marks a question **out of reach** when its expected document is indexed but none of its last 3 retrieval runs found it in the top 50; warnings only, never blocking a run.
 - **Automatic runs** (opt-in per set, retrieval only) follow a publish (`agents.OnPublished`), a profile switch (`profilemig.OnSwitched`), both in the change's transaction, and a nightly job for KBs whose documents changed; a drop of more than 5 points in recall@k or a newly failing question notifies the team's editors (`evaluation.regression`).
 
+### Content health report (v0.9; [`content-health.md`](content-health.md), [ADR-0027](adr/0027-content-health-report.md), runbook [`operations/content-health.md`](operations/content-health.md))
+- **A bounded, opt-in snapshot of where a team's knowledge looks neglected or broken**: documents not processed in a long time, links the latest crawl saw fail, byte-identical files in two sources, documents no kept answer cited, and documents that failed to parse. It lists places to investigate; it scores nothing and changes, deletes, reclassifies and fetches nothing.
+- **Off by default** (a platform switch, Admin → Settings → Features) and **never automatic**: an editor, admin or owner asks for each report. A request only queues a River job on its own queue (`content_health`); opening a report reads stored rows, a page at a time. The package makes no network call and calls no model, and nothing on the question path imports it.
+- **Access** is the team's content-management grant (editors, admins, owners), in the app only; members, API keys, platform staff and break-glass sessions get 404. It covers the team's own sources, never platform-shared ones, and never compares across teams.
+- **Bounded**: one report in progress per team, a pause between reports, 1,000 findings per signal, a time limit per signal and report, a scan bound for answer events, the latest 5 reports for 30 days; cancellable. A limit that is hit is shown; a signal that cannot be measured is `unavailable`, never zero.
+- **The snapshot holds IDs, enums, counts and times** (and the URL a link failure is about); names are joined live, and findings follow deleted documents, sources and teams (`ON DELETE CASCADE`).
+- **Extension point for the PII report (#37)**: a typed signal registry; no PII detection exists yet.
+
 ## 7. Agents (ADR-0009)
 
 ### 7.1 Definition
@@ -595,6 +603,7 @@ Design and owner decisions: [`costs.md`](costs.md) (E2); runbook: [`operations/c
 - break-glass start, approval or denial, every read under it (session ID, kind, target; never content), and its end, revocation or expiry, in the platform log and the team's log
 - legal holds and purges (retention runs are recorded as the system with counts only)
 - evaluation sets, questions and imports, and runs started (automatic ones as the system) and cancelled
+- content health reports asked for, cancelled and deleted, and the platform switch (IDs and thresholds only, never a title or a URL)
 
 Configuration changes store before and after values. Platform auditors can see everything. Team admins see their own team's entries.
 
@@ -636,6 +645,7 @@ OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET
 MCP            POST /mcp  (JSON-RPC, described in docs/mcp.md, not the OpenAPI)   /v1/admin/settings/mcp (the switch)
 MCP OAuth      /.well-known/oauth-*  /oauth/{authorize,token,register,revoke}  (docs/mcp.md)   /v1/oauth/consent
                /v1/me/oauth-grants[/{id}]   /v1/admin/users/{id}/oauth-grants[/{id}]
+Content health /v1/teams/{team}/content-health/reports[/{reportId}[/findings|/cancel]]   /v1/admin/settings/content-health  (editors and above; 404 for everyone else and while off)
 MCP client     /v1/admin/mcp-servers[/{serverId}[/test|/refresh|/tools[/{toolId}/approval]]]   GET /v1/mcp-tools (docs/mcp-client.md)
 ```
 

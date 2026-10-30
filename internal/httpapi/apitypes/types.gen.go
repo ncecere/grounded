@@ -1075,6 +1075,102 @@ func (e ConnectionTestResultProbe) Valid() bool {
 	}
 }
 
+// Defines values for ContentHealthReportStatus.
+const (
+	ContentHealthReportStatusCancelled ContentHealthReportStatus = "cancelled"
+	ContentHealthReportStatusCompleted ContentHealthReportStatus = "completed"
+	ContentHealthReportStatusFailed    ContentHealthReportStatus = "failed"
+	ContentHealthReportStatusQueued    ContentHealthReportStatus = "queued"
+	ContentHealthReportStatusRunning   ContentHealthReportStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthReportStatus enum.
+func (e ContentHealthReportStatus) Valid() bool {
+	switch e {
+	case ContentHealthReportStatusCancelled:
+		return true
+	case ContentHealthReportStatusCompleted:
+		return true
+	case ContentHealthReportStatusFailed:
+		return true
+	case ContentHealthReportStatusQueued:
+		return true
+	case ContentHealthReportStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSignalState.
+const (
+	ContentHealthSignalStateMeasured      ContentHealthSignalState = "measured"
+	ContentHealthSignalStateNotApplicable ContentHealthSignalState = "not_applicable"
+	ContentHealthSignalStateUnavailable   ContentHealthSignalState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSignalState enum.
+func (e ContentHealthSignalState) Valid() bool {
+	switch e {
+	case ContentHealthSignalStateMeasured:
+		return true
+	case ContentHealthSignalStateNotApplicable:
+		return true
+	case ContentHealthSignalStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSignalName.
+const (
+	BrokenLink       ContentHealthSignalName = "broken_link"
+	Duplicate        ContentHealthSignalName = "duplicate"
+	IngestionFailure ContentHealthSignalName = "ingestion_failure"
+	NeverCited       ContentHealthSignalName = "never_cited"
+	Stale            ContentHealthSignalName = "stale"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSignalName enum.
+func (e ContentHealthSignalName) Valid() bool {
+	switch e {
+	case BrokenLink:
+		return true
+	case Duplicate:
+		return true
+	case IngestionFailure:
+		return true
+	case NeverCited:
+		return true
+	case Stale:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContentHealthSourceCoverageLinkState.
+const (
+	ContentHealthSourceCoverageLinkStateNotApplicable ContentHealthSourceCoverageLinkState = "not_applicable"
+	ContentHealthSourceCoverageLinkStateObserved      ContentHealthSourceCoverageLinkState = "observed"
+	ContentHealthSourceCoverageLinkStateUnknown       ContentHealthSourceCoverageLinkState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContentHealthSourceCoverageLinkState enum.
+func (e ContentHealthSourceCoverageLinkState) Valid() bool {
+	switch e {
+	case ContentHealthSourceCoverageLinkStateNotApplicable:
+		return true
+	case ContentHealthSourceCoverageLinkStateObserved:
+		return true
+	case ContentHealthSourceCoverageLinkStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConversationMessageRole.
 const (
 	ConversationMessageRoleAssistant ConversationMessageRole = "assistant"
@@ -6596,6 +6692,231 @@ type ConnectionUpdate struct {
 	TimeoutSeconds    *int32 `json:"timeoutSeconds,omitempty"`
 }
 
+// ContentHealthFinding defines model for ContentHealthFinding.
+type ContentHealthFinding struct {
+	// ChangedSinceReport The document changed after the report began
+	ChangedSinceReport bool `json:"changedSinceReport"`
+
+	// Code broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished
+	Code string `json:"code"`
+
+	// ConfirmedAt stale web pages: when a crawl last confirmed the page exists, if a crawl record is kept
+	ConfirmedAt *time.Time `json:"confirmedAt,omitempty"`
+
+	// Detail ingestion_failure: the document's error code
+	Detail string `json:"detail"`
+
+	// DocumentId Null for a failed link
+	DocumentId *openapi_types.UUID `json:"documentId,omitempty"`
+	Filename   string              `json:"filename"`
+
+	// GroupNo Duplicates: the group, from 1 (0 for other signals)
+	GroupNo int32 `json:"groupNo"`
+
+	// GroupSize Duplicates: how many documents the group really has, which may be more than are listed
+	GroupSize int32 `json:"groupSize"`
+
+	// InKnowledgeBase never_cited: whether the document's source is in a knowledge base (otherwise it could never be cited)
+	InKnowledgeBase bool   `json:"inKnowledgeBase"`
+	Kind            string `json:"kind"`
+
+	// ObservedAt When the fact was true: last processing (stale, duplicates), the crawl's end (broken_link), the document's creation (never_cited), the last change of a failed document
+	ObservedAt *time.Time `json:"observedAt,omitempty"`
+	Ord        int32      `json:"ord"`
+
+	// Ref A broken link: the URL the crawl failed to fetch
+	Ref string `json:"ref"`
+
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	Signal   ContentHealthSignalName `json:"signal"`
+	SourceId openapi_types.UUID      `json:"sourceId"`
+
+	// SourceName The source's current name
+	SourceName string `json:"sourceName"`
+	SourceType string `json:"sourceType"`
+
+	// Title The document's current title (read now, not stored in the report)
+	Title string `json:"title"`
+
+	// Url A web document's address
+	Url string `json:"url"`
+
+	// Value stale: age in days; broken_link: the HTTP status (0: a network error)
+	Value int64 `json:"value"`
+}
+
+// ContentHealthFindingPage defines model for ContentHealthFindingPage.
+type ContentHealthFindingPage struct {
+	Items      []ContentHealthFinding `json:"items"`
+	NextCursor *string                `json:"nextCursor"`
+}
+
+// ContentHealthLimits defines model for ContentHealthLimits.
+type ContentHealthLimits struct {
+	// CooldownSeconds Pause between the start of one report and the next
+	CooldownSeconds           int32 `json:"cooldownSeconds"`
+	DefaultCitationWindowDays int32 `json:"defaultCitationWindowDays"`
+	DefaultStaleDays          int32 `json:"defaultStaleDays"`
+
+	// KeepReports Reports kept per team
+	KeepReports           int32 `json:"keepReports"`
+	MaxCitationWindowDays int32 `json:"maxCitationWindowDays"`
+
+	// MaxFindingsPerSignal Findings stored per signal; the true count is kept too
+	MaxFindingsPerSignal int32 `json:"maxFindingsPerSignal"`
+	MaxStaleDays         int32 `json:"maxStaleDays"`
+
+	// MinAnswers Answers the window must hold before not-cited says anything
+	MinAnswers            int32 `json:"minAnswers"`
+	MinCitationWindowDays int32 `json:"minCitationWindowDays"`
+	MinStaleDays          int32 `json:"minStaleDays"`
+
+	// PageSize Most findings in a page
+	PageSize int32 `json:"pageSize"`
+
+	// RetentionDays Days a report is kept after it ended
+	RetentionDays int32 `json:"retentionDays"`
+}
+
+// ContentHealthReport defines model for ContentHealthReport.
+type ContentHealthReport struct {
+	// AsOf The instant every age and window is measured from (null until the report starts)
+	AsOf               *time.Time `json:"asOf,omitempty"`
+	CitationWindowDays int32      `json:"citationWindowDays"`
+	CreatedAt          time.Time  `json:"createdAt"`
+
+	// ErrorCode A failed report's coarse reason: internal, timed_out, too_many_sources or disabled
+	ErrorCode string `json:"errorCode"`
+
+	// ExpiresAt When the report is deleted
+	ExpiresAt       *time.Time          `json:"expiresAt,omitempty"`
+	FinishedAt      *time.Time          `json:"finishedAt,omitempty"`
+	Id              openapi_types.UUID  `json:"id"`
+	KnowledgeBaseId *openapi_types.UUID `json:"knowledgeBaseId,omitempty"`
+
+	// Signals One result per signal once the report completed
+	Signals   []ContentHealthSignal     `json:"signals"`
+	SourceId  *openapi_types.UUID       `json:"sourceId,omitempty"`
+	StaleDays int32                     `json:"staleDays"`
+	StartedAt *time.Time                `json:"startedAt,omitempty"`
+	Status    ContentHealthReportStatus `json:"status"`
+}
+
+// ContentHealthReportStatus defines model for ContentHealthReport.Status.
+type ContentHealthReportStatus string
+
+// ContentHealthReportDetail defines model for ContentHealthReportDetail.
+type ContentHealthReportDetail struct {
+	Report  ContentHealthReport           `json:"report"`
+	Sources []ContentHealthSourceCoverage `json:"sources"`
+}
+
+// ContentHealthReportInput Thresholds and scope; every field is optional (the defaults are in the limits of the list).
+type ContentHealthReportInput struct {
+	// CitationWindowDays How far back answers are read for not-cited documents (14 to 365; default 90)
+	CitationWindowDays *int32 `json:"citationWindowDays,omitempty"`
+
+	// KnowledgeBaseId Only the sources of this knowledge base of the team (not with sourceId)
+	KnowledgeBaseId *openapi_types.UUID `json:"knowledgeBaseId,omitempty"`
+
+	// SourceId Only this source of the team (not with knowledgeBaseId)
+	SourceId *openapi_types.UUID `json:"sourceId,omitempty"`
+
+	// StaleDays A document last processed at least this many days before the report began is stale (30 to 3650; default 365)
+	StaleDays *int32 `json:"staleDays,omitempty"`
+}
+
+// ContentHealthReportList defines model for ContentHealthReportList.
+type ContentHealthReportList struct {
+	// Enabled The platform switch
+	Enabled bool                  `json:"enabled"`
+	Limits  ContentHealthLimits   `json:"limits"`
+	Reports []ContentHealthReport `json:"reports"`
+}
+
+// ContentHealthSettings defines model for ContentHealthSettings.
+type ContentHealthSettings struct {
+	// Enabled Off by default
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ContentHealthSettingsUpdate defines model for ContentHealthSettingsUpdate.
+type ContentHealthSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ContentHealthSignal defines model for ContentHealthSignal.
+type ContentHealthSignal struct {
+	// Counts Numbers that qualify the measurement, such as answers (answers seen), judged and tooNew (documents), ready, ageUnknown, withoutHash, sourcesObserved and sourcesUnknown
+	Counts map[string]int64 `json:"counts"`
+
+	// Found How many the report found (for duplicates, groups) when it was made
+	Found int64 `json:"found"`
+
+	// Listed How many findings are still listed (findings follow deletions, and at most maxFindingsPerSignal are kept)
+	Listed int64 `json:"listed"`
+
+	// ObservedSince Not cited: when observation began (the later of the window's start and the first answer event left)
+	ObservedSince *time.Time `json:"observedSince,omitempty"`
+
+	// Reason Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers or timed_out ('' when measured)
+	Reason string `json:"reason"`
+
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	Signal ContentHealthSignalName `json:"signal"`
+
+	// State measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
+	State ContentHealthSignalState `json:"state"`
+
+	// Truncated More were found than are listed
+	Truncated bool `json:"truncated"`
+}
+
+// ContentHealthSignalState measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
+type ContentHealthSignalState string
+
+// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: ready documents no retained answer cited in the window; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+type ContentHealthSignalName string
+
+// ContentHealthSourceCoverage defines model for ContentHealthSourceCoverage.
+type ContentHealthSourceCoverage struct {
+	Documents int32 `json:"documents"`
+
+	// LinkCrawlAt When the crawl whose record was read finished
+	LinkCrawlAt *time.Time `json:"linkCrawlAt,omitempty"`
+
+	// LinkFailed URLs that crawl failed to fetch
+	LinkFailed int32 `json:"linkFailed"`
+
+	// LinkReason Why unknown: never_crawled, page_refetch_latest or no_crawl_record
+	LinkReason string `json:"linkReason"`
+
+	// LinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
+	LinkState ContentHealthSourceCoverageLinkState `json:"linkState"`
+
+	// LinkTruncated That crawl stopped at a limit, so pages beyond it were not visited
+	LinkTruncated bool `json:"linkTruncated"`
+
+	// Name The source's current name
+	Name  string `json:"name"`
+	Ready int32  `json:"ready"`
+
+	// ReadyWithoutDate Ready documents with no processing date (age unknown, not judged)
+	ReadyWithoutDate int32 `json:"readyWithoutDate"`
+
+	// ReadyWithoutHash Ready documents with no hash (counted, not compared)
+	ReadyWithoutHash int32              `json:"readyWithoutHash"`
+	SourceId         openapi_types.UUID `json:"sourceId"`
+	Type             string             `json:"type"`
+}
+
+// ContentHealthSourceCoverageLinkState observed: the latest completed crawl's record was read; unknown: no usable record (never crawled, latest crawl was a single-page re-fetch, or the record is gone); not_applicable: not a web source
+type ContentHealthSourceCoverageLinkState string
+
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
 	// Cited The passage the answer cited (or around named)
@@ -11960,6 +12281,12 @@ type BreakGlassSessionIdParam = openapi_types.UUID
 // CitationNumberParam defines model for CitationNumberParam.
 type CitationNumberParam = int
 
+// ContentHealthLimitParam defines model for ContentHealthLimitParam.
+type ContentHealthLimitParam = int
+
+// ContentHealthReportIdParam defines model for ContentHealthReportIdParam.
+type ContentHealthReportIdParam = openapi_types.UUID
+
 // ConversationIdParam defines model for ConversationIdParam.
 type ConversationIdParam = openapi_types.UUID
 
@@ -12470,6 +12797,12 @@ type AdminPutBreakGlassSettingsParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutContentHealthSettingsParams defines parameters for AdminPutContentHealthSettings.
+type AdminPutContentHealthSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminPutEvaluationSettingsParams defines parameters for AdminPutEvaluationSettings.
 type AdminPutEvaluationSettingsParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -12824,6 +13157,15 @@ type ListTeamAuditParams struct {
 // ListTeamAuditParamsActorKind defines parameters for ListTeamAudit.
 type ListTeamAuditParamsActorKind string
 
+// ListContentHealthFindingsParams defines parameters for ListContentHealthFindings.
+type ListContentHealthFindingsParams struct {
+	Signal ContentHealthSignalName `form:"signal" json:"signal"`
+
+	// Cursor nextCursor from the previous page
+	Cursor *CursorParam             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *ContentHealthLimitParam `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListTeamConversationsParams defines parameters for ListTeamConversations.
 type ListTeamConversationsParams struct {
 	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
@@ -13105,6 +13447,9 @@ type AdminPutAnswerCacheSettingsJSONRequestBody = AnswerCacheSettingsUpdate
 // AdminPutBreakGlassSettingsJSONRequestBody defines body for AdminPutBreakGlassSettings for application/json ContentType.
 type AdminPutBreakGlassSettingsJSONRequestBody = BreakGlassSettingsUpdate
 
+// AdminPutContentHealthSettingsJSONRequestBody defines body for AdminPutContentHealthSettings for application/json ContentType.
+type AdminPutContentHealthSettingsJSONRequestBody = ContentHealthSettingsUpdate
+
 // AdminPutEvaluationSettingsJSONRequestBody defines body for AdminPutEvaluationSettings for application/json ContentType.
 type AdminPutEvaluationSettingsJSONRequestBody = EvaluationSettingsUpdate
 
@@ -13251,6 +13596,9 @@ type CreateAPIKeyJSONRequestBody = APIKeyCreate
 
 // UpdateAPIKeyContactJSONRequestBody defines body for UpdateAPIKeyContact for application/json ContentType.
 type UpdateAPIKeyContactJSONRequestBody UpdateAPIKeyContactJSONBody
+
+// CreateContentHealthReportJSONRequestBody defines body for CreateContentHealthReport for application/json ContentType.
+type CreateContentHealthReportJSONRequestBody = ContentHealthReportInput
 
 // CreateDomainRequestJSONRequestBody defines body for CreateDomainRequest for application/json ContentType.
 type CreateDomainRequestJSONRequestBody = DomainRequestCreate
