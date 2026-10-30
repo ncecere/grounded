@@ -40,8 +40,13 @@ func newSettlementFixture(t *testing.T) settlementFixture {
 	exec(`INSERT INTO embedding_profiles (id, key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap) VALUES ($1, 'p', 'P', $2, 4, 'halfvec', 128, 0)`, profile, embed)
 	exec(`INSERT INTO data_sources (id, team_id, name, type, classification, embedding_profile_id) VALUES ($1, $2, 's', 'web', 'open', $3)`, source, team, profile)
 	exec(`INSERT INTO documents (id, source_id, external_id, status, version) VALUES ($1, $2, 'https://example.edu/document', 'ready', 1)`, doc, source)
+	exec(`INSERT INTO source_contextual (source_id, enabled, model_id, max_calls, max_calls_per_day,
+		max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency)
+		VALUES ($1, true, $2, 100, 100, 1000000, 1000000, 10, 10, 'USD')`, source, chat)
+	exec(`INSERT INTO model_prices (model_id, unit, price, effective_from) VALUES
+		($1, 'chat_tokens_in', 1, CURRENT_DATE - 2), ($1, 'chat_tokens_out', 1, CURRENT_DATE - 2)`, chat)
 	return settlementFixture{pool: pool, store: &PGStore{Pool: pool},
-		res: Reservation{SourceID: source, ProfileID: profile, DocumentID: doc, ModelID: chat, Phase: PhaseBuild, Cap: 10},
+		res: Reservation{SourceID: source, ProfileID: profile, DocumentID: doc, ModelID: chat, Phase: PhaseBuild, Cap: 10, InputTokens: 7, OutputTokens: 3},
 		usage: Usage{Team: uuid.NullUUID{UUID: team, Valid: true}, Source: source, Document: doc, Model: chat,
 			Phase: PhaseBuild, TokensIn: 7, TokensOut: 3, Reported: true}}
 }

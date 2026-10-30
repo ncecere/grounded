@@ -12250,6 +12250,20 @@ components:
           allOf: [{ $ref: "#/components/schemas/ContextualMigrationProgress" }]
           description: How contextual chunks went (one migration; omitted when the target has none)
         revision: { $ref: "#/components/schemas/Revision" }
+    ContextualAdmission:
+      type: object
+      description: >-
+        Explicit per-source token and configured-price spend admission limits. Required to enable contextual chunks,
+        including platform-owned sources and when ordinary cost tracking is off. Build limits apply to one profile's
+        build; UTC-day limits include all build and live attempts across every profile of this source. Unknown usage
+        retains reserved headroom. Amounts use configured price snapshots, not a provider invoice guarantee.
+      required: [maxTokens, maxTokensPerDay, maxAmount, maxAmountPerDay, currency]
+      properties:
+        maxTokens: { type: integer, format: int64, minimum: 1, maximum: 1000000000, description: Input plus output token admission headroom for one build }
+        maxTokensPerDay: { type: integer, format: int64, minimum: 1, maximum: 1000000000, description: Input plus output token admission headroom for all attempts admitted in one UTC day }
+        maxAmount: { allOf: [{ $ref: "#/components/schemas/Money" }], description: Positive configured-price amount allowed for one build }
+        maxAmountPerDay: { allOf: [{ $ref: "#/components/schemas/Money" }], description: Positive configured-price amount allowed across all profiles in one UTC admission day }
+        currency: { type: string, pattern: '^[A-Z]{3}$', description: Must match the installation's configured price currency; unlike currencies are never silently added }
     ContextualSettingsInput:
       type: object
       required: [enabled, modelId, failurePolicy, maxCalls, maxCallsPerDay]
@@ -12263,7 +12277,11 @@ components:
             fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready
             until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
         maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls (attempts, including failed ones) one build of a set may make }
-        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls per UTC day for documents processed after the build }
+        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most attempts admitted in a UTC day across all profiles, including build and live calls }
+        admission:
+          allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
+          nullable: true
+          description: Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call.
     ContextualCallStats:
       type: object
       required: [attempts, ok, unusable, unknown, tokensIn, tokensOut]
@@ -12291,7 +12309,7 @@ components:
         calls: { $ref: "#/components/schemas/ContextualCallStats" }
     ContextualChunks:
       type: object
-      required: [sourceId, sourceName, classification, platformEnabled, enabled, modelId, modelName, failurePolicy, maxCalls, maxCallsPerDay, cachedContexts, calls, sets, revision]
+      required: [sourceId, sourceName, classification, platformEnabled, enabled, modelId, modelName, failurePolicy, maxCalls, maxCallsPerDay, admission, cachedContexts, calls, sets, revision]
       properties:
         sourceId: { type: string, format: uuid }
         sourceName: { type: string }
@@ -12303,6 +12321,10 @@ components:
         failurePolicy: { type: string, enum: [fail, plain] }
         maxCalls: { type: integer, format: int32 }
         maxCallsPerDay: { type: integer, format: int32 }
+        admission:
+          allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
+          nullable: true
+          description: Null when explicit token/spend admission limits have not been configured
         cachedContexts: { type: integer, format: int64, description: Sections with a generated context kept for the source's documents }
         calls: { $ref: "#/components/schemas/ContextualCallStats" }
         sets:
@@ -12318,7 +12340,7 @@ components:
         currency: { type: string, description: The install's display currency code }
         inputPerMillion: { type: string, nullable: true, description: Decimal string }
         outputPerMillion: { type: string, nullable: true, description: Decimal string }
-        maxAmount: { type: string, nullable: true, description: A ceiling (decimal string), not a prediction; null when the price is unknown }
+        maxAmount: { type: string, nullable: true, description: A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown }
     ContextualTotals:
       type: object
       required: [documents, passages, units, calls, documentsOver, passagesOver, inputTokensMax, outputTokensMax, embeddingTokensAdded]

@@ -279,7 +279,12 @@ func (g *Generator) call(ctx context.Context, req Request, t catalog.ChatTarget,
 		}
 	}
 	id, err := g.Store.Reserve(ctx, Reservation{SourceID: req.SourceID, ProfileID: req.ProfileID, DocumentID: req.DocumentID, ModelID: m.ID,
-		Phase: req.Phase, Cap: req.Cap, Since: req.Since})
+		Phase: req.Phase, Cap: req.Cap, Since: req.Since,
+		InputTokens: int64(WithMargin(g.Counter.Count(SystemPrompt) + g.Counter.Count(UserMessage(in)) + 16)), OutputTokens: RequestMaxTokens})
+	var admission *AdmissionLimit
+	if errors.As(err, &admission) {
+		return zero, &Wait{Code: "contextual_cap", Until: admission.Until, Message: admission.Error()}
+	}
 	if errors.Is(err, ErrCapReached) {
 		return zero, &CapError{Daily: req.Phase == PhaseLive, Cap: req.Cap, Until: nextDay(req.Since)}
 	} else if err != nil {

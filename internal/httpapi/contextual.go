@@ -45,7 +45,7 @@ func (a *api) adminPutSourceContextual(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st, err := a.Contextual.Put(r.Context(), a.actor(r), id, contextual.PutInput{Enabled: in.Enabled, ModelID: in.ModelId,
-		FailurePolicy: string(in.FailurePolicy), MaxCalls: int(in.MaxCalls), MaxCallsPerDay: int(in.MaxCallsPerDay)}, rev)
+		FailurePolicy: string(in.FailurePolicy), MaxCalls: int(in.MaxCalls), MaxCallsPerDay: int(in.MaxCallsPerDay), Admission: fromAPIAdmission(in.Admission)}, rev)
 	if failed(w, r, err) {
 		return
 	}
@@ -103,6 +103,22 @@ func (a *api) adminEstimateContextualKB(w http.ResponseWriter, r *http.Request) 
 	httpx.JSON(w, http.StatusOK, out)
 }
 
+func fromAPIAdmission(a *apitypes.ContextualAdmission) *contextual.Admission {
+	if a == nil {
+		return nil
+	}
+	return &contextual.Admission{MaxTokens: a.MaxTokens, MaxTokensPerDay: a.MaxTokensPerDay,
+		MaxAmount: string(a.MaxAmount), MaxAmountPerDay: string(a.MaxAmountPerDay), Currency: a.Currency}
+}
+
+func toAPIAdmission(a *contextual.Admission) *apitypes.ContextualAdmission {
+	if a == nil {
+		return nil
+	}
+	return &apitypes.ContextualAdmission{MaxTokens: a.MaxTokens, MaxTokensPerDay: a.MaxTokensPerDay,
+		MaxAmount: apitypes.Money(a.MaxAmount), MaxAmountPerDay: apitypes.Money(a.MaxAmountPerDay), Currency: a.Currency}
+}
+
 func toAPIContextualIssues(list []contextual.Issue) []apitypes.ContextualIssue {
 	out := make([]apitypes.ContextualIssue, len(list))
 	for i, is := range list {
@@ -141,7 +157,7 @@ func toAPIContextualSet(s contextual.SetState) apitypes.ContextualSet {
 func toAPIContextual(st contextual.State) apitypes.ContextualChunks {
 	out := apitypes.ContextualChunks{SourceId: st.SourceID, SourceName: st.SourceName, Classification: st.Classification,
 		PlatformEnabled: st.PlatformOn, Enabled: st.Enabled, ModelId: nullUUID(st.ModelID), ModelName: st.ModelName,
-		FailurePolicy: apitypes.ContextualChunksFailurePolicy(st.FailurePolicy), MaxCalls: int32(st.MaxCalls), MaxCallsPerDay: int32(st.MaxCallsPerDay),
+		FailurePolicy: apitypes.ContextualChunksFailurePolicy(st.FailurePolicy), MaxCalls: int32(st.MaxCalls), MaxCallsPerDay: int32(st.MaxCallsPerDay), Admission: toAPIAdmission(st.Admission),
 		CachedContexts: st.CachedContexts, Calls: toAPICalls(st.Calls), Sets: make([]apitypes.ContextualSet, len(st.Sets)), Revision: st.Revision}
 	for i, s := range st.Sets {
 		out.Sets[i] = toAPIContextualSet(s)

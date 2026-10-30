@@ -16,6 +16,9 @@ SELECT * FROM source_contextual WHERE source_id = $1 FOR UPDATE;
 UPDATE source_contextual
 SET enabled = @enabled, model_id = sqlc.narg(model_id), failure_policy = @failure_policy,
     max_calls = @max_calls, max_calls_per_day = @max_calls_per_day,
+    max_tokens = sqlc.narg(max_tokens), max_tokens_per_day = sqlc.narg(max_tokens_per_day),
+    max_amount = sqlc.narg(max_amount)::text::numeric, max_amount_per_day = sqlc.narg(max_amount_per_day)::text::numeric,
+    currency = sqlc.narg(currency),
     revision = revision + 1, updated_by = sqlc.narg(updated_by), updated_at = now()
 WHERE source_id = @source_id
 RETURNING *;
@@ -84,16 +87,56 @@ WHERE source_id = @source_id
   AND ((@phase::text = 'build' AND phase = 'build' AND profile_id = @profile_id)
     OR (@phase::text = 'live' AND phase = 'live' AND created_at >= @since::timestamptz));
 
+-- name: ContextualAdmissionClock :one
+SELECT clock_timestamp()::timestamptz AS admitted_at;
+
+-- Uses the installation's price day, not the UTC admission bucket. A missing rate is unknown.
+-- name: ContextualAdmissionPrices :one
+WITH args AS (SELECT @model_id::uuid AS model_id, @admitted_at::timestamptz AS admitted_at),
+price_day AS (
+    SELECT s.currency, args.model_id, (args.admitted_at AT TIME ZONE s.time_zone)::date AS day
+    FROM cost_settings s CROSS JOIN args WHERE s.singleton
+)
+SELECT d.currency,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_in'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS input_price,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_out'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS output_price
+FROM price_day d;
+
+-- Both windows, all phases/profiles in the day. Currency mismatches cannot create a fresh allowance.
+-- name: ContextualAdmissionUsage :one
+SELECT count(*) FILTER (WHERE phase = 'build' AND profile_id = @profile_id)::bigint AS build_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE phase = 'build' AND profile_id = @profile_id), 0)::bigint AS build_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE phase = 'build' AND profile_id = @profile_id), 0)::text AS build_amount,
+       count(*) FILTER (WHERE admission_day = @admission_day)::bigint AS day_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE admission_day = @admission_day), 0)::bigint AS day_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE admission_day = @admission_day), 0)::text AS day_amount,
+       count(*) FILTER (WHERE currency <> @currency AND
+           (admission_day = @admission_day OR (phase = 'build' AND profile_id = @profile_id AND @is_build::boolean)))::bigint AS other_currency
+FROM contextual_calls WHERE source_id = @source_id
+    AND (admission_day = @admission_day OR (phase = 'build' AND profile_id = @profile_id AND @is_build::boolean));
+
 -- name: InsertContextualCall :one
-INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phase)
-VALUES (@source_id, @profile_id, sqlc.narg(document_id), @model_id, @phase)
+INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phase,
+    admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::numeric, $7, $8::text::numeric,
+    $9, $10::text::numeric, $11::text::numeric, $12)
 RETURNING id;
+
+-- name: GetContextualCall :one
+SELECT * FROM contextual_calls WHERE id = $1;
+
+-- name: LockContextualCall :one
+SELECT * FROM contextual_calls WHERE id = $1 FOR UPDATE;
 
 -- Only the winner of the started -> terminal transition may append usage.
 -- Retrying a settlement must not change its outcome, timestamp or ledger.
 -- name: SettleContextualCall :execrows
 UPDATE contextual_calls
-SET outcome = @outcome, tokens_in = sqlc.narg(tokens_in), tokens_out = sqlc.narg(tokens_out), finished_at = now()
+SET outcome = @outcome, tokens_in = sqlc.narg(tokens_in), tokens_out = sqlc.narg(tokens_out), finished_at = now(),
+    charged_tokens = coalesce(sqlc.narg(charged_tokens)::bigint, charged_tokens),
+    charged_amount = coalesce(sqlc.narg(charged_amount)::text::numeric, charged_amount)
 WHERE id = @id AND outcome = 'started' AND finished_at IS NULL;
 
 -- A request the gateway refused for load was not an attempt.

@@ -10,7 +10,105 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const contextualAdmissionClock = `-- name: ContextualAdmissionClock :one
+SELECT clock_timestamp()::timestamptz AS admitted_at
+`
+
+func (q *Queries) ContextualAdmissionClock(ctx context.Context) (time.Time, error) {
+	row := q.db.QueryRow(ctx, contextualAdmissionClock)
+	var admitted_at time.Time
+	err := row.Scan(&admitted_at)
+	return admitted_at, err
+}
+
+const contextualAdmissionPrices = `-- name: ContextualAdmissionPrices :one
+WITH args AS (SELECT $1::uuid AS model_id, $2::timestamptz AS admitted_at),
+price_day AS (
+    SELECT s.currency, args.model_id, (args.admitted_at AT TIME ZONE s.time_zone)::date AS day
+    FROM cost_settings s CROSS JOIN args WHERE s.singleton
+)
+SELECT d.currency,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_in'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS input_price,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_out'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS output_price
+FROM price_day d
+`
+
+type ContextualAdmissionPricesParams struct {
+	ModelID    uuid.UUID
+	AdmittedAt time.Time
+}
+
+type ContextualAdmissionPricesRow struct {
+	Currency    string
+	InputPrice  string
+	OutputPrice string
+}
+
+// Uses the installation's price day, not the UTC admission bucket. A missing rate is unknown.
+func (q *Queries) ContextualAdmissionPrices(ctx context.Context, arg ContextualAdmissionPricesParams) (ContextualAdmissionPricesRow, error) {
+	row := q.db.QueryRow(ctx, contextualAdmissionPrices, arg.ModelID, arg.AdmittedAt)
+	var i ContextualAdmissionPricesRow
+	err := row.Scan(&i.Currency, &i.InputPrice, &i.OutputPrice)
+	return i, err
+}
+
+const contextualAdmissionUsage = `-- name: ContextualAdmissionUsage :one
+SELECT count(*) FILTER (WHERE phase = 'build' AND profile_id = $1)::bigint AS build_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE phase = 'build' AND profile_id = $1), 0)::bigint AS build_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE phase = 'build' AND profile_id = $1), 0)::text AS build_amount,
+       count(*) FILTER (WHERE admission_day = $2)::bigint AS day_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE admission_day = $2), 0)::bigint AS day_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE admission_day = $2), 0)::text AS day_amount,
+       count(*) FILTER (WHERE currency <> $3 AND
+           (admission_day = $2 OR (phase = 'build' AND profile_id = $1 AND $4::boolean)))::bigint AS other_currency
+FROM contextual_calls WHERE source_id = $5
+    AND (admission_day = $2 OR (phase = 'build' AND profile_id = $1 AND $4::boolean))
+`
+
+type ContextualAdmissionUsageParams struct {
+	ProfileID    uuid.UUID
+	AdmissionDay pgtype.Date
+	Currency     string
+	IsBuild      bool
+	SourceID     uuid.UUID
+}
+
+type ContextualAdmissionUsageRow struct {
+	BuildCalls    int64
+	BuildTokens   int64
+	BuildAmount   string
+	DayCalls      int64
+	DayTokens     int64
+	DayAmount     string
+	OtherCurrency int64
+}
+
+// Both windows, all phases/profiles in the day. Currency mismatches cannot create a fresh allowance.
+func (q *Queries) ContextualAdmissionUsage(ctx context.Context, arg ContextualAdmissionUsageParams) (ContextualAdmissionUsageRow, error) {
+	row := q.db.QueryRow(ctx, contextualAdmissionUsage,
+		arg.ProfileID,
+		arg.AdmissionDay,
+		arg.Currency,
+		arg.IsBuild,
+		arg.SourceID,
+	)
+	var i ContextualAdmissionUsageRow
+	err := row.Scan(
+		&i.BuildCalls,
+		&i.BuildTokens,
+		&i.BuildAmount,
+		&i.DayCalls,
+		&i.DayTokens,
+		&i.DayAmount,
+		&i.OtherCurrency,
+	)
+	return i, err
+}
 
 const contextualCacheFor = `-- name: ContextualCacheFor :many
 
@@ -247,6 +345,37 @@ func (q *Queries) EnsureSourceContextual(ctx context.Context, sourceID uuid.UUID
 	return err
 }
 
+const getContextualCall = `-- name: GetContextualCall :one
+SELECT id, source_id, profile_id, document_id, model_id, phase, outcome, tokens_in, tokens_out, admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at, finished_at FROM contextual_calls WHERE id = $1
+`
+
+func (q *Queries) GetContextualCall(ctx context.Context, id int64) (ContextualCall, error) {
+	row := q.db.QueryRow(ctx, getContextualCall, id)
+	var i ContextualCall
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.ProfileID,
+		&i.DocumentID,
+		&i.ModelID,
+		&i.Phase,
+		&i.Outcome,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.AdmissionDay,
+		&i.ReservedTokens,
+		&i.ReservedAmount,
+		&i.ChargedTokens,
+		&i.ChargedAmount,
+		&i.Currency,
+		&i.InputPrice,
+		&i.OutputPrice,
+		&i.CreatedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
 const getSetContextual = `-- name: GetSetContextual :one
 SELECT source_id, profile_id, model_id, failure_policy, prompt_version, created_at FROM set_contextual WHERE source_id = $1 AND profile_id = $2
 `
@@ -273,7 +402,7 @@ func (q *Queries) GetSetContextual(ctx context.Context, arg GetSetContextualPara
 const getSourceContextual = `-- name: GetSourceContextual :one
 
 
-SELECT source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, revision, updated_by, updated_at FROM source_contextual WHERE source_id = $1
+SELECT source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency, revision, updated_by, updated_at FROM source_contextual WHERE source_id = $1
 `
 
 // Contextual chunks (docs/contextual-chunks.md, ADR-0028, internal/contextual). Nothing here reads or writes chunks.
@@ -288,6 +417,11 @@ func (q *Queries) GetSourceContextual(ctx context.Context, sourceID uuid.UUID) (
 		&i.FailurePolicy,
 		&i.MaxCalls,
 		&i.MaxCallsPerDay,
+		&i.MaxTokens,
+		&i.MaxTokensPerDay,
+		&i.MaxAmount,
+		&i.MaxAmountPerDay,
+		&i.Currency,
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
@@ -323,17 +457,26 @@ func (q *Queries) InsertContextualCache(ctx context.Context, arg InsertContextua
 }
 
 const insertContextualCall = `-- name: InsertContextualCall :one
-INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phase)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phase,
+    admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::numeric, $7, $8::text::numeric,
+    $9, $10::text::numeric, $11::text::numeric, $12)
 RETURNING id
 `
 
 type InsertContextualCallParams struct {
-	SourceID   uuid.UUID
-	ProfileID  uuid.UUID
-	DocumentID uuid.NullUUID
-	ModelID    uuid.UUID
-	Phase      string
+	SourceID       uuid.UUID
+	ProfileID      uuid.UUID
+	DocumentID     uuid.NullUUID
+	ModelID        uuid.UUID
+	Phase          string
+	AdmissionDay   pgtype.Date
+	ReservedTokens int64
+	Column8        string
+	Currency       string
+	Column10       string
+	Column11       string
+	CreatedAt      time.Time
 }
 
 func (q *Queries) InsertContextualCall(ctx context.Context, arg InsertContextualCallParams) (int64, error) {
@@ -343,6 +486,13 @@ func (q *Queries) InsertContextualCall(ctx context.Context, arg InsertContextual
 		arg.DocumentID,
 		arg.ModelID,
 		arg.Phase,
+		arg.AdmissionDay,
+		arg.ReservedTokens,
+		arg.Column8,
+		arg.Currency,
+		arg.Column10,
+		arg.Column11,
+		arg.CreatedAt,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -503,6 +653,37 @@ func (q *Queries) ListSetContextualFor(ctx context.Context, sourceID uuid.UUID) 
 	return items, nil
 }
 
+const lockContextualCall = `-- name: LockContextualCall :one
+SELECT id, source_id, profile_id, document_id, model_id, phase, outcome, tokens_in, tokens_out, admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at, finished_at FROM contextual_calls WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockContextualCall(ctx context.Context, id int64) (ContextualCall, error) {
+	row := q.db.QueryRow(ctx, lockContextualCall, id)
+	var i ContextualCall
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.ProfileID,
+		&i.DocumentID,
+		&i.ModelID,
+		&i.Phase,
+		&i.Outcome,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.AdmissionDay,
+		&i.ReservedTokens,
+		&i.ReservedAmount,
+		&i.ChargedTokens,
+		&i.ChargedAmount,
+		&i.Currency,
+		&i.InputPrice,
+		&i.OutputPrice,
+		&i.CreatedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
 const lockContextualCalls = `-- name: LockContextualCalls :exec
 
 SELECT pg_advisory_xact_lock(hashtextextended('grounded.contextual_calls:' || $1::text, 0))
@@ -516,7 +697,7 @@ func (q *Queries) LockContextualCalls(ctx context.Context, sourceID string) erro
 }
 
 const lockSourceContextual = `-- name: LockSourceContextual :one
-SELECT source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, revision, updated_by, updated_at FROM source_contextual WHERE source_id = $1 FOR UPDATE
+SELECT source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency, revision, updated_by, updated_at FROM source_contextual WHERE source_id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockSourceContextual(ctx context.Context, sourceID uuid.UUID) (SourceContextual, error) {
@@ -529,6 +710,11 @@ func (q *Queries) LockSourceContextual(ctx context.Context, sourceID uuid.UUID) 
 		&i.FailurePolicy,
 		&i.MaxCalls,
 		&i.MaxCallsPerDay,
+		&i.MaxTokens,
+		&i.MaxTokensPerDay,
+		&i.MaxAmount,
+		&i.MaxAmountPerDay,
+		&i.Currency,
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
@@ -570,15 +756,19 @@ func (q *Queries) SetProfileContextual(ctx context.Context, arg SetProfileContex
 
 const settleContextualCall = `-- name: SettleContextualCall :execrows
 UPDATE contextual_calls
-SET outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now()
-WHERE id = $4 AND outcome = 'started' AND finished_at IS NULL
+SET outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now(),
+    charged_tokens = coalesce($4::bigint, charged_tokens),
+    charged_amount = coalesce($5::text::numeric, charged_amount)
+WHERE id = $6 AND outcome = 'started' AND finished_at IS NULL
 `
 
 type SettleContextualCallParams struct {
-	Outcome   string
-	TokensIn  *int32
-	TokensOut *int32
-	ID        int64
+	Outcome       string
+	TokensIn      *int32
+	TokensOut     *int32
+	ChargedTokens *int64
+	ChargedAmount *string
+	ID            int64
 }
 
 // Only the winner of the started -> terminal transition may append usage.
@@ -588,6 +778,8 @@ func (q *Queries) SettleContextualCall(ctx context.Context, arg SettleContextual
 		arg.Outcome,
 		arg.TokensIn,
 		arg.TokensOut,
+		arg.ChargedTokens,
+		arg.ChargedAmount,
 		arg.ID,
 	)
 	if err != nil {
@@ -612,19 +804,27 @@ const updateSourceContextual = `-- name: UpdateSourceContextual :one
 UPDATE source_contextual
 SET enabled = $1, model_id = $2, failure_policy = $3,
     max_calls = $4, max_calls_per_day = $5,
-    revision = revision + 1, updated_by = $6, updated_at = now()
-WHERE source_id = $7
-RETURNING source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, revision, updated_by, updated_at
+    max_tokens = $6, max_tokens_per_day = $7,
+    max_amount = $8::text::numeric, max_amount_per_day = $9::text::numeric,
+    currency = $10,
+    revision = revision + 1, updated_by = $11, updated_at = now()
+WHERE source_id = $12
+RETURNING source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency, revision, updated_by, updated_at
 `
 
 type UpdateSourceContextualParams struct {
-	Enabled        bool
-	ModelID        uuid.NullUUID
-	FailurePolicy  string
-	MaxCalls       int32
-	MaxCallsPerDay int32
-	UpdatedBy      uuid.NullUUID
-	SourceID       uuid.UUID
+	Enabled         bool
+	ModelID         uuid.NullUUID
+	FailurePolicy   string
+	MaxCalls        int32
+	MaxCallsPerDay  int32
+	MaxTokens       *int64
+	MaxTokensPerDay *int64
+	MaxAmount       *string
+	MaxAmountPerDay *string
+	Currency        *string
+	UpdatedBy       uuid.NullUUID
+	SourceID        uuid.UUID
 }
 
 func (q *Queries) UpdateSourceContextual(ctx context.Context, arg UpdateSourceContextualParams) (SourceContextual, error) {
@@ -634,6 +834,11 @@ func (q *Queries) UpdateSourceContextual(ctx context.Context, arg UpdateSourceCo
 		arg.FailurePolicy,
 		arg.MaxCalls,
 		arg.MaxCallsPerDay,
+		arg.MaxTokens,
+		arg.MaxTokensPerDay,
+		arg.MaxAmount,
+		arg.MaxAmountPerDay,
+		arg.Currency,
 		arg.UpdatedBy,
 		arg.SourceID,
 	)
@@ -645,6 +850,11 @@ func (q *Queries) UpdateSourceContextual(ctx context.Context, arg UpdateSourceCo
 		&i.FailurePolicy,
 		&i.MaxCalls,
 		&i.MaxCallsPerDay,
+		&i.MaxTokens,
+		&i.MaxTokensPerDay,
+		&i.MaxAmount,
+		&i.MaxAmountPerDay,
+		&i.Currency,
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,

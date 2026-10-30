@@ -349,17 +349,25 @@ type ContextualCache struct {
 }
 
 type ContextualCall struct {
-	ID         int64
-	SourceID   uuid.UUID
-	ProfileID  uuid.UUID
-	DocumentID uuid.NullUUID
-	ModelID    uuid.UUID
-	Phase      string
-	Outcome    string
-	TokensIn   *int32
-	TokensOut  *int32
-	CreatedAt  time.Time
-	FinishedAt *time.Time
+	ID             int64
+	SourceID       uuid.UUID
+	ProfileID      uuid.UUID
+	DocumentID     uuid.NullUUID
+	ModelID        uuid.UUID
+	Phase          string
+	Outcome        string
+	TokensIn       *int32
+	TokensOut      *int32
+	AdmissionDay   pgtype.Date
+	ReservedTokens int64
+	ReservedAmount pgtype.Numeric
+	ChargedTokens  int64
+	ChargedAmount  pgtype.Numeric
+	Currency       string
+	InputPrice     pgtype.Numeric
+	OutputPrice    pgtype.Numeric
+	CreatedAt      time.Time
+	FinishedAt     *time.Time
 }
 
 type Conversation struct {
@@ -1170,15 +1178,20 @@ type SourceBoilerplateBlock struct {
 }
 
 type SourceContextual struct {
-	SourceID       uuid.UUID
-	Enabled        bool
-	ModelID        uuid.NullUUID
-	FailurePolicy  string
-	MaxCalls       int32
-	MaxCallsPerDay int32
-	Revision       int64
-	UpdatedBy      uuid.NullUUID
-	UpdatedAt      time.Time
+	SourceID        uuid.UUID
+	Enabled         bool
+	ModelID         uuid.NullUUID
+	FailurePolicy   string
+	MaxCalls        int32
+	MaxCallsPerDay  int32
+	MaxTokens       *int64
+	MaxTokensPerDay *int64
+	MaxAmount       pgtype.Numeric
+	MaxAmountPerDay pgtype.Numeric
+	Currency        *string
+	Revision        int64
+	UpdatedBy       uuid.NullUUID
+	UpdatedAt       time.Time
 }
 
 type SourceEmbeddingSet struct {

@@ -8263,6 +8263,25 @@ export interface components {
             contextual?: components["schemas"]["ContextualMigrationProgress"];
             revision: components["schemas"]["Revision"];
         };
+        /** @description Explicit per-source token and configured-price spend admission limits. Required to enable contextual chunks, including platform-owned sources and when ordinary cost tracking is off. Build limits apply to one profile's build; UTC-day limits include all build and live attempts across every profile of this source. Unknown usage retains reserved headroom. Amounts use configured price snapshots, not a provider invoice guarantee. */
+        ContextualAdmission: {
+            /**
+             * Format: int64
+             * @description Input plus output token admission headroom for one build
+             */
+            maxTokens: number;
+            /**
+             * Format: int64
+             * @description Input plus output token admission headroom for all attempts admitted in one UTC day
+             */
+            maxTokensPerDay: number;
+            /** @description Positive configured-price amount allowed for one build */
+            maxAmount: components["schemas"]["Money"];
+            /** @description Positive configured-price amount allowed across all profiles in one UTC admission day */
+            maxAmountPerDay: components["schemas"]["Money"];
+            /** @description Must match the installation's configured price currency; unlike currencies are never silently added */
+            currency: string;
+        };
         ContextualSettingsInput: {
             /** @description The source takes part in index previews with contextual chunks. Off by default. */
             enabled: boolean;
@@ -8283,9 +8302,11 @@ export interface components {
             maxCalls: number;
             /**
              * Format: int32
-             * @description The most model calls per UTC day for documents processed after the build
+             * @description The most attempts admitted in a UTC day across all profiles
              */
             maxCallsPerDay: number;
+            /** @description Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call. */
+            admission?: components["schemas"]["ContextualAdmission"] | null;
         };
         ContextualCallStats: {
             /** Format: int64 */
@@ -8364,6 +8385,8 @@ export interface components {
             maxCalls: number;
             /** Format: int32 */
             maxCallsPerDay: number;
+            /** @description Null when explicit token/spend admission limits have not been configured */
+            admission: components["schemas"]["ContextualAdmission"] | null;
             /**
              * Format: int64
              * @description Sections with a generated context kept for the source's documents
@@ -8383,7 +8406,7 @@ export interface components {
             inputPerMillion: string | null;
             /** @description Decimal string */
             outputPerMillion: string | null;
-            /** @description A ceiling (decimal string) */
+            /** @description A conservative configured-price estimate (decimal string) */
             maxAmount: string | null;
         };
         ContextualTotals: {

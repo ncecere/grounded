@@ -49,6 +49,8 @@ type Reservation struct {
 	Phase                                    string
 	Cap                                      int
 	Since                                    time.Time
+	// Local prompt/reply headroom; PG derives the current caps, prices and UTC bucket itself.
+	InputTokens, OutputTokens int64
 }
 
 // Settlement ends an attempt. Tokens are what the provider reported (nil: unknown).
@@ -117,27 +119,9 @@ func (s *PGStore) PruneCache(ctx context.Context, documentID uuid.UUID, keep [][
 	return err
 }
 
-// Reserve serialises the count and the insert of one source's attempts, so concurrent callers cannot pass the cap together.
+// Reserve admits call/token/configured-price headroom in both source windows atomically.
 func (s *PGStore) Reserve(ctx context.Context, r Reservation) (int64, error) {
-	var id int64
-	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		if err := q.LockContextualCalls(ctx, r.SourceID.String()); err != nil {
-			return err
-		}
-		n, err := q.CountContextualAttempts(ctx, dbgen.CountContextualAttemptsParams{
-			SourceID: r.SourceID, Phase: r.Phase, ProfileID: r.ProfileID, Since: r.Since})
-		if err != nil {
-			return err
-		}
-		if n >= int64(r.Cap) {
-			return ErrCapReached
-		}
-		id, err = q.InsertContextualCall(ctx, dbgen.InsertContextualCallParams{
-			SourceID: r.SourceID, ProfileID: r.ProfileID, DocumentID: uuid.NullUUID{UUID: r.DocumentID, Valid: r.DocumentID != uuid.Nil},
-			ModelID: r.ModelID, Phase: r.Phase})
-		return err
-	})
-	return id, err
+	return s.reserveAdmission(ctx, r)
 }
 
 func (s *PGStore) Release(ctx context.Context, id int64) error {
@@ -149,8 +133,13 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 		return err
 	}
 	var recorded []dbgen.InsertUsageParams
+	stopped := false
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		n, err := q.SettleContextualCall(ctx, dbgen.SettleContextualCallParams{ID: st.ID, Outcome: st.Outcome, TokensIn: st.TokensIn, TokensOut: st.TokensOut})
+		params, cacheAllowed, err := settlementAdmission(ctx, q, st)
+		if err != nil || params == nil {
+			return err
+		}
+		n, err := q.SettleContextualCall(ctx, *params)
 		if err != nil || n == 0 {
 			return err
 		}
@@ -164,12 +153,19 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 			}
 		}
 		if st.Cache != nil {
+			if !cacheAllowed {
+				stopped = true
+				return nil // usage was real; an off source must not regain cached text
+			}
 			return insertCache(ctx, q, *st.Cache)
 		}
 		return nil
 	})
 	if err == nil && len(recorded) > 0 && s.Recorded != nil && st.Usage != nil && st.Usage.Team.Valid {
 		s.Recorded(st.Usage.Team.UUID, recorded)
+	}
+	if err == nil && stopped {
+		return &StopError{Reason: "the source is switched off"}
 	}
 	return err
 }

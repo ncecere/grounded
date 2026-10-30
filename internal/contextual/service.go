@@ -59,6 +59,7 @@ type Settings struct {
 	FailurePolicy  string
 	MaxCalls       int
 	MaxCallsPerDay int
+	Admission      *Admission
 	Revision       int64
 	UpdatedAt      time.Time
 }
@@ -68,7 +69,7 @@ func settingsOf(sourceID uuid.UUID, r *dbgen.SourceContextual) Settings {
 		return Settings{SourceID: sourceID, FailurePolicy: PolicyFail, MaxCalls: DefaultMaxCalls, MaxCallsPerDay: DefaultMaxCalls, Revision: 1}
 	}
 	return Settings{SourceID: r.SourceID, Enabled: r.Enabled, ModelID: r.ModelID, FailurePolicy: r.FailurePolicy, MaxCalls: int(r.MaxCalls),
-		MaxCallsPerDay: int(r.MaxCallsPerDay), Revision: r.Revision, UpdatedAt: r.UpdatedAt}
+		MaxCallsPerDay: int(r.MaxCallsPerDay), Admission: admissionOf(*r), Revision: r.Revision, UpdatedAt: r.UpdatedAt}
 }
 
 // CallStats are a source's model attempts.
@@ -208,6 +209,7 @@ type PutInput struct {
 	FailurePolicy  string
 	MaxCalls       int
 	MaxCallsPerDay int
+	Admission      *Admission
 }
 
 // Put replaces a source's settings (platform admins, in a session; audited). It changes no vector and starts nothing. Turning a source off
@@ -229,13 +231,8 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, sourceID uuid.UUID, in
 			return err
 		}
 		team = src.TeamID
-		if in.Enabled {
-			if !s.platformOn() {
-				return errSwitchedOff
-			}
-			if p := ModelProblem(ctx, q, in.ModelID, src.Classification); p != nil {
-				return p
-			}
+		if err := s.validateOptIn(ctx, q, in, src.Classification); err != nil {
+			return err
 		}
 		if err := q.EnsureSourceContextual(ctx, sourceID); err != nil {
 			return err
@@ -247,10 +244,12 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, sourceID uuid.UUID, in
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
-		raised = int32(in.MaxCalls) > cur.MaxCalls || int32(in.MaxCallsPerDay) > cur.MaxCallsPerDay
-		if _, err := q.UpdateSourceContextual(ctx, dbgen.UpdateSourceContextualParams{SourceID: sourceID, Enabled: in.Enabled,
+		raised = int32(in.MaxCalls) > cur.MaxCalls || int32(in.MaxCallsPerDay) > cur.MaxCallsPerDay || admissionRaised(admissionOf(cur), in.Admission)
+		update := dbgen.UpdateSourceContextualParams{SourceID: sourceID, Enabled: in.Enabled,
 			ModelID: nullModel(in), FailurePolicy: in.FailurePolicy, MaxCalls: int32(in.MaxCalls), MaxCallsPerDay: int32(in.MaxCallsPerDay),
-			UpdatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}}); err != nil {
+			UpdatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}}
+		applyAdmission(&update, in.Admission)
+		if _, err := q.UpdateSourceContextual(ctx, update); err != nil {
 			return err
 		}
 		if cur.Enabled && !in.Enabled {
@@ -262,16 +261,31 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, sourceID uuid.UUID, in
 		e := a.Audit("source.contextual_update", "data_source", sourceID.String())
 		e.TeamID = src.TeamID.UUID
 		e.Before, e.After = auditSettings(settingsOf(sourceID, &cur)), auditSettings(Settings{Enabled: in.Enabled, ModelID: nullModel(in),
-			FailurePolicy: in.FailurePolicy, MaxCalls: in.MaxCalls, MaxCallsPerDay: in.MaxCallsPerDay})
+			FailurePolicy: in.FailurePolicy, MaxCalls: in.MaxCalls, MaxCallsPerDay: in.MaxCallsPerDay, Admission: in.Admission})
 		return audit.Record(ctx, q, e)
 	})
 	if err != nil {
 		return State{}, err
 	}
 	if raised && s.LimitRaised != nil {
-		s.LimitRaised(context.WithoutCancel(ctx), team)
+		wake, stop := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer stop()
+		s.LimitRaised(wake, team)
 	}
 	return s.state(ctx, sourceID)
+}
+
+func (s *Service) validateOptIn(ctx context.Context, q *dbgen.Queries, in PutInput, classification string) error {
+	if !in.Enabled {
+		return nil
+	}
+	if !s.platformOn() {
+		return errSwitchedOff
+	}
+	if problem := ModelProblem(ctx, q, in.ModelID, classification); problem != nil {
+		return problem
+	}
+	return nil
 }
 
 func nullModel(in PutInput) uuid.NullUUID {
@@ -287,6 +301,9 @@ func auditSettings(st Settings) map[string]any {
 	if st.ModelID.Valid {
 		m["modelId"] = st.ModelID.UUID.String()
 	}
+	if st.Admission != nil {
+		m["admission"] = st.Admission
+	}
 	return m
 }
 
@@ -299,7 +316,7 @@ func validateCaps(in PutInput) error {
 			return apperr.Invalid("invalid_cap", fmt.Sprintf("Call limits must be between %d and %d", MinCalls, MaxCallsLimit))
 		}
 	}
-	return nil
+	return validateAdmission(in.Admission, in.Enabled)
 }
 
 // ModelProblem says why a model cannot write contexts for a source of the classification (nil: it can): it must be an enabled chat model

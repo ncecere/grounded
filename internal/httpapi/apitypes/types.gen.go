@@ -7084,6 +7084,24 @@ type ContextPassage struct {
 	PageStart int32 `json:"pageStart"`
 }
 
+// ContextualAdmission Explicit per-source token and configured-price spend admission limits. Required to enable contextual chunks, including platform-owned sources and when ordinary cost tracking is off. Build limits apply to one profile's build; UTC-day limits include all build and live attempts across every profile of this source. Unknown usage retains reserved headroom. Amounts use configured price snapshots, not a provider invoice guarantee.
+type ContextualAdmission struct {
+	// Currency Must match the installation's configured price currency; unlike currencies are never silently added
+	Currency string `json:"currency"`
+
+	// MaxAmount Positive configured-price amount allowed for one build
+	MaxAmount Money `json:"maxAmount"`
+
+	// MaxAmountPerDay Positive configured-price amount allowed across all profiles in one UTC admission day
+	MaxAmountPerDay Money `json:"maxAmountPerDay"`
+
+	// MaxTokens Input plus output token admission headroom for one build
+	MaxTokens int64 `json:"maxTokens"`
+
+	// MaxTokensPerDay Input plus output token admission headroom for all attempts admitted in one UTC day
+	MaxTokensPerDay int64 `json:"maxTokensPerDay"`
+}
+
 // ContextualCallStats defines model for ContextualCallStats.
 type ContextualCallStats struct {
 	Attempts int64 `json:"attempts"`
@@ -7104,6 +7122,9 @@ type ContextualCallStats struct {
 
 // ContextualChunks defines model for ContextualChunks.
 type ContextualChunks struct {
+	// Admission Null when explicit token/spend admission limits have not been configured
+	Admission *ContextualAdmission `json:"admission"`
+
 	// CachedContexts Sections with a generated context kept for the source's documents
 	CachedContexts int64                         `json:"cachedContexts"`
 	Calls          ContextualCallStats           `json:"calls"`
@@ -7138,7 +7159,7 @@ type ContextualCost struct {
 	// InputPerMillion Decimal string
 	InputPerMillion *string `json:"inputPerMillion"`
 
-	// MaxAmount A ceiling (decimal string)
+	// MaxAmount A conservative configured-price estimate (decimal string)
 	MaxAmount *string `json:"maxAmount"`
 
 	// OutputPerMillion Decimal string
@@ -7275,6 +7296,9 @@ type ContextualSet struct {
 
 // ContextualSettingsInput defines model for ContextualSettingsInput.
 type ContextualSettingsInput struct {
+	// Admission Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call.
+	Admission *ContextualAdmission `json:"admission,omitempty"`
+
 	// Enabled The source takes part in index previews with contextual chunks. Off by default.
 	Enabled bool `json:"enabled"`
 
@@ -7284,7 +7308,7 @@ type ContextualSettingsInput struct {
 	// MaxCalls The most model calls (attempts
 	MaxCalls int32 `json:"maxCalls"`
 
-	// MaxCallsPerDay The most model calls per UTC day for documents processed after the build
+	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles
 	MaxCallsPerDay int32 `json:"maxCallsPerDay"`
 
 	// ModelId The chat model that writes the context; required when enabled. It must be cleared for the source's classification.
