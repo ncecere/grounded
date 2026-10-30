@@ -278,9 +278,9 @@ call "$OLD_PORT" GET /v1/team-requests
 [ "$CODE" = 200 ] && HAS_REQUESTS=1 || HAS_REQUESTS=0
 # The cluster's character classes: with C the old index cannot tell a Unicode-only twin, so the old version saves it (201); in another
 # locale its own lower() folds the name and it answers 409. Either is fine; a 5xx never is.
-CTYPE=$(docker exec "$P-pg" psql -U grounded -d grounded -tAc 'SHOW lc_ctype')
+CTYPE=$(docker exec "$P-pg" psql -U grounded -d grounded -tAc 'SELECT datctype FROM pg_database WHERE datname = current_database()')
 if [ "$CTYPE" = C ]; then TWIN_CODE=201; else TWIN_CODE=409; fi
-log "old: templates=$HAS_TEMPLATES team requests=$HAS_REQUESTS, lc_ctype=$CTYPE (a Unicode-only twin is $TWIN_CODE for the old version)"
+log "old: templates=$HAS_TEMPLATES team requests=$HAS_REQUESTS, datctype=$CTYPE (a Unicode-only twin is $TWIN_CODE for the old version)"
 
 # save_template port name: the Demo agent saved as a template by whoever the caller is; prints the status, then the id.
 save_template() {
