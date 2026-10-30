@@ -252,16 +252,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	}, log)
 	s.Sources.OCR = s.OCR
 	s.jobs, s.pool, s.log = jobsClient, pool, log
-	s.ProfileMigrations = profilemig.New(pool, s.Catalog, s.Teams, s.Notify, jobsClient, profilemig.Options{
-		GraceDays: cfg.ProfileMigrationGraceDays, BatchSize: cfg.EmbedBatchSize, BatchTokens: cfg.EmbedBatchTokens,
-	}, log)
-	s.Evaluations = evals.New(pool, s.Teams, s.KBs, s.Agents, s.Limits, s.Notify, jobsClient, log)
-	s.Evaluations.Concurrency = cfg.EvaluationConcurrency
-	// Automatic evaluation runs: after a publish and a profile switch.
-	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
-	s.ProfileMigrations.OnPreviewReady = s.Evaluations.StartPreview
-	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
-	s.ContentHealth = contenthealth.New(pool, s.Teams, jobsClient, log)
+	wireKnowledgeWorkflows(s, cfg)
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
 	s.AnswerCache = answercache.New(pool, log)
