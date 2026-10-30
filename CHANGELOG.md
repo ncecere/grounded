@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-30
+
+QA, API and accessibility fixes, plus OCR egress isolation. Schema 55, with staged
+template-name enforcement and a metadata-only request migration. See
+[`docs/releases/v0.6.3.md`](docs/releases/v0.6.3.md) and the
+[validation record](docs/security/validation/v0.6.3.md). Publication is gated by
+the release pipeline; GitHub Releases remains the source of truth.
+
 ### Changed
 
 - **The API contract describes shared rate limits and preview access explicitly.** Every `/v1/` operation has an envelope-appropriate default error response with `Retry-After` for shared 429s; operation-specific responses retain precedence. Widget preview serves only a same-origin generic app shell to anonymous callers and unknown UUIDs, not an agent profile or permission to chat. Kubernetes ingress guidance documents operator-owned HSTS configuration and HTTPS checks, and correctly identifies the separate internal metrics listeners. These clarify existing behavior rather than granting access or changing deployment policy. (#119, partial)
@@ -644,7 +652,11 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/ncecere/grounded/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/ncecere/grounded/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/ncecere/grounded/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/ncecere/grounded/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/ncecere/grounded/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/ncecere/grounded/compare/v0.4.2...v0.4.3
