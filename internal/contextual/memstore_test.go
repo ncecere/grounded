@@ -10,10 +10,15 @@ import (
 // memStore is a Store in memory, for tests that need no database (and the real-model harness).
 type memStore struct {
 	mu       sync.Mutex
-	cache    map[[32]byte]string
+	cache    map[memCacheKey]string
 	attempts []*memAttempt
 	usage    []Usage
 	next     int64
+}
+
+type memCacheKey struct {
+	document uuid.UUID
+	key      [32]byte
 }
 
 type memAttempt struct {
@@ -24,14 +29,14 @@ type memAttempt struct {
 	released bool
 }
 
-func newMemStore() *memStore { return &memStore{cache: map[[32]byte]string{}} }
+func newMemStore() *memStore { return &memStore{cache: map[memCacheKey]string{}} }
 
-func (m *memStore) CacheFor(_ context.Context, _ uuid.UUID, keys [][32]byte) (map[[32]byte]string, error) {
+func (m *memStore) CacheFor(_ context.Context, document uuid.UUID, keys [][32]byte) (map[[32]byte]string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := map[[32]byte]string{}
 	for _, k := range keys {
-		if v, ok := m.cache[k]; ok {
+		if v, ok := m.cache[memCacheKey{document, k}]; ok {
 			out[k] = v
 		}
 	}
@@ -46,12 +51,13 @@ func (m *memStore) PutCache(_ context.Context, e CacheEntry) error {
 }
 
 func (m *memStore) putCacheLocked(e CacheEntry) {
-	if _, ok := m.cache[e.Key]; !ok {
-		m.cache[e.Key] = e.Text
+	k := memCacheKey{e.DocumentID, e.Key}
+	if _, ok := m.cache[k]; !ok {
+		m.cache[k] = e.Text
 	}
 }
 
-func (m *memStore) PruneCache(_ context.Context, _ uuid.UUID, keep [][32]byte) error {
+func (m *memStore) PruneCache(_ context.Context, document uuid.UUID, keep [][32]byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	k := map[[32]byte]bool{}
@@ -59,7 +65,7 @@ func (m *memStore) PruneCache(_ context.Context, _ uuid.UUID, keep [][32]byte) e
 		k[x] = true
 	}
 	for key := range m.cache {
-		if !k[key] {
+		if key.document == document && !k[key.key] {
 			delete(m.cache, key)
 		}
 	}

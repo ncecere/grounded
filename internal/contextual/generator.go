@@ -156,6 +156,9 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	g.init()
 	units := PlanUnits(ItemsOf(req.Chunks))
 	res := Result{Units: len(units)}
+	if err := requestCheckpoint(ctx, req); err != nil {
+		return res, err
+	}
 	if len(units) > MaxUnitsPerDocument {
 		res.State = StateTooLarge
 		return res, nil
@@ -192,7 +195,13 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 		}
 		texts[i] = c.text
 	}
+	if err := requestCheckpoint(ctx, req); err != nil {
+		return res, err
+	}
 	if err := g.Store.PruneCache(ctx, req.DocumentID, keys); err != nil {
+		return res, err
+	}
+	if err := requestCheckpoint(ctx, req); err != nil {
 		return res, err
 	}
 	res.State, res.Contexts = StateContext, make([]string, len(req.Chunks))
@@ -259,19 +268,14 @@ func (g *Generator) call(ctx context.Context, req Request, t catalog.ChatTarget,
 	case <-ctx.Done():
 		return zero, &StopError{Reason: "cancelled", Err: ctx.Err()}
 	}
+	if err := requestCheckpoint(ctx, req); err != nil {
+		return zero, err
+	}
 	// Another process, or an earlier run, may have made it meanwhile.
 	if known, err := g.Store.CacheFor(ctx, req.DocumentID, [][32]byte{key}); err != nil {
 		return zero, err
 	} else if text, ok := known[key]; ok {
 		return flightResult{text: text}, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return zero, &StopError{Reason: "cancelled", Err: err}
-	}
-	if req.Checkpoint != nil {
-		if err := req.Checkpoint(ctx); err != nil {
-			return zero, err
-		}
 	}
 	if g.Gate != nil && req.Team.Valid {
 		if w := g.Gate(ctx, req.Team.UUID); w != nil {
