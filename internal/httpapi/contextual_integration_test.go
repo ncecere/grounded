@@ -68,11 +68,19 @@ func (env *ctxEnv) contextual(t *testing.T, src uuid.UUID) apitypes.ContextualCh
 // enable saves a source's settings (the model, a policy, the build cap).
 func (env *ctxEnv) enable(t *testing.T, src uuid.UUID, model apitypes.Model, policy string, maxCalls int) apitypes.ContextualChunks {
 	t.Helper()
+	env.fakeContextPrices(t, model)
 	return env.put(t, src, map[string]any{"enabled": true, "modelId": model.Id, "failurePolicy": policy, "maxCalls": maxCalls, "maxCallsPerDay": 500}, 200, "")
 }
 
 func (env *ctxEnv) put(t *testing.T, src uuid.UUID, body map[string]any, want int, wantErr string) apitypes.ContextualChunks {
 	t.Helper()
+	// These are explicit synthetic-test limits, not a server-side default or
+	// spending permission. Missing-admission rejection uses the raw API below.
+	if enabled, _ := body["enabled"].(bool); enabled {
+		if _, supplied := body["admission"]; !supplied {
+			body["admission"] = contextualAdmissionBody()
+		}
+	}
 	cur := env.contextual(t, src)
 	var st apitypes.ContextualChunks
 	code, e := env.admin.call("PUT", env.settingsPath(src), body, &st, ifMatch(cur.Revision))
@@ -186,7 +194,7 @@ func TestContextualPreviewBuildsBesideTheLiveIndexAndSwitchesExplicitly(t *testi
 
 	// Saving the setting: nothing happens.
 	env.proxy.ResetEmbedInputs()
-	st := env.enable(t, src.Id, env.chat, "fail", 100)
+	st := env.put(t, src.Id, map[string]any{"enabled": true, "modelId": env.chat.Id, "failurePolicy": "fail", "maxCalls": 100, "maxCallsPerDay": 500}, 200, "")
 	if !st.Enabled || st.ModelName != "ctx-writer" || st.Revision < 2 {
 		t.Fatalf("saved = %+v", st)
 	}
@@ -197,7 +205,7 @@ func TestContextualPreviewBuildsBesideTheLiveIndexAndSwitchesExplicitly(t *testi
 
 	// The estimate comes first and bounds what is made: no price is set, so the cost is unknown, not zero.
 	est := env.estimate(t, src.Id)
-	if est.Calls < 4 || est.Documents != 2 || est.Cost.PriceKnown || est.Cost.MaxAmount != nil || len(est.Blockers) != 0 ||
+	if est.Calls < 4 || est.Documents != 2 || est.Cost.PriceKnown || est.Cost.MaxAmount != nil || len(est.Blockers) != 1 || est.Blockers[0].Code != "contextual_price_unknown" ||
 		est.InputTokensMax <= 0 || est.OutputTokensMax != est.Calls*384 || est.UnknownCallTokensOut != 384 {
 		t.Fatalf("estimate = %+v", est)
 	}
@@ -208,6 +216,13 @@ func TestContextualPreviewBuildsBesideTheLiveIndexAndSwitchesExplicitly(t *testi
 		t.Fatalf("kb estimate = %+v", kbEst)
 	}
 
+	// Unknown is a blocker, not zero. Configure fake prices explicitly before
+	// building; this alone must still make no model call or live-index change.
+	env.fakeContextPrices(t, env.chat)
+	priced := env.estimate(t, src.Id)
+	if !priced.Cost.PriceKnown || priced.Cost.MaxAmount == nil || len(priced.Blockers) != 0 || len(env.proxy.ContextCalls()) != 0 {
+		t.Fatalf("priced admission preflight: %+v calls=%d", priced, len(env.proxy.ContextCalls()))
+	}
 	// The preview builds the candidate. The live KB is not switched.
 	m := env.previewContext(t, kb.Id)
 	if m.Estimate.Contextual == nil || m.Estimate.Contextual.Calls != est.Calls {
@@ -609,8 +624,25 @@ func TestContextualSharedSourceDoesNotChangeAnotherKnowledgeBase(t *testing.T) {
 	// A new document: plain for the profile the source still has, with context for A's.
 	env.proxy.ResetEmbedInputs()
 	env.upload(t, src.Id, upload{"b.md", handbook("Handbook B", "Library")})
+	t.Cleanup(func() {
+		if t.Failed() {
+			logContextualSharedIndexState(t, env, src.Id, m.ToProfile.Id)
+		}
+	})
+	var addedDoc uuid.UUID
+	if err := env.app.Pool.QueryRow(context.Background(), `SELECT id FROM documents WHERE source_id = $1 AND filename = 'b.md'`, src.Id).Scan(&addedDoc); err != nil {
+		t.Fatal(err)
+	}
+	// Inputs were reset before this upload: count this document in each
+	// profile, not all historical rows (A has three chunks; B has two).
+	newChunks := env.scalar(t, `SELECT count(*) FROM chunks WHERE document_id = $1 AND profile_id = $2`, addedDoc, env.from.Id)
+	if newChunks == 0 {
+		t.Fatal("the newly uploaded document has no plain chunks")
+	}
 	eventuallyTrue(t, "both sets embedded", func() bool {
-		return len(env.proxy.EmbedInputs()) >= 2*len(env.rows(t, src.Id, m.ToProfile.Id))/2 && env.chunks(t, src.Id, m.ToProfile.Id) == env.chunks(t, src.Id, env.from.Id)
+		candidateNew := env.scalar(t, `SELECT count(*) FROM chunks WHERE document_id = $1 AND profile_id = $2`, addedDoc, m.ToProfile.Id)
+		return candidateNew == newChunks && len(env.proxy.EmbedInputs()) >= 2*int(newChunks) &&
+			env.chunks(t, src.Id, m.ToProfile.Id) == env.chunks(t, src.Id, env.from.Id)
 	})
 	plainInputs, withContext := 0, 0
 	for _, in := range env.proxy.EmbedInputs() {
@@ -620,8 +652,11 @@ func TestContextualSharedSourceDoesNotChangeAnotherKnowledgeBase(t *testing.T) {
 			plainInputs++
 		}
 	}
-	if plainInputs == 0 || withContext == 0 {
-		t.Errorf("plain inputs %d, contextual inputs %d", plainInputs, withContext)
+	if int64(plainInputs) != newChunks || int64(withContext) != newChunks {
+		t.Errorf("new document: plain inputs %d, contextual inputs %d, want %d each", plainInputs, withContext, newChunks)
+	}
+	if !anyHit(env.retrieve(t, kbB.Id, "library rules"), "Library") {
+		t.Error("the unchanged knowledge base cannot retrieve the new document")
 	}
 	if env.contextual(t, src.Id).Sets[0].Live {
 		t.Error("the candidate is not the source's own profile while B uses the old one")
@@ -631,8 +666,8 @@ func TestContextualSharedSourceDoesNotChangeAnotherKnowledgeBase(t *testing.T) {
 	if back.Status != apitypes.ProfileMigrationStatusSwitchedBack || env.getKB(t, kbA.Id).EmbeddingProfileId != env.from.Id {
 		t.Fatalf("switch back = %+v", back)
 	}
-	if hits := env.retrieve(t, kbA.Id, "library rules"); len(hits) == 0 {
-		t.Error("no hits after rolling back")
+	if hits := env.retrieve(t, kbA.Id, "library rules"); !anyHit(hits, "Library") {
+		t.Error("the new document is not retrievable after rolling back")
 	}
 }
 

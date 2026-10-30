@@ -7320,8 +7320,10 @@ type ContextualSettingsInputFailurePolicy string
 
 // ContextualSourceEstimate defines model for ContextualSourceEstimate.
 type ContextualSourceEstimate struct {
-	Blockers       []ContextualIssue `json:"blockers"`
-	CachedContexts int64             `json:"cachedContexts"`
+	// Admission Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created
+	Admission      *ContextualAdmission `json:"admission"`
+	Blockers       []ContextualIssue    `json:"blockers"`
+	CachedContexts int64                `json:"cachedContexts"`
 
 	// Calls Model calls
 	Calls          int64          `json:"calls"`

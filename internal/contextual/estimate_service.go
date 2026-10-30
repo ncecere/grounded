@@ -52,6 +52,7 @@ type SourceEstimate struct {
 	CachedContexts int64
 	MaxCalls       int
 	MaxCallsPerDay int
+	Admission      *Admission
 	// UnknownCallTokensIn and Out bound what one attempt of unknown usage (a timeout) may have cost.
 	UnknownCallTokensIn, UnknownCallTokensOut int
 	Cost                                      Cost
@@ -86,7 +87,7 @@ func (s *Service) estimate(ctx context.Context, a authz.Actor, sourceID uuid.UUI
 	}
 	set := settingsOf(sourceID, row)
 	est := SourceEstimate{SourceID: sourceID, Name: src.Name, Classification: src.Classification, Enabled: set.Enabled, Model: set.ModelID,
-		MaxCalls: set.MaxCalls, MaxCallsPerDay: set.MaxCallsPerDay}
+		MaxCalls: set.MaxCalls, MaxCallsPerDay: set.MaxCallsPerDay, Admission: set.Admission}
 	if override != nil {
 		est.Model = uuid.NullUUID{UUID: *override, Valid: true}
 	}
@@ -100,7 +101,11 @@ func (s *Service) estimate(ctx context.Context, a authz.Actor, sourceID uuid.UUI
 		return est, err
 	}
 	s.blockers(ctx, &est)
-	return est, s.price(ctx, a, &est)
+	if err := s.price(ctx, a, &est); err != nil {
+		return est, err
+	}
+	admissionEstimateBlockers(&est)
+	return est, nil
 }
 
 func (s *Service) blockers(ctx context.Context, est *SourceEstimate) {
@@ -147,7 +152,13 @@ func (s *Service) price(ctx context.Context, a authz.Actor, est *SourceEstimate)
 	million := big.NewRat(1_000_000, 1)
 	in := new(big.Rat).Mul(new(big.Rat).SetInt64(est.InputTokensMax), p.InputPerMillion)
 	out := new(big.Rat).Mul(new(big.Rat).SetInt64(est.OutputTokensMax), p.OutputPerMillion)
-	est.Cost.MaxAmount = new(big.Rat).Quo(in.Add(in, out), million).FloatString(6)
+	amount := new(big.Rat).Quo(in.Add(in, out), million)
+	// Each attempt rounds admission up separately. Account for that rounding
+	// across the call ceiling rather than presenting a smaller aggregate price.
+	if amount.Sign() > 0 && est.Calls > 1 {
+		amount.Add(amount, big.NewRat(est.Calls-1, 1_000_000))
+	}
+	est.Cost.MaxAmount = ceilAmount(amount)
 	return nil
 }
 
@@ -219,6 +230,9 @@ func sumCost(list []SourceEstimate) Cost {
 	for _, e := range list {
 		if !e.Cost.PriceKnown {
 			return Cost{Currency: e.Cost.Currency}
+		}
+		if c.Currency != "" && c.Currency != e.Cost.Currency {
+			return Cost{} // concurrent currency changes cannot silently relabel a sum
 		}
 		c.Currency = e.Cost.Currency
 		r, ok := new(big.Rat).SetString(e.Cost.MaxAmount)

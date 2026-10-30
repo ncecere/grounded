@@ -8466,6 +8466,8 @@ export interface components {
             maxCalls: number;
             /** Format: int32 */
             maxCallsPerDay: number;
+            /** @description Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created */
+            admission: components["schemas"]["ContextualAdmission"] | null;
             /**
              * Format: int32
              * @description The most input tokens one attempt of unknown usage (a timeout) may have cost

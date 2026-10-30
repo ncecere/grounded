@@ -62,9 +62,6 @@ func (s *Service) contextualPreflight(ctx context.Context, a authz.Actor, pf *Pr
 		OutputTokensMax: plan.OutputTokensMax, EmbeddingTokensAdded: plan.EmbeddingTokensAdded, PriceKnown: plan.Cost.PriceKnown,
 		Currency: plan.Cost.Currency, CostMax: plan.Cost.MaxAmount}
 	pf.Estimate.Contextual = &est
-	if !est.PriceKnown && est.Sources > 0 {
-		pf.Warnings = append(pf.Warnings, Issue{"contextual_price_unknown", "The context model has no price set, so the cost of the calls is unknown. The calls and tokens above are limits, not amounts."})
-	}
 	if est.SourcesWithout > 0 {
 		pf.Warnings = append(pf.Warnings, Issue{"contextual_sources_without", "Sources that have not opted in are embedded as they are; the index will mix both."})
 	}

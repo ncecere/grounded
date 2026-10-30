@@ -12364,7 +12364,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/ContextualTotals"
         - type: object
-          required: [sourceId, name, classification, enabled, modelId, modelName, cachedContexts, maxCalls, maxCallsPerDay, unknownCallTokensIn, unknownCallTokensOut, cost, blockers]
+          required: [sourceId, name, classification, enabled, modelId, modelName, cachedContexts, maxCalls, maxCallsPerDay, admission, unknownCallTokensIn, unknownCallTokensOut, cost, blockers]
           properties:
             sourceId: { type: string, format: uuid }
             name: { type: string }
@@ -12375,6 +12375,10 @@ components:
             cachedContexts: { type: integer, format: int64 }
             maxCalls: { type: integer, format: int32 }
             maxCallsPerDay: { type: integer, format: int32 }
+            admission:
+              allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
+              nullable: true
+              description: Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created
             unknownCallTokensIn: { type: integer, format: int32, description: The most input tokens one attempt of unknown usage (a timeout) may have cost }
             unknownCallTokensOut: { type: integer, format: int32 }
             cost: { $ref: "#/components/schemas/ContextualCost" }

@@ -138,7 +138,7 @@ func toAPICost(c contextual.Cost) apitypes.ContextualCost {
 func toAPISourceEstimate(e contextual.SourceEstimate) apitypes.ContextualSourceEstimate {
 	return apitypes.ContextualSourceEstimate{SourceId: e.SourceID, Name: e.Name, Classification: e.Classification, Enabled: e.Enabled,
 		ModelId: nullUUID(e.Model), ModelName: e.ModelName, CachedContexts: e.CachedContexts, MaxCalls: int32(e.MaxCalls),
-		MaxCallsPerDay: int32(e.MaxCallsPerDay), UnknownCallTokensIn: int32(e.UnknownCallTokensIn), UnknownCallTokensOut: int32(e.UnknownCallTokensOut),
+		MaxCallsPerDay: int32(e.MaxCallsPerDay), Admission: toAPIAdmission(e.Admission), UnknownCallTokensIn: int32(e.UnknownCallTokensIn), UnknownCallTokensOut: int32(e.UnknownCallTokensOut),
 		Cost: toAPICost(e.Cost), Blockers: toAPIContextualIssues(e.Blockers),
 		Calls: e.Calls, Documents: e.Documents, DocumentsOver: e.DocumentsOver, EmbeddingTokensAdded: e.EmbeddingTokensAdded,
 		InputTokensMax: e.InputTokensMax, OutputTokensMax: e.OutputTokensMax, Passages: e.Passages, PassagesOver: e.PassagesOver, Units: e.Units}
