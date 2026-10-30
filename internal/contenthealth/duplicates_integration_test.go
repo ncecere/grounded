@@ -55,7 +55,7 @@ func TestDuplicateGroupNeedsTwoSourcesAtRead(t *testing.T) {
 	}
 	// A member retargeted (its file replaced, so its bytes differ): no longer the same file.
 	f.exec(`UPDATE documents SET sha256 = 'changed' WHERE id = $1`, g2c)
-	found, listed, docs = state()
+	_, listed, docs = state()
 	if listed != 1 || docs[g2c] || !docs[g2a] || !docs[g2b] {
 		t.Fatalf("after one member's bytes changed: listed %d, documents %v; want the group of the two that still match", listed, docs)
 	}
