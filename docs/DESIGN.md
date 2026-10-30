@@ -693,7 +693,7 @@ Settings come from environment variables, optionally layered over a flat YAML fi
 - **Scheduling (as built):** the Kubernetes base spreads API replicas over nodes with a hard topology spread constraint (`DoNotSchedule`, `maxSkew: 1`), workers with a soft one, and both PodDisruptionBudgets allow one pod down at a time. `grounded-config` is generated with a content hash, so a configuration change rolls the pods.
 - **Postgres:** CloudNativePG (unless the operator has a managed service) with 1 primary and 2 replicas and tested automatic failover.
 - **Zero-downtime upgrades:**
-  - **Migrations follow expand/contract.** Each release's schema works with both the previous and the new code, and destructive steps ship one release later. This deliberately differs from yoink, which stops all processes to migrate.
+  - **Migrations follow expand/contract.** Each release's schema works with both the previous and the new code, and destructive steps ship one release later. This deliberately differs from yoink, which stops all processes to migrate. A tighter constraint is enforced by the application first (in its transaction, under an advisory lock) and added to the database a release later; a migration does not run an unbounded `UPDATE` under the lock of a table it alters. The open staged steps (agent template names) are listed in [`operations/upgrades.md`](operations/upgrades.md#staged-constraints) (#195).
   - Migrations are embedded in the binary and run under an advisory lock.
   - On shutdown, a pod stops accepting work and lets in-flight SSE chats finish. Jobs are safe to interrupt and resume.
 - **Maintenance mode** pauses new ingestion while queries keep working. Used for profile migrations and risky changes.

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/jobs"
@@ -210,7 +212,12 @@ func newWebEnv(t *testing.T, allowLoopback bool) *webEnv { return newWebEnvWith(
 
 // newWebEnvWith also applies mutate to the configuration.
 func newWebEnvWith(t *testing.T, allowLoopback bool, mutate func(*config.Config)) *webEnv {
-	env := &webEnv{ragEnv: newRAGEnvWith(t, func(c *config.Config) {
+	return newWebEnvOn(t, nil, allowLoopback, mutate)
+}
+
+// newWebEnvOn is newWebEnvWith over an existing database (nil: a new one).
+func newWebEnvOn(t *testing.T, pool *pgxpool.Pool, allowLoopback bool, mutate func(*config.Config)) *webEnv {
+	env := &webEnv{ragEnv: newRAGEnvOn(t, pool, func(c *config.Config) {
 		webTestConfig(c)
 		if mutate != nil {
 			mutate(c)

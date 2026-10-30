@@ -96,6 +96,16 @@ func (q *Queries) DecideTeamRequest(ctx context.Context, arg DecideTeamRequestPa
 
 const getTeamRequest = `-- name: GetTeamRequest :one
 SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name,
+       -- The level the reviewer approved: as in ListMyTeamRequests (the audit log lookup is for rows migration 00055 did not fill, #195).
+       (CASE WHEN r.status <> 'approved' THEN ''
+             WHEN r.approved_classification <> '' THEN r.approved_classification
+             ELSE COALESCE(
+                 (SELECT a.after_state->>'classification' FROM audit_log a
+                   WHERE a.target_type = 'team_request' AND a.target_id = r.id::text AND a.action = 'team_request.approve'
+                     AND a.after_state->>'classification' IS NOT NULL
+                   ORDER BY a.id DESC LIMIT 1),
+                 t.max_classification, r.classification)
+        END)::text AS approved_level,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
        COALESCE(d.email::text, '')::text AS decider_email,
        (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
@@ -124,6 +134,7 @@ type GetTeamRequestRow struct {
 	ApprovedClassification string
 	TeamSlug               *string
 	TeamName               *string
+	ApprovedLevel          string
 	RequesterEmail         string
 	RequesterName          string
 	DeciderEmail           string
@@ -151,6 +162,7 @@ func (q *Queries) GetTeamRequest(ctx context.Context, id uuid.UUID) (GetTeamRequ
 		&i.ApprovedClassification,
 		&i.TeamSlug,
 		&i.TeamName,
+		&i.ApprovedLevel,
 		&i.RequesterEmail,
 		&i.RequesterName,
 		&i.DeciderEmail,
@@ -246,7 +258,19 @@ func (q *Queries) InsertTeamRequest(ctx context.Context, arg InsertTeamRequestPa
 }
 
 const listMyTeamRequests = `-- name: ListMyTeamRequests :many
-SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name
+SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name,
+       -- The level the reviewer approved. '' in the column is a request approved before migration 00055 or by a previous release's pod running
+       -- next to this one (#195: the migration does not backfill): then what the approval recorded in the audit log, by the index on
+       -- (target_type, target_id, id DESC), else the team's level now, else the level asked for. Only those rows look anything up.
+       (CASE WHEN r.status <> 'approved' THEN ''
+             WHEN r.approved_classification <> '' THEN r.approved_classification
+             ELSE COALESCE(
+                 (SELECT a.after_state->>'classification' FROM audit_log a
+                   WHERE a.target_type = 'team_request' AND a.target_id = r.id::text AND a.action = 'team_request.approve'
+                     AND a.after_state->>'classification' IS NOT NULL
+                   ORDER BY a.id DESC LIMIT 1),
+                 t.max_classification, r.classification)
+        END)::text AS approved_level
 FROM team_requests r LEFT JOIN teams t ON t.id = r.team_id
 WHERE r.requester_id = $1
 ORDER BY r.created_at DESC
@@ -271,6 +295,7 @@ type ListMyTeamRequestsRow struct {
 	ApprovedClassification string
 	TeamSlug               *string
 	TeamName               *string
+	ApprovedLevel          string
 }
 
 // A person's own requests, newest first.
@@ -301,6 +326,7 @@ func (q *Queries) ListMyTeamRequests(ctx context.Context, requesterID uuid.UUID)
 			&i.ApprovedClassification,
 			&i.TeamSlug,
 			&i.TeamName,
+			&i.ApprovedLevel,
 		); err != nil {
 			return nil, err
 		}
@@ -314,6 +340,16 @@ func (q *Queries) ListMyTeamRequests(ctx context.Context, requesterID uuid.UUID)
 
 const listTeamRequestsAdmin = `-- name: ListTeamRequestsAdmin :many
 SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name,
+       -- The level the reviewer approved: as in ListMyTeamRequests (the audit log lookup is for rows migration 00055 did not fill, #195).
+       (CASE WHEN r.status <> 'approved' THEN ''
+             WHEN r.approved_classification <> '' THEN r.approved_classification
+             ELSE COALESCE(
+                 (SELECT a.after_state->>'classification' FROM audit_log a
+                   WHERE a.target_type = 'team_request' AND a.target_id = r.id::text AND a.action = 'team_request.approve'
+                     AND a.after_state->>'classification' IS NOT NULL
+                   ORDER BY a.id DESC LIMIT 1),
+                 t.max_classification, r.classification)
+        END)::text AS approved_level,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
        COALESCE(d.email::text, '')::text AS decider_email,
        (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
@@ -346,6 +382,7 @@ type ListTeamRequestsAdminRow struct {
 	ApprovedClassification string
 	TeamSlug               *string
 	TeamName               *string
+	ApprovedLevel          string
 	RequesterEmail         string
 	RequesterName          string
 	DeciderEmail           string
@@ -380,6 +417,7 @@ func (q *Queries) ListTeamRequestsAdmin(ctx context.Context, status *string) ([]
 			&i.ApprovedClassification,
 			&i.TeamSlug,
 			&i.TeamName,
+			&i.ApprovedLevel,
 			&i.RequesterEmail,
 			&i.RequesterName,
 			&i.DeciderEmail,

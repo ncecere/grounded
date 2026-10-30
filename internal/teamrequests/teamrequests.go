@@ -163,7 +163,9 @@ type Request struct {
 	Purpose        string
 	OwnerEmail     string
 	Classification string
-	// ApprovedClassification is the level the reviewer approved ("": not approved). The reviewer may change what was asked for.
+	// ApprovedClassification is the level the reviewer approved ("": not approved). The reviewer may change what was asked for. The queries
+	// resolve it (queries/team_requests.sql): the column, or for a request whose column is empty (approved before migration 00055 or by a
+	// previous release's pod) what the approval recorded in the audit log, else the team's level, else the level asked for.
 	ApprovedClassification string
 	Status                 string
 	DecisionReason         string
@@ -183,18 +185,6 @@ type Mine struct {
 	MaxOpen   int
 	OpenCount int
 	Items     []Request
-}
-
-// approvedOf is the level an approval gave the team: what the approval recorded, or (a request approved by a release that did not record
-// it) the level asked for. "" for a request that is not approved.
-func approvedOf(status, asked, approved string) string {
-	switch {
-	case status != StatusApproved:
-		return ""
-	case approved == "":
-		return asked
-	}
-	return approved
 }
 
 func deref(p *string) string {
@@ -221,7 +211,7 @@ func (s *Service) Mine(ctx context.Context, a authz.Actor) (Mine, error) {
 	out := Mine{Enabled: st.Enabled, MaxOpen: int(st.MaxOpen), Items: make([]Request, len(rows))}
 	for i, r := range rows {
 		out.Items[i] = Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
-			ApprovedClassification: approvedOf(r.Status, r.Classification, r.ApprovedClassification), Status: r.Status,
+			ApprovedClassification: r.ApprovedLevel, Status: r.Status,
 			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt}
 		if r.Status == StatusPending {
 			out.OpenCount++
@@ -373,7 +363,7 @@ type AdminRequest struct {
 func adminOf(r dbgen.GetTeamRequestRow) AdminRequest {
 	return AdminRequest{
 		Request: Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
-			ApprovedClassification: approvedOf(r.Status, r.Classification, r.ApprovedClassification), Status: r.Status,
+			ApprovedClassification: r.ApprovedLevel, Status: r.Status,
 			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt},
 		RequesterID: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail, OwnerSuspended: r.OwnerSuspended.Bool,
 	}
