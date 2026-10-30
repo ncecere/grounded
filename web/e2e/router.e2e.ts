@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { chatModel, createTeam, handbook, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -8,7 +9,7 @@ import { expect, test } from "./support/fixtures";
  * reach, and a router is not offered the switch that makes it reachable.
  */
 test("a router sends the question to the right agent, names it, and continues there", async ({ as, a11y }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(scaled(180_000));
   const ownerApi = await Api.signIn("alex");
   const team = await createTeam(await Api.signIn("admin"), ownerApi, { prefix: "router", members: { blair: "member" } });
   const { agent: parking } = await publishedAgent(ownerApi, team, { name: "Parking helper", description: "Student parking permits and decals", config: { routable: true } });

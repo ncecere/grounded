@@ -136,7 +136,7 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
-### v0.6.3 preparation — 2026-10-30
+### v0.6.3 published verification — 2026-10-30
 
 The dependency/licence inventory above is regenerated for the patch. Fresh
 `govulncheck` and both installed-lockfile npm audits (runtime and full) report
@@ -153,8 +153,13 @@ tzdata `DLA-4867-1` (`2026b` to `2026f`), with the installed package unchanged.
 OCR retains **341 Debian findings** (157 LOW, 110 MEDIUM, 69 HIGH, 1 CRITICAL,
 4 UNKNOWN), with no published fixes in the scan. Neither image is
 vulnerability-free. Immutable candidate digests and the scope of verification
-are in the [v0.6.3 validation record](validation/v0.6.3.md). Final preparation and
-tag artifacts still require their own exact-source checks.
+are in the [v0.6.3 validation record](validation/v0.6.3.md). Subsequent exact-source
+main/tag pipelines and independent published-artifact verification passed on
+`a55dc5e50ab011092ddf6f480891aa3828bf462d`: both release platforms retain these
+same counts. Release asset checksums, app SBOM equality with signed OCI artifacts,
+OCR OCI SBOMs, source/platform provenance, signatures and actual amd64 versions
+are verified. These are published-digest results, not an inference from the
+candidate; no ARM hardware or real-model quality claim is made.
 
 ### 2026-10-28 toolchain advisory follow-up
 

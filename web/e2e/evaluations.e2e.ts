@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, handbook } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -13,7 +14,7 @@ import { expect, test } from "./support/fixtures";
 const housing = { name: "housing-guide.md", body: "Residence halls open for move-in on August 18. Bring your campus ID card to check in.\n" };
 
 test("evaluation set: create, import a CSV, run, see a failure, fix, run again, compare", async ({ as, admin, a11y }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(scaled(180_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "evals", members: { alex: "editor" } });
   // Arranged through the API: a source with two documents and a knowledge base returning one passage per search.
@@ -21,7 +22,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
   const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Student files", classification: "open" });
   await owner.upload(team, src.id, [handbook, housing]);
   await expect
-    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: scaled(30_000) })
     .toEqual(["ready", "ready"]);
   const kb = await owner.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: "Student help", topK: 1 });
   await owner.put(`${base}/kbs/${kb.id}/sources/${src.id}`);
@@ -86,7 +87,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     await a11y(page, "run dialog");
     await dialog.getByRole("button", { name: "Start run" }).click();
     const run = page.getByRole("region", { name: "Run" });
-    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: scaled(60_000) });
     const results = run.getByRole("table", { name: "Results" });
     await expect(results.getByRole("row", { name: /residence halls/ })).toContainText("Fail");
     await expect(results.getByRole("row", { name: /parking permits/ })).toContainText("Pass");
@@ -113,7 +114,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     await page.getByRole("button", { name: "Run", exact: true }).first().click();
     await page.getByRole("dialog", { name: "Run Student questions" }).getByRole("button", { name: "Start run" }).click();
     const run = page.getByRole("region", { name: "Run" });
-    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: scaled(60_000) });
     await expect(run.getByText("2 of 2 questions found the right page.")).toBeVisible();
     await expect(run.getByText("Since that run: 1 better, 0 worse, 1 the same.")).toBeVisible();
     await expect(run.getByRole("table", { name: "Questions compared with the other run" })).toContainText("Better");
@@ -128,7 +129,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     await page.getByRole("button", { name: "Run", exact: true }).first().click();
     await page.getByRole("dialog", { name: "Run Student questions" }).getByRole("button", { name: "Start run" }).click();
     const run = page.getByRole("region", { name: "Run" });
-    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: scaled(60_000) });
     await run.getByRole("link", { name: /Back to/ }).click();
     await expect(page.getByRole("img", { name: /Recall@k over 3 runs, from 50% to 100%/ })).toBeVisible();
     await expect(page.getByText(/results per search 1 → 4/)).toBeVisible();
@@ -144,14 +145,14 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
  * without blocking the run.
  */
 test("evaluation set: questions that need attention", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "evals-attention", members: { alex: "editor" } });
   const base = `/v1/teams/${team}`;
   const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Student files", classification: "open" });
   await owner.upload(team, src.id, [handbook]);
   await expect
-    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: scaled(30_000) })
     .toEqual(["ready"]);
   const kb = await owner.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: "Student help", topK: 4 });
   await owner.put(`${base}/kbs/${kb.id}/sources/${src.id}`);
@@ -183,7 +184,7 @@ test("evaluation set: questions that need attention", async ({ as, admin, a11y }
     await a11y(page, "run dialog with a warning");
     await dialog.getByRole("button", { name: "Start run" }).click();
     const run = page.getByRole("region", { name: "Run" });
-    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: scaled(60_000) });
     await expect(run.getByRole("table", { name: "Results" }).getByRole("row", { name: /graduate housing/ })).toContainText("Not in this knowledge base");
   });
   await owner.dispose();
