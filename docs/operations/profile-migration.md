@@ -7,7 +7,7 @@ Platform admins run migrations, under **Admin → Embedding profiles → Migrati
 ## How it works
 
 - **Background re-embedding.** Starting a migration gives each source of the knowledge base a second set of passages and vectors for the target profile (an *embedding set*). The `embedding_set.sync` job fills it from each ready document's stored parsed text:
-  - When the target's passage settings match the current profile's (size, overlap, chunker version and the model's input limit), the passages are **copied** and only embedded again.
+  - When the target's passage settings match the current profile's (size, overlap, chunker version and the model's input limit), the passages are **copied** and only embedded again. Their parent ranges are computed for the target's own parent size, never copied.
   - Otherwise they're **cut again** from the parsed text with the target's settings, leaving out the repeated blocks the document already dropped (ADR-0021). A document processed before parsed text was stored is parsed again from its stored original. Nothing is fetched from the web or re-uploaded.
 - **Throttled.** Requests go through the same batcher as ingestion (`EMBED_BATCH_SIZE`, `EMBED_BATCH_TOKENS`), at background priority and within the target connection's **requests per minute**. Live queries and chat take precedence. Eight documents per source are embedded at a time.
 - **Resumable and idempotent.** A document is done once it has passages for the target profile. The job works in bounded steps: after 5 minutes, or when the model asks it to wait (429 or 503 with `Retry-After`), it snoozes and continues where it stopped. A restart, a deploy or a crash loses nothing. One job per source and profile runs at a time; a sweep every 30 seconds requeues any that are missing.
@@ -62,7 +62,7 @@ A migration to another profile switches by itself when its new index is ready. A
 ### Run a preview
 
 1. **Admin → Embedding profiles → Migrations → Preview new settings…**
-2. Pick the knowledge base and fill in **only the settings that change** (passage size and overlap, embedding model, prefixes, **chunker**, name, how long to keep the old vectors if you switch). Empty fields keep the current profile's. A preview with nothing filled in builds an identical index, which is a way to check that a comparison shows no change.
+2. Pick the knowledge base and fill in **only the settings that change** (passage size and overlap, embedding model, prefixes, **chunker**, **parent sections**, name, how long to keep the old vectors if you switch). Empty fields keep the current profile's. A preview with nothing filled in builds an identical index, which is a way to check that a comparison shows no change.
 3. **Build the new index.** The preview's page opens with the same progress as a migration.
 4. When it says **Ready to switch**, read **Compared with the current index**. Ask the team's editors to look at the questions that got worse: they see them on the knowledge base's page.
 5. **Switch to the new index**, or **Discard preview**. **Compare again** runs the sets once more (after documents changed, or if a run failed).
@@ -72,6 +72,15 @@ A migration to another profile switches by itself when its new index is ready. A
 A profile's **chunker** decides how a page is cut into passages. **Version 1**, the original and the default, starts a new passage at every heading of level 1 to 3. **Version 2** keeps that and adds two rules: it **merges short neighbouring sections** into one passage (when the passage being filled and the whole next section are each under a quarter of the passage size, they fit together, the next heading is under the same parent heading as the passage started in, and no page boundary lies between them; a level 1 heading always starts a new passage), and it **drops passages that are only headings, rules and images** (version 1 drops such a passage only when it contains an image), unless that is all a document has. With no overlap, version 2 leaves the same text in the same order as version 1, in fewer passages.
 
 It is a setting of the profile, fixed once the profile exists (**Add profile → Chunker**, or `chunkerVersion` in the API); an index preview can change **only** the chunker, which builds the same sizes cut again, beside the live index. **Version 2 has not been measured on a real knowledge base with a real embedding model**: preview it on a knowledge base that has evaluation sets and decide by the numbers. An unknown version is refused (`400 invalid_chunker_version`).
+
+### Parent sections (parent/child retrieval)
+
+A profile's **parent size** (**Parent sections** in Add profile and in **Preview new settings…**; `parentTokens` in the API) is off at 0. Set, search and ranking still work on the small passages, and an agent's model is given the **section** around each match: the consecutive passages of that document under the same heading, at most that many tokens (at least twice the passage size, at most 8192). Passages of one section count as one source. Design and limits: [`../parent-child-retrieval.md`](../parent-child-retrieval.md).
+
+- **A preview of the parent size builds the ranges beside the live index.** Nothing about the live index changes until you switch. When only the parent size changes, the passages are copied and only the ranges are new, so the comparison **will show no difference in recall or rank**: it measures which pages are found, and the passages are the same. It cannot say whether the model answers better from sections. To see a difference in what is *searched*, preview a smaller passage size together with a parent size.
+- **Not measured.** Parent sections have been tested with the fake models only. Try them on a knowledge base with real questions, read the answers, and decide.
+- **Turning it off without re-indexing:** set `RETRIEVAL_PARENT_EXPANSION=false` and restart the API and worker: agents' searches then use passages only, whatever the profiles index. **Switch back** within the grace period also restores the previous index. A discarded preview leaves the live index as it was.
+- **A section that cannot be used** (a passage of it is missing or was re-cut since the search, the document is not ready, it does not fit the answer's context budget) is replaced by the passage, so an answer is never worse for the setting being on. The chat's source viewer says "This section is no longer in the document" when the text the answer was given has changed.
 
 ### Reading a comparison
 

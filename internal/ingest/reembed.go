@@ -257,6 +257,9 @@ func (p *Processor) commitSet(ctx context.Context, src dbgen.DataSource, doc dbg
 		if err := insertFresh(ctx, tx, p, src.ID, doc.ID, prof, rc); err != nil {
 			return err
 		}
+		if err := setParents(ctx, tx, doc.ID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
+			return err
+		}
 		if err := q.DeleteSetFailure(ctx, dbgen.DeleteSetFailureParams{DocumentID: doc.ID, ProfileID: prof.ID}); err != nil {
 			return err
 		}

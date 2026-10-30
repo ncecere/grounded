@@ -23,6 +23,7 @@ import { useLevelName } from "../../team/common";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
 import { type Model, type Profile, useModels } from "./common";
+import { ParentSizeField } from "./parents";
 import {
   initialProfileForm,
   missingPrefixes,
@@ -103,7 +104,7 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
           <PrefixWarning form={form} hint={hint} onUse={() => setForm((f) => ({ ...f, documentPrefix: hint!.documentPrefix, queryPrefix: hint!.queryPrefix }))} />
           <FusionDefaultsFields value={form.fusion} onChange={(f) => set("fusion", f)} errors={submitted ? errors : {}} />
           <Checkbox label="Make this the default profile" checked={form.isDefault} onCheckedChange={(v) => set("isDefault", v)} />
-          {!fieldError(serverError, ["invalid_chunk_size", "invalid_chunk_overlap"]) && <ErrorAlert error={serverError} />}
+          {!fieldError(serverError, ["invalid_chunk_size", "invalid_chunk_overlap", "invalid_parent_tokens"]) && <ErrorAlert error={serverError} />}
         </Form>
       )}
     </Dialog>
@@ -184,6 +185,7 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
           <option value="2">Merge short sections: joins short neighbouring sections</option>
         </NativeSelect>
       </Field>
+      <ParentSizeField value={form.parentTokens} onChange={(v) => set("parentTokens", v)} error={errors.parentTokens ?? fieldError(serverError, ["invalid_parent_tokens"])} />
       <Field label="Description" labelHint="Optional" className={s.span2}>
         <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
       </Field>

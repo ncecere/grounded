@@ -102,7 +102,7 @@ func (a *api) adminPreviewProfileMigration(w http.ResponseWriter, r *http.Reques
 	}
 	ch := catalog.CandidateChanges{
 		Name: in.Changes.Name, ModelID: in.Changes.ModelId, DocumentPrefix: in.Changes.DocumentPrefix, QueryPrefix: in.Changes.QueryPrefix,
-		ChunkSize: in.Changes.ChunkSize, ChunkOverlap: in.Changes.ChunkOverlap, ChunkerVersion: in.Changes.ChunkerVersion,
+		ChunkSize: in.Changes.ChunkSize, ChunkOverlap: in.Changes.ChunkOverlap, ChunkerVersion: in.Changes.ChunkerVersion, ParentTokens: in.Changes.ParentTokens,
 	}
 	if in.Changes.StorageType != nil {
 		st := string(*in.Changes.StorageType)

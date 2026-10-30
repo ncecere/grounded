@@ -8,6 +8,7 @@ import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Loading } from "@/components/ui/spinner/spinner";
+import type { Schemas } from "@/api/client";
 import type { Citation } from "../stream";
 import { type ContextPassage, loadDocumentPage } from "./data";
 import v from "./viewer.module.css";
@@ -36,17 +37,45 @@ function Passage({ p, citedRef }: { p: ContextPassage; citedRef?: React.Ref<HTML
 }
 
 /** The cited passage with its neighbours (about a page), in document order, scrolled into view when it opens (mem-5). */
-export function PassageList({ passages }: { passages: ContextPassage[] }) {
+export function PassageList({ passages, parent }: { passages: ContextPassage[]; parent?: Schemas["CitationParent"] }) {
   const citedRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // "nearest": the panel scrolls only when the passage is out of view, and keeps the context above it when it fits.
     citedRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [passages]);
+  if (parent) return <CitedSection passages={passages} parent={parent} citedRef={citedRef} />;
   return (
     <div className={v.passages}>
       {passages.map((p) => (
         <Passage key={p.ordinal} p={p} citedRef={p.cited ? citedRef : undefined} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * The section the model was given around the passage that matched (parent/child retrieval): all of it is the cited text, in one highlighted
+ * block, with the matched passage named, so a reader sees what the answer was written from and which part of it was found.
+ */
+function CitedSection({ passages, parent, citedRef }: { passages: ContextPassage[]; parent: Schemas["CitationParent"]; citedRef: React.Ref<HTMLDivElement> }) {
+  return (
+    <div className={v.passages}>
+      <div className={v.cited} data-testid="cited-section">
+        <p className={v.citedLabel}>Cited section</p>
+        <p className={v.where}>
+          The model was given these {passages.length} passages together. The passage that matched the question is marked
+          {parent.matched > 1 ? `; ${parent.matched} passages of this section matched` : ""}.
+        </p>
+        {passages.map((p) => (
+          <div key={p.ordinal} ref={p.matched ? citedRef : undefined} className={p.matched ? v.matched : v.sectionPassage} data-testid={p.matched ? "matched-passage" : undefined}>
+            {p.matched && <p className={v.citedLabel}>Matched passage</p>}
+            <LazyResponse images="alt" headingLevel={3}>
+              {p.content}
+            </LazyResponse>
+          </div>
+        ))}
+        <p className="sr-only">End of the cited section.</p>
+      </div>
     </div>
   );
 }

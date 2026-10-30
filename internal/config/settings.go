@@ -164,6 +164,7 @@ var settings = append([]setting{
 	{key: "VECTOR_EF_SEARCH", apply: integer(func(c *Config) *int { return &c.VectorEfSearch }, 10, 1000)},
 	{key: "RETRIEVAL_VECTOR_WEIGHT", apply: float(func(c *Config) *float64 { return &c.RetrievalVectorWeight }, 0, 1)},
 	{key: "RETRIEVAL_KEYWORD_WEIGHT", apply: float(func(c *Config) *float64 { return &c.RetrievalKeywordWeight }, 0, 1)},
+	{key: "RETRIEVAL_PARENT_EXPANSION", apply: boolean(func(c *Config) *bool { return &c.RetrievalParentExpansion })},
 	{key: "MODERATION_TIMEOUT", apply: duration(func(c *Config) *time.Duration { return &c.ModerationTimeout }, time.Second, 2*time.Minute)},
 	{key: "TIKA_URL", apply: str(func(c *Config) *string { return &c.TikaURL })},
 	{key: "TIKA_TIMEOUT", apply: duration(func(c *Config) *time.Duration { return &c.TikaTimeout }, time.Second, time.Hour)},

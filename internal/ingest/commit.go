@@ -85,6 +85,9 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		if _, err := tx.Exec(ctx, insertChunksSQL, doc.ID, doc.SourceID, ids, ordinals, contents, headings, starts, ends, tokens, prof.ID); err != nil {
 			return fmt.Errorf("insert chunks: %w", err)
 		}
+		if err := setParents(ctx, tx, doc.ID, prof.ID, res.target.Profile.ParentTokens, res.chunks); err != nil {
+			return err
+		}
 		if err := p.Vectors.Upsert(ctx, tx, prof, recs); err != nil {
 			return fmt.Errorf("insert vectors: %w", err)
 		}

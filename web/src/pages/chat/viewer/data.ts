@@ -41,6 +41,8 @@ export type ViewerData = {
   claims?: Schemas["Claim"][];
   /** The source's team, when the reader may open the whole document. */
   documentTeam?: string;
+  /** Set when the model was given the section around the cited passage (parent/child retrieval): the passages are that section. */
+  parent?: Schemas["CitationParent"];
 };
 
 const fromCited = (p: Schemas["CitedPassage"]): ViewerData => ({
@@ -49,9 +51,10 @@ const fromCited = (p: Schemas["CitedPassage"]): ViewerData => ({
   headingPath: p.headingPath,
   claims: p.claims,
   documentTeam: p.documentTeam,
+  parent: p.parent,
 });
 
-const snippetOnly = (c: Citation): ViewerData => ({ status: "snippet", passages: [], headingPath: c.headingPath });
+const snippetOnly = (c: Citation): ViewerData => ({ status: "snippet", passages: [], headingPath: c.headingPath, parent: c.parent });
 
 /** The document text endpoint's path. */
 export const documentTextPath = (team: string, c: Pick<Citation, "sourceId" | "documentId">) =>
@@ -61,13 +64,17 @@ async function aroundPassage(team: string, c: Citation): Promise<ViewerData> {
   try {
     const t = unwrap(
       await api.GET("/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text", {
-        params: { path: { team, sourceId: c.sourceId, documentId: c.documentId }, query: { around: c.chunkId } },
+        params: {
+          path: { team, sourceId: c.sourceId, documentId: c.documentId },
+          // A section the model was given is asked for by its range and the hash of its text: it is shown only while it is still that text.
+          query: { around: c.chunkId, ...(c.parent ? { parentFirst: c.parent.first, parentLast: c.parent.last, parentSha256: c.parent.sha256 } : {}) },
+        },
       }),
     );
     const cited = t.items.find((p) => p.cited);
-    return { status: "available", passages: t.items, headingPath: cited?.headingPath ?? c.headingPath, documentTeam: team };
+    return { status: "available", passages: t.items, headingPath: cited?.headingPath ?? c.headingPath, documentTeam: team, parent: c.parent };
   } catch (e) {
-    if (e instanceof ApiError && e.code === "passage_not_found") return { status: "passage_changed", passages: [], headingPath: c.headingPath };
+    if (e instanceof ApiError && e.code === "passage_not_found") return { status: "passage_changed", passages: [], headingPath: c.headingPath, parent: c.parent };
     if (e instanceof ApiError && e.code === "document_not_found") return { status: "document_deleted", passages: [], headingPath: c.headingPath };
     throw e;
   }

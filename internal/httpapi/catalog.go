@@ -116,7 +116,7 @@ func toAPIProfile(p catalog.Profile) apitypes.EmbeddingProfile {
 		},
 		Dimensions: p.Dimensions, StorageType: apitypes.EmbeddingProfileStorageType(p.StorageType),
 		DocumentPrefix: p.DocumentPrefix, QueryPrefix: p.QueryPrefix,
-		ChunkSize: p.ChunkSize, ChunkOverlap: p.ChunkOverlap, ChunkerVersion: p.ChunkerVersion,
+		ChunkSize: p.ChunkSize, ChunkOverlap: p.ChunkOverlap, ChunkerVersion: p.ChunkerVersion, ParentTokens: p.ParentTokens,
 		Status: apitypes.EmbeddingProfileStatus(p.Status), IsDefault: p.IsDefault, CandidateOf: nullUUID(p.CandidateOf),
 		Revision: p.Revision, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 		OutputDimensions:     p.OutputDimensions,
@@ -379,7 +379,7 @@ func (a *api) adminCreateEmbeddingProfile(w http.ResponseWriter, r *http.Request
 		Key: in.Key, Name: in.Name, Description: deref(in.Description, ""), ModelID: in.ModelId,
 		StorageType: string(deref(in.StorageType, "")), DocumentPrefix: deref(in.DocumentPrefix, ""),
 		QueryPrefix: deref(in.QueryPrefix, ""), ChunkSize: deref(in.ChunkSize, 0),
-		ChunkOverlap: deref(in.ChunkOverlap, 0), ChunkerVersion: deref(in.ChunkerVersion, 0), IsDefault: deref(in.IsDefault, false),
+		ChunkOverlap: deref(in.ChunkOverlap, 0), ChunkerVersion: deref(in.ChunkerVersion, 0), ParentTokens: deref(in.ParentTokens, 0), IsDefault: deref(in.IsDefault, false),
 		OutputDimensions: in.OutputDimensions, DefaultWeights: fromAPIProfileWeights(in.DefaultFusionWeights),
 	})
 	if failed(w, r, err) {

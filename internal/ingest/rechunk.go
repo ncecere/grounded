@@ -154,6 +154,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 		if err := insertFresh(ctx, tx, p, src.ID, d.DocumentID, prof, rc); err != nil {
 			return err
 		}
+		// Kept rows moved, so every passage's parent range is written again (their old ranges were cleared by reorderChunks).
+		if err := setParents(ctx, tx, d.DocumentID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
+			return err
+		}
 		q := dbgen.New(tx)
 		if err := q.SetDocumentChunkStats(ctx, dbgen.SetDocumentChunkStatsParams{ID: d.DocumentID, ChunkCount: int32(len(rc.chunks)), TokenCount: int32(total)}); err != nil {
 			return err
@@ -178,7 +182,7 @@ func reorderChunks(ctx context.Context, tx pgx.Tx, docID, profileID uuid.UUID, k
 	if _, err := tx.Exec(ctx, "DELETE FROM chunks WHERE document_id = $1 AND profile_id = $3 AND NOT (id = ANY($2::uuid[]))", docID, keep, profileID); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, "UPDATE chunks SET ordinal = -1 - ordinal WHERE document_id = $1 AND profile_id = $2", docID, profileID); err != nil {
+	if _, err := tx.Exec(ctx, "UPDATE chunks SET ordinal = -1 - ordinal, parent_first = NULL, parent_last = NULL WHERE document_id = $1 AND profile_id = $2", docID, profileID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `UPDATE chunks c SET ordinal = u.o

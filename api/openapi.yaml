@@ -3030,8 +3030,12 @@ paths:
         (chunk overlap) left out. With around (a passage ID), the passage
         with its neighbours (about a page) instead, marked cited; 404
         passage_not_found when the document no longer has that passage.
-        Members get 403: they see cited passages in context from their
-        answers.
+        With parentFirst, parentLast and parentSha256 (a citation's parent,
+        docs/parent-child-retrieval.md) the section of those passages
+        instead, every passage marked cited and the one named by around
+        marked matched; 404 passage_not_found unless the document's passages
+        there still make exactly the text with that hash. Members get 403:
+        they see cited passages in context from their answers.
       parameters:
         - name: from
           in: query
@@ -3045,6 +3049,18 @@ paths:
           in: query
           required: false
           schema: { type: string, format: uuid }
+        - name: parentFirst
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+        - name: parentLast
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+        - name: parentSha256
+          in: query
+          required: false
+          schema: { type: string, minLength: 64, maxLength: 64 }
       responses:
         default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200":
@@ -11434,7 +11450,7 @@ components:
         enabled: { type: boolean }
     EmbeddingProfile:
       type: object
-      required: [id, key, name, description, model, dimensions, storageType, documentPrefix, queryPrefix, chunkSize, chunkOverlap, chunkerVersion, status, isDefault, revision, createdAt, updatedAt]
+      required: [id, key, name, description, model, dimensions, storageType, documentPrefix, queryPrefix, chunkSize, chunkOverlap, chunkerVersion, parentTokens, status, isDefault, revision, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         key: { type: string, example: nomic-768 }
@@ -11457,6 +11473,7 @@ components:
         chunkSize: { type: integer, format: int32 }
         chunkOverlap: { type: integer, format: int32 }
         chunkerVersion: { type: integer, format: int32 }
+        parentTokens: { type: integer, format: int32, description: "Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents" }
         status: { type: string, enum: [active, retired] }
         isDefault: { type: boolean }
         candidateOf: { type: string, format: uuid, nullable: true, description: "Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id." }
@@ -11491,6 +11508,18 @@ components:
         chunkSize: { type: integer, format: int32, default: 512 }
         chunkOverlap: { type: integer, format: int32, default: 0 }
         chunkerVersion: { type: integer, format: int32, minimum: 1, default: 1, description: "The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version)." }
+        parentTokens:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 8192
+          description: >-
+            Parent/child retrieval, opt-in (docs/parent-child-retrieval.md):
+            the most tokens of the section around a matched passage that an
+            agent's model is given. 0 or omitted (the default) means no parents, and the
+            profile is indexed and searched as before. Otherwise at least twice
+            the passage size and at most 8192. Fixed once created. A value
+            outside that is refused (400 invalid_parent_tokens).
         isDefault: { type: boolean }
     EmbeddingProfileUpdate:
       type: object
@@ -11651,6 +11680,17 @@ components:
                 The chunker: 1, the original, or 2, which merges short
                 neighbouring sections and drops chunks with no body. Anything
                 else is refused (400 invalid_chunker_version).
+            parentTokens:
+              type: integer
+              format: int32
+              minimum: 0
+              maximum: 8192
+              description: >-
+                Parent/child retrieval: the parent size of the new index (0
+                turns parents off, omit to keep the profile's). A preview that
+                changes only this leaves the passages and so the ranking as
+                they are. Anything else outside 0 or twice the passage size to
+                8192 is refused (400 invalid_parent_tokens).
     ProfileMigrationStatus:
       type: string
       description: >-
@@ -12136,7 +12176,8 @@ components:
           items: { type: string }
         pageStart: { type: integer, format: int32, description: "First page (0 when the format has no pages)" }
         pageEnd: { type: integer, format: int32 }
-        cited: { type: boolean, description: The passage the answer cited (or around named) }
+        cited: { type: boolean, description: The passage the answer cited (or around named); with a parent, every passage of the section the model read }
+        matched: { type: boolean, description: "With a parent: the passage that matched the question, inside the section" }
     CitedPassage:
       type: object
       description: >-
@@ -12167,6 +12208,7 @@ components:
         documentTeam:
           type: string
           description: "The source's team (slug), when the caller may open the whole document (its editors, admins and owners)"
+        parent: { $ref: "#/components/schemas/CitationParent" }
     DocumentText:
       type: object
       required: [documentId, sourceId, title, kind, items, total, from]
@@ -13961,7 +14003,9 @@ components:
           description: >-
             The cited passage (absent for MCP tools' results and answers from
             before v0.4.0). It may be gone since: a re-fetched or re-embedded
-            document gets new passages.
+            document gets new passages. With parent set, it is the matched
+            passage: the one that ranked, inside the section the model read.
+        parent: { $ref: "#/components/schemas/CitationParent" }
         verification:
           type: string
           enum: [verified, unsupported, contradicted, unchecked]
@@ -13986,6 +14030,20 @@ components:
         server: { type: string, description: "The MCP server's name (kind tool)" }
         tool: { type: string, description: "The tool's name (kind tool)" }
         truncated: { type: boolean, description: "The tool's result was cut to the size the model reads (kind tool)" }
+    CitationParent:
+      type: object
+      description: >-
+        Parent/child retrieval (docs/parent-child-retrieval.md): the model was
+        given the section around the matched passage, not the passage alone.
+        Set only when it was; absent when the model was given the passage.
+      required: [first, last, passages, tokens, matched, sha256]
+      properties:
+        first: { type: integer, format: int32, description: "Ordinal of the section's first passage in the document" }
+        last: { type: integer, format: int32, description: "Ordinal of its last passage" }
+        passages: { type: integer, format: int32, description: Passages in the section }
+        tokens: { type: integer, format: int32, description: "The section's size in estimated tokens (characters / 4), as the answer's context budget counted it" }
+        matched: { type: integer, format: int32, description: "How many of the search's matching passages were in this section (they are one source)" }
+        sha256: { type: string, description: "SHA-256 (hex) of the exact text the model was given; the source viewer shows the section only while the document's text for it is still this" }
     CitationMarker:
       type: object
       description: The citation check of one [n] marker.

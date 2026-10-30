@@ -40,6 +40,8 @@ type CitedPassage struct {
 	// DocumentTeam is the source's team slug when the caller may open the
 	// whole document ("" otherwise).
 	DocumentTeam string
+	// Parent is the citation's parent, when the model was given a section: the passages are its range (ParentInContext).
+	Parent *CitationParent
 }
 
 var (
@@ -117,6 +119,9 @@ func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, 
 	} else if err != nil {
 		return out, doc, err
 	}
+	if c.Parent != nil {
+		return s.citedParent(ctx, out, doc, c)
+	}
 	pq := sources.PassageQuery{Match: func(content string) bool { return snippetMatches(content, *c) }}
 	if c.ChunkID != nil {
 		pq.ChunkID = *c.ChunkID
@@ -169,4 +174,24 @@ func answerText(content json.RawMessage) string {
 		}
 	}
 	return text
+}
+
+// citedParent is a citation whose model was given a section (parent/child retrieval): the section's passages, while the document still
+// has exactly the text the model read, else passage_changed with what the answer quoted.
+func (s *Service) citedParent(ctx context.Context, out CitedPassage, doc dbgen.GetViewerDocumentRow, c *Citation) (CitedPassage, dbgen.GetViewerDocumentRow, error) {
+	out.Parent = c.Parent
+	pq := sources.ParentQuery{First: c.Parent.First, Last: c.Parent.Last, SHA256: c.Parent.SHA256}
+	if c.ChunkID != nil {
+		pq.ChunkID = *c.ChunkID
+	}
+	ps, err := sources.ParentInContext(ctx, s.q, doc, pq)
+	if errors.Is(err, sources.ErrPassageNotFound) {
+		out.Status = PassageChanged
+		return out, doc, nil
+	} else if err != nil {
+		return out, doc, err
+	}
+	out.Passages = ps
+	out.HeadingPath = ps[0].HeadingPath
+	return out, doc, nil
 }

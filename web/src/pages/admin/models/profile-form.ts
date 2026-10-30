@@ -1,6 +1,7 @@
 /* Form state for creating an embedding profile and editing its fusion defaults (pure, unit-tested). */
 import type { Schemas } from "@/api/client";
 import { type FusionForm, fusionErrors } from "../../team/kbs/fusion-form";
+import { parentProblem } from "./parent-size";
 
 export const initialProfileForm = {
   key: "",
@@ -14,6 +15,8 @@ export const initialProfileForm = {
   chunkOverlap: 64,
   /** The chunker: 1 is the original; 2 also merges short neighbouring sections and drops passages with no body. */
   chunkerVersion: 1,
+  /** Parent sections (parent-size.ts): the most tokens of the section around a passage an agent's model is given; empty is off. */
+  parentTokens: "",
   isDefault: false,
   /** Empty = the model's dimensions. */
   outputDimensions: "",
@@ -66,7 +69,7 @@ export function missingPrefixes(form: Pick<ProfileForm, "documentPrefix" | "quer
 }
 
 /** Field errors, or {} when the form can be sent. modelDims is the chosen model's dimensions. */
-export function profileErrors(form: ProfileForm, modelDims: number | undefined): { outputDimensions?: string; vector?: string; keyword?: string; fusion?: string } {
+export function profileErrors(form: ProfileForm, modelDims: number | undefined): { outputDimensions?: string; parentTokens?: string; vector?: string; keyword?: string; fusion?: string } {
   const out: ReturnType<typeof profileErrors> = {};
   const limit = storageLimit[form.storageType];
   const text = form.outputDimensions.trim();
@@ -75,6 +78,8 @@ export function profileErrors(form: ProfileForm, modelDims: number | undefined):
     if (!Number.isInteger(n) || n < 1 || (modelDims !== undefined && n > modelDims)) out.outputDimensions = `Enter a whole number from 1 to ${modelDims ?? "the model's dimensions"}.`;
     else if (n > limit) out.outputDimensions = `${form.storageType} supports at most ${limit} dimensions.`;
   }
+  const parent = parentProblem(form.parentTokens, form.chunkSize);
+  if (parent) out.parentTokens = parent;
   const f = fusionErrors(form.fusion);
   if (f.vector) out.vector = f.vector;
   if (f.keyword) out.keyword = f.keyword;
@@ -88,13 +93,16 @@ export function fusionWeightsOf(f: FusionForm): Schemas["FusionWeights"] | undef
 }
 
 export function profileBody(form: ProfileForm, modelId: string): Schemas["EmbeddingProfileCreate"] {
-  const { outputDimensions, fusion, ...rest } = form;
-  return {
+  const { outputDimensions, fusion, parentTokens, ...rest } = form;
+  const body: Schemas["EmbeddingProfileCreate"] = {
     ...rest,
     modelId,
     outputDimensions: outputDimensions.trim() === "" ? undefined : Number(outputDimensions),
     defaultFusionWeights: fusionWeightsOf(fusion),
   };
+  // Off is the default: the field is only sent when a size is chosen.
+  if (parentTokens.trim() !== "" && Number(parentTokens) > 0) body.parentTokens = Number(parentTokens);
+  return body;
 }
 
 /** The fusion form for an existing profile. */

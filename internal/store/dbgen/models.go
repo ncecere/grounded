@@ -250,6 +250,8 @@ type Chunk struct {
 	TokenCount  int32
 	ContentTsv  interface{}
 	ProfileID   uuid.UUID
+	ParentFirst *int32
+	ParentLast  *int32
 }
 
 type ClassificationLevel struct {
@@ -421,6 +423,7 @@ type EmbeddingProfile struct {
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
+	ParentTokens         int32
 }
 
 type EmbeddingSetFailure struct {

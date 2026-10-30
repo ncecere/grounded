@@ -21,6 +21,8 @@ type CandidateChanges struct {
 	DocumentPrefix, QueryPrefix *string
 	ChunkSize, ChunkOverlap     *int32
 	ChunkerVersion              *int32
+	// ParentTokens is the parent size (0 turns parents off; nil keeps the live profile's).
+	ParentTokens *int32
 }
 
 // CreateCandidate copies the live profile with the changes applied, hidden (candidate_of is set, so it is in no list or picker, is never
@@ -48,6 +50,7 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 		ChunkSize:      pick(ch.ChunkSize, live.ChunkSize),
 		ChunkOverlap:   pick(ch.ChunkOverlap, live.ChunkOverlap),
 		ChunkerVersion: pick(ch.ChunkerVersion, live.ChunkerVersion),
+		ParentTokens:   pick(ch.ParentTokens, live.ParentTokens),
 		// A new model has its own dimensions: only a model that is kept keeps the live profile's truncation.
 		OutputDimensions: nil,
 	}
