@@ -318,6 +318,7 @@ func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget,
 		return g.Store.Settle(sctx, s)
 	}
 	if err != nil {
+		zero.made = !provenUnsentBackpressure(err)
 		return zero, g.failed(ctx, callCtx, id, err, settle)
 	}
 	tokensIn, tokensOut, reported := reportedUsage(msg.Usage)
@@ -392,6 +393,13 @@ func (g *Generator) unusable(settle func(Settlement) error, outcome string, caus
 	return &Failure{Code: CodeInvalid, Err: cause, Permanent: true}
 }
 
+// provenUnsentBackpressure is the gateway's local limiter refusal, before HTTP.
+// A remote status cannot establish whether processing or billing happened.
+func provenUnsentBackpressure(err error) bool {
+	var ge *gateway.Error
+	return errors.As(err, &ge) && ge.Kind == gateway.KindRateLimited && ge.Status == 0
+}
+
 // failed settles an attempt whose request failed, and says what that means.
 func (g *Generator) failed(ctx, callCtx context.Context, id int64, err error, settle func(Settlement) error) error {
 	var ge *gateway.Error
@@ -400,13 +408,18 @@ func (g *Generator) failed(ctx, callCtx context.Context, id int64, err error, se
 		// We stopped it: whether the provider billed it is unknown.
 		_ = settle(Settlement{Outcome: OutcomeCancelled})
 		return &StopError{Reason: "cancelled", Err: ctx.Err()}
-	case errors.As(err, &ge) && ge.Backpressure():
-		// Refused for load before it was processed: not an attempt. The caller waits as embeddings do.
-		rctx, stop := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	case provenUnsentBackpressure(err):
+		// Only the local limiter proves no request was sent: release its headroom.
+		rctx, stop := context.WithTimeout(context.WithoutCancel(ctx), g.persistenceTimeout())
 		defer stop()
 		if rerr := g.Store.Release(rctx, id); rerr != nil {
 			g.log().WarnContext(ctx, "could not release a refused contextual call", "call", id, "err", rerr)
 		}
+		return err
+	case errors.As(err, &ge) && ge.Backpressure():
+		// Preserve backpressure/snooze behavior, but retain unknown admission for
+		// a remote 429/503: no response proves that it was unprocessed/unbilled.
+		_ = settle(Settlement{Outcome: OutcomeError})
 		return err
 	case callCtx.Err() != nil || (errors.As(err, &ge) && ge.TimedOut()):
 		// No answer in time. The provider may still have processed and billed it; Grounded cannot know.

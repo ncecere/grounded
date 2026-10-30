@@ -28,7 +28,7 @@ type Store interface {
 	Reserve(ctx context.Context, r Reservation) (int64, error)
 	// Settle records a terminal outcome and its usage once. Replays and missing attempts are no-ops.
 	Settle(ctx context.Context, s Settlement) error
-	// Release removes a reservation for a request that was refused for load: it was not an attempt.
+	// Release removes only a proven-unsent local reservation. Remote 429/503 usage is unknown and must retain admission.
 	Release(ctx context.Context, id int64) error
 }
 

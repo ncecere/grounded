@@ -139,7 +139,7 @@ SET outcome = @outcome, tokens_in = sqlc.narg(tokens_in), tokens_out = sqlc.narg
     charged_amount = coalesce(sqlc.narg(charged_amount)::text::numeric, charged_amount)
 WHERE id = @id AND outcome = 'started' AND finished_at IS NULL;
 
--- A request the gateway refused for load was not an attempt.
+-- Only a proven-unsent local reservation may be released; remote backpressure retains unknown admission.
 -- name: DeleteContextualCall :exec
 DELETE FROM contextual_calls WHERE id = $1 AND outcome = 'started';
 

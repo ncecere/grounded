@@ -254,16 +254,19 @@ func TestFailurePolicies(t *testing.T) {
 	}
 }
 
-func TestBackpressureIsNotAnAttempt(t *testing.T) {
+func TestLocalBackpressureIsNotAnAttempt(t *testing.T) {
 	e := newGen(t)
-	e.proxy.FailContextWith(429)
+	e.g.Catalog.(fixedResolver).target.Client.Limiter = unsentLimiter{}
 	_, err := e.g.Contextualize(context.Background(), e.req(sections(1)))
 	var ge *gateway.Error
 	if !errors.As(err, &ge) || !ge.Backpressure() {
 		t.Fatalf("err = %v", err)
 	}
 	if c := e.store.counted(); len(c) != 0 {
-		t.Errorf("a request refused for load counted as an attempt: %v", c)
+		t.Errorf("a locally unsent request counted as an attempt: %v", c)
+	}
+	if n := len(e.proxy.ContextCalls()); n != 0 {
+		t.Fatalf("local limiter sent %d requests", n)
 	}
 }
 

@@ -275,7 +275,7 @@ const deleteContextualCall = `-- name: DeleteContextualCall :exec
 DELETE FROM contextual_calls WHERE id = $1 AND outcome = 'started'
 `
 
-// A request the gateway refused for load was not an attempt.
+// Only a proven-unsent local reservation may be released; remote backpressure retains unknown admission.
 func (q *Queries) DeleteContextualCall(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteContextualCall, id)
 	return err

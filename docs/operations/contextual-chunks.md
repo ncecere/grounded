@@ -8,7 +8,7 @@
 - Unknown prices remain unknown; they cannot silently bypass a required spend limit. Local configured-price accounting is not a guarantee about an external provider's invoice. Unknown/in-flight usage must retain conservative reservations, and retries/settlement must not double-record usage.
 - Class/source/set/kill-switch checks at the correct checkpoints; bounded cancellation, persistence and cleanup; no caching a response after its run stops. Distinguish local pre-dispatch pacing from a remote HTTP response: an upstream 429 is not universal proof that nothing was processed or billed.
 - Cache isolation and bounded lifecycle across documents, sources and active profile plans. No generated context in original passages, citation/viewer text, full-text search or parent hashes.
-- Fake-model unit, Postgres, HTTP authorization, preview/apply/rollback and shared-source tests; final current-head CI and disposable cluster acceptance. The preserved work currently has only narrow unit evidence, not that full gate.
+- Fake-model unit, Postgres, HTTP authorization, preview/apply/rollback and shared-source tests; final current-head CI and disposable cluster acceptance. The private backend now has direct-Postgres race evidence for atomic admission and bounded/idempotent usage/cache persistence, plus full lint; the broader HTTP/UI/preview/lifecycle and final source-bound acceptance gate is still pending.
 
 There are deliberately no enable/run commands here yet: the implementation and acceptance harness are unfinished, so inventing executable instructions would be misleading.
 
