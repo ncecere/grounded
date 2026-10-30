@@ -197,7 +197,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.KBs = kbs.New(pool, s.Teams, s.Catalog, s.Vectors)
 	s.KBs.Limits = s.Limits
 	s.KBs.Weights = kbs.Weights{Vector: cfg.RetrievalVectorWeight, Keyword: cfg.RetrievalKeywordWeight}
-	s.KBs.ParentExpansionOff = !cfg.RetrievalParentExpansion
+	s.KBs.ParentExpansionOff = !cfg.ParentExpansion
 	peppers, err := NewPeppers(cfg)
 	if err != nil {
 		return nil, err

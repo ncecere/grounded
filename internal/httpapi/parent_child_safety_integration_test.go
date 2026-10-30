@@ -294,7 +294,7 @@ func TestBudgetAndSwitchFallBackToPassages(t *testing.T) {
 		t.Errorf("the model was given %q, want the passage alone", body)
 	}
 
-	off := newParentEnvWith(t, func(c *config.Config) { c.RetrievalParentExpansion = false }, 512, 6)
+	off := newParentEnvWith(t, func(c *config.Config) { c.ParentExpansion = false }, 512, 6)
 	if len(off.rows(t, off.source.Id, off.profile.Id)) == 0 || off.rows(t, off.source.Id, off.profile.Id)[0].First == nil {
 		t.Fatal("the index of the profile with parents has no ranges (the switch must not change what is indexed)")
 	}
