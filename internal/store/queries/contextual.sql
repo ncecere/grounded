@@ -89,10 +89,12 @@ INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phas
 VALUES (@source_id, @profile_id, sqlc.narg(document_id), @model_id, @phase)
 RETURNING id;
 
--- name: SettleContextualCall :exec
+-- Only the winner of the started -> terminal transition may append usage.
+-- Retrying a settlement must not change its outcome, timestamp or ledger.
+-- name: SettleContextualCall :execrows
 UPDATE contextual_calls
 SET outcome = @outcome, tokens_in = sqlc.narg(tokens_in), tokens_out = sqlc.narg(tokens_out), finished_at = now()
-WHERE id = @id;
+WHERE id = @id AND outcome = 'started' AND finished_at IS NULL;
 
 -- A request the gateway refused for load was not an attempt.
 -- name: DeleteContextualCall :exec

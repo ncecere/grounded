@@ -2,6 +2,7 @@ package contextual
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/google/uuid"
@@ -80,15 +81,19 @@ func (m *memStore) Reserve(_ context.Context, r Reservation) (int64, error) {
 }
 
 func (m *memStore) Settle(_ context.Context, s Settlement) error {
+	if !terminalOutcome(s.Outcome) {
+		return errors.New("contextual settlement requires a terminal outcome")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, a := range m.attempts {
-		if a.id == s.ID {
+		if a.id == s.ID && !a.released && a.outcome == OutcomeStarted {
 			a.outcome, a.in, a.out = s.Outcome, s.TokensIn, s.TokensOut
+			if s.Usage != nil {
+				m.usage = append(m.usage, *s.Usage)
+			}
+			return nil
 		}
-	}
-	if s.Usage != nil {
-		m.usage = append(m.usage, *s.Usage)
 	}
 	return nil
 }

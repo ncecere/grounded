@@ -568,10 +568,10 @@ func (q *Queries) SetProfileContextual(ctx context.Context, arg SetProfileContex
 	return err
 }
 
-const settleContextualCall = `-- name: SettleContextualCall :exec
+const settleContextualCall = `-- name: SettleContextualCall :execrows
 UPDATE contextual_calls
 SET outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now()
-WHERE id = $4
+WHERE id = $4 AND outcome = 'started' AND finished_at IS NULL
 `
 
 type SettleContextualCallParams struct {
@@ -581,14 +581,19 @@ type SettleContextualCallParams struct {
 	ID        int64
 }
 
-func (q *Queries) SettleContextualCall(ctx context.Context, arg SettleContextualCallParams) error {
-	_, err := q.db.Exec(ctx, settleContextualCall,
+// Only the winner of the started -> terminal transition may append usage.
+// Retrying a settlement must not change its outcome, timestamp or ledger.
+func (q *Queries) SettleContextualCall(ctx context.Context, arg SettleContextualCallParams) (int64, error) {
+	result, err := q.db.Exec(ctx, settleContextualCall,
 		arg.Outcome,
 		arg.TokensIn,
 		arg.TokensOut,
 		arg.ID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const sourceHasContextualSets = `-- name: SourceHasContextualSets :one

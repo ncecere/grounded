@@ -44,6 +44,22 @@ The preserved code has call caps, but **does not yet implement the required expl
 
 Cache isolation/lifecycle across documents and active profile plans, upstream-429 accounting, model/scope checkpoints and off-path/preview/rollback integration also need review. The sections below describe the target design, not proof that these controls are complete. See the [acceptance plan](operations/contextual-chunks.md).
 
+### Admission contract to implement before enabling
+
+These are implementation requirements, **not completed controls**:
+
+- Explicit positive call, token and configured-price amount limits per source/build **and** source/UTC day. The daily window includes build and live attempts across **all profiles** of that source, including platform-owned sources. A build must satisfy both windows; parallel previews must not each get a separate daily allowance.
+- One short database transaction locks the source's admission/settings state, reads the current limits and applicable configured prices, checks all relevant windows and reserves the attempt and its token/amount headroom together. Historical budget checks or independent check-then-insert steps are not admission. A lowered limit applies to subsequent reservations, not just the next document.
+- Use a database-derived reservation time for the UTC bucket, not a caller-supplied `Since`. Record the bucket of admission explicitly; this is not a claim about the provider's billing day or the later time of delivery after gateway pacing.
+- Record reserved input/output quantities, price snapshot and currency with each attempt. Use exact decimal money and round reservation amounts **up**, never down to zero for a tiny positive configured price. Missing prices or incompatible currencies fail closed; neither budget mode off nor a platform-owned source bypasses the spend cap. Do not silently add unlike currencies.
+- Keep daily admission history when a document, candidate profile or set is deleted. Discarding/recreating a candidate must not restore today's headroom. Preserve build identity independently from the lifecycle of its index rows.
+- Only a successful compare-and-set from an unsettled attempt may publish its usage, cache artifact and settlement; retrying must not duplicate usage, notify budgets again or rewrite the first terminal outcome. Cache persistence and settlement need a shared bounded transaction, not separate writes with an unbounded uncancellable context.
+- Unknown, partial, malformed or missing provider usage retains conservative reserved headroom. A remote HTTP 429 does not establish that nothing was processed/billed. Release only when the transport proves no request was sent. Reconcile trustworthy reported usage once; an overrun is visible and stops further admission rather than creating negative/fictional credit.
+- Recheck the wanted set, opt-in/kill switches, model/connection clearance and current scope at call boundaries, including after queue waits. Cancellation and persistence have bounded deadlines; no database/network lock is held across a model call.
+- Tokens and configured-price amounts are local admission/accounting quantities. Tokenizer differences, provider behavior and billing rules mean they are **not an external invoice guarantee**. No provider's missing usage is presented as a known zero.
+
+Regression coverage must prove concurrent callers cannot exceed either window, build fan-out shares the daily limit, platform-owned sources are capped, candidate deletion cannot reset it, limit/price/currency changes fail safely, terminal retries are idempotent and unknown usage cannot refund headroom. All of this precedes an owner-authorized real-model run.
+
 ## 3. Per-source settings
 
 `source_contextual` (one row per source that ever had a setting; no row = off):
@@ -176,5 +192,7 @@ Unit: unit planning and bounds, key invalidation (each input), prompt constructi
 ## 16. As built
 
 - Fake-generator and chunk unit tests pass under the race detector after correcting a fixture that counted checkpoint hook invocations instead of actual requests. The two-request assertion remains, and now also requires that the stopped reply is not cached and both completed requests are accounted for; ten repetitions pass.
-- The preserved application, HTTP API, ingest and profile-migration packages compile with `go test -run '^$'`; this executes **no integration tests** and is not an application acceptance pass.
-- Database/HTTP/UI/cost-admission/preview/rollback tests, integration with migrations 00056–00058, final CI/cluster gates, an acceptance harness and the owner-approved real-model run are **pending**. No real-provider requests, production changes or release have occurred.
+- The private stack integrates the table, parent/child, fuzzy and content-health source. Full lint passes with unchanged limits; the common document-lock guard retains the same `FOR UPDATE` statement and existing stale-result outcomes. Its pure guard cases and the existing real-Postgres parent/rechunk regressions pass under the race detector three times. App/contextual/chunk race tests also pass. These narrow tests do not establish contextual database/HTTP/preview acceptance.
+- The preserved HTTP API and profile-migration packages compile with `go test -run '^$'`; this executes **no integration tests** and is not an application acceptance pass.
+- A direct-Postgres settlement regression failed on the preserved implementation: twelve retries appended usage twelve times and rewrote the terminal outcome; a nonexistent reservation also appended usage. The rollback control already passed. Compare-and-set settlement now passes all three direct-Postgres cases in three race-enabled repetitions, including one notification, terminal-outcome immutability, missing-reservation no-op and rollback/retry. The complete contextual package also passes those repetitions; regenerated queries and full lint pass. This does not yet make cache publication atomic or implement token/spend admission.
+- Complete contextual database/HTTP/UI/cost-admission/preview/rollback tests, final CI/cluster gates, an acceptance harness and the owner-approved real-model run are **pending**. No real-provider requests, production changes or release have occurred.

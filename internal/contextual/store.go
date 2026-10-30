@@ -26,7 +26,7 @@ type Store interface {
 	PruneCache(ctx context.Context, documentID uuid.UUID, keep [][32]byte) error
 	// Reserve records an attempt before it is sent, unless the cap is reached (ErrCapReached).
 	Reserve(ctx context.Context, r Reservation) (int64, error)
-	// Settle records how an attempt ended; for outcome ok it also records the usage.
+	// Settle records a terminal outcome and its usage once. Replays and missing attempts are no-ops.
 	Settle(ctx context.Context, s Settlement) error
 	// Release removes a reservation for a request that was refused for load: it was not an attempt.
 	Release(ctx context.Context, id int64) error
@@ -138,9 +138,13 @@ func (s *PGStore) Release(ctx context.Context, id int64) error {
 }
 
 func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
+	if !terminalOutcome(st.Outcome) {
+		return errors.New("contextual settlement requires a terminal outcome")
+	}
 	var recorded []dbgen.InsertUsageParams
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		if err := q.SettleContextualCall(ctx, dbgen.SettleContextualCallParams{ID: st.ID, Outcome: st.Outcome, TokensIn: st.TokensIn, TokensOut: st.TokensOut}); err != nil {
+		n, err := q.SettleContextualCall(ctx, dbgen.SettleContextualCallParams{ID: st.ID, Outcome: st.Outcome, TokensIn: st.TokensIn, TokensOut: st.TokensOut})
+		if err != nil || n == 0 {
 			return err
 		}
 		if st.Usage == nil {
@@ -154,10 +158,18 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 		}
 		return nil
 	})
-	if err == nil && s.Recorded != nil && st.Usage != nil && st.Usage.Team.Valid {
+	if err == nil && len(recorded) > 0 && s.Recorded != nil && st.Usage != nil && st.Usage.Team.Valid {
 		s.Recorded(st.Usage.Team.UUID, recorded)
 	}
 	return err
+}
+
+func terminalOutcome(outcome string) bool {
+	switch outcome {
+	case OutcomeOK, OutcomeRefused, OutcomeInvalid, OutcomeError, OutcomeTimeout, OutcomeCancelled:
+		return true
+	}
+	return false
 }
 
 // usageEvents are the ledger rows of a call: input and output tokens of the model, as chat tokens, so the existing prices, budgets and
