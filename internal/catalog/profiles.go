@@ -45,8 +45,8 @@ type ProfileInput struct {
 	StorageType                 string
 	DocumentPrefix, QueryPrefix string
 	ChunkSize, ChunkOverlap     int32
-	// ChunkerVersion is the chunker that cuts the profile's passages (internal/chunk): 1, the original, or 2, which merges short neighbouring
-	// sections; 0 means 1. Immutable afterwards, like the sizes (ADR-0007).
+	// ChunkerVersion is the chunker that cuts the profile's passages (internal/chunk): 1, the original; 2, which merges short neighbouring
+	// sections; 3, which also keeps tables structured; 0 means 1. Immutable afterwards, like the sizes (ADR-0007).
 	ChunkerVersion int32
 	// ParentTokens is the parent size of parent/child retrieval (docs/parent-child-retrieval.md): 0, the default, means no parents; otherwise
 	// at least twice ChunkSize and at most chunk.MaxParentTokens. Immutable afterwards, like the sizes (ADR-0007).
@@ -230,7 +230,7 @@ func checkProfileInput(in *ProfileInput) (int32, error) {
 		in.ChunkerVersion = chunk.Version1
 	}
 	if !chunk.ValidVersion(in.ChunkerVersion) {
-		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original) or 2 (merges short neighbouring sections)")
+		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original), 2 (merges short neighbouring sections) or 3 (also keeps tables structured)")
 	}
 	if err := checkParentTokens(in.ParentTokens, in.ChunkSize); err != nil {
 		return 0, err

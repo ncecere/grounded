@@ -43,7 +43,7 @@ type Options struct {
 
 	// Version is the chunker version (an embedding profile's chunker_version):
 	// 0 or 1, the original; 2, which merges short neighbouring sections and
-	// drops chunks with no body (v2.go). Any other value is an error.
+	// drops chunks with no body (v2.go); 3, which also keeps tables structured (tables.go). Any other value is an error.
 	Version int32
 }
 
@@ -80,19 +80,23 @@ func Split(markdown string, opts Options) ([]Chunk, error) {
 	if doc == "" {
 		return nil, nil
 	}
-	blocks, paginated := parseBlocks(doc)
+	s := newSplitter(opts)
+	s.tables = opts.Version >= Version3
+	blocks, paginated := parseBlocksFor(doc, s.tables)
 	if opts.DropBlock != nil {
 		blocks = dropBlocks(blocks, opts.DropBlock)
 	}
-	s := newSplitter(opts)
-	if opts.Version == Version2 {
+	if opts.Version >= Version2 {
 		s.floor = max(opts.MaxTokens/4, 1)
+	}
+	if s.tables {
+		blocks = s.joinCaptions(blocks)
 	}
 	s.prepare(blocks)
 	drafts := s.pack(blocks)
 	out := s.finish(drafts, paginated)
 	if opts.DropImageOnly {
-		if opts.Version == Version2 {
+		if opts.Version >= Version2 {
 			out = dropWhere(out, bodyless)
 		} else {
 			out = dropWhere(out, ImageOnly)

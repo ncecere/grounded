@@ -23,10 +23,15 @@ type Settings struct {
 	Enabled *bool    `json:"enabled,omitempty"`
 	MinDocs *int     `json:"minDocs,omitempty"`
 	Ratio   *float64 `json:"ratio,omitempty"`
+	// Fuzzy also matches near-duplicate blocks (fuzzy.go). Off unless set or
+	// the platform default is on; only has an effect while Enabled.
+	Fuzzy *bool `json:"fuzzy,omitempty"`
 }
 
 // IsZero reports whether s overrides nothing.
-func (s Settings) IsZero() bool { return s.Enabled == nil && s.MinDocs == nil && s.Ratio == nil }
+func (s Settings) IsZero() bool {
+	return s.Enabled == nil && s.MinDocs == nil && s.Ratio == nil && s.Fuzzy == nil
+}
 
 // Bounds of the settings.
 const (
@@ -56,6 +61,7 @@ type Defaults struct {
 	Upload  bool    // on for upload sources (opt-in by default)
 	MinDocs int     // a block must repeat in at least this many documents
 	Ratio   float64 // ... and in at least this share of the source's documents
+	Fuzzy   bool    // near-duplicate matching (off: opt-in per source)
 }
 
 // DefaultDefaults are the built-in defaults, tuned on two real sites
@@ -67,11 +73,12 @@ type Effective struct {
 	Enabled bool
 	MinDocs int
 	Ratio   float64
+	Fuzzy   bool // near-duplicate blocks count as one (only meaningful while Enabled)
 }
 
 // Resolve applies a source's overrides to the defaults for its type.
 func (d Defaults) Resolve(sourceType string, s Settings) Effective {
-	e := Effective{Enabled: d.Upload, MinDocs: d.MinDocs, Ratio: d.Ratio}
+	e := Effective{Enabled: d.Upload, MinDocs: d.MinDocs, Ratio: d.Ratio, Fuzzy: d.Fuzzy}
 	if sourceType == "web" {
 		e.Enabled = d.Web
 	}
@@ -83,6 +90,9 @@ func (d Defaults) Resolve(sourceType string, s Settings) Effective {
 	}
 	if s.Ratio != nil {
 		e.Ratio = *s.Ratio
+	}
+	if s.Fuzzy != nil {
+		e.Fuzzy = *s.Fuzzy
 	}
 	e.MinDocs = max(e.MinDocs, MinMinDocs)
 	return e

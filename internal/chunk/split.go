@@ -133,7 +133,11 @@ func rowSpans(b *block, s span) []span {
 	for k < len(lines)-1 && lines[k].end <= b.headerEnd {
 		k++
 	}
-	if k > 0 {
+	switch {
+	case k > 0 && b.headSplit:
+		lines[k-1].start = lines[0].start // the header is a piece of its own, then the rows
+		lines = lines[k-1:]
+	case k > 0:
 		lines[k].start = lines[0].start
 		lines = lines[k:]
 	}
@@ -213,7 +217,11 @@ func (sp *splitter) refine(b *block, s span, level, limit int, out []piece) []pi
 		return sp.refine(b, s, level+1, limit, out)
 	}
 	for _, sub := range subs {
-		if n := sp.count(b.text[sub.start:sub.end]); n <= limit {
+		lim := limit
+		if sp.tables && b.kind == kindTable && sub.start == 0 {
+			lim += b.leadTok // the first piece holds the header itself, so no copy of it is added
+		}
+		if n := sp.count(b.text[sub.start:sub.end]); n <= lim {
 			out = append(out, piece{sub, n})
 			continue
 		}

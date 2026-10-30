@@ -1,7 +1,12 @@
 # ADR-0026: Parent/child retrieval
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
+
+Accepted after review with the conservative disclosure boundary: parent context
+is for generation only; cited viewers retain their existing bounded window,
+including anonymous sessions and public shared links. No wider public-text grant
+is authorized by this decision.
 
 ## Context
 

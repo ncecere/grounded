@@ -39,3 +39,10 @@ The platform serves 5,000 daily users and embedded public widgets, and is run by
 - **Stop-the-world migrations as in yoink.** Rejected. They cause planned downtime on every schema change.
 - **Scheduled maintenance windows.** Rejected as routine practice. Maintenance mode pauses only ingestion.
 - **Single-replica deployments.** Rejected. Node drains and failures would become outages.
+
+## Follow-up (2026-10-30, #195)
+
+Two clarifications from applying this ADR; the decision above is unchanged.
+
+- **"Tighter constraints ship at least one release later" applies to the database, and the application may enforce the rule first.** The previous release's pods run during a rollout and after a rollback and recognise only the constraints they shipped with, so a violation of a new unique index is an error they cannot translate (a 500). The staged form: release N enforces the rule in the application (inside its transaction, under a transaction-level advisory lock taken before the check) and may add a plain, non-unique index for the lookup; release N+1 or later creates the constraint after renaming or removing what old pods wrote in between; the release after drops the superseded index. Until then an old pod can still write a value the new rule would refuse; that temporary behaviour is accepted, and documented, in preference to an error. The first case is agent template names ([`operations/upgrades.md`](../operations/upgrades.md#staged-constraints)).
+- **A migration that alters a table does not also run an unbounded `UPDATE` on it:** `ALTER TABLE` keeps its `ACCESS EXCLUSIVE` lock until the migration's transaction ends. Add the column with a constant default, and resolve old rows when they are read (an indexed lookup) or fill them in bounded batches outside the migration.

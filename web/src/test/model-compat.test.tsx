@@ -178,6 +178,7 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     expect(within(chunker).getAllByRole("option").map((o) => o.textContent)).toEqual([
       "Standard: a new passage at every heading",
       "Merge short sections: joins short neighbouring sections",
+      "Keep tables whole: merges short sections and keeps each table together",
     ]);
     await userEvent.selectOptions(chunker, "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));
@@ -201,6 +202,36 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ name: "Plain", chunkerVersion: 1 });
+  });
+
+  it("offers the tables chunker with its copy, creates a profile with it, and shows it on the profile (#24)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/models": () => [embed],
+      "GET /v1/admin/embedding-profiles": () => [{ ...profile, chunkerVersion: 3 }],
+      "POST /v1/admin/embedding-profiles": () => profile,
+    });
+    renderApp("/admin/embedding-profiles");
+    await userEvent.click(await screen.findByRole("button", { name: "Add profile" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Tables");
+    const chunker = within(dialog).getByRole("combobox", { name: "Chunker" });
+    expect(chunker).toHaveValue("1"); // opt-in: the original is still the default
+    expect(chunker).toHaveAccessibleDescription(/Keep tables whole: .*every piece repeats the table's caption and header row.*preview it under Migrations/);
+    await userEvent.selectOptions(chunker, "3");
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+    expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ name: "Tables", chunkerVersion: 3 });
+  });
+
+  it("names the chunker on a profile's sheet (#24)", async () => {
+    mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/embedding-profiles": () => [{ ...profile, chunkerVersion: 3 }], "GET /v1/admin/catalog-usage": () => ({ models: [], profiles: [] }) });
+    const { container } = renderApp("/admin/embedding-profiles?record=p1");
+    const sheet = await screen.findByRole("region", { name: "Qwen 768" });
+    expect(within(sheet).getByText("512 tokens, 64 overlap (chunker v3)")).toBeInTheDocument();
+    expect(within(sheet).getByText("Keep tables whole: merges short sections and keeps each table together")).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("shows a profile's output dimensions and default fusion weights in its sheet (A5)", async () => {

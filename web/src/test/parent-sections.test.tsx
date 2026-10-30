@@ -24,7 +24,7 @@ const embed = {
 };
 const profile = (over: Partial<Schemas["EmbeddingProfile"]> = {}): Schemas["EmbeddingProfile"] => ({
   id: "p1", key: "nomic-768", name: "Nomic 768", description: "", model: { id: "m2", key: "embed", displayName: "Embeddings", maxClassification: "open", enabled: true },
-  dimensions: 768, storageType: "halfvec", documentPrefix: "", queryPrefix: "", chunkSize: 512, chunkOverlap: 64, chunkerVersion: 1, parentTokens: 0, status: "active", isDefault: true, ...stamp, ...over,
+  dimensions: 768, storageType: "halfvec", documentPrefix: "", queryPrefix: "", chunkSize: 512, chunkOverlap: 64, chunkerVersion: 1, parentTokens: 0, boilerplateFuzzy: false, status: "active", isDefault: true, ...stamp, ...over,
 });
 
 describe("parent size checks", () => {
@@ -164,6 +164,17 @@ describe("the index preview", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
     await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
     expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { parentTokens: 1024 } });
+  });
+
+  it("previews table chunks, parent sections and fuzzy repeated blocks together", async () => {
+    const { calls, dialog } = await open();
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Chunker" }), "3");
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Repeated blocks" }), "on");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Parent sections/ }), "1024");
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
+    expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 3, boilerplateFuzzy: true, parentTokens: 1024 } });
   });
 
   it("checks the size against the passage size being previewed and holds the button back", async () => {

@@ -87,6 +87,30 @@ func TestResolveAndValidate(t *testing.T) {
 	}
 }
 
+// Near-duplicate matching is off unless the platform default or the source says so (#23).
+func TestResolveFuzzy(t *testing.T) {
+	d := Defaults{Web: true, MinDocs: 5, Ratio: 0.2}
+	if e := d.Resolve("web", Settings{}); e.Fuzzy {
+		t.Fatal("off by default")
+	}
+	if e := d.Resolve("upload", Settings{Enabled: ptr(true), Fuzzy: ptr(true)}); !e.Fuzzy || !e.Enabled {
+		t.Fatalf("a source's override: %+v", e)
+	}
+	d.Fuzzy = true
+	if e := d.Resolve("web", Settings{}); !e.Fuzzy {
+		t.Fatal("the platform default applies")
+	}
+	if e := d.Resolve("web", Settings{Fuzzy: ptr(false)}); e.Fuzzy {
+		t.Fatal("a source can turn the platform default off")
+	}
+	if (Settings{Fuzzy: ptr(false)}).IsZero() || !(Settings{}).IsZero() {
+		t.Fatal("fuzzy is an override")
+	}
+	if DefaultDefaults.Fuzzy {
+		t.Fatal("the built-in default is off")
+	}
+}
+
 func TestDrops(t *testing.T) {
 	nav, foot, body, head := Hash("- [Home]"), Hash("© Example"), Hash("Real content"), Hash("## Title")
 	bp := map[int64]bool{nav: true, foot: true}
