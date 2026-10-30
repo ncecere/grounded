@@ -40,17 +40,28 @@ const report = (over: Partial<Schemas["ContentHealthReport"]> = {}): Schemas["Co
 });
 const finding = (over: Partial<Schemas["ContentHealthFinding"]>): Schemas["ContentHealthFinding"] => ({
   signal: "stale", ord: 1, sourceId: "s1", sourceName: "Handbook", sourceType: "upload", documentId: "d1", title: "Parking policy", filename: "parking.md", url: "", kind: "markdown",
-  ref: "", groupNo: 0, groupSize: 0, code: "", detail: "", value: 800, observedAt: "2024-08-01T00:00:00Z", inKnowledgeBase: false, changedSinceReport: false, ...over,
+  ref: "", groupNo: 0, groupSize: 0, code: "", detail: "", value: 800, observedAt: "2024-08-01T00:00:00Z", changedSinceReport: false, ...over,
 });
 const coverage: Schemas["ContentHealthSourceCoverage"][] = [
-  { sourceId: "s1", name: "Handbook", type: "upload", documents: 10, ready: 9, readyWithoutDate: 1, readyWithoutHash: 0, linkState: "not_applicable", linkReason: "", linkTruncated: false, linkFailed: 0 },
-  { sourceId: "s2", name: "Registrar site", type: "web", documents: 40, ready: 40, readyWithoutDate: 0, readyWithoutHash: 0, linkState: "unknown", linkReason: "page_refetch_latest", linkTruncated: false, linkFailed: 0 },
+  {
+    sourceId: "s1", name: "Handbook", type: "upload", documents: 10, ready: 9, readyWithoutDate: 1, readyWithoutHash: 0, linkState: "not_applicable", linkReason: "", linkTruncated: false, linkFailed: 0,
+    linkRefs: "none", citeState: "judged", exposedSince: "2026-08-02T00:00:00Z", exposureAnswers: 120,
+  },
+  {
+    sourceId: "s2", name: "Registrar site", type: "web", documents: 40, ready: 40, readyWithoutDate: 0, readyWithoutHash: 0, linkState: "unknown", linkReason: "page_refetch_latest", linkTruncated: false, linkFailed: 0,
+    linkRefs: "none", citeState: "not_served", exposedSince: null, exposureAnswers: 0,
+  },
+  {
+    sourceId: "s3", name: "Library site", type: "web", documents: 5, ready: 5, readyWithoutDate: 0, readyWithoutHash: 0, linkState: "observed", linkReason: "", linkTruncated: false, linkFailed: 2,
+    linkRefs: "crawl_changed", citeState: "too_few_answers", exposedSince: "2026-10-20T00:00:00Z", exposureAnswers: 12,
+  },
 ];
 
 function routes(over: Record<string, Handler> = {}, teamRole = "editor", rep = report(), enabled = true): Record<string, Handler> {
   return {
     ...shellRoutes("none", teamRole),
-    [`GET ${base}`]: () => ({ enabled, limits, reports: enabled ? [rep] : [] }),
+    // While off the list holds stubs: no signal, count or finding.
+    [`GET ${base}`]: () => ({ enabled, limits, reports: enabled ? [rep] : [{ ...rep, signals: [] }] }),
     [`GET ${base}/${rep.id}`]: () => ({ report: rep, sources: coverage }),
     [`GET ${base}/${rep.id}/findings`]: (_b, call) =>
       call.search.get("signal") === "broken_link"
@@ -79,7 +90,8 @@ describe("Team → Content health", () => {
     expect(within(cards[2]).getByText("No file appears in two sources.")).toBeInTheDocument();
     // A signal that could not be measured says why, never a zero.
     expect(within(cards[3]).getByText("Unavailable")).toBeInTheDocument();
-    expect(within(cards[3]).getByText("Too few answers are kept in the window to say which documents are never cited.")).toBeInTheDocument();
+    expect(within(cards[3]).getByText("No retained citation evidence")).toBeInTheDocument();
+    expect(within(cards[3]).getByText("Too few kept answers that could have cited something, team-wide, to say which documents have no citation evidence.")).toBeInTheDocument();
     expect(within(cards[3]).queryByText("0")).toBeNull();
     expect(within(cards[3]).getByRole("button", { name: /Show findings/ })).toBeDisabled();
     // The limits of each signal are one click away.
@@ -120,6 +132,100 @@ describe("Team → Content health", () => {
     expect(within(table).getByText(/Unknown: the latest crawl was a single-page re-fetch/)).toBeInTheDocument();
     expect(within(table).getByText(/Not applicable \(not a web source\)/)).toBeInTheDocument();
     expect(within(table).getByText(/1 without a date/)).toBeInTheDocument();
+  });
+
+  it("shows what the report could see of each source as of the report, hides addresses that no longer hold, and says why a source was not judged", async () => {
+    mockApi(routes());
+    renderApp("/teams/registrar/content-health");
+    const table = await screen.findByRole("table", { name: "Sources in this report" }, T);
+    expect(within(table).getByText(/Judged: 120 kept answers could have cited it since it became reachable/)).toBeInTheDocument();
+    expect(within(table).getByText(/Not judged: no published agent reaches it through a knowledge base/)).toBeInTheDocument();
+    expect(within(table).getByText(/Not judged: 12 kept answers since it became reachable, fewer than 50/)).toBeInTheDocument();
+    expect(within(table).getByText(/Its addresses are hidden: a newer crawl has replaced that observation/)).toBeInTheDocument();
+    expect(screen.getByText(/The counts on the cards and in the source table are as of when the report was made/)).toBeInTheDocument();
+  });
+
+  it("states that no retained citation evidence is a team-wide window, not a fair-exposure or quality claim, and lists what was left out", async () => {
+    const measured = report({
+      signals: [
+        sig({ signal: "stale" }), sig({ signal: "broken_link" }), sig({ signal: "duplicate" }),
+        sig({
+          signal: "never_cited", found: 3, listed: 3, observedSince: "2026-08-01T00:00:00Z",
+          counts: { answers: 340, minAnswers: 50, judged: 12, tooNew: 2, notServed: 7, fewAnswers: 4, sourcesJudged: 2 },
+        }),
+        sig({ signal: "ingestion_failure" }),
+      ],
+    });
+    const calls = mockApi(
+      routes(
+        {
+          [`GET ${base}/r1/findings`]: () => ({ items: [finding({ signal: "never_cited", value: 340, title: "Old policy" })], nextCursor: null }),
+        },
+        "editor",
+        measured,
+      ),
+    );
+    renderApp("/teams/registrar/content-health");
+    const list = await screen.findByRole("list", { name: "Signals" }, T);
+    const card = within(list).getAllByRole("listitem")[3]!;
+    expect(within(card).getByText("No retained citation evidence")).toBeInTheDocument();
+    expect(within(card).getByText(/Not a quality or fair-exposure claim/)).toBeInTheDocument();
+    expect(within(card).getByText(/Team-wide window since/)).toBeInTheDocument();
+    expect(within(card).getByText(/not the time any document became reachable/)).toBeInTheDocument();
+    expect(within(card).getByText(/340 kept answers could have cited something/)).toBeInTheDocument();
+    expect(card).toHaveTextContent("7 that no published agent reaches");
+    expect(card).toHaveTextContent("4 whose source saw too few answers");
+    await userEvent.click(within(card).getByRole("button", { name: "What this does not mean" }));
+    expect(within(card).getByText(/not a claim that the document had a fair chance of being cited/)).toBeInTheDocument();
+    expect(screen.getByText(/Team-wide, up to 90 days, from the team's first kept answer/)).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: /Show findings/ }));
+    const table = await screen.findByRole("table", { name: "No retained citation evidence: findings" }, T);
+    expect(within(table).getByText("340")).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toContain("Kept answers that could have cited its source");
+    expect(calls.some((c) => c.search.get("signal") === "never_cited")).toBe(true);
+    // Never "never cited".
+    expect(screen.queryByText(/never cited/i)).toBeNull();
+  });
+
+  it("counts duplicates in groups on both sides, and says how many groups still hold", async () => {
+    const dup = report({ signals: [sig({ signal: "stale" }), sig({ signal: "broken_link" }), sig({ signal: "duplicate", found: 3, listed: 1 }), sig({ signal: "never_cited", state: "not_applicable", reason: "no_documents" }), sig({ signal: "ingestion_failure" })] });
+    mockApi(routes({}, "editor", dup));
+    renderApp("/teams/registrar/content-health");
+    const list = await screen.findByRole("list", { name: "Signals" }, T);
+    const card = within(list).getAllByRole("listitem")[2]!;
+    expect(card).toHaveTextContent("3 groups");
+    expect(card).toHaveTextContent("1 group still listed now");
+  });
+
+  it("flags a page a crawl recently confirmed instead of presenting it as neglected", async () => {
+    const stale = report({ signals: [sig({ signal: "stale", found: 2, listed: 2, counts: { recentlyConfirmed: 1 } }), sig({ signal: "broken_link", state: "not_applicable", reason: "no_web_sources" }), sig({ signal: "duplicate", state: "not_applicable", reason: "one_source" }), sig({ signal: "never_cited", state: "not_applicable", reason: "no_documents" }), sig({ signal: "ingestion_failure" })] });
+    mockApi(
+      routes(
+        {
+          [`GET ${base}/r1/findings`]: () => ({
+            items: [finding({ confirmedAt: "2026-10-20T00:00:00Z" }), finding({ ord: 2, title: "Housing", documentId: "d2", confirmedAt: "2024-01-01T00:00:00Z" })],
+            nextCursor: null,
+          }),
+        },
+        "editor",
+        stale,
+      ),
+    );
+    renderApp("/teams/registrar/content-health");
+    const list = await screen.findByRole("list", { name: "Signals" }, T);
+    const card = within(list).getAllByRole("listitem")[0]!;
+    expect(card).toHaveTextContent("1 of these were seen again by a crawl within the threshold");
+    await userEvent.click(within(card).getByRole("button", { name: /Show findings/ }));
+    const table = await screen.findByRole("table", { name: "Not processed in a long time: findings" }, T);
+    expect(within(table).getAllByText("Recently confirmed by a crawl")).toHaveLength(1);
+  });
+
+  it("explains that an address is shown without credentials, query or fragment", async () => {
+    mockApi(routes());
+    renderApp("/teams/registrar/content-health");
+    const list = await screen.findByRole("list", { name: "Signals" }, T);
+    await userEvent.click(within(within(list).getAllByRole("listitem")[1]!).getByRole("button", { name: /Show findings/ }));
+    expect(await screen.findByText(/without credentials, query or fragment. The path can still contain something sensitive/, undefined, T)).toBeInTheDocument();
   });
 
   it("makes a report with the chosen scope and thresholds, validates them, and shows the server's refusal", async () => {
@@ -171,11 +277,40 @@ describe("Team → Content health", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
   });
 
-  it("says it is switched off, and offers nothing to make", async () => {
+  it("says it is switched off, and offers nothing to make or read", async () => {
     mockApi(routes({}, "editor", report(), false));
     renderApp("/teams/registrar/content-health");
     expect(await screen.findByText("Content health reports are switched off.", undefined, T)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Make report" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Signals" })).toBeNull();
+  });
+
+  it("while off, still lets the team delete a kept report and stop one being made, and shows nothing it found", async () => {
+    const running = report({ id: "r2", status: "running", signals: [], finishedAt: null, expiresAt: null });
+    const calls = mockApi(
+      routes(
+        {
+          [`GET ${base}`]: () => ({ enabled: false, limits, reports: [running, { ...report(), signals: [] }] }),
+          [`POST ${base}/r2/cancel`]: () => ({ ...running, status: "cancelled" }),
+          [`DELETE ${base}/r1`]: () => new Response(null, { status: 204 }),
+        },
+        "editor",
+        report(),
+        false,
+      ),
+    );
+    const { container } = renderApp("/teams/registrar/content-health");
+    const table = await screen.findByRole("table", { name: "Reports still kept" }, T);
+    expect(screen.queryByRole("list", { name: "Signals" })).toBeNull();
+    expect(within(table).queryByText(/Parking|Handbook/)).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(table).getByRole("button", { name: "Cancel report" }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith("/r2/cancel"))).toBe(true));
+    await userEvent.click(within(table).getByRole("button", { name: "Delete report" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete report" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url.endsWith("/r1"))).toBe(true));
+    expect(calls.some((c) => c.url.includes("/findings") || c.url.endsWith("/r1"))).toBe(calls.some((c) => c.method === "DELETE"));
   });
 
   it("is for editors, admins and owners: members are told so, and it is in the sidebar only for those who can open it", async () => {
@@ -200,7 +335,7 @@ describe("Team → Content health", () => {
     renderApp("/teams/registrar/content-health");
     const table = await screen.findByRole("table", { name: "Sources in this report" }, T);
     const columns = within(table).getAllByRole("columnheader").map((h) => h.textContent);
-    expect(columns).toEqual(["Source", "Documents", "Ready", "Links", "Not judged"]);
+    expect(columns).toEqual(["Source", "Documents", "Ready", "Links", "Citation evidence", "Not judged"]);
   });
 });
 

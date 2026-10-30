@@ -71,11 +71,12 @@ export const signalWords: Record<SignalName, SignalWords> = {
     empty: "No file appears in two sources.",
   },
   never_cited: {
-    title: "Not cited in the window",
-    measures: "Ready documents that existed when observation began and that no answer cited during it.",
+    title: "No retained citation evidence",
+    measures:
+      "Ready documents of sources a published agent reaches, for which the kept answer records show no citation in the team-wide window. Only documents that existed when their source became reachable are judged, and only when enough answers were kept since.",
     notMeans:
-      "It does not mean a document is useless. Only answers that are still kept are seen: conversations people deleted and old analytics are gone, and draft test chats don't count. A document in no knowledge base can never be cited.",
-    empty: "Every document that could be judged was cited.",
+      "It does not mean a document is unused, outdated or poor, and it is not a claim that the document had a fair chance of being cited: Grounded does not record which documents a question could have reached. The window is team-wide and starts at the team's first kept answer, not when any document became reachable. Answers that were never kept, or that the analytics retention period removed, are invisible; deleting a conversation does not remove its record. Draft test chats, refusals, errors and answers with no passages are not counted. A document can be rarely cited simply because few people ask about it.",
+    empty: "Every document that could be judged has a citation in the kept answers.",
   },
   ingestion_failure: {
     title: "Failed to parse or ingest",
@@ -95,8 +96,10 @@ export const reasonText: Record<string, string> = {
   no_web_sources: "There is no web source in this scope.",
   no_crawl_record: "No web source has a usable crawl record.",
   no_answers: "No answers are kept for this team's agents in the window.",
-  too_few_answers: "Too few answers are kept in the window to say which documents are never cited.",
-  too_many_answers: "More answers than a report reads. Try a shorter window.",
+  too_few_answers: "Too few kept answers that could have cited something, team-wide, to say which documents have no citation evidence.",
+  too_many_answers: "More answers than a report reads. Try a shorter window: a narrower scope does not reduce what is read.",
+  too_many_agents: "This team has more agents than a report reads answers for, so it cannot say which documents have no citation evidence.",
+  no_exposure: "No source could be judged: no published agent reaches it through a knowledge base, too few answers were kept since it became reachable, or its documents were added later.",
   timed_out: "It took longer than a report may take.",
 };
 
@@ -134,6 +137,27 @@ export const linkStateText = (c: Pick<Coverage, "linkState" | "linkReason" | "li
     never_crawled: "never crawled",
     page_refetch_latest: "the latest crawl was a single-page re-fetch, which discards the earlier record",
     no_crawl_record: "the crawl's record is gone",
+    signal_timed_out: "reading the crawl records took too long",
   };
   return `Unknown: ${why[c.linkReason] ?? "no usable crawl record"}`;
+};
+
+/** Whether a source's failed addresses are still shown, when they are not. */
+export const linkRefsText: Record<string, string> = {
+  source_changed: "Its addresses are hidden: the source was changed after the crawl was read.",
+  crawl_changed: "Its addresses are hidden: a newer crawl has replaced that observation.",
+};
+
+/** What the not-cited signal could say about a source. */
+export const citeStateText = (c: Pick<Coverage, "citeState" | "exposedSince" | "exposureAnswers">, minAnswers: number): string => {
+  switch (c.citeState) {
+    case "judged":
+      return `Judged: ${c.exposureAnswers.toLocaleString()} kept answers could have cited it since it became reachable`;
+    case "too_few_answers":
+      return `Not judged: ${c.exposureAnswers.toLocaleString()} kept answers since it became reachable, fewer than ${minAnswers}`;
+    case "not_served":
+      return "Not judged: no published agent reaches it through a knowledge base";
+    default:
+      return "Not measured";
+  }
 };

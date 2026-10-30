@@ -20,10 +20,11 @@ import { EditorsOnlyState } from "../access";
 import { useTeam } from "../common";
 import { MakeReport } from "./make-report";
 import { ReportView } from "./report-view";
+import { RetainedReports } from "./retained-reports";
 import { reportsQuery } from "./queries";
 
 export const contentHealthDescription =
-  "Where your knowledge may need attention: documents not processed in a long time, links a crawl saw fail, the same file in two sources, documents no answer cited, and documents that failed to parse. It is a list of places to look, not a score of quality.";
+  "Where your knowledge may need attention: documents not processed in a long time, links a crawl saw fail, the same file in two sources, documents with no retained citation evidence, and documents that failed to parse. It is a list of places to look, not a score of quality.";
 
 export function TeamContentHealthPage() {
   const { slug, role } = useTeam();
@@ -45,13 +46,16 @@ function Body({ team }: { team: string }) {
   if (!q.data) return <Skeleton height="8rem" />;
   if (!q.data.enabled)
     return (
-      <Card>
-        <EmptyState
-          icon={<HeartPulse />}
-          title="Content health reports are switched off."
-          description="A platform admin can turn them on in Admin → Settings → Features. Nothing is checked while they are off."
-        />
-      </Card>
+      <>
+        <Card>
+          <EmptyState
+            icon={<HeartPulse />}
+            title="Content health reports are switched off."
+            description="A platform admin can turn them on in Admin → Settings → Features. Nothing is checked while they are off."
+          />
+        </Card>
+        <RetainedReports team={team} reports={q.data.reports} />
+      </>
     );
   const { reports, limits } = q.data;
   const current = reports.find((r) => r.id === chosen) ?? reports[0];

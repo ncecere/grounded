@@ -262,7 +262,7 @@ const teamNav: TeamNavItem[] = [
     label: "Content health",
     icon: icon(HeartPulse),
     editorRole: true,
-    keywords: ["stale pages", "broken links", "duplicates", "never cited", "parse failures", "ingestion failures", "old documents", "report"],
+    keywords: ["stale pages", "broken links", "duplicates", "never cited", "citation evidence", "parse failures", "ingestion failures", "old documents", "report"],
   },
   { to: "/teams/$team/settings", label: terms.teamSettings, icon: icon(Settings), staff: true },
 ];

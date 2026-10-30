@@ -96,7 +96,7 @@ export function MakeReport({ team, limits, active, onMade }: { team: string; lim
         </Field>
         <Field
           label="Look for citations over (days)"
-          description={`How far back to read answers when finding documents that were never cited. ${limits.minCitationWindowDays} to ${limits.maxCitationWindowDays}. It never reaches back before the oldest answer that is still kept.`}
+          description={`How far back to read kept answers when looking for documents with no citation evidence (team-wide). ${limits.minCitationWindowDays} to ${limits.maxCitationWindowDays}. It never reaches back before the team's oldest kept answer. A narrower scope does not read fewer answers; only a shorter window does.`}
           error={windowOk ? undefined : `Enter a whole number from ${limits.minCitationWindowDays} to ${limits.maxCitationWindowDays}.`}
         >
           <NumberInput maximumFractionDigits={0} value={windowText} onValueChange={setWindow} />

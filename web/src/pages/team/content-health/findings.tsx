@@ -21,7 +21,7 @@ const COLUMNS: Record<SignalName, string[]> = {
   stale: ["Document", "Last processed", "Last confirmed by a crawl"],
   broken_link: ["Address", "What happened", "Source", "Seen at"],
   duplicate: ["Document", "Same file", "Last processed"],
-  never_cited: ["Document", "In a knowledge base", "Added"],
+  never_cited: ["Document", "Kept answers that could have cited its source", "Added"],
   ingestion_failure: ["Document", "What happened", "Since"],
 };
 
@@ -40,7 +40,11 @@ function DocCell({ f, team }: { f: Finding; team: string }) {
   );
 }
 
-function Row({ f, team }: { f: Finding; team: string }) {
+/** A page a crawl saw again within the threshold: old by processing date, but recently confirmed to exist. */
+export const recentlyConfirmed = (f: Pick<Finding, "confirmedAt">, report: Pick<Report, "asOf" | "staleDays">): boolean =>
+  !!f.confirmedAt && !!report.asOf && Date.parse(report.asOf) - Date.parse(f.confirmedAt) < report.staleDays * 86_400_000;
+
+function Row({ f, team, report }: { f: Finding; team: string; report: Report }) {
   switch (f.signal) {
     case "stale":
       return (
@@ -49,7 +53,15 @@ function Row({ f, team }: { f: Finding; team: string }) {
           <Td>
             <RelativeTime value={f.observedAt} /> <span className={s.muted}>({f.value.toLocaleString()} days)</span>
           </Td>
-          <Td muted>{f.confirmedAt ? <RelativeTime value={f.confirmedAt} /> : "Unknown"}</Td>
+          <Td muted>
+            {f.confirmedAt ? <RelativeTime value={f.confirmedAt} /> : "Unknown"}
+            {recentlyConfirmed(f, report) && (
+              <>
+                {" "}
+                <Badge tone="info">Recently confirmed by a crawl</Badge>
+              </>
+            )}
+          </Td>
         </Tr>
       );
     case "broken_link":
@@ -86,7 +98,7 @@ function Row({ f, team }: { f: Finding; team: string }) {
       return (
         <Tr>
           <DocCell f={f} team={team} />
-          <Td>{f.inKnowledgeBase ? "Yes" : "No: it can't be cited"}</Td>
+          <Td>{f.value.toLocaleString()}</Td>
           <Td muted>
             <RelativeTime value={f.observedAt} />
           </Td>
@@ -115,16 +127,21 @@ export function Findings({ team, report, signal }: { team: string; report: Repor
   const words = signalWords[signal];
   const rows = q.data?.items ?? [];
   return (
-    <Card title={words.title} titleAs="h2" description={`As of the report. ${words.measures}`}>
+    <Card title={words.title} titleAs="h2" description={`As of the report, checked against your sources now. ${words.measures}`}>
+      {signal === "broken_link" && (
+        <p className={s.muted}>
+          Addresses are shown without credentials, query or fragment. The path can still contain something sensitive, so treat this list like the source itself.
+        </p>
+      )}
       {q.error ? (
         <ErrorAlert error={q.error} title="Couldn't load the findings" onRetry={() => void q.refetch()} />
       ) : !q.data ? (
         <Skeleton height="6rem" />
       ) : (
         <>
-          <Table caption={`${words.title}: findings`} columns={COLUMNS[signal]} stack empty={rows.length === 0 ? <EmptyState title="Nothing is listed." description="Findings are removed when their document or source is deleted." /> : undefined}>
+          <Table caption={`${words.title}: findings`} columns={COLUMNS[signal]} stack empty={rows.length === 0 ? <EmptyState title="Nothing is listed." description="Findings are checked again each time you open them: they are not shown once their document or source was deleted or left the report's scope, and a broken link's address is hidden once its source or crawl changed." /> : undefined}>
             {rows.map((f) => (
-              <Row key={f.ord} f={f} team={team} />
+              <Row key={f.ord} f={f} team={team} report={report} />
             ))}
           </Table>
           <PagerBar pager={pager} pageSize={FINDINGS_PAGE} shown={rows.length} nextCursor={q.data.nextCursor} label={`${words.title} pages`} />
