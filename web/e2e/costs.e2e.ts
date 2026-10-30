@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -11,7 +12,7 @@ import { expect, test } from "./support/fixtures";
  * time zone.
  */
 test("price a model, enforce a tiny budget, get refused, grant an extension", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "costs" });
   const { agent } = await publishedAgent(owner, team, { name: "Budget helper" });
