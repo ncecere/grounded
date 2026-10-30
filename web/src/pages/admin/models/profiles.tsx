@@ -21,6 +21,7 @@ import { toast } from "@/components/ui/toast/toast";
 import { useLevelName } from "../../team/common";
 import { describeWeights } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
+import { CHUNKERS } from "./chunkers";
 import { type Profile, type ProfileUsage, profileUsedBy, useCatalogUsage } from "./common";
 import { ProfileFusionDialog } from "./profile-dialog";
 import m from "./models.module.css";
@@ -196,6 +197,8 @@ function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin,
               { label: "Stored dimensions", value: p.outputDimensions != null ? `${p.outputDimensions} (shortened from the model's vectors)` : `${p.dimensions} (the model's own)` },
               { label: "Storage type", value: p.storageType },
               { label: "Passages", value: `${p.chunkSize} tokens, ${p.chunkOverlap} overlap (chunker v${p.chunkerVersion})` },
+              { label: "Chunker", value: (CHUNKERS.find((c) => c.version === p.chunkerVersion) ?? CHUNKERS[0]).label },
+              { label: "Parent sections", value: p.parentTokens > 0 ? `Up to ${p.parentTokens} tokens around each passage, for an agent's model` : "None" },
               { label: "Document prefix", value: p.documentPrefix ? <code className={s.mono}>{p.documentPrefix}</code> : "None" },
               { label: "Query prefix", value: p.queryPrefix ? <code className={s.mono}>{p.queryPrefix}</code> : "None" },
               { label: "Default fusion weights", value: p.defaultFusionWeights ? describeWeights(p.defaultFusionWeights) : "The platform default" },

@@ -13,6 +13,9 @@ import { Input, NativeSelect } from "@/components/ui/input/input";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
+import { ParentSizeField } from "../models/parents";
+import { parentProblem, parentSummary } from "../models/parent-size";
+import { CHUNKER_HELP, CHUNKERS, chunkerNow } from "../models/chunkers";
 import { adminKBsQuery, type Migration, migrationsKey } from "./common";
 import p from "./profile-migrations.module.css";
 
@@ -36,10 +39,13 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
   const [docPrefix, setDocPrefix] = useState("");
   const [queryPrefix, setQueryPrefix] = useState("");
   const [chunker, setChunker] = useState(""); // "" keeps the current profile's
+  const [parent, setParent] = useState(""); // "" keeps the current profile's, 0 turns parent sections off
+  const [fuzzy, setFuzzy] = useState(""); // "" keeps the sources' own settings; "on" judges with near-duplicate matching (#23)
   const [grace, setGrace] = useState("");
   const kb = kbs.data?.find((k) => k.id === kbId);
   const live = profiles.data?.find((x) => x.id === kb?.profile.id);
   const embeddingModels = (models.data ?? []).filter((m) => m.kind === "embedding" && m.enabled);
+  const parentInvalid = parentProblem(parent, whole(size) ?? live?.chunkSize ?? 0);
   const changes = {
     ...(name.trim() ? { name: name.trim() } : {}),
     ...(model ? { modelId: model } : {}),
@@ -48,6 +54,8 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
     ...(docPrefix !== "" ? { documentPrefix: docPrefix } : {}),
     ...(queryPrefix !== "" ? { queryPrefix } : {}),
     ...(chunker !== "" ? { chunkerVersion: Number(chunker) } : {}),
+    ...(parent.trim() !== "" && parentInvalid === undefined ? { parentTokens: Number(parent) } : {}),
+    ...(fuzzy === "on" ? { boilerplateFuzzy: true } : {}),
   };
   const graceDays = whole(grace);
   const graceInvalid = grace.trim() !== "" && (graceDays === undefined || graceDays < 0 || graceDays > 90);
@@ -69,10 +77,10 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
       description="Builds a new index of a knowledge base with changed settings beside the current one, runs its evaluation sets on both, and waits. The knowledge base keeps searching its current index until you switch."
       size="lg"
       onClose={onClose}
-      onSubmit={() => kbId && !graceInvalid && start.mutate()}
+      onSubmit={() => kbId && !graceInvalid && parentInvalid === undefined && start.mutate()}
       submitLabel="Build the new index"
       busy={start.isPending}
-      submitDisabled={!kbId || graceInvalid}
+      submitDisabled={!kbId || graceInvalid || parentInvalid !== undefined}
     >
       <ErrorAlert error={kbs.error ?? profiles.error ?? models.error ?? start.error} />
       <Field label="Knowledge base">
@@ -87,7 +95,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
       </Field>
       <p className={s.settingDescription}>
         {live
-          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap, ${live.chunkerVersion === 2 ? "chunker: merge short sections" : "standard chunker"}. Leave a setting empty to keep it.`
+          ? `Now: ${live.name} · ${live.chunkSize} tokens per passage, ${live.chunkOverlap} overlap, ${chunkerNow(live.chunkerVersion)}, ${parentSummary(live.parentTokens)}. Leave a setting empty to keep it.`
           : "Fill in only what should change; the rest keeps the current profile's."}
       </p>
       <div className={s.grid2}>
@@ -109,13 +117,26 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
               ))}
           </NativeSelect>
         </Field>
-        <Field label="Chunker" description="How pages are cut into passages. Merge short sections joins short neighbouring sections and drops passages that are only a heading.">
+        <Field label="Chunker" description={`How pages are cut into passages. ${CHUNKER_HELP}`}>
           <NativeSelect value={chunker} onChange={(e) => setChunker(e.target.value)} disabled={!kb}>
             <option value="">Keep the current chunker</option>
-            <option value="1">Standard: a new passage at every heading</option>
-            <option value="2">Merge short sections</option>
+            {CHUNKERS.map((c) => (
+              <option key={c.version} value={c.version}>
+                {c.previewLabel}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
+        <Field
+          label="Repeated blocks"
+          description="Near-duplicate blocks (a menu with a different item highlighted, a footer with a different date) are left out too, in the sources that remove repeated blocks. Switching turns this on for those sources."
+        >
+          <NativeSelect value={fuzzy} onChange={(e) => setFuzzy(e.target.value)} disabled={!kb}>
+            <option value="">Keep each source's setting</option>
+            <option value="on">Treat near-duplicate blocks as one</option>
+          </NativeSelect>
+        </Field>
+        <ParentSizeField value={parent} onChange={setParent} error={parentInvalid} preview={{ current: live?.parentTokens ?? 0 }} disabled={!kb} />
         <Field label="Name" description="Shown while it is a preview. Default: the profile's name and (new settings).">
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
         </Field>

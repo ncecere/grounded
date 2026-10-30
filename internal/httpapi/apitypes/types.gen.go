@@ -5885,21 +5885,27 @@ type AuthConfig struct {
 	TeamRequestUrl *string `json:"teamRequestUrl,omitempty"`
 }
 
-// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS"}
+// BoilerplateBlock Example: {"documents":29,"text":"QUICKLINKS","variants":1}
 type BoilerplateBlock struct {
-	// Documents Documents that contain it
+	// Documents Documents that contain it (or one of its near-duplicate variants)
 	Documents int32 `json:"documents"`
 
 	// Text The first 80 characters of the block, without Markdown
 	Text string `json:"text"`
+
+	// Variants Near-duplicate variants merged into this block, itself included; 1 for a block found by exact match
+	Variants int32 `json:"variants"`
 }
 
-// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+// BoilerplateSettings A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 //
-// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 type BoilerplateSettings struct {
 	// Enabled Leave repeated blocks out of chunks
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Fuzzy Also treat near-duplicate blocks as one (a menu with a different item highlighted, a footer with a different date). Off unless the install turns it on; it only has an effect while enabled is true. Try it first in an index preview (changes.boilerplateFuzzy).
+	Fuzzy *bool `json:"fuzzy,omitempty"`
 
 	// MinDocs A block must be in at least this many documents
 	MinDocs *int `json:"minDocs,omitempty"`
@@ -6420,7 +6426,7 @@ type ChatUsage struct {
 
 // Citation A source referenced by [n] in the answer. Uploaded files are cited by title only; url is set only for web pages in snippet_link mode.
 type Citation struct {
-	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages. With parent set, it is the matched passage: the one that ranked, inside the section the model read.
 	ChunkId *openapi_types.UUID `json:"chunkId,omitempty"`
 
 	// Confidence The model's confidence in the verification
@@ -6436,6 +6442,9 @@ type Citation struct {
 	N         int               `json:"n"`
 	PageEnd   *int32            `json:"pageEnd,omitempty"`
 	PageStart *int32            `json:"pageStart,omitempty"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent *CitationParent `json:"parent,omitempty"`
 
 	// Server The MCP server's name (kind tool)
 	Server   *string            `json:"server,omitempty"`
@@ -6472,6 +6481,27 @@ type CitationMarkerVerification string
 
 // CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 type CitationMode string
+
+// CitationParent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+type CitationParent struct {
+	// First Ordinal of the section's first passage in the document
+	First int32 `json:"first"`
+
+	// Last Ordinal of its last passage
+	Last int32 `json:"last"`
+
+	// Matched How many of the search's matching passages were in this section (they are one source)
+	Matched int32 `json:"matched"`
+
+	// Passages Passages in the section
+	Passages int32 `json:"passages"`
+
+	// Sha256 SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section
+	Sha256 string `json:"sha256"`
+
+	// Tokens The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
+	Tokens int32 `json:"tokens"`
+}
 
 // CitationTotals SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 type CitationTotals struct {
@@ -6516,21 +6546,24 @@ type CitationTotals struct {
 	Verified      int64 `json:"verified"`
 }
 
-// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none.
+// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint.
 type CitedPassage struct {
 	// Claims The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
 	Claims     []Claim            `json:"claims"`
 	DocumentId openapi_types.UUID `json:"documentId"`
 
 	// DocumentTeam The source's team (slug), when the caller may open the whole document (its editors, admins and owners)
-	DocumentTeam *string            `json:"documentTeam,omitempty"`
-	Filename     *string            `json:"filename,omitempty"`
-	HeadingPath  []string           `json:"headingPath"`
-	N            int                `json:"n"`
-	Passages     []ContextPassage   `json:"passages"`
-	SourceId     openapi_types.UUID `json:"sourceId"`
-	Status       CitedPassageStatus `json:"status"`
-	Title        string             `json:"title"`
+	DocumentTeam *string  `json:"documentTeam,omitempty"`
+	Filename     *string  `json:"filename,omitempty"`
+	HeadingPath  []string `json:"headingPath"`
+	N            int      `json:"n"`
+
+	// Parent Parent/child retrieval (docs/parent-child-retrieval.md): the model was given the section around the matched passage, not the passage alone. Set only when it was; absent when the model was given the passage.
+	Parent   *CitationParent    `json:"parent,omitempty"`
+	Passages []ContextPassage   `json:"passages"`
+	SourceId openapi_types.UUID `json:"sourceId"`
+	Status   CitedPassageStatus `json:"status"`
+	Title    string             `json:"title"`
 
 	// Url The web page, when the answer's citation links it (snippet_link mode)
 	Url *string `json:"url,omitempty"`
@@ -6981,10 +7014,13 @@ type ContentHealthSourceCoverageLinkState string
 
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
-	// Cited The passage the answer cited (or around named)
+	// Cited The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section
 	Cited       bool     `json:"cited"`
 	Content     string   `json:"content"`
 	HeadingPath []string `json:"headingPath"`
+
+	// Matched With a parent: the passage that matched the question, inside the section
+	Matched *bool `json:"matched,omitempty"`
 
 	// Ordinal Position in the document, from 0
 	Ordinal int32 `json:"ordinal"`
@@ -7404,9 +7440,9 @@ type DataSourceType string
 
 // DataSourceCreate defines model for DataSourceCreate.
 type DataSourceCreate struct {
-	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Boilerplate A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Boilerplate    *BoilerplateSettings `json:"boilerplate,omitempty"`
 	Classification string               `json:"classification"`
 	Description    *string              `json:"description,omitempty"`
@@ -7688,6 +7724,9 @@ type DomainReviewDecision string
 
 // EmbeddingProfile defines model for EmbeddingProfile.
 type EmbeddingProfile struct {
+	// BoilerplateFuzzy Index preview only: the candidate's passages leave out near-duplicate repeated blocks too (changes.boilerplateFuzzy). Always false once the profile is in use.
+	BoilerplateFuzzy bool `json:"boilerplateFuzzy"`
+
 	// CandidateOf Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
 	CandidateOf    *openapi_types.UUID `json:"candidateOf,omitempty"`
 	ChunkOverlap   int32               `json:"chunkOverlap"`
@@ -7712,7 +7751,10 @@ type EmbeddingProfile struct {
 
 	// OutputDimensions Fewer dimensions than the model's, stored after Matryoshka truncation; null when the profile stores the model's own dimensions
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
-	QueryPrefix      string `json:"queryPrefix"`
+
+	// ParentTokens Parent/child retrieval (docs/parent-child-retrieval.md): the size in tokens of the section an agent's model is given around each matched passage; 0 means the profile has no parents
+	ParentTokens int32  `json:"parentTokens"`
+	QueryPrefix  string `json:"queryPrefix"`
 
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision    Revision                    `json:"revision"`
@@ -7732,7 +7774,7 @@ type EmbeddingProfileCreate struct {
 	ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
 	ChunkSize    *int32 `json:"chunkSize,omitempty"`
 
-	// ChunkerVersion The chunker (internal/chunk): 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Fixed once created. Anything else is refused (400 invalid_chunker_version).
+	// ChunkerVersion The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
 	ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 	// DefaultFusionWeights Omit to use the platform default
@@ -7752,6 +7794,9 @@ type EmbeddingProfileCreate struct {
 	//
 	// Example: 768
 	OutputDimensions *int32 `json:"outputDimensions,omitempty"`
+
+	// ParentTokens Parent/child retrieval, opt-in (docs/parent-child-retrieval.md): the most tokens of the section around a matched passage that an agent's model is given. 0 or omitted (the default) means no parents, and the profile is indexed and searched as before. Otherwise at least twice the passage size and at most 8192. Fixed once created. A value outside that is refused (400 invalid_parent_tokens).
+	ParentTokens *int32 `json:"parentTokens,omitempty"`
 
 	// QueryPrefix Example: search_query:
 	QueryPrefix *string                            `json:"queryPrefix,omitempty"`
@@ -10667,18 +10712,23 @@ type ProfileMigrationPreflightSource struct {
 type ProfileMigrationPreview struct {
 	// Changes The profile settings that change; omitted ones keep the knowledge base's current profile's. A new model has its own dimensions, so output dimensions are only kept with the same model.
 	Changes struct {
-		ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
-		ChunkSize    *int32 `json:"chunkSize,omitempty"`
+		// BoilerplateFuzzy Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now.
+		BoilerplateFuzzy *bool  `json:"boilerplateFuzzy,omitempty"`
+		ChunkOverlap     *int32 `json:"chunkOverlap,omitempty"`
+		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
-		// ChunkerVersion The chunker: 1, the original, or 2, which merges short neighbouring sections and drops chunks with no body. Anything else is refused (400 invalid_chunker_version).
+		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
 		ChunkerVersion *int32              `json:"chunkerVersion,omitempty"`
 		DocumentPrefix *string             `json:"documentPrefix,omitempty"`
 		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`
 
 		// Name The candidate's name (default the profile's name plus "(new settings)")
-		Name        *string                                    `json:"name,omitempty"`
-		QueryPrefix *string                                    `json:"queryPrefix,omitempty"`
-		StorageType *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
+		Name *string `json:"name,omitempty"`
+
+		// ParentTokens Parent/child retrieval: the parent size of the new index (0 turns parents off, omit to keep the profile's). A preview that changes only this leaves the passages and so the ranking as they are. Anything else outside 0 or twice the passage size to 8192 is refused (400 invalid_parent_tokens).
+		ParentTokens *int32                                     `json:"parentTokens,omitempty"`
+		QueryPrefix  *string                                    `json:"queryPrefix,omitempty"`
+		StorageType  *ProfileMigrationPreviewChangesStorageType `json:"storageType,omitempty"`
 	} `json:"changes"`
 
 	// GraceDays Days the old vectors are kept if the preview is switched (default PROFILE_MIGRATION_GRACE_DAYS)
@@ -11417,11 +11467,14 @@ type SourceBoilerplate struct {
 	// DocumentsCounted Documents counted at the last refresh
 	DocumentsCounted int32 `json:"documentsCounted"`
 	Enabled          bool  `json:"enabled"`
-	MinDocs          int   `json:"minDocs"`
 
-	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
+	// Fuzzy Near-duplicate blocks count as one (in force: the source's override, else the platform default)
+	Fuzzy   bool `json:"fuzzy"`
+	MinDocs int  `json:"minDocs"`
+
+	// Overrides A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2; near-duplicate matching off, unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
 	//
-	// Example: {"enabled":true,"minDocs":5,"ratio":0.2}
+	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Overrides BoilerplateSettings `json:"overrides"`
 
 	// PagesAffected Documents they were removed from
@@ -11434,7 +11487,7 @@ type SourceBoilerplate struct {
 	// RefreshedAt When the last refresh was requested (null before the first)
 	RefreshedAt *time.Time `json:"refreshedAt"`
 
-	// RepeatedBlocks Distinct blocks classified as repeated
+	// RepeatedBlocks Distinct blocks classified as repeated; the near-duplicate variants of one block count once
 	RepeatedBlocks int64 `json:"repeatedBlocks"`
 
 	// Threshold Documents a block needed at the last refresh
@@ -13364,9 +13417,12 @@ type ListDocumentPassagesParams struct {
 
 // GetDocumentTextParams defines parameters for GetDocumentText.
 type GetDocumentTextParams struct {
-	From   *int                `form:"from,omitempty" json:"from,omitempty"`
-	Limit  *int                `form:"limit,omitempty" json:"limit,omitempty"`
-	Around *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	From         *int                `form:"from,omitempty" json:"from,omitempty"`
+	Limit        *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	Around       *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
+	ParentFirst  *int                `form:"parentFirst,omitempty" json:"parentFirst,omitempty"`
+	ParentLast   *int                `form:"parentLast,omitempty" json:"parentLast,omitempty"`
+	ParentSha256 *string             `form:"parentSha256,omitempty" json:"parentSha256,omitempty"`
 }
 
 // GetTeamSpendParams defines parameters for GetTeamSpend.

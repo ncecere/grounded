@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -7,7 +8,7 @@ import { expect, test } from "./support/fixtures";
  * and all; an anonymous visitor is asked to sign in; someone outside the team is told it isn't available; revoking closes it for everyone.
  */
 test("share a conversation: make a link, a team member reads it, others cannot, revoke", async ({ as, page, a11y }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(scaled(150_000));
   const ownerApi = await Api.signIn("alex");
   const team = await createTeam(await Api.signIn("admin"), ownerApi, { prefix: "share", members: { blair: "member" } });
   const { agent } = await publishedAgent(ownerApi, team, { name: "Parking helper" });

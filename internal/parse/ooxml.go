@@ -22,6 +22,9 @@ func (n *node) attr(name string) string { return n.attrs[name] }
 
 // child returns the first direct child with the given name.
 func (n *node) child(name string) *node {
+	if n == nil {
+		return nil
+	}
 	for _, c := range n.children {
 		if c.name == name {
 			return c

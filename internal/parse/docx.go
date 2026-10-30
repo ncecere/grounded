@@ -201,6 +201,11 @@ func runText(n *node) string {
 	return b.String()
 }
 
+// maxGridSpan bounds the empty cells a merged cell adds to its row.
+const maxGridSpan = 64
+
+// tableRows returns the cell texts of a table, one entry per grid column: a cell that spans columns (gridSpan) adds empty cells after it, and a cell
+// merged into the one above it (vMerge) repeats that cell's text, so every row reads on its own and the cells after a merged one keep their columns.
 func tableRows(tbl *node) [][]string {
 	var rows [][]string
 	for _, tr := range tbl.children {
@@ -209,8 +214,17 @@ func tableRows(tbl *node) [][]string {
 		}
 		var row []string
 		for _, tc := range tr.children {
-			if tc.name == "tc" {
-				row = append(row, strings.TrimSpace(runText(tc)))
+			if tc.name != "tc" {
+				continue
+			}
+			text := strings.TrimSpace(runText(tc))
+			pr := tc.child("tcPr")
+			if vm := pr.child("vMerge"); vm != nil && vm.attr("val") != "restart" && len(rows) > 0 && len(row) < len(rows[len(rows)-1]) {
+				text = rows[len(rows)-1][len(row)]
+			}
+			row = append(row, text)
+			for i := 1; i < gridSpan(pr); i++ {
+				row = append(row, "")
 			}
 		}
 		if len(row) > 0 {
@@ -218,4 +232,14 @@ func tableRows(tbl *node) [][]string {
 		}
 	}
 	return rows
+}
+
+// gridSpan is the number of grid columns a cell covers (1 when it has no gridSpan).
+func gridSpan(tcPr *node) int {
+	if g := tcPr.child("gridSpan"); g != nil {
+		if n, err := strconv.Atoi(g.attr("val")); err == nil && n > 1 {
+			return min(n, maxGridSpan)
+		}
+	}
+	return 1
 }

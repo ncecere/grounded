@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -10,13 +11,13 @@ import type { Schemas } from "./support/api";
  * relies on it being off.
  */
 test("content health: an editor makes a report; unmeasurable signals say so; members can't open it", async ({ as, admin, a11y }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(scaled(120_000));
   const owner = await Api.signIn("user");
   const team = await createTeam(admin, owner, { prefix: "health", members: { alex: "editor", blair: "member" } });
   const src = await owner.post<Schemas["DataSource"]>(`/v1/teams/${team}/sources`, { name: "Handbook", classification: "open" });
   await owner.upload(team, src.id, [handbook]);
   await expect
-    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`/v1/teams/${team}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`/v1/teams/${team}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: scaled(30_000) })
     .toEqual(["ready"]);
 
   const editor = await as("alex");
@@ -38,7 +39,7 @@ test("content health: an editor makes a report; unmeasurable signals say so; mem
     await a11y(editor, "content health, no report yet");
     await editor.getByRole("button", { name: "Make report" }).click();
     const signals = editor.getByRole("list", { name: "Signals" });
-    await expect(signals).toBeVisible({ timeout: 60_000 });
+    await expect(signals).toBeVisible({ timeout: scaled(60_000) });
     const cards = signals.getByRole("listitem");
     await expect(cards).toHaveCount(5);
     // A new document is not stale, and with no answers kept nothing can be said about citations: unavailable, never a zero.

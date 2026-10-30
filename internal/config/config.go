@@ -85,6 +85,10 @@ type Config struct {
 	RetrievalVectorWeight  float64
 	RetrievalKeywordWeight float64
 
+	// ParentExpansion is the platform switch of parent/child retrieval (docs/parent-child-retrieval.md): false searches children only
+	// for every profile, whatever they index.
+	ParentExpansion bool
+
 	// ModerationTimeout bounds each moderation check (ADR-0019), besides
 	// the connection's own timeout.
 	ModerationTimeout time.Duration
@@ -245,6 +249,7 @@ func Defaults() Config {
 		Boilerplate:            boilerplate.DefaultDefaults,
 		RetrievalVectorWeight:  1,
 		RetrievalKeywordWeight: 0.1,
+		ParentExpansion:        true,
 		ModerationTimeout:      10 * time.Second,
 		PDFWorkers:             2,
 		OCR:                    OCR{Timeout: 2 * time.Minute, MaxPagesPerDocument: 200, Concurrency: 2},

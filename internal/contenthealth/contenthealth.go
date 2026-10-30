@@ -9,8 +9,9 @@
 // A snapshot holds IDs, enums, counts and times, and the URL a link failure is about. Titles and names are read live,
 // so a deleted or renamed document cannot leak through an old report, and findings go with their documents and sources.
 //
-// Who: editors, admins and owners of the team, in the app only. Members, API keys, platform staff and break-glass
-// sessions get 404; shared platform sources are never listed or compared.
+// Who: real editors, admins and owners of the team, in the app only. Members, delegated callers and outsiders get 404;
+// platform privilege and break-glass grant no access, but do not replace or disqualify an ordinary qualifying membership.
+// Shared platform sources are never listed or compared.
 package contenthealth
 
 import (
@@ -131,7 +132,8 @@ func New(pool *pgxpool.Pool, t *teams.Service, jobs *river.Client[pgx.Tx], log *
 }
 
 var (
-	// errNotFound hides the report from members, keys, platform staff and outsiders, and from everyone while it is off.
+	// errNotFound hides the report from members, delegated callers and those without a qualifying team role.
+	// The off switch also hides findings/detail reads, but leaves authorized stubs, cancel and delete available.
 	errNotFound   = apperr.NotFound("not_found", "Not found")
 	errNoReport   = apperr.NotFound("content_health_report_not_found", "Report not found")
 	errNoScope    = apperr.NotFound("content_health_scope_not_found", "That source or knowledge base isn't in this team")
@@ -148,8 +150,8 @@ var (
 	errStaffRead  = apperr.Forbidden("Only platform admins and auditors can see this setting")
 )
 
-// access resolves the team for an editor, admin or owner of it, in the app; everyone else (members, keys, OAuth clients,
-// platform staff with or without break-glass, outsiders) gets 404. A write needs an active team.
+// access requires a real editor/admin/owner membership and a browser actor. Neither platform privilege nor break-glass
+// supplies that role; a staff user's independent qualifying membership still applies. A write needs an active team.
 func (s *Service) access(ctx context.Context, a authz.Actor, teamRef string, write bool) (teams.Access, error) {
 	if a.Delegated() || a.UserID == uuid.Nil {
 		return teams.Access{}, errNotFound

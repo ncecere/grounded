@@ -50,6 +50,7 @@ type retriever struct {
 	mu          sync.Mutex
 	budget      int // remaining context tokens
 	byChunk     map[uuid.UUID]*numberedHit
+	byParent    map[kbs.ParentKey]*numberedHit // sources that are a parent's text (parents.go)
 	all         []*numberedHit
 	embedTokens map[uuid.UUID]int // by embedding model
 	topSim      float64
@@ -67,11 +68,14 @@ type retriever struct {
 	rerankOK bool
 	topN     int
 	rmeter   rerank.Meter
+
+	// noExpand leaves parents unexpanded: the evaluation's retrieval check reads ranks, not text (evaluate.go).
+	noExpand bool
 }
 
 func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string) *retriever {
 	r := &retriever{svc: svc, kbs: resolved, refs: map[uuid.UUID]KBRef{}, minSim: c.MinSimilarity, user: user,
-		budget: c.ContextTokenBudget, byChunk: map[uuid.UUID]*numberedHit{}, embedTokens: map[uuid.UUID]int{}}
+		budget: c.ContextTokenBudget, byChunk: map[uuid.UUID]*numberedHit{}, byParent: map[kbs.ParentKey]*numberedHit{}, embedTokens: map[uuid.UUID]int{}}
 	if c.Filters != nil {
 		r.filter = *c.Filters
 	}
@@ -149,6 +153,9 @@ func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candida
 		sj = &searchJudging{judged: len(js), dropped: countDropped(js)}
 	}
 
+	// Only the hits that can be numbered are expanded (with room for the ones numbering skips as found again).
+	r.expandParents(ctx, span, merged[:min(len(merged), 3*maxResults)], conflicting[:min(len(conflicting), 3*min(maxConflicting, maxResults))])
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.searches++
@@ -189,7 +196,7 @@ func (r *retriever) searchKBs(ctx context.Context, query string) ([]kbResult, in
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache})
+			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache, CollapseParents: !r.noExpand})
 			results[i] = kbResult{res, err}
 		}()
 	}
@@ -250,32 +257,50 @@ func (r *retriever) fuse(results []kbResult) ([]*fusedHit, error) {
 }
 
 // number gives the fused hits their source numbers (a chunk found again
-// keeps its number) until maxResults or the token budget is reached.
+// keeps its number) until maxResults or the token budget is reached. A hit
+// with a parent (parents.go) is numbered with the parent's text when it
+// fits the remaining budget, and a parent already numbered keeps its number.
 // r.mu must be held.
 func (r *retriever) number(merged []*fusedHit, maxResults int) []numberedHit {
 	var out []numberedHit
+	seen := map[int]bool{}
+	again := func(prev *numberedHit) { // a source found again is paid for once, and listed once per search
+		if !seen[prev.N] {
+			seen[prev.N] = true
+			out = append(out, *prev)
+		}
+	}
 	for _, f := range merged {
 		if len(out) >= maxResults {
 			break
 		}
 		if prev, ok := r.byChunk[f.hit.ChunkID]; ok {
-			out = append(out, *prev) // already numbered and paid for
+			again(prev) // already numbered and paid for
 			continue
 		}
-		cost := hitCost(f.hit)
+		if prev, ok := r.numberedParent(f.hit); ok {
+			again(prev) // another passage of a section the model already has
+			continue
+		}
+		hit := r.withParent(f.hit)
+		cost := hitCost(hit)
 		if cost > r.budget {
 			if len(r.all) > 0 || r.budget < 100 {
 				break
 			}
-			// The first hit alone exceeds the budget: keep a trimmed copy.
+			// The first hit alone exceeds the budget: keep a trimmed copy (of the passage: a parent that does not fit is never cut).
 			f.hit.Content = truncateRunes(f.hit.Content, max(r.budget-40, 50)*4)
-			cost = r.budget
+			hit, cost = f.hit, r.budget
 		}
 		r.budget -= cost
-		n := &numberedHit{Hit: f.hit, N: len(r.all) + 1}
+		n := &numberedHit{Hit: hit, N: len(r.all) + 1}
 		r.all = append(r.all, n)
 		r.byChunk[f.hit.ChunkID] = n
+		if p := hit.Parent; p != nil && p.Expanded {
+			r.byParent[p.Key(hit.DocumentID)] = n
+		}
 		r.topSim = max(r.topSim, f.hit.Similarity())
+		seen[n.N] = true
 		out = append(out, *n)
 	}
 	return out

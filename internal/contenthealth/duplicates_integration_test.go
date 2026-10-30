@@ -78,6 +78,49 @@ func TestDuplicateGroupNeedsTwoSourcesAtRead(t *testing.T) {
 	}
 }
 
+// A snapshot group can split into two different matching pairs after files are
+// replaced. Both pairs are duplicates now, but they must never be displayed as
+// one identical file. Without storing hashes or inventing new snapshot groups,
+// the conservative old-report result is to withhold this ambiguous group.
+func TestDuplicateSplitGroupIsNotShownAsOneIdenticalFile(t *testing.T) {
+	f := newFixture(t)
+	a, b := f.source(f.teamA, "A", "upload"), f.source(f.teamA, "B", "upload")
+	a1, a2 := f.addDoc(f.teamA, a, doc{sha: "original"}), f.addDoc(f.teamA, a, doc{sha: "original"})
+	b1, b2 := f.addDoc(f.teamA, b, doc{sha: "original"}), f.addDoc(f.teamA, b, doc{sha: "original"})
+	rep := f.make(CreateInput{})
+	f.exec(`UPDATE documents SET sha256 = 'replacement', updated_at = now() WHERE id = ANY($1::uuid[])`, []uuid.UUID{a1, b1})
+	s := signalOf(mustGet(t, f, rep), SignalDuplicate)
+	pages := f.dupGroups(rep, 1)
+	if s.Found != 1 || s.Listed != 0 || len(pages) != 1 || len(pages[0]) != 0 {
+		t.Fatalf("split snapshot group shown as one identical file: %+v, pages %+v; want 1 historically found, 0 coherently listed", s, pages)
+	}
+	// A new report may assign the two real groups. The old report's grouping
+	// and historical count are never rewritten to make its current count fit.
+	fresh := f.make(CreateInput{})
+	if s := signalOf(fresh, SignalDuplicate); s.Found != 2 || s.Listed != 2 {
+		t.Fatalf("fresh report: %+v; want two current identical-file groups", s)
+	}
+	seen := map[uuid.UUID]bool{}
+	for _, page := range f.dupGroups(fresh, 1) {
+		if len(page) != 2 {
+			t.Fatalf("fresh whole-group page has %d rows; want 2", len(page))
+		}
+		ids := []uuid.UUID{*page[0].DocumentID, *page[1].DocumentID}
+		for _, id := range ids {
+			seen[id] = true
+		}
+		if n := f.count(`SELECT count(DISTINCT sha256) FROM documents WHERE id = ANY($1::uuid[])`, ids); n != 1 {
+			t.Fatalf("fresh group mixes different bytes: %+v", ids)
+		}
+	}
+	if s := signalOf(mustGet(t, f, rep), SignalDuplicate); s.Found != 1 {
+		t.Error("making a fresh report rewrote the old historical group count")
+	}
+	if len(seen) != 4 || !seen[a1] || !seen[a2] || !seen[b1] || !seen[b2] {
+		t.Error("fresh groups lost a changed or unchanged member")
+	}
+}
+
 // Found and listed are in groups: a group of fifteen documents (ten listed) is one group found and one group listed.
 func TestDuplicateFoundAndListedAreBothGroups(t *testing.T) {
 	f := newFixture(t)

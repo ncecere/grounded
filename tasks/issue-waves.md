@@ -2,8 +2,19 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
+## Current execution status — 2026-10-30
+
+- **v0.6.3 published and independently verified:** immutable source `a55dc5e50ab011092ddf6f480891aa3828bf462d`; final main run `41015579132`, tag run `41034183553`. Checksums, signed app/OCR SBOMs, amd64/arm64 provenance and scans, and actual amd64 versions pass. No Go or fixable HIGH/CRITICAL findings; residual app/OCR advisories are recorded in [`validation/v0.6.3.md`](../docs/security/validation/v0.6.3.md). No production rollout occurred.
+- **22 issues remain open, from the original 29.** Validation-harness issue #201 is also complete/closed after #202 merged (`e2ab063`) with all 20 CI checks and exact-source cluster test/authz/e2e plus wrapper/fetch/cleanup gates passing; it does not change original-backlog completion (22 total open at this update). #77, #116, #119, #128, #132, #140 and #146 are complete/closed. #146 reached 12/12 only after the held grounded-docs #15 merged following release verification. Added security/test/release-blocker issues #169, #172 and #195 are also closed; they do not reduce the original-backlog count.
+- **Retrieval work is not yet closed:** #23/#191 fuzzy boilerplate (`a26c96a`) and #24/#193 tables (`c88dd1f`) include the #201 fixture/deadline fix and have full green GitHub rollups; final cluster acceptance is still pending. #20/#197 parent/child retrieval (`5628c3e`) includes both and passes focused combined local checks and the full current-head CI rollup; cluster acceptance remains pending. #22/#199 health reporting has passed final combined local integration after main-thread event-cap, consistent-snapshot, bounded-finalization and duplicate-coherence fixes: all 69 package race tests, 42 repeated review/duplicate cases, retrieval/API integration checks and 122 selected UI tests passed. ADR-0027 is accepted for the bounded design; current-head CI and cluster shipment gates remain pending. None is in v0.6.3.
+- **Current implementation order** (supersedes the initial ordering below): #23 → #24 → #20 → #22 → #21; #19/C15 examples and #25 measurement evidence alongside. #21 also needs bounded real-model acceptance, not fake-model-only closure. Then adoption #34 → #31 → #32 → #33; compliance #40 → #39 → #38 → #36 → #37 → #35; ACL #41 and bounded scale #89 work. **Connectors #44, #42 and #43 are last, one provider at a time**, only after the rest is solid.
+- External blockers remain explicit: scoped real-model credentials/budget for #21; Authentik URL/token/network reachability for #35; authorized representative measurement data for #25; later connector tenants/credentials. Production and v1.0.0 still need the owner's separate decisions.
+
+The scope lists and early evidence below preserve the original plan and intermediate state; the current status above takes precedence over their historical pending notes.
+
 ## Execution rules
 
+- **Main-thread execution (owner request, 2026-10-30):** implementation, review and integration are handled directly in the main thread. Cancellation was requested for the outstanding content-health and contextual-chunk delegates, preserving their source. Start no new subagents unless the owner explicitly asks; ordinary managed test/build/check processes are still used for validation.
 - One focused branch/PR per issue or coherent subset of a tracking issue. Add regression tests; OpenAPI first for contract changes; regenerate rather than hand-edit generated files.
 - Read issue comments: many unchecked QA bullets already shipped in v0.6.1. Verify before changing them; retain evidence for each remaining bullet. Do not close a tracking issue for a partial fix.
 - Run focused checks during development and all required GitHub checks before merging. CI is the release gate, not merely a submitted workflow. Follow CONTRIBUTING.md and AGENTS.md for integration, authorization, cluster QA and release scans.
@@ -20,20 +31,22 @@ Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments 
 4. [x] Record baseline check results; distinguish pre-existing failures from regressions.
 5. [x] Inspect #165–167, advisories and CI; prioritize newly identified security blockers (#169) and stale calendar assertions (#172).
 6. [x] Publish and independently verify the separate **v0.6.2 security patch** (#171/#176 merged; exact-source main, tag pipeline and both-platform final artifact gates passed; #169 closed).
-7. [ ] Refresh and batch safe routine dependency updates at a validated milestone; do not mix an unreviewed group into the security patch.
+7. [x] Refresh and batch safe routine dependency updates at a validated milestone: #165 (Actions), #177 (Go) and #192 (web group plus accessibility fixes) merged and shipped in v0.6.3; superseded #166 closed. No unreviewed group was mixed into the v0.6.2 security patch.
 
-## Wave 1 — API/security correctness (in progress; candidate v0.6.3)
+## Wave 1 — API/security correctness (complete; published v0.6.3)
 
 Order: #116, security/contract portions of #119 and #146, then #77 if its verification environment is available.
 
 - **#116:** finish wrong-method handling with OpenAI-shaped 405 errors and `Allow`, preserving the already-fixed no-key/internal errors.
 - **#119:** close key deletion oracle; validate scopes before role restrictions; case-insensitive Bearer; deliberate 405/OPTIONS/CORS contract; reject unsafe display-name/filename controls; friendly config validation; align preview auth contract; OpenAI history/content validation; strict retrieve topK; global 429 documentation; safe HTTPS/HSTS operator policy.
 - **#146 (server):** authorization before revision errors, connection timeout consistency, retention/reason copy, format errors, model context/output bounds, public-message floor/required ceiling, duplicate-owner invite investigation.
-- **#77 — complete on main:** PR #179 denies OCR egress, excludes OCR from the additive base DNS grant, and passes real standalone/composed policy tests, positive controls, allowed API/worker ingress, fresh readiness and a live DNS mutation. Both standalone and full existing-cluster/application smoke paths passed, all CI green; issue closed. This is for the next patch, not v0.6.2.
+- **#77 — complete on main:** PR #179 denies OCR egress, excludes OCR from the additive base DNS grant, and passes real standalone/composed policy tests, positive controls, allowed API/worker ingress, fresh readiness and a live DNS mutation. Both standalone and full existing-cluster/application smoke paths passed, all CI green; issue closed. Included in v0.6.3, not v0.6.2.
 
 Exit: API spec/generated types agree, negative/authz and method regressions pass, required CI green. Do not wait on inaccessible infrastructure to ship independently complete fixes; keep blocked items open.
 
-## Wave 2 — remaining v0.6 QA (combine with v0.6.3 if ready, otherwise a later patch)
+## Wave 2 — remaining v0.6 QA (complete; published v0.6.3)
+
+All four aggregate trackers below are now closed with their checklists complete. The release review found and fixed the additional #195 rolling-upgrade blocker in #196 before publication; old/new template and request writes are now part of the upgrade rehearsal.
 
 - **#140:** suspended-requester approval; Unicode template uniqueness; paused/editable withdrawn-destination webhook; DNS label validation; remaining DESIGN/OpenAPI mismatches; router sharing/export clarity; approved classification; mobile webhook/request tables.
 - **#132:** explicit costs-enabled signal to remove spend 404s; Unicode slug strategy; accurate numeric errors; alt-less image removal; upload scope/size copy; top-k validation; no-op source edits and duplicate publishing; profile the crawl's skip-heavy tail and expose a real waiting reason if applicable.
@@ -102,7 +115,9 @@ Exit: fixture contract tests and opt-in real-provider acceptance for each connec
 - Review all remaining open issues/PRs, stale tracker checkboxes and external docs; verify acceptance evidence and reconcile blockers. Do not close #25/#19/#77/#89 merely for shipping harnesses.
 - Security/dependency refresh, complete QA and pre-1.0 maintenance release(s) as warranted. **Stop short of v1.0.0; the owner alone decides that tag.**
 
-## Progress / evidence
+## Historical progress / evidence
+
+These entries record intermediate states; see Current execution status above for completed merges, issue counts and release verification.
 
 - Initial inventory: 29 issues / 10 comments, preserved above. Execution added security issue **#169** and test-maintenance issue **#172**; both are now closed after validated fixes and, for #169, publication/verification. Original issue **#77** is also complete/closed. Aggregate QA issues remain open for their remaining bullets.
 - Tooling established: verified Go archive, Go 1.26.10 selected by the updated toolchain pin; Node 22.23.0, Docker, kubectl and the homelab's `tools/dev-env` (with `GROUNDED_REPO`/`KUBECONFIG_DEV` overrides). No credentials printed. Local database regressions use isolated Postgres 17 + Valkey containers with cleanup. Homelab development tests use `dev-grounded`; local kind tests own their cluster and smoke/acceptance namespaces. No production namespace or other project's environment is used.

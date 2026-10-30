@@ -1,3 +1,4 @@
+import { scaled } from "../test-scale";
 import { Api } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { expect, test } from "./support/fixtures";
@@ -9,7 +10,7 @@ import { expect, test } from "./support/fixtures";
  * and "Open in new tab" answer.
  */
 test("the Share tab's widget preview answers, inline and in its own tab", async ({ as, admin, a11y }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(scaled(90_000));
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "preview" });
   const { agent } = await publishedAgent(owner, team, { name: "Preview helper", audience: "public" });

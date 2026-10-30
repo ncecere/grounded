@@ -149,7 +149,8 @@ func (p *Processor) setChunks(ctx context.Context, src dbgen.DataSource, doc dbg
 		if err != nil {
 			return nil, false, err
 		}
-		if ChunkingOf(row.EmbeddingProfile, maxInput(row.Model)) == ChunkingOf(target.Profile, target.MaxInputTokens) {
+		// A preview that judges with near-duplicate matching drops other blocks than the live index: its passages are cut again.
+		if !target.Profile.BoilerplateFuzzy && ChunkingOf(row.EmbeddingProfile, maxInput(row.Model)) == ChunkingOf(target.Profile, target.MaxInputTokens) {
 			rows, err := q.ProfileDocumentChunks(ctx, dbgen.ProfileDocumentChunksParams{DocumentID: doc.ID, ProfileID: own})
 			if err != nil {
 				return nil, false, err
@@ -166,12 +167,26 @@ func (p *Processor) setChunks(ctx context.Context, src dbgen.DataSource, doc dbg
 	if err != nil {
 		return nil, false, err
 	}
-	dropped, err := q.GetDocumentDropped(ctx, doc.ID)
-	if err != nil && !errors.Is(store.NotFound(err), store.ErrNotFound) {
+	plan, err := p.setPlan(ctx, q, src, doc, target, md)
+	if err != nil {
 		return nil, false, err
 	}
-	chunks, err := p.split(md, target, planFromDropped(chunk.Blocks(md), dropped))
+	chunks, err := p.split(md, target, plan)
 	return chunks, true, err
+}
+
+// setPlan decides which blocks of a document the target's passages leave out: the ones the document dropped when it was processed or
+// re-checked, or, for a preview with near-duplicate matching on, the ones its own classification of the source drops.
+func (p *Processor) setPlan(ctx context.Context, q *dbgen.Queries, src dbgen.DataSource, doc dbgen.PendingSetDocumentsRow, target catalog.EmbedTarget, md string) (bpPlan, error) {
+	blocks := chunk.Blocks(md)
+	if target.Profile.BoilerplateFuzzy && src.EmbeddingProfileID != target.Profile.ID {
+		return p.previewPlan(ctx, q, src.ID, doc.ID, target.Profile.ID, blocks)
+	}
+	dropped, err := q.GetDocumentDropped(ctx, doc.ID)
+	if err != nil && !errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return bpPlan{}, err
+	}
+	return planFromDropped(blocks, dropped), nil
 }
 
 func maxInput(m dbgen.Model) int {
@@ -255,6 +270,9 @@ func (p *Processor) commitSet(ctx context.Context, src dbgen.DataSource, doc dbg
 		}
 		rc.fresh = all
 		if err := insertFresh(ctx, tx, p, src.ID, doc.ID, prof, rc); err != nil {
+			return err
+		}
+		if err := setParents(ctx, tx, doc.ID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
 			return err
 		}
 		if err := q.DeleteSetFailure(ctx, dbgen.DeleteSetFailureParams{DocumentID: doc.ID, ProfileID: prof.ID}); err != nil {

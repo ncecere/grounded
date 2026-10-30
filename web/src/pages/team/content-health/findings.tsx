@@ -87,7 +87,7 @@ function Row({ f, team, report }: { f: Finding; team: string; report: Report }) 
         <Tr>
           <DocCell f={f} team={team} />
           <Td>
-            Group {f.groupNo} <span className={s.muted}>({f.groupSize.toLocaleString()} documents)</span>
+            Group {f.groupNo} <span className={s.muted}>({f.groupSize.toLocaleString()} documents when reported)</span>
           </Td>
           <Td muted>
             <RelativeTime value={f.observedAt} />
@@ -132,6 +132,9 @@ export function Findings({ team, report, signal }: { team: string; report: Repor
         <p className={s.muted}>
           Addresses are shown without credentials, query or fragment. The path can still contain something sensitive, so treat this list like the source itself.
         </p>
+      )}
+      {signal === "duplicate" && (
+        <p className={s.muted}>Groups and member counts are from the report. Current bytes are checked again. If an old group splits into different matching files, it is hidden rather than shown as one identical file; make a new report to see the new groups.</p>
       )}
       {q.error ? (
         <ErrorAlert error={q.error} title="Couldn't load the findings" onRetry={() => void q.refetch()} />

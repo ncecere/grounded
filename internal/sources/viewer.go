@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/breakglass"
+	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -30,6 +31,8 @@ type ContextPassage struct {
 	PageStart   int32
 	PageEnd     int32
 	Cited       bool
+	// Matched marks, in a cited parent, the passage that matched the question (ParentInContext).
+	Matched bool
 }
 
 // Context sizes: "about a page" is the cited passage plus neighbours on each
@@ -67,6 +70,12 @@ func PassageInContext(ctx context.Context, q *dbgen.Queries, doc dbgen.GetViewer
 	if err != nil {
 		return nil, err
 	}
+	return passagesInContext(rows, ordinal)
+}
+
+// passagesInContext applies the same about-a-page disclosure window to ordinary
+// citations and validated parent citations. The matched passage stays whole.
+func passagesInContext(rows []dbgen.ListViewerChunksRow, ordinal int32) ([]ContextPassage, error) {
 	at := -1
 	for i, r := range rows {
 		if r.Ordinal == ordinal {
@@ -130,10 +139,6 @@ func toContext(rows []dbgen.ListViewerChunksRow, cited int32) []ContextPassage {
 	return out
 }
 
-// minOverlap is the shortest repeated text treated as chunk overlap (shorter
-// matches are coincidences, like a repeated word).
-const minOverlap = 24
-
 // trimOverlaps removes the text each passage repeats from the one before it
 // (the chunker carries trailing context over within a section), so the
 // viewer reads like the document. The cited passage stays whole: the
@@ -157,33 +162,17 @@ func trimOverlaps(ps []ContextPassage) []ContextPassage {
 	return ps
 }
 
-// overlap is the length in bytes of the longest suffix of a that is a prefix
-// of b (at least minOverlap bytes, and not the whole of b), or 0.
-func overlap(a, b string) int {
-	if len(b) < minOverlap || len(a) < minOverlap {
-		return 0
-	}
-	head := b[:minOverlap]
-	best := 0
-	for i := strings.Index(a, head); i >= 0; {
-		if n := len(a) - i; n < len(b) && strings.HasPrefix(b, a[i:]) {
-			best = n
-			break // the earliest start is the longest overlap
-		}
-		j := strings.Index(a[i+1:], head)
-		if j < 0 {
-			break
-		}
-		i += j + 1
-	}
-	return best
-}
+// overlap is chunk.Overlap: the parent text of parent/child retrieval removes overlap with the same function, so the viewer shows the text the
+// model was given.
+func overlap(a, b string) int { return chunk.Overlap(a, b) }
 
 // DocumentTextQuery selects a document's passages: Around (a passage ID)
 // for the passage in context, else Limit passages from ordinal From.
 type DocumentTextQuery struct {
 	From, Limit int32
 	Around      *uuid.UUID
+	// Parent, with Around as the matched passage, selects a cited parent instead (ParentInContext).
+	Parent *ParentQuery
 }
 
 // DocumentText is a document's text as passages.
@@ -212,6 +201,14 @@ func (s *Service) DocumentText(ctx context.Context, a authz.Actor, o Owner, sour
 		return DocumentText{}, store.NotFound(err)
 	}
 	out := DocumentText{Document: doc}
+	if tq.Parent != nil {
+		pq := *tq.Parent
+		if tq.Around != nil {
+			pq.ChunkID = *tq.Around
+		}
+		out.Items, err = ParentInContext(ctx, s.q, doc, pq)
+		return out, err
+	}
 	if tq.Around != nil {
 		out.Items, err = PassageInContext(ctx, s.q, doc, PassageQuery{ChunkID: *tq.Around})
 		return out, err

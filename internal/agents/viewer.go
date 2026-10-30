@@ -40,6 +40,9 @@ type CitedPassage struct {
 	// DocumentTeam is the source's team slug when the caller may open the
 	// whole document ("" otherwise).
 	DocumentTeam string
+	// Parent records the section used for generation. Passages remain the
+	// matched child's bounded context, not a grant to read the full section.
+	Parent *CitationParent
 }
 
 var (
@@ -117,6 +120,9 @@ func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, 
 	} else if err != nil {
 		return out, doc, err
 	}
+	if c.Parent != nil {
+		return s.citedParent(ctx, out, doc, c)
+	}
 	pq := sources.PassageQuery{Match: func(content string) bool { return snippetMatches(content, *c) }}
 	if c.ChunkID != nil {
 		pq.ChunkID = *c.ChunkID
@@ -169,4 +175,26 @@ func answerText(content json.RawMessage) string {
 		}
 	}
 	return text
+}
+
+// citedParent validates the section used for generation, then returns only
+// the existing matched-passage window. This policy is shared by signed-in,
+// anonymous and share-link readers; parent context does not widen their grant.
+// A changed section is passage_changed, never substituted with current text.
+func (s *Service) citedParent(ctx context.Context, out CitedPassage, doc dbgen.GetViewerDocumentRow, c *Citation) (CitedPassage, dbgen.GetViewerDocumentRow, error) {
+	out.Parent = c.Parent
+	pq := sources.ParentQuery{First: c.Parent.First, Last: c.Parent.Last, SHA256: c.Parent.SHA256, Window: true}
+	if c.ChunkID != nil {
+		pq.ChunkID = *c.ChunkID
+	}
+	ps, err := sources.ParentInContext(ctx, s.q, doc, pq)
+	if errors.Is(err, sources.ErrPassageNotFound) {
+		out.Status = PassageChanged
+		return out, doc, nil
+	} else if err != nil {
+		return out, doc, err
+	}
+	out.Passages = ps
+	out.HeadingPath = ps[0].HeadingPath
+	return out, doc, nil
 }

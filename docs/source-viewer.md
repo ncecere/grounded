@@ -24,6 +24,12 @@ It is never an overlay drawer: the conversation stays where it was. **Escape** o
 - **Open the page** for web pages, when the agent links its sources (citation mode "snippet and link"): the live page, with a [text fragment](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment/Text_fragments) built from the passage's first and last words, so browsers that support them scroll to and highlight the passage.
 - **Open full document** for the team's editors, admins and owners: the whole document, from a little before the cited passage, with **Show earlier passages** and **Show later passages**.
 
+### A cited section (parent/child retrieval)
+
+For an agent whose knowledge base uses **parent sections** ([`parent-child-retrieval.md`](parent-child-retrieval.md)), generation may use a larger section around the matched passage. The cited viewer still shows **only the matched passage and its existing bounded nearby context**, with a notice that this is not the full generation context. This applies equally to signed-in conversations, anonymous/public/widget sessions and shared links, including public links. It does not grant those readers up to 8192 tokens of verbatim text. Before returning the window, the server validates the citation's section hash (context before standard prompt escaping); if the section changed or the matched passage cannot be identified, it shows the changed notice and only what the answer quoted. Answers without a parent remain unchanged.
+
+The full hash-validated section is available through the **editor/admin/owner document-text endpoint**, as in Try it. That authorized view labels it "Cited section", highlights all its rows and marks the passage that matched. Whole-document access is unchanged.
+
 ### When the passage is gone
 
 Documents change after an answer is written. The viewer says so instead of showing the wrong text:
@@ -53,4 +59,4 @@ Only cited passages are served, by their number in the answer, so nobody can pag
 - `GET /v1/messages/{messageId}/sources/{n}`: source `n` of an answer in one of the caller's conversations, in context (`CitedPassage`: status, title, heading path, link, passages with the cited one marked, the claims citing it, and `documentTeam` when the caller may open the whole document).
 - `GET /v1/public/agents/{agentId}/messages/{messageId}/sources/{n}`: the same for an anonymous session (the session cookie).
 - `GET /v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text`: the whole document for the team's editors, admins and owners: `?from=&limit=` (up to 200 passages), or `?around={passageId}` for a passage in context.
-- Citations carry `chunkId`, the cited passage (absent for answers from before v0.4.0, which are found by their text).
+- Citations carry `chunkId`, the cited passage (absent for answers from before v0.4.0, which are found by their text), and `parent` when the model was given a section (`first`, `last`, `passages`, `tokens`, `matched`, `sha256`). `GET …/documents/{documentId}/text` also takes `parentFirst`, `parentLast` and `parentSha256` (with `around` as the matched passage) for the team's editors: Try it reads a cited section that way.

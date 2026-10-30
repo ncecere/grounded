@@ -891,11 +891,13 @@ WITH live AS (
     SELECT l.group_no, l.doc_sha FROM live l
     WHERE l.signal = 'duplicate' AND l.doc_status = 'ready' AND l.doc_sha <> ''
     GROUP BY l.group_no, l.doc_sha HAVING count(DISTINCT l.source_id) >= 2
+), coherent AS (
+    SELECT group_no, min(doc_sha) AS doc_sha FROM dup GROUP BY group_no HAVING count(*) = 1
 )
 SELECT l.signal::text AS signal,
        (CASE WHEN l.signal = 'duplicate' THEN count(DISTINCT l.group_no) ELSE count(*) END)::bigint AS listed
 FROM live l
-WHERE l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM dup x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready')
+WHERE l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM coherent x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready')
 GROUP BY l.signal
 `
 
@@ -1241,12 +1243,16 @@ WITH live AS (
     SELECT l.group_no, l.doc_sha FROM live l
     WHERE l.signal = 'duplicate' AND l.doc_status = 'ready' AND l.doc_sha <> ''
     GROUP BY l.group_no, l.doc_sha HAVING count(DISTINCT l.source_id) >= 2
+), coherent AS (
+    -- Never merge different current files under one snapshot group. If it split into several valid hash groups,
+    -- withhold it until a new report assigns fresh groups; no original hash is copied into the snapshot.
+    SELECT group_no, min(doc_sha) AS doc_sha FROM dup GROUP BY group_no HAVING count(*) = 1
 )
 SELECT l.signal, l.ord, l.source_id, l.source_name, l.source_type, l.document_id, l.ref, l.group_no, l.group_size, l.code, l.detail, l.value,
        l.observed_at, l.confirmed_at, l.title, l.filename, l.doc_url, l.kind, l.changed_since
 FROM live l
 WHERE l.ord > $1::int
-  AND (l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM dup x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready'))
+  AND (l.signal <> 'duplicate' OR EXISTS (SELECT 1 FROM coherent x WHERE x.group_no = l.group_no AND x.doc_sha = l.doc_sha AND l.doc_status = 'ready'))
 ORDER BY l.ord
 LIMIT $2
 `
