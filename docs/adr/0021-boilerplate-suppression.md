@@ -32,4 +32,8 @@ Whether a block is boilerplate depends on the rest of the source. A crawl indexe
 - Storage: 8 bytes per distinct block per document (`document_blocks.hashes`), plus a small classification table per source. Counting is a SQL `unnest … GROUP BY` over the source's rows. It runs in a background job after changes, never on the query path.
 - A block that repeats on at least the threshold share of pages but matters per page is kept only on its canonical page. The ratio floor of 0.05 and the default of 0.2 keep per-form instructions that repeat on a few PDFs (8 of 58 on the registrar site). Owners can see the list, raise the thresholds or turn suppression off.
 - Migration 00022 schedules a refresh for every existing web source. After upgrading, their pages are re-checked in the background and changed chunks re-embedded, within the connection's request limit.
-- Near-duplicates that exact hashing misses, such as a nav list with one item highlighted, are matched by an opt-in addition (A11, #23, DESIGN.md §5.5: MinHash sketches per block, clusters counted like blocks). It leaves every decision above as it is and is off unless a source or the platform turns it on. Later: SystemOne ingest checks (ADR-0020) could judge them too.
+- Later: SystemOne ingest checks (ADR-0020) could judge near-duplicates that exact hashing misses, such as a nav list with one item highlighted.
+
+## Implementation follow-up (#23)
+
+The original decision above is unchanged. An opt-in deterministic near-duplicate matcher now supplements exact hashing (DESIGN.md §5.5: MinHash sketches per block, clusters counted like blocks). It is off by default; SystemOne judgement remains future work.
