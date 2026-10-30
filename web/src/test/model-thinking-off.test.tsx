@@ -57,7 +57,7 @@ async function testModel(result: object) {
   });
   const { container } = renderApp("/admin/models");
   const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
-  await userEvent.click(await within(table).findByRole("button", { name: "GPT-OSS 120B" }));
+  await userEvent.click(await within(table).findByRole("button", { name: /^GPT-OSS 120B/ }));
   const sheet = await screen.findByRole("region", { name: "GPT-OSS 120B" });
   await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
   expect(await within(sheet).findByText("Answered in 120 ms")).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("model page: what the last Test found about thinking off", () => {
     });
     renderApp("/admin/models");
     const table = await screen.findByRole("table", { name: "Models" }, { timeout: scaled(4000) });
-    await userEvent.click(await within(table).findByRole("button", { name: "GPT-OSS 120B" }));
+    await userEvent.click(await within(table).findByRole("button", { name: /^GPT-OSS 120B/ }));
     return screen.findByRole("region", { name: "GPT-OSS 120B" });
   }
 

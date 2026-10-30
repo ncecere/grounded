@@ -63,7 +63,7 @@ describe("the deliveries panel", () => {
   it("opens from the row itself too", async () => {
     setup(all);
     renderApp("/teams/registrar/settings?tab=webhooks");
-    await userEvent.click(await screen.findByRole("button", { name: url }, slow));
+    await userEvent.click(await screen.findByRole("button", { name: (name) => name.startsWith(url) }, slow));
     expect(await screen.findByRole("dialog", { name: "Deliveries" })).toBeInTheDocument();
   });
 

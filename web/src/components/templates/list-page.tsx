@@ -167,8 +167,8 @@ export function ListPage<T>({
       manual={manual}
       rowActions={rowActions ? (row) => <ActionMenu actions={rowActions(row)} label={`Actions for ${rowLabel(row)}`} /> : undefined}
       onRowClick={onRowClick}
-      // The row's button (in its row header) is named like its menu and checkbox.
-      rowClickLabel={onRowClick ? rowLabel : undefined}
+      // No rowClickLabel: the row's button shows the whole cell (a name and its second line), so it is named by that
+      // text, which is what WCAG 2.5.3 (Label in Name) asks. rowLabel names the checkbox and the actions menu.
       empty={empty ? <EmptyState size="compact" icon={empty.icon} title={empty.title} description={empty.description} action={empty.action} /> : undefined}
       {...tableProps}
     />

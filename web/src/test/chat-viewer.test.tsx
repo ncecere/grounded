@@ -54,7 +54,7 @@ function renderChat(access: ViewerAccess, items = thread()) {
 /** Opens the sources under the answer and source n's card in the viewer. */
 async function openSource(n: number, title = `Fees ${n}`) {
   await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
-  await userEvent.click(screen.getByRole("button", { name: `Show source ${n}: ${title}` }));
+  await userEvent.click(screen.getByRole("button", { name: new RegExp(`^Show source ${n}: ${title}`, "i") }));
   return screen.findByRole("region", { name: title });
 }
 
@@ -85,7 +85,7 @@ describe("source viewer", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
     const list = screen.getByRole("list", { name: "Sources for this answer" });
     expect(within(list).getAllByTestId("source-breakdown").map((b) => b.textContent)).toEqual(["Supports 1 claim · 1 not supported", "1 claim contradicted"]);
-    await userEvent.click(within(list).getByRole("button", { name: "Show source 1: Fees 1" }));
+    await userEvent.click(within(list).getByRole("button", { name: /^Show source 1: Fees 1/i }));
     const viewer = await screen.findByRole("region", { name: "Fees 1" });
     expect(within(viewer).getByText("Fees › Transcripts")).toBeInTheDocument();
     expect(await within(viewer).findByTestId("cited-passage")).toHaveTextContent("Passage 1 about fees.");
@@ -109,7 +109,7 @@ describe("source viewer", () => {
 
     // Close: focus goes back to the card that opened it.
     await userEvent.click(within(second).getByRole("button", { name: "Close the source" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Show source 1: Fees 1" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Show source 1: Fees 1/i })).toHaveFocus());
   });
 
   it("lets editors open the whole document, a page at a time around the cited passage", async () => {
@@ -192,7 +192,7 @@ describe("source viewer", () => {
     mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1) });
     renderChat({ kind: "message" }, thread(one));
     await userEvent.click(await screen.findByRole("button", { name: "Used 1 source" }));
-    await userEvent.click(screen.getByRole("button", { name: "Show source 1: Fees 1" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Show source 1: Fees 1/i }));
     const sheet = await screen.findByRole("dialog", { name: "Fees 1" });
     expect(sheet).toHaveAttribute("data-size", "full");
     expect(sheet).toHaveAccessibleDescription("Source 1 of 1");
@@ -260,7 +260,7 @@ describe("source viewer", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
     const card = screen.getByRole("listitem", { name: "Source 1: Fees 1" });
     expect(within(card).getByText(shown)).toBeInTheDocument();
-    await userEvent.click(within(card).getByRole("button", { name: "Show source 1: Fees 1" }));
+    await userEvent.click(within(card).getByRole("button", { name: /^Show source 1: Fees 1/i }));
     const viewer = await screen.findByRole("region", { name: "Fees 1" });
     expect(await within(viewer).findByText(shown)).toBeInTheDocument();
     expect(document.body.textContent).not.toContain("](<");

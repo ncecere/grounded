@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -30,7 +32,17 @@ type ragEnv struct {
 func newRAGEnv(t *testing.T) *ragEnv { return newRAGEnvWith(t, nil) }
 
 func newRAGEnvWith(t *testing.T, mutate func(*config.Config)) *ragEnv {
-	app := newTestAppWith(t, mutate, true)
+	return newRAGEnvOn(t, nil, mutate)
+}
+
+// newRAGEnvOn is newRAGEnvWith over an existing database (nil: a new one), for example one created with --locale=C.
+func newRAGEnvOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config)) *ragEnv {
+	var app *testApp
+	if pool != nil {
+		app = newTestAppOn(t, pool, mutate, true)
+	} else {
+		app = newTestAppWith(t, mutate, true)
+	}
 	env := &ragEnv{app: app, admin: app.signIn("admin"), proxy: testutil.NewFakeProxy(t), team: "registrar"}
 	env.proxy.AddEmbeddingModel("bow-64", 64)
 	var conn apitypes.Connection

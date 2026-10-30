@@ -218,7 +218,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                   meta={sourceMeta(s, item.claims)}
                   description={snippetOf(s)}
                   onSelect={viewable(s) ? () => openSource(s.n) : undefined}
-                  selectLabel={viewable(s) ? `Show source ${num(s.n)}: ${sourceTitle(s)}` : undefined}
+                  selectAction={viewable(s) ? "Show" : undefined}
                   linkLabel="Open the page"
                 />
               ))}

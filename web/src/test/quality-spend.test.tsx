@@ -97,7 +97,7 @@ describe("the team's Evaluations page (I3)", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(/Office of the Registrar.*Evaluations/);
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(screen.getByRole("button", { name: /^Regressions, 1/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Regressions 1/ }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ trend: "down" }));
     await waitFor(() => expect(within(table).queryByRole("link", { name: "Steady set" })).toBeNull());
     expect(within(table).getByRole("link", { name: "Transcript questions" })).toBeInTheDocument();

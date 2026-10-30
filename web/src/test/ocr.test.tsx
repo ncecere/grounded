@@ -192,7 +192,7 @@ describe("OCR on a source", () => {
     });
     const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "Board minutes 1998" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Board minutes 1998/ }));
     const page = await screen.findByRole("region", { name: "Board minutes 1998" });
     expect(within(page).getByText("Pages 3–7 were read with OCR (Tesseract).")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -250,7 +250,7 @@ describe("OCR on a source", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry with OCR" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/documents/d4/retry"))).toBe(true));
 
-    await userEvent.click(within(table).getByRole("button", { name: "Handbook" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^Handbook/ }));
     const page = await screen.findByRole("region", { name: "Handbook" });
     expect(within(page).getByRole("heading", { name: "Warnings" })).toBeInTheDocument();
     expect(within(page).queryByText("Why it wasn't indexed")).not.toBeInTheDocument();
@@ -280,7 +280,7 @@ describe("OCR on a source", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Retry 1" }));
     await waitFor(() => expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/v1/teams/registrar/sources/s1/documents/d5/retry"]));
 
-    await userEvent.click(within(table).getByRole("button", { name: "Handbook" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^Handbook/ }));
     const page = await screen.findByRole("region", { name: "Handbook" });
     // The reason is at the top of the page, under the disabled button, and is the button's description.
     const retry = within(page).getByRole("button", { name: "Retry with OCR" });

@@ -2,6 +2,8 @@ package agents
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"slices"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // What a template deliberately does not carry from an agent's configuration (templates.go: TemplateConfig). Every other field is carried.
@@ -189,5 +192,31 @@ func TestOverlayConfig(t *testing.T) {
 	}
 	if _, err := ParseConfig(overlayConfig(base, json.RawMessage(`{"nope":1}`))); err == nil {
 		t.Error("an unknown key in the request config was accepted")
+	}
+}
+
+// A unique violation of either index on a template's name is "name taken", not a 500: the older index (agent_templates_name_key, kept
+// until a contract release) and the unique index on the ICU-folded name that a later release adds (agent_templates_name_fold_key). This
+// release creates only the first, but the code already answers for both so that a later migration, or a rollback to a database that has
+// it, never turns a taken name into an unrecognised error (ADR-0013, #195).
+func TestIsTemplateNameTakenKnowsBothIndexes(t *testing.T) {
+	violation := func(constraint string) error {
+		return fmt.Errorf("insert: %w", &pgconn.PgError{Code: "23505", ConstraintName: constraint})
+	}
+	for _, c := range []string{"agent_templates_name_key", "agent_templates_name_fold_key"} {
+		if !isTemplateNameTaken(violation(c)) {
+			t.Errorf("a violation of %s is not recognised", c)
+		}
+	}
+	for name, err := range map[string]error{
+		"nil":                       nil,
+		"another unique index":      violation("agent_templates_pkey"),
+		"another kind of error":     &pgconn.PgError{Code: "23514", ConstraintName: "agent_templates_name_key"},
+		"a plain error":             errors.New("boom"),
+		"the lookup index is no-op": violation("agent_templates_name_fold_idx"),
+	} {
+		if isTemplateNameTaken(err) {
+			t.Errorf("%s is taken", name)
+		}
 	}
 }

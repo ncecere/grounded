@@ -15,6 +15,28 @@
 #   5. NEW `api`: readiness, the same reads, and a chat with the fake model.
 #   6. OLD once more, now next to the new process.
 #
+# Writes, not only reads (#195). Reads cannot show that the previous release's
+# code survives the new schema, or that the new code reads what the old one
+# wrote; the harness therefore also writes with the OLD code, in a database
+# created with --locale=C (where the database's lower() folds ASCII only, so
+# the previous release's index accepts template names that differ beyond
+# ASCII):
+#   - before the new migrate: two template names that differ only in a
+#     non-ASCII letter's case (the migration renames the later one), and a
+#     team request approved with a CHANGED classification;
+#   - after the new migrate, the old process still running: a template saved
+#     as a Unicode-only twin of another, a template renamed onto a twin
+#     name, and a second request approved with a changed classification. None
+#     of it may be a 5xx (the stricter unique index that once did that is a
+#     later release's, ADR-0013);
+#   - once the NEW code runs: it lists those templates, refuses a new twin
+#     and a rename onto a twin with 409 template_name_taken and changes nothing
+#     for the refusal, and both requests show the classification the
+#     reviewer approved (the migration does not backfill; the API resolves
+#     it from the audit log).
+# A twin saved by an old pod next to the new one is accepted by design
+# (docs/operations/upgrades.md, "Staged constraints").
+#
 # Images:
 #   NEW_IMAGE   the image under test (default: built from this checkout)
 #   OLD_IMAGE   the previous image; default: ghcr.io/ncecere/grounded at
@@ -24,7 +46,8 @@
 #   BASELINE_IMAGE  used when HEAD has no parent (the first public commit):
 #               the last image built from the private development history
 # Other settings: OLD_PORT (18181) and NEW_PORT (18182) on 127.0.0.1,
-# RUN_ID (names), KEEP=1 (leave everything running for a look).
+# RUN_ID (names), KEEP=1 (leave everything running for a look), PG_INITDB_ARGS
+# (default --locale=C --encoding=UTF8, the cluster the template-name steps need).
 #
 # Development only: dev sign-in and the example keys, on loopback.
 set -euo pipefail
@@ -36,6 +59,7 @@ NET=$P-net
 OLD_PORT=${OLD_PORT:-18181}
 NEW_PORT=${NEW_PORT:-18182}
 PG_IMAGE=${PG_IMAGE:-pgvector/pgvector:pg17}
+PG_INITDB_ARGS=${PG_INITDB_ARGS:---locale=C --encoding=UTF8}
 VALKEY_IMAGE=${VALKEY_IMAGE:-valkey/valkey:8-alpine}
 REGISTRY_IMAGE=${REGISTRY_IMAGE:-ghcr.io/ncecere/grounded}
 KEEP=${KEEP:-0}
@@ -103,7 +127,7 @@ log "starting Postgres and Valkey ($P-*)"
 docker network create "$NET" >/dev/null
 docker volume create "$P-blobs" >/dev/null
 docker run -d --name "$P-pg" --network "$NET" -e POSTGRES_USER=grounded -e POSTGRES_PASSWORD=upgrade-test-only \
-	-e POSTGRES_DB=grounded "$PG_IMAGE" >/dev/null
+	-e POSTGRES_DB=grounded -e POSTGRES_INITDB_ARGS="$PG_INITDB_ARGS" "$PG_IMAGE" >/dev/null
 docker run -d --name "$P-valkey" --network "$NET" "$VALKEY_IMAGE" valkey-server --save '' --appendonly no >/dev/null
 for _ in $(seq 1 60); do
 	docker exec "$P-pg" pg_isready -U grounded -d grounded >/dev/null 2>&1 && break
@@ -135,25 +159,39 @@ migrate() { # image label
 
 # ---- HTTP helpers (curl + jq) ----------------------------------------------------------
 
-# signin port: a dev session as the platform admin (the Demo team's owner).
+# signin port [account]: a dev session (default: the platform admin, the Demo team's owner), kept per port and account.
 signin() {
-	local url=http://127.0.0.1:$1 jar=$WORK/jar-$1
+	local url=http://127.0.0.1:$1 account=${2:-admin} jar=$WORK/jar-$1-${2:-admin}
 	rm -f "$jar"
-	curl -sf -c "$jar" -H "Origin: $url" -H 'Content-Type: application/json' -d '{"account":"admin"}' "$url/auth/dev" >/dev/null ||
-		fail "dev sign-in on :$1"
-	curl -sf -b "$jar" "$url/v1/me" | jq -r .data.csrfToken >"$WORK/csrf-$1"
+	curl -sf -c "$jar" -H "Origin: $url" -H 'Content-Type: application/json' -d "{\"account\":\"$account\"}" "$url/auth/dev" >/dev/null ||
+		fail "dev sign-in as $account on :$1"
+	curl -sf -b "$jar" "$url/v1/me" | jq -r .data.csrfToken >"$WORK/csrf-$1-$account"
 }
 
-# api port method path [json]: a session call; prints the body, fails on non-2xx.
-api() {
-	local url=http://127.0.0.1:$1 method=$2 path=$3 body=${4:-}
-	local args=(-sS -b "$WORK/jar-$1" -X "$method" -H "Origin: $url" -H "X-CSRF-Token: $(cat "$WORK/csrf-$1")" -w '\n%{http_code}')
+# call port method path [json] [header]: a session call (as $WHO, default admin) that never fails by itself: sets CODE and BODY.
+call() {
+	local url=http://127.0.0.1:$1 method=$2 path=$3 body=${4:-} hdr=${5:-} who=${WHO:-admin}
+	local args=(-sS -b "$WORK/jar-$1-$who" -X "$method" -H "Origin: $url" -H "X-CSRF-Token: $(cat "$WORK/csrf-$1-$who")" -w '\n%{http_code}')
+	if [ -n "$hdr" ]; then args+=(-H "$hdr"); fi
 	if [ -n "$body" ]; then args+=(-H 'Content-Type: application/json' -d "$body"); fi
-	local out code
+	local out
 	out=$(curl "${args[@]}" "$url$path")
-	code=${out##*$'\n'}
-	out=${out%$'\n'*}
-	case "$code" in 2*) printf '%s' "$out" ;; *) fail "$method $path on :$1 = $code $out" ;; esac
+	CODE=${out##*$'\n'}
+	BODY=${out%$'\n'*}
+}
+
+# api port method path [json] [header]: call, and fail on a non-2xx.
+api() {
+	call "$@"
+	case "$CODE" in 2*) printf '%s' "$BODY" ;; *) fail "$2 $3 on :$1 as ${WHO:-admin} = $CODE $BODY" ;; esac
+}
+
+# expect_code want port method path [json] [header]: call and fail unless the status is want. A 5xx never passes.
+expect_code() {
+	local want=$1
+	shift
+	call "$@"
+	[ "$CODE" = "$want" ] || fail "$2 $3 on :$1 as ${WHO:-admin}: want $want, got $CODE $BODY"
 }
 
 wait_ready() { # port label
@@ -183,7 +221,7 @@ done
 
 signin "$OLD_PORT"
 for _ in $(seq 1 60); do
-	n=$(curl -s -b "$WORK/jar-$OLD_PORT" "http://127.0.0.1:$OLD_PORT/v1/teams/demo/agents" | jq '[.data[]? | select(.status == "active")] | length' 2>/dev/null || echo 0)
+	n=$(curl -s -b "$WORK/jar-$OLD_PORT-admin" "http://127.0.0.1:$OLD_PORT/v1/teams/demo/agents" | jq '[.data[]? | select(.status == "active")] | length' 2>/dev/null || echo 0)
 	[ "${n:-0}" -ge 1 ] && break
 	sleep 2
 done
@@ -192,12 +230,12 @@ done
 log "old: fixture data"
 # The demo's web source crawls go.dev; the test doesn't need it.
 for src in $(api "$OLD_PORT" GET /v1/teams/demo/sources | jq -r '.data[] | select(.activeCrawl != null) | .id + "/crawls/" + .activeCrawl.id'); do
-	curl -s -o /dev/null -b "$WORK/jar-$OLD_PORT" -X POST -H "Origin: http://127.0.0.1:$OLD_PORT" \
-		-H "X-CSRF-Token: $(cat "$WORK/csrf-$OLD_PORT")" "http://127.0.0.1:$OLD_PORT/v1/teams/demo/sources/$src/cancel" || true
+	curl -s -o /dev/null -b "$WORK/jar-$OLD_PORT-admin" -X POST -H "Origin: http://127.0.0.1:$OLD_PORT" \
+		-H "X-CSRF-Token: $(cat "$WORK/csrf-$OLD_PORT-admin")" "http://127.0.0.1:$OLD_PORT/v1/teams/demo/sources/$src/cancel" || true
 done
 SRC=$(api "$OLD_PORT" POST /v1/teams/demo/sources '{"name":"Upgrade fixture","classification":"open"}' | jq -r .data.id)
 printf '# Aurora bell\n\nThe aurora bell in the upgrade courtyard rings every day at noon.\n' >"$WORK/aurora.md"
-curl -sf -b "$WORK/jar-$OLD_PORT" -H "Origin: http://127.0.0.1:$OLD_PORT" -H "X-CSRF-Token: $(cat "$WORK/csrf-$OLD_PORT")" \
+curl -sf -b "$WORK/jar-$OLD_PORT-admin" -H "Origin: http://127.0.0.1:$OLD_PORT" -H "X-CSRF-Token: $(cat "$WORK/csrf-$OLD_PORT-admin")" \
 	-F "files=@$WORK/aurora.md" "http://127.0.0.1:$OLD_PORT/v1/teams/demo/sources/$SRC/documents" >/dev/null || fail "upload"
 for _ in $(seq 1 60); do
 	st=$(api "$OLD_PORT" GET "/v1/teams/demo/sources/$SRC/documents" | jq -r '.data.items[0].status')
@@ -230,13 +268,132 @@ reads() {
 }
 reads "$OLD_PORT" "old (before the upgrade)"
 
+# ---- writes (#195): templates and team requests ------------------------------------------------
+
+# The steps that need a feature the old version has (v0.6.0: templates, team requests) are skipped for an older OLD_REF.
+AGENT_ID=$(api "$OLD_PORT" GET /v1/teams/demo/agents | jq -r '[.data[] | select(.status == "active")][0].id')
+call "$OLD_PORT" GET /v1/agent-templates
+case "$CODE" in 200) HAS_TEMPLATES=1 ;; 404) HAS_TEMPLATES=0 ;; *) fail "old: template feature probe returned $CODE" ;; esac
+call "$OLD_PORT" GET /v1/team-requests
+case "$CODE" in 200) HAS_REQUESTS=1 ;; 404) HAS_REQUESTS=0 ;; *) fail "old: request feature probe returned $CODE" ;; esac
+# Record the old writer's baseline below, rather than infer it from the locale: v0.6.3 and later enforce Unicode uniqueness in the
+# application even with --locale=C. After migration the old writer must keep that same behaviour; a 5xx never passes.
+log "old: templates=$HAS_TEMPLATES team requests=$HAS_REQUESTS"
+
+# save_template port name: the Demo agent saved as a template by whoever the caller is; prints the status, then the id.
+save_template() {
+	call "$1" POST "/v1/teams/demo/agents/$AGENT_ID/save-as-template" "$(jq -nc --arg n "$2" '{name: $n}')"
+	printf '%s %s' "$CODE" "$(printf '%s' "$BODY" | jq -r '.data.id // .id // empty' 2>/dev/null)"
+}
+# template_names port: the saved (not built-in) templates' names, one per line.
+template_names() { api "$1" GET /v1/agent-templates | jq -r '.data[] | select(.builtIn | not) | .name'; }
+# template_id port name: the id of the saved template with exactly this name.
+template_id() { api "$1" GET /v1/agent-templates | jq -r --arg n "$2" '.data[] | select(.name == $n) | .id'; }
+# ask port account name: a team request by that person (classification open); prints its id.
+ask_request() {
+	WHO=$2 api "$1" POST /v1/team-requests "$(jq -nc --arg n "$3" '{name: $n, purpose: "Upgrade rehearsal.", classification: "open"}')" | jq -r .data.id
+}
+# approve port id slug level: the platform admin approves with a classification that differs from the one asked for.
+approve_request() {
+	local rev
+	rev=$(api "$1" GET "/v1/admin/team-requests/$2" | jq -r .data.revision)
+	api "$1" POST "/v1/admin/team-requests/$2/approve" "$(jq -nc --arg s "$3" --arg l "$4" '{slug: $s, maxClassification: $l}')" "If-Match: \"$rev\"" >/dev/null
+}
+# approved port account id asked approved: what the person (or, for "admin", the review queue) is shown.
+check_approved() {
+	local port=$1 who=$2 id=$3 asked=$4 want=$5 got
+	if [ "$who" = admin ]; then
+		got=$(api "$port" GET "/v1/admin/team-requests/$id" | jq -r '.data | .classification + "/" + .approvedClassification')
+	else
+		got=$(WHO=$who api "$port" GET /v1/team-requests | jq -r --arg id "$id" '.data.items[] | select(.id == $id) | .classification + "/" + .approvedClassification')
+	fi
+	[ "$got" = "$asked/$want" ] || fail "request $id as $who on :$port: asked/approved = $got, want $asked/$want"
+}
+
+if [ "$HAS_REQUESTS" = 1 ]; then
+	signin "$OLD_PORT" user
+	signin "$OLD_PORT" alex
+	rev=$(api "$OLD_PORT" GET /v1/admin/settings/team-requests | jq -r .data.revision)
+	api "$OLD_PORT" PUT /v1/admin/settings/team-requests '{"enabled":true,"maxOpen":5,"allowedGroup":""}' "If-Match: \"$rev\"" >/dev/null
+	REQ_A=$(ask_request "$OLD_PORT" user "Upgrade request A")
+	REQ_B=$(ask_request "$OLD_PORT" alex "Upgrade request B")
+	approve_request "$OLD_PORT" "$REQ_A" upgrade-a sensitive
+	log "old: request A approved with sensitive (asked open), B pending"
+fi
+if [ "$HAS_TEMPLATES" = 1 ]; then
+	[ "$(save_template "$OLD_PORT" 'Twin ÄÖ' | cut -d' ' -f1)" = 201 ] || fail "old: saving a template"
+	TWIN_CODE=$(save_template "$OLD_PORT" 'TWIN äö' | cut -d' ' -f1)
+	case "$TWIN_CODE" in
+		201) TWIN_RENAME_CODE=200 ;;
+		409) TWIN_RENAME_CODE=409 ;;
+		*) fail "old: saving a Unicode-only twin returned $TWIN_CODE (want 201 or 409, never 5xx)" ;;
+	esac
+	log "old: baseline Unicode-only twin save=$TWIN_CODE, rename=$TWIN_RENAME_CODE"
+fi
+
 # ---- 3-6. the new version ------------------------------------------------------------------
 
 migrate "$NEW_IMAGE" new
+
+# The old version writes on the migrated schema: a twin, a rename onto a twin, an approval with a changed classification. None of it may be
+# a 5xx (v0.6.2 knows only agent_templates_name_key, so migration 00054 must not add a stricter unique index).
+if [ "$HAS_TEMPLATES" = 1 ]; then
+	[ "$(save_template "$OLD_PORT" 'Zoë Über' | cut -d' ' -f1)" = 201 ] || fail "old on the new schema: saving a template"
+	[ "$(save_template "$OLD_PORT" 'ZOË ÜBER' | cut -d' ' -f1)" = "$TWIN_CODE" ] || fail "old on the new schema: saving a Unicode-only twin"
+	MOVER=$(save_template "$OLD_PORT" 'Rename me' | cut -d' ' -f2)
+	expect_code "$TWIN_RENAME_CODE" "$OLD_PORT" PATCH "/v1/admin/agent-templates/$MOVER" '{"name":"zoë über"}'
+	log "old on the migrated schema: template save, twin and rename-onto-twin answered, no 5xx"
+fi
+if [ "$HAS_REQUESTS" = 1 ]; then
+	approve_request "$OLD_PORT" "$REQ_B" upgrade-b restricted
+	log "old on the migrated schema: request B approved with restricted (asked open)"
+fi
 reads "$OLD_PORT" "old on the migrated schema"
 log "new: api on :$NEW_PORT"
 app "$NEW_IMAGE" "$NEW_PORT" "$P-new" api -d -p "127.0.0.1:$NEW_PORT:$NEW_PORT" >/dev/null
 reads "$NEW_PORT" "new"
+
+# The new code reads what the old one wrote, and enforces what the old one could not.
+if [ "$HAS_TEMPLATES" = 1 ]; then
+	signin "$NEW_PORT" admin
+	names=$(template_names "$NEW_PORT")
+	expected_names=('Twin ÄÖ' 'Zoë Über')
+	if [ "$TWIN_CODE" = 201 ]; then
+		expected_names+=('TWIN äö (2)' 'ZOË ÜBER' 'zoë über')
+	else
+		expected_names+=('Rename me')
+	fi
+	for n in "${expected_names[@]}"; do
+		printf '%s\n' "$names" | grep -qxF -- "$n" || fail "new: the template '$n' is missing from: $names"
+	done
+	if printf '%s\n' "$names" | grep -qxF -- 'TWIN äö'; then fail "new: migration 00054 did not rename the later duplicate"; fi
+	# A new twin is refused, nothing is saved.
+	before=$(template_names "$NEW_PORT" | sort | tr '\n' '|')
+	expect_code 409 "$NEW_PORT" POST "/v1/teams/demo/agents/$AGENT_ID/save-as-template" '{"name":"zoë ÜBER"}'
+	printf '%s' "$BODY" | jq -e '.error.code == "template_name_taken"' >/dev/null || fail "new: the twin refusal is not template_name_taken: $BODY"
+	# A rename onto a twin is refused and changes nothing; a free name and the case of its own name are accepted.
+	ID=$(template_id "$NEW_PORT" 'Twin ÄÖ')
+	expect_code 409 "$NEW_PORT" PATCH "/v1/admin/agent-templates/$ID" '{"name":"ZOË ÜBER","description":"not saved"}'
+	[ "$(template_names "$NEW_PORT" | sort | tr '\n' '|')" = "$before" ] || fail "new: a refused save or rename changed the templates"
+	api "$NEW_PORT" GET /v1/agent-templates | jq -e --arg id "$ID" '.data[] | select(.id == $id) | .description != "not saved"' >/dev/null ||
+		fail "new: a refused rename saved its description"
+	expect_code 200 "$NEW_PORT" PATCH "/v1/admin/agent-templates/$ID" '{"name":"TWIN ÄÖ"}'
+	# Written by the new code, then a twin by the old code next to it: the old pod's index cannot see it, so it is accepted (a temporary,
+	# documented legacy behaviour, better than a 500); the new code refuses any further twin.
+	[ "$(save_template "$NEW_PORT" 'Neu Ärger' | cut -d' ' -f1)" = 201 ] || fail "new: saving a template"
+	[ "$(save_template "$OLD_PORT" 'NEU ärger' | cut -d' ' -f1)" = "$TWIN_CODE" ] || fail "old next to new: saving a Unicode-only twin"
+	expect_code 409 "$NEW_PORT" POST "/v1/teams/demo/agents/$AGENT_ID/save-as-template" '{"name":"neu ärger"}'
+	log "new: templates listed, twins and renames onto twins refused with 409"
+fi
+if [ "$HAS_REQUESTS" = 1 ]; then
+	signin "$NEW_PORT" user
+	signin "$NEW_PORT" alex
+	check_approved "$NEW_PORT" user "$REQ_A" open sensitive
+	check_approved "$NEW_PORT" alex "$REQ_B" open restricted
+	check_approved "$NEW_PORT" admin "$REQ_A" open sensitive
+	check_approved "$NEW_PORT" admin "$REQ_B" open restricted
+	log "new: both approvals show the classification the reviewer approved (A before the migration, B by the old version after it)"
+fi
 api "$NEW_PORT" POST "/v1/agents/demo/$AGENT/chat" '{"message":"When does the aurora bell ring?","stream":false}' |
 	jq -e '.data.text | length > 0' >/dev/null || fail "new: chat with the fake model"
 log "new: chat ok"

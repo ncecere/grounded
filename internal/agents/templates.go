@@ -147,11 +147,40 @@ func requireTemplateAdmin(a authz.Actor) error {
 	return nil
 }
 
-// isTemplateNameTaken reports a unique violation on a template's name: the index of migration 00054 (lower() of the name under the ICU root
-// collation, so "qa über" and "QA ÜBER" are one name whatever the cluster's locale) or the older one on the database's own lower(), which
-// stays until a later release drops it (ADR-0013).
+// isTemplateNameTaken reports a unique violation on a template's name: the older index on the database's own lower() (agent_templates_name_key,
+// which stays until a contract release drops it, ADR-0013) and the unique index on the ICU-folded name that a later release adds
+// (agent_templates_name_fold_key). This release has no database constraint on the folded name (claimTemplateName enforces it), but the
+// code already answers for the later one, so a rollback or a later migration never turns a taken name into a 500.
 func isTemplateNameTaken(err error) bool {
 	return apperr.IsUniqueViolation(err, "agent_templates_name_fold_key") || apperr.IsUniqueViolation(err, "agent_templates_name_key")
+}
+
+// claimTemplateName is the uniqueness check of a template's name, ignoring case for every script (#140, #195). It runs inside the writer's
+// transaction: it takes the names lock FIRST (transaction-level, shared by saving and renaming), then asks whether another template (not
+// except, uuid.Nil for a new one) has the name once case is folded by the ICU root collation, which does not depend on the cluster's locale.
+// The lock is what makes it safe: two writers of the same name wait for each other, so the second one sees the first one's row.
+//
+// ADR-0013 staging: v0.6.3 may not add a stricter unique index, because v0.6.2 pods that still run during a rollout (or after a rollback)
+// know only agent_templates_name_key and would answer a violation of a new index with a 500. So only code of this release or later is
+// held to the rule; a v0.6.2 pod can still save a twin that the old index (the database's lower()) cannot see, in a cluster whose locale
+// folds ASCII only. docs/operations/upgrades.md lists the later release that adds the unique index.
+func claimTemplateName(ctx context.Context, q *dbgen.Queries, name string, except uuid.UUID) error {
+	if err := q.LockAgentTemplateNames(ctx); err != nil {
+		return err
+	}
+	return checkTemplateNameFree(ctx, q, name, except)
+}
+
+// checkTemplateNameFree is the check alone, for a caller that already holds the names lock.
+func checkTemplateNameFree(ctx context.Context, q *dbgen.Queries, name string, except uuid.UUID) error {
+	taken, err := q.AgentTemplateNameTaken(ctx, dbgen.AgentTemplateNameTakenParams{Name: name, ExceptID: except})
+	if err != nil {
+		return err
+	}
+	if taken {
+		return errTemplateName
+	}
+	return nil
 }
 
 func templateName(name string) (string, error) {
@@ -205,6 +234,9 @@ func (s *Service) SaveAsTemplate(ctx context.Context, a authz.Actor, teamRef str
 	}
 	var out dbgen.AgentTemplate
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		if err := claimTemplateName(ctx, q, name, uuid.Nil); err != nil {
+			return err
+		}
 		out, err = q.InsertAgentTemplate(ctx, dbgen.InsertAgentTemplateParams{
 			Name: name, Description: desc, AccentColor: ag.AccentColor, WelcomeMessage: ag.WelcomeMessage,
 			StarterQuestions: ag.StarterQuestions, Config: TemplateConfig(DecodeConfig(ag.Draft)).JSON(),
@@ -239,33 +271,68 @@ func (s *Service) UpdateTemplate(ctx context.Context, a authz.Actor, id string, 
 	if cur.BuiltIn {
 		return Template{}, errTemplateBuiltIn
 	}
-	name, desc := cur.Name, cur.Description
+	var newName, newDesc *string
 	if in.Name != nil {
-		if name, err = templateName(*in.Name); err != nil {
+		n, err := templateName(*in.Name)
+		if err != nil {
 			return Template{}, err
 		}
+		newName = &n
 	}
 	if in.Description != nil {
-		if desc, err = templateDescription(*in.Description); err != nil {
+		d, err := templateDescription(*in.Description)
+		if err != nil {
 			return Template{}, err
 		}
+		newDesc = &d
 	}
 	var out dbgen.AgentTemplate
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		out, err = q.UpdateAgentTemplate(ctx, dbgen.UpdateAgentTemplateParams{ID: uuid.MustParse(cur.ID), Name: name, Description: desc})
-		if isTemplateNameTaken(err) {
-			return errTemplateName
-		} else if err != nil {
-			return err
-		}
-		e := a.Audit("agent_template.update", "agent_template", cur.ID)
-		e.Before, e.After = map[string]any{"name": cur.Name, "description": cur.Description}, map[string]any{"name": out.Name, "description": out.Description}
-		return audit.Record(ctx, q, e)
+		out, err = renameTemplateTx(ctx, q, a, uuid.MustParse(cur.ID), newName, newDesc)
+		return err
 	})
 	if err != nil {
 		return Template{}, err
 	}
 	return templateOf(out), nil
+}
+
+// renameTemplateTx changes a saved template's name and description. It takes the names lock before it reads the template, so the name it
+// compares with, the name it checks and the name it writes are one consistent view (a rename by another admin is waited for, not
+// overwritten with a stale name). A name that does not change is not checked: a description edit must work on a template that shares its
+// name with another one (saved by a v0.6.2 pod during a rollout), and a template may change the case of its own name (the check
+// excludes itself). The audit entry and the revision are written as before, also for an unchanged name.
+func renameTemplateTx(ctx context.Context, q *dbgen.Queries, a authz.Actor, id uuid.UUID, newName, newDesc *string) (dbgen.AgentTemplate, error) {
+	if err := q.LockAgentTemplateNames(ctx); err != nil {
+		return dbgen.AgentTemplate{}, err
+	}
+	cur, err := q.GetAgentTemplate(ctx, id)
+	if errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return dbgen.AgentTemplate{}, errNoTemplate // deleted since it was read
+	} else if err != nil {
+		return dbgen.AgentTemplate{}, err
+	}
+	name, desc := cur.Name, cur.Description
+	if newName != nil {
+		name = *newName
+	}
+	if newDesc != nil {
+		desc = *newDesc
+	}
+	if name != cur.Name {
+		if err := checkTemplateNameFree(ctx, q, name, id); err != nil {
+			return dbgen.AgentTemplate{}, err
+		}
+	}
+	out, err := q.UpdateAgentTemplate(ctx, dbgen.UpdateAgentTemplateParams{ID: id, Name: name, Description: desc})
+	if isTemplateNameTaken(err) {
+		return dbgen.AgentTemplate{}, errTemplateName // an older pod's index (v0.6.2 knows agent_templates_name_key only)
+	} else if err != nil {
+		return dbgen.AgentTemplate{}, err
+	}
+	e := a.Audit("agent_template.update", "agent_template", id.String())
+	e.Before, e.After = map[string]any{"name": cur.Name, "description": cur.Description}, map[string]any{"name": out.Name, "description": out.Description}
+	return out, audit.Record(ctx, q, e)
 }
 
 // DeleteTemplate removes a saved template (platform admins). Agents made from it are not touched: they hold their own copy.

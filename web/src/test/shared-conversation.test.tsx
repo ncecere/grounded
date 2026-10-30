@@ -185,7 +185,7 @@ describe("the shared page", () => {
     expect(await screen.findByText(/You shared this conversation/, undefined, { timeout: scaled(5000) })).toBeInTheDocument();
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Used 1 source" }, { timeout: scaled(5000) }));
-    await user.click(await screen.findByRole("button", { name: "Show source 1: Parking" }));
+    await user.click(await screen.findByRole("button", { name: /^Show source 1: Parking/i }));
     await waitFor(() => expect(calls.some((c) => c.url === "/v1/shared/tok/messages/m2/sources/1")).toBe(true));
   });
 

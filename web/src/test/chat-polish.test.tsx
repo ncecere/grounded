@@ -60,8 +60,8 @@ describe("Discover's filters (US-13)", () => {
     mockApi({ ...shellRoutes(), "GET /v1/agents": () => [card("a1", "Help Desk Assistant", "it", "IT Help Desk"), card("a2", "Library Guide", "library", "Library")] });
     const { router, container } = renderApp("/agents?q=wifi&team=it");
     const chips = await screen.findByRole("list", { name: "Active filters" });
-    expect(screen.getByRole("button", { name: "Remove search filter: “wifi”" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Remove team filter: IT Help Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove filter Search: “wifi”" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Remove filter Team: IT Help Desk" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));

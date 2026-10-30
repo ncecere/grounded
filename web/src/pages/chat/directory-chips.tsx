@@ -54,7 +54,7 @@ export function DirectoryChips<T>({ facets, values, query, onValues, onQuery, on
           <button
             type="button"
             className={d.chip}
-            aria-label={`Remove ${c.facet.toLowerCase()} filter: ${c.text}`}
+            aria-label={`Remove filter ${c.facet}: ${c.text}`}
             onClick={() => {
               c.remove();
               refocus(i);
