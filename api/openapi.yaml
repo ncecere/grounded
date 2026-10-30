@@ -12176,7 +12176,7 @@ components:
           items: { type: string }
         pageStart: { type: integer, format: int32, description: "First page (0 when the format has no pages)" }
         pageEnd: { type: integer, format: int32 }
-        cited: { type: boolean, description: The passage the answer cited (or around named); with a parent, every passage of the section the model read }
+        cited: { type: boolean, description: "The passage the answer cited (or around named); with a parent, every passage of the section the model read" }
         matched: { type: boolean, description: "With a parent: the passage that matched the question, inside the section" }
     CitedPassage:
       type: object

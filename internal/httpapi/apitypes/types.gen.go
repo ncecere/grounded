@@ -6625,7 +6625,7 @@ type ConnectionUpdate struct {
 
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
-	// Cited The passage the answer cited (or around named); with a parent
+	// Cited The passage the answer cited (or around named); with a parent, every passage of the section the model read
 	Cited       bool     `json:"cited"`
 	Content     string   `json:"content"`
 	HeadingPath []string `json:"headingPath"`

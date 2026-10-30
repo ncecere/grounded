@@ -8484,7 +8484,7 @@ export interface components {
             pageStart: number;
             /** Format: int32 */
             pageEnd: number;
-            /** @description The passage the answer cited (or around named); with a parent */
+            /** @description The passage the answer cited (or around named); with a parent, every passage of the section the model read */
             cited: boolean;
             /** @description With a parent: the passage that matched the question, inside the section */
             matched?: boolean;
