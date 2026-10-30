@@ -9,7 +9,12 @@ func requestCheckpoint(ctx context.Context, req Request) error {
 		return &StopError{Reason: "cancelled", Err: err}
 	}
 	if req.Checkpoint != nil {
-		return req.Checkpoint(ctx)
+		if err := req.Checkpoint(ctx); err != nil {
+			return err
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return &StopError{Reason: "cancelled", Err: err}
 	}
 	return nil
 }

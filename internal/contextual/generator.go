@@ -167,7 +167,7 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	if err != nil {
 		return res, &Failure{Code: CodeForbidden, Err: err, Permanent: true}
 	}
-	model := Model{ID: target.Model.ID, Upstream: target.Model.UpstreamModel}
+	model := generationModel(target)
 	opening := Opening(req.Chunks, g.Counter)
 	inputs := make([]Input, len(units))
 	keys := make([][32]byte, len(units))
@@ -185,7 +185,7 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 			texts[i], res.Cached = t, res.Cached+1
 			continue
 		}
-		c, err := g.one(ctx, req, target, model, inputs[i], keys[i])
+		c, err := g.one(ctx, req, model, inputs[i], keys[i])
 		if c.made {
 			res.Calls++
 		}
@@ -195,13 +195,13 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 		}
 		texts[i] = c.text
 	}
-	if err := requestCheckpoint(ctx, req); err != nil {
+	if _, err := g.currentTarget(ctx, req, model); err != nil {
 		return res, err
 	}
 	if err := g.Store.PruneCache(ctx, req.DocumentID, keys); err != nil {
 		return res, err
 	}
-	if err := requestCheckpoint(ctx, req); err != nil {
+	if _, err := g.currentTarget(ctx, req, model); err != nil {
 		return res, err
 	}
 	res.State, res.Contexts = StateContext, make([]string, len(req.Chunks))
@@ -226,7 +226,7 @@ func (g *Generator) apply(req Request, res Result, err error) (Result, error) {
 
 // one makes the call for one section, once at a time per key in this process: concurrent documents, retries and profiles wait for the call
 // that is running instead of making their own.
-func (g *Generator) one(ctx context.Context, req Request, t catalog.ChatTarget, m Model, in Input, key [32]byte) (flightResult, error) {
+func (g *Generator) one(ctx context.Context, req Request, m Model, in Input, key [32]byte) (flightResult, error) {
 	fk := flightKey{req.DocumentID, key}
 	for {
 		f := &flight{done: make(chan struct{})}
@@ -243,7 +243,7 @@ func (g *Generator) one(ctx context.Context, req Request, t catalog.ChatTarget, 
 			}
 			return flightResult{text: p.text}, p.err // the leader's attempt is counted in the leader's result
 		}
-		c, err := g.call(ctx, req, t, m, in, key)
+		c, err := g.call(ctx, req, m, in, key)
 		f.text, f.err = c.text, err
 		g.flights.Delete(fk)
 		close(f.done)
@@ -259,7 +259,7 @@ type flightResult struct {
 }
 
 // call is one attempt: checkpoint, gate, cap, request, settle, cache.
-func (g *Generator) call(ctx context.Context, req Request, t catalog.ChatTarget, m Model, in Input, key [32]byte) (flightResult, error) {
+func (g *Generator) call(ctx context.Context, req Request, m Model, in Input, key [32]byte) (flightResult, error) {
 	var zero flightResult
 	// Take a slot first: a long wait for one must not end in a call the checkpoint would no longer allow.
 	select {
@@ -268,7 +268,7 @@ func (g *Generator) call(ctx context.Context, req Request, t catalog.ChatTarget,
 	case <-ctx.Done():
 		return zero, &StopError{Reason: "cancelled", Err: ctx.Err()}
 	}
-	if err := requestCheckpoint(ctx, req); err != nil {
+	if _, err := g.currentTarget(ctx, req, m); err != nil {
 		return zero, err
 	}
 	// Another process, or an earlier run, may have made it meanwhile.
@@ -294,7 +294,7 @@ func (g *Generator) call(ctx context.Context, req Request, t catalog.ChatTarget,
 	} else if err != nil {
 		return zero, err
 	}
-	return g.send(ctx, req, t, m, in, key, id)
+	return g.dispatch(ctx, req, m, in, key, id)
 }
 
 // nextDay is the UTC midnight after a live scope's day started (zero for a build's scope).
@@ -342,11 +342,9 @@ func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget,
 	}
 	// The call was paid for (its usage is recorded), but if the source was switched off or the set discarded while it was in flight its text
 	// is not kept: what a stopped run made is cleaned up, not left behind.
-	if req.Checkpoint != nil {
-		if err := req.Checkpoint(ctx); err != nil {
-			_ = settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage})
-			return zero, err
-		}
+	if _, err := g.currentTarget(ctx, req, m); err != nil {
+		_ = settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage})
+		return zero, err
 	}
 	if err := ctx.Err(); err != nil {
 		_ = settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage})

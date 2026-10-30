@@ -66,18 +66,20 @@ func UserMessage(in Input) string {
 	return b.String()
 }
 
-// Model identifies what writes a context: the catalog model and the upstream name sent to the gateway.
+// Model pins the non-secret generation identity, including configuration and
+// destination. A credential change alone is deliberately not part of an artifact.
 type Model struct {
-	ID       uuid.UUID
-	Upstream string
+	ID, ConnectionID   uuid.UUID
+	Upstream, Endpoint string
+	Revision           int64
 }
 
 // keyTag marks the format of the hashed bytes; a change of how a key is made is a new tag.
-const keyTag = "grounded.contextual.key.v1"
+const keyTag = "grounded.contextual.key.v2"
 
 // Key is the cache key of a call: a SHA-256 over the format tag, the prompt version and bounds, the model and the exact inputs. Each part
 // is length-prefixed, so no two different inputs hash the same bytes. Any change to the text of the section or the opening, the title or
-// heading path, the model, the prompt version or a bound is a different key; nothing else is.
+// heading path, the model/revision/connection destination, the prompt version or a bound is a different key. Credentials never enter it.
 func Key(m Model, in Input) [32]byte {
 	h := sha256.New()
 	put := func(s string) {
@@ -90,6 +92,9 @@ func Key(m Model, in Input) [32]byte {
 	put(boundsFingerprint)
 	put(m.ID.String())
 	put(m.Upstream)
+	put(strconv.FormatInt(m.Revision, 10))
+	put(m.ConnectionID.String())
+	put(m.Endpoint)
 	put(in.Title)
 	put(in.HeadingPath)
 	put(in.Opening)
