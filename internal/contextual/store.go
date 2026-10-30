@@ -20,7 +20,7 @@ import (
 type Store interface {
 	// CacheFor returns the cached contexts of a document under the keys.
 	CacheFor(ctx context.Context, documentID uuid.UUID, keys [][32]byte) (map[[32]byte]string, error)
-	// PutCache stores a context (a key already there is left as it is).
+	// PutCache is a setup primitive; generated contexts must be published by Settle, with their usage.
 	PutCache(ctx context.Context, e CacheEntry) error
 	// PruneCache deletes the document's cached contexts but the keys it keeps.
 	PruneCache(ctx context.Context, documentID uuid.UUID, keep [][32]byte) error
@@ -58,6 +58,9 @@ type Settlement struct {
 	TokensIn, TokensOut *int32
 	// Usage is recorded in the ledger with an ok attempt (and with an unusable reply, which was billed): what the team spent.
 	Usage *Usage
+	// Cache publishes a successful reply in the same transaction as its terminal outcome and usage.
+	// Nil records usage only (an unusable or stopped reply must not be cached).
+	Cache *CacheEntry
 }
 
 // Usage is what a call is recorded as in the usage ledger: chat tokens of the model (docs/contextual-chunks.md section 5).
@@ -101,7 +104,11 @@ func byteKeys(keys [][32]byte) [][]byte {
 }
 
 func (s *PGStore) PutCache(ctx context.Context, e CacheEntry) error {
-	return dbgen.New(s.Pool).InsertContextualCache(ctx, dbgen.InsertContextualCacheParams{
+	return insertCache(ctx, dbgen.New(s.Pool), e)
+}
+
+func insertCache(ctx context.Context, q *dbgen.Queries, e CacheEntry) error {
+	return q.InsertContextualCache(ctx, dbgen.InsertContextualCacheParams{
 		DocumentID: e.DocumentID, Key: e.Key[:], SourceID: e.SourceID, Context: e.Text, TokensIn: e.TokensIn, TokensOut: e.TokensOut})
 }
 
@@ -138,8 +145,8 @@ func (s *PGStore) Release(ctx context.Context, id int64) error {
 }
 
 func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
-	if !terminalOutcome(st.Outcome) {
-		return errors.New("contextual settlement requires a terminal outcome")
+	if err := validateSettlement(st); err != nil {
+		return err
 	}
 	var recorded []dbgen.InsertUsageParams
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
@@ -156,12 +163,25 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 				return err
 			}
 		}
+		if st.Cache != nil {
+			return insertCache(ctx, q, *st.Cache)
+		}
 		return nil
 	})
 	if err == nil && len(recorded) > 0 && s.Recorded != nil && st.Usage != nil && st.Usage.Team.Valid {
 		s.Recorded(st.Usage.Team.UUID, recorded)
 	}
 	return err
+}
+
+func validateSettlement(st Settlement) error {
+	if !terminalOutcome(st.Outcome) {
+		return errors.New("contextual settlement requires a terminal outcome")
+	}
+	if e := st.Cache; e != nil && (st.Outcome != OutcomeOK || st.Usage == nil || e.SourceID != st.Usage.Source || e.DocumentID != st.Usage.Document) {
+		return errors.New("contextual cache requires a successful settlement with matching document and source usage")
+	}
+	return nil
 }
 
 func terminalOutcome(outcome string) bool {

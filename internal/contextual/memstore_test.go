@@ -2,7 +2,6 @@ package contextual
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/google/uuid"
@@ -42,10 +41,14 @@ func (m *memStore) CacheFor(_ context.Context, _ uuid.UUID, keys [][32]byte) (ma
 func (m *memStore) PutCache(_ context.Context, e CacheEntry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.putCacheLocked(e)
+	return nil
+}
+
+func (m *memStore) putCacheLocked(e CacheEntry) {
 	if _, ok := m.cache[e.Key]; !ok {
 		m.cache[e.Key] = e.Text
 	}
-	return nil
 }
 
 func (m *memStore) PruneCache(_ context.Context, _ uuid.UUID, keep [][32]byte) error {
@@ -81,8 +84,8 @@ func (m *memStore) Reserve(_ context.Context, r Reservation) (int64, error) {
 }
 
 func (m *memStore) Settle(_ context.Context, s Settlement) error {
-	if !terminalOutcome(s.Outcome) {
-		return errors.New("contextual settlement requires a terminal outcome")
+	if err := validateSettlement(s); err != nil {
+		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -91,6 +94,9 @@ func (m *memStore) Settle(_ context.Context, s Settlement) error {
 			a.outcome, a.in, a.out = s.Outcome, s.TokensIn, s.TokensOut
 			if s.Usage != nil {
 				m.usage = append(m.usage, *s.Usage)
+			}
+			if s.Cache != nil {
+				m.putCacheLocked(*s.Cache)
 			}
 			return nil
 		}

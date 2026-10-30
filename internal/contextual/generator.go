@@ -98,7 +98,10 @@ type Generator struct {
 	Concurrency int
 	// CallTimeout bounds one call (default 2 minutes); the connection's own timeout applies too.
 	CallTimeout time.Duration
-	Log         *slog.Logger
+	// PersistenceTimeout bounds settlement and cache publication after a call, even after caller cancellation.
+	// Defaults to 30 seconds; larger values are clamped to that maximum.
+	PersistenceTimeout time.Duration
+	Log                *slog.Logger
 
 	once    sync.Once
 	sem     chan struct{}
@@ -131,6 +134,13 @@ func (g *Generator) timeout() time.Duration {
 		return g.CallTimeout
 	}
 	return 2 * time.Minute
+}
+
+func (g *Generator) persistenceTimeout() time.Duration {
+	if g.PersistenceTimeout > 0 {
+		return min(g.PersistenceTimeout, 30*time.Second)
+	}
+	return 30 * time.Second
 }
 
 func (g *Generator) log() *slog.Logger {
@@ -298,7 +308,7 @@ func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget,
 		llm.Options{MaxTokens: RequestMaxTokens, ReasoningEffort: "off", User: user})
 	settle := func(s Settlement) error {
 		s.ID = id
-		sctx, stop := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		sctx, stop := context.WithTimeout(context.WithoutCancel(ctx), g.persistenceTimeout())
 		defer stop()
 		return g.Store.Settle(sctx, s)
 	}
@@ -328,12 +338,13 @@ func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget,
 			return zero, err
 		}
 	}
-	if err := g.Store.PutCache(context.WithoutCancel(ctx), CacheEntry{DocumentID: req.DocumentID, SourceID: req.SourceID, Key: key, Text: text,
-		TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported)}); err != nil {
+	if err := ctx.Err(); err != nil {
 		_ = settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage})
-		return zero, err
+		return zero, &StopError{Reason: "cancelled", Err: err}
 	}
-	if err := settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage}); err != nil {
+	entry := &CacheEntry{DocumentID: req.DocumentID, SourceID: req.SourceID, Key: key, Text: text,
+		TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported)}
+	if err := settle(Settlement{Outcome: OutcomeOK, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Usage: usage, Cache: entry}); err != nil {
 		return zero, err
 	}
 	return flightResult{text: text, in: usage.TokensIn, out: usage.TokensOut, made: true}, nil

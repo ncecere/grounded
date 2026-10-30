@@ -70,7 +70,8 @@ func TestPGSettlementIsIdempotentAcrossConcurrentRetries(t *testing.T) {
 	if err := f.store.Settle(t.Context(), Settlement{ID: id, Outcome: OutcomeStarted, Usage: &f.usage}); err == nil {
 		t.Error("nonterminal outcome was accepted as a settlement")
 	}
-	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage}
+	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{1}, Text: "Context about registration in the student handbook."}
+	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 	var wg sync.WaitGroup
 	for range 12 {
 		wg.Go(func() {
@@ -85,6 +86,19 @@ func TestPGSettlementIsIdempotentAcrossConcurrentRetries(t *testing.T) {
 	}
 	if notified.Load() != 1 {
 		t.Errorf("settlement notified %d times, want once", notified.Load())
+	}
+	cached, err := f.store.CacheFor(t.Context(), entry.DocumentID, [][32]byte{entry.Key})
+	if err != nil || cached[entry.Key] != entry.Text {
+		t.Fatalf("committed settlement did not publish its cache: %v %v", cached, err)
+	}
+	replay := entry
+	replay.Key[1] = 2
+	if err := f.store.Settle(t.Context(), Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &replay}); err != nil {
+		t.Fatal(err)
+	}
+	cached, err = f.store.CacheFor(t.Context(), replay.DocumentID, [][32]byte{replay.Key})
+	if err != nil || len(cached) != 0 {
+		t.Fatalf("replayed settlement published another cache entry: %v %v", cached, err)
 	}
 	var before time.Time
 	if err := f.pool.QueryRow(t.Context(), `SELECT finished_at FROM contextual_calls WHERE id = $1`, id).Scan(&before); err != nil {
@@ -124,7 +138,8 @@ func TestPGSettlementLedgerFailureRollsBackTerminalState(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, `ALTER TABLE usage_events ADD CONSTRAINT test_contextual_usage CHECK (quantity < 7)`); err != nil {
 		t.Fatal(err)
 	}
-	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage}
+	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{2}, Text: "A bounded description of the registration section."}
+	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 	if err := f.store.Settle(ctx, st); err == nil {
 		t.Fatal("forced ledger failure unexpectedly succeeded")
 	}
@@ -134,6 +149,10 @@ func TestPGSettlementLedgerFailureRollsBackTerminalState(t *testing.T) {
 	}
 	if rows, _ := f.ledger(t); rows != 0 || outcome != OutcomeStarted {
 		t.Fatalf("partial settlement committed: rows=%d outcome=%s", rows, outcome)
+	}
+	cached, err := f.store.CacheFor(ctx, entry.DocumentID, [][32]byte{entry.Key})
+	if err != nil || len(cached) != 0 {
+		t.Fatalf("failed settlement published cache: %v %v", cached, err)
 	}
 	if _, err := f.pool.Exec(ctx, `ALTER TABLE usage_events DROP CONSTRAINT test_contextual_usage`); err != nil {
 		t.Fatal(err)
