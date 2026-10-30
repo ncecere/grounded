@@ -153,7 +153,8 @@ func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candida
 		sj = &searchJudging{judged: len(js), dropped: countDropped(js)}
 	}
 
-	r.expandParents(ctx, span, merged, conflicting)
+	// Only the hits that can be numbered are expanded (with room for the ones numbering skips as found again).
+	r.expandParents(ctx, span, merged[:min(len(merged), 3*maxResults)], conflicting[:min(len(conflicting), 3*min(maxConflicting, maxResults))])
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
