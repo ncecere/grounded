@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton/skeleton";
 import { Time } from "@/components/ui/time/time";
 import { useTeam } from "../common";
 import { Findings } from "./findings";
-import { SourceCoverage } from "./coverage";
+import { SourceCoverage } from "./source-coverage";
 import s from "./content-health.module.css";
 import { type Report, type ReportList, type Signal, type SignalName, failureText, healthKey, reasonText, reportKey, reportQuery, signalOrder, signalWords, statusLabel, stateLabel, stateTone, activeStatus } from "./queries";
 
