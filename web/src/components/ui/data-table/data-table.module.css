@@ -200,6 +200,11 @@
   .cellText {
     min-width: min(11rem, 70vw);
   }
+
+  /* A stacked table (Table `stack`) has no sideways scrolling to spare: its cells fit the column the row's grid gives them. */
+  [data-stack] .cellText {
+    min-width: 0;
+  }
 }
 
 /* wrap="anywhere": long ids and URLs break instead of widening the column. */

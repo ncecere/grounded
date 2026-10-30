@@ -37,7 +37,7 @@ func (a *api) teamRequestsOn(ctx context.Context) bool {
 
 func toAPITeamRequest(r teamrequests.Request) apitypes.TeamRequest {
 	return apitypes.TeamRequest{
-		Id: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
+		Id: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification, ApprovedClassification: r.ApprovedClassification,
 		Status: apitypes.TeamRequestStatus(r.Status), DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt,
 		TeamSlug: r.TeamSlug, TeamName: r.TeamName, Revision: r.Revision, CreatedAt: r.CreatedAt,
 	}
@@ -45,10 +45,10 @@ func toAPITeamRequest(r teamrequests.Request) apitypes.TeamRequest {
 
 func toAPIAdminTeamRequest(r teamrequests.AdminRequest) apitypes.AdminTeamRequest {
 	return apitypes.AdminTeamRequest{
-		Id: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
+		Id: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification, ApprovedClassification: r.ApprovedClassification,
 		Status: apitypes.TeamRequestStatus(r.Status), DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt,
 		TeamSlug: r.TeamSlug, TeamName: r.TeamName, Revision: r.Revision, CreatedAt: r.CreatedAt,
-		RequesterId: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail,
+		RequesterId: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail, OwnerSuspended: r.OwnerSuspended,
 	}
 }
 
@@ -119,7 +119,7 @@ func (a *api) adminApproveTeamRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req, err := a.TeamRequests.Approve(r.Context(), a.actor(r), id, teamrequests.ApproveInput{
-		Slug: in.Slug, Name: deref(in.Name, ""), MaxClassification: deref(in.MaxClassification, ""), StarterTemplateID: deref(in.StarterTemplateId, ""),
+		Slug: in.Slug, Name: deref(in.Name, ""), MaxClassification: deref(in.MaxClassification, ""), OwnerEmail: deref(in.OwnerEmail, ""), StarterTemplateID: deref(in.StarterTemplateId, ""),
 	}, rev)
 	if failed(w, r, err) {
 		return

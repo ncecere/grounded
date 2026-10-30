@@ -69,6 +69,8 @@ var (
 	errNotInGroup    = apperr.New(403, "not_allowed_to_request", "Your account is not allowed to request a team: ask a platform admin")
 	errTooManyOpen   = apperr.Conflict("too_many_open_requests", "You already have the most open team requests allowed: wait for one to be decided, or withdraw one")
 	errAlreadyClosed = apperr.Conflict("request_already_decided", "This request was already decided or withdrawn")
+	// A team is never created with a suspended person as its owner: the reviewer names someone else (ApproveInput.OwnerEmail).
+	errOwnerSuspended = apperr.Conflict("owner_suspended", "The account that would own this team is suspended: choose a different owner")
 )
 
 // ---- settings -----------------------------------------------------------------------
@@ -161,9 +163,11 @@ type Request struct {
 	Purpose        string
 	OwnerEmail     string
 	Classification string
-	Status         string
-	DecisionReason string
-	DecidedAt      *time.Time
+	// ApprovedClassification is the level the reviewer approved ("": not approved). The reviewer may change what was asked for.
+	ApprovedClassification string
+	Status                 string
+	DecisionReason         string
+	DecidedAt              *time.Time
 	// TeamSlug and TeamName are the team an approval created ("": none, or deleted since).
 	TeamSlug  string
 	TeamName  string
@@ -179,6 +183,18 @@ type Mine struct {
 	MaxOpen   int
 	OpenCount int
 	Items     []Request
+}
+
+// approvedOf is the level an approval gave the team: what the approval recorded, or (a request approved by a release that did not record
+// it) the level asked for. "" for a request that is not approved.
+func approvedOf(status, asked, approved string) string {
+	switch {
+	case status != StatusApproved:
+		return ""
+	case approved == "":
+		return asked
+	}
+	return approved
 }
 
 func deref(p *string) string {
@@ -204,7 +220,8 @@ func (s *Service) Mine(ctx context.Context, a authz.Actor) (Mine, error) {
 	}
 	out := Mine{Enabled: st.Enabled, MaxOpen: int(st.MaxOpen), Items: make([]Request, len(rows))}
 	for i, r := range rows {
-		out.Items[i] = Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification, Status: r.Status,
+		out.Items[i] = Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
+			ApprovedClassification: approvedOf(r.Status, r.Classification, r.ApprovedClassification), Status: r.Status,
 			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt}
 		if r.Status == StatusPending {
 			out.OpenCount++
@@ -349,13 +366,16 @@ type AdminRequest struct {
 	RequesterEmail string
 	RequesterName  string
 	DeciderEmail   string
+	// OwnerSuspended: a pending request whose would-be owner (the person named, else the requester) is suspended. Approving it needs another owner.
+	OwnerSuspended bool
 }
 
 func adminOf(r dbgen.GetTeamRequestRow) AdminRequest {
 	return AdminRequest{
-		Request: Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification, Status: r.Status,
+		Request: Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
+			ApprovedClassification: approvedOf(r.Status, r.Classification, r.ApprovedClassification), Status: r.Status,
 			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt},
-		RequesterID: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail,
+		RequesterID: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail, OwnerSuspended: r.OwnerSuspended.Bool,
 	}
 }
 
@@ -405,11 +425,13 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (AdminRe
 }
 
 // ApproveInput is what the reviewer decides: the team's address (required: the request has none), and optionally another name, another
-// classification, and a template to start the team's first agent from. Empty values keep what the person asked for.
+// classification, another owner and a template to start the team's first agent from. Empty values keep what the person asked for.
 type ApproveInput struct {
 	Slug              string
 	Name              string
 	MaxClassification string
+	// OwnerEmail owns the team instead of the person named in the request or the requester. It is required when that person is suspended.
+	OwnerEmail        string
 	StarterTemplateID string
 }
 
@@ -441,15 +463,9 @@ func (s *Service) Approve(ctx context.Context, a authz.Actor, id uuid.UUID, in A
 		if class == "" {
 			class = cur.Classification
 		}
-		owner, otherOwner := cur.OwnerEmail, ""
-		if owner == "" {
-			if owner, err = q.GetTeamRequestRequesterEmail(ctx, cur.RequesterID); err != nil {
-				return err
-			}
-		} else if asker, err := q.GetTeamRequestRequesterEmail(ctx, cur.RequesterID); err != nil {
+		owner, otherOwner, err := s.teamOwner(ctx, q, cur, in.OwnerEmail)
+		if err != nil {
 			return err
-		} else if !strings.EqualFold(asker, owner) {
-			otherOwner = owner // the asker named someone else: they are told, and are not on the team
 		}
 		if team, _, err = s.Teams.CreateTx(ctx, q, tx, a, teams.CreateInput{
 			Slug: in.Slug, Name: name, Description: cur.Purpose, MaxClassification: class, OwnerEmail: owner,
@@ -463,13 +479,14 @@ func (s *Service) Approve(ctx context.Context, a authz.Actor, id uuid.UUID, in A
 		}
 		if _, err = q.DecideTeamRequest(ctx, dbgen.DecideTeamRequestParams{
 			ID: id, Status: StatusApproved, DecisionReason: "", DecidedBy: uuid.NullUUID{UUID: a.UserID, Valid: true}, TeamID: uuid.NullUUID{UUID: team.Team.ID, Valid: true},
+			ApprovedClassification: class,
 		}); err != nil {
 			return err
 		}
 		// In the new team's audit log too, so the team can see how it came to be.
 		e := a.Audit("team_request.approve", "team_request", id.String())
 		e.TeamID = team.Team.ID
-		e.After = map[string]any{"name": name, "slug": team.Team.Slug, "classification": class, "starterTemplateId": in.StarterTemplateID}
+		e.After = map[string]any{"name": name, "slug": team.Team.Slug, "classification": class, "ownerEmail": owner, "starterTemplateId": in.StarterTemplateID}
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
@@ -479,6 +496,35 @@ func (s *Service) Approve(ctx context.Context, a authz.Actor, id uuid.UUID, in A
 		return AdminRequest{}, err
 	}
 	return s.Get(ctx, a, id)
+}
+
+// teamOwner is who owns the team an approval creates: the reviewer's choice, else the person the request named, else the requester. The
+// second result is that person when it is not the requester (the requester is told someone else owns it). A suspended person is refused:
+// the team would have no one who can sign in, and the reviewer is not warned at the end of a dialog; the request's OwnerSuspended says it
+// up front and the reviewer names another owner.
+func (s *Service) teamOwner(ctx context.Context, q *dbgen.Queries, cur dbgen.TeamRequest, chosen string) (owner, other string, err error) {
+	asker, err := q.GetTeamRequestRequesterEmail(ctx, cur.RequesterID)
+	if err != nil {
+		return "", "", err
+	}
+	owner = cur.OwnerEmail
+	if strings.TrimSpace(chosen) != "" {
+		if owner, err = teams.NormalizeEmail(chosen); err != nil {
+			return "", "", err
+		}
+	}
+	if owner == "" {
+		owner = asker
+	}
+	if n, err := q.CountSuspendedUsersByEmail(ctx, owner); err != nil {
+		return "", "", err
+	} else if n > 0 {
+		return "", "", errOwnerSuspended
+	}
+	if !strings.EqualFold(asker, owner) {
+		other = owner // someone else owns it: the asker is told, and is not on the team
+	}
+	return owner, other, nil
 }
 
 // Decline decides a pending request without creating a team; the reason is required and reaches the person who asked.

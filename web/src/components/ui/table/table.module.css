@@ -249,6 +249,19 @@
       white-space: nowrap;
     }
 
+    /* The header row is for screen readers, but its cells still make the table's box: left on one line each at their padding they were wider
+       than the window and put a sideways scrollbar on a stacked table. No padding, and a break anywhere, keeps them narrow. */
+    & thead :is(th, td) {
+      padding: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    & thead :is(th, td) :is(button, span) {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
     & tbody > tr {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(8rem, 100%), 1fr));

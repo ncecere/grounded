@@ -108,8 +108,10 @@ func (s *Service) Destinations(ctx context.Context, a authz.Actor) ([]Destinatio
 
 var (
 	errPattern = apperr.Invalid("invalid_pattern", `Enter a host such as "hooks.example.edu" or a wildcard such as "*.example.edu"`)
-	errBlocked = apperr.Invalid("blocked_address", "Webhooks are never sent to private, loopback, link-local or cloud metadata addresses, so this entry would do nothing")
-	errTaken   = apperr.Conflict("destination_exists", "That destination is already approved")
+	// Not a host name at all: no label may pass 63 characters and the whole name 253 (RFC 1035).
+	errPatternLength = apperr.Invalid("invalid_pattern", "A host name has at most 253 characters, and each part between dots at most 63")
+	errBlocked       = apperr.Invalid("blocked_address", "Webhooks are never sent to private, loopback, link-local or cloud metadata addresses, so this entry would do nothing")
+	errTaken         = apperr.Conflict("destination_exists", "That destination is already approved")
 )
 
 // AddDestination approves a host pattern (platform admins; audited).
@@ -120,6 +122,9 @@ func (s *Service) AddDestination(ctx context.Context, a authz.Actor, pattern, no
 	norm, err := crawl.NormalizeHostPattern(strings.TrimSpace(pattern), false)
 	if err != nil || isIPLiteral(strings.TrimPrefix(norm, "*.")) {
 		return Destination{}, errPattern
+	}
+	if !crawl.ValidDNSLengths(norm) {
+		return Destination{}, errPatternLength
 	}
 	if (&crawl.Fetcher{}).BlocksPattern(norm) {
 		return Destination{}, errBlocked

@@ -362,6 +362,23 @@ func TestRoutedConversationsAreNotShared(t *testing.T) {
 	env.share(t, env.member, target, "agent_users", false)
 }
 
+// Exporting a router's conversation says which agent answered each message (#140), in the Markdown; the JSON has routedTo.
+func TestRoutedConversationExportNamesTheAgent(t *testing.T) {
+	env := newRouterEnv(t)
+	env.target(t, "Parking help", "Parking permits, decals and campus transportation.", nil)
+	front := env.router(t, "Front door", nil)
+	_, _, conv := env.end(t, env.member, front.Slug, "", "Where do students buy a parking permit?")
+
+	code, md := env.member.raw("GET", "/v1/conversations/"+conv+"/export", nil, nil)
+	if code != 200 || !strings.Contains(string(md), "_Answered by Parking help") {
+		t.Errorf("markdown export = %d, want a line naming the agent that answered:\n%s", code, md)
+	}
+	code, js := env.member.raw("GET", "/v1/conversations/"+conv+"/export?format=json", nil, nil)
+	if code != 200 || !strings.Contains(string(js), `"routedTo"`) || !strings.Contains(string(js), `"Parking help"`) {
+		t.Errorf("json export = %d, want routedTo naming the agent:\n%s", code, js)
+	}
+}
+
 func TestPublicRouterReachesOnlyPublicAgents(t *testing.T) {
 	env := newRouterEnv(t)
 	env.setPublic(t, true)

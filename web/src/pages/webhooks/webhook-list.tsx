@@ -69,6 +69,8 @@ export function WebhookList({ data, loading, error, onRetry, actions, caption }:
       loading={loading}
       error={error}
       onRetry={onRetry}
+      // On a phone each row stacks, so the status (on, off, paused) and the secret are not behind sideways scrolling (#140).
+      tableProps={{ stack: true }}
       onRowClick={actions.onDeliveries}
       rowActions={(h) => [
         { label: "Deliveries…", icon: <History aria-hidden />, onSelect: () => actions.onDeliveries(h) },

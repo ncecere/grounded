@@ -35,7 +35,8 @@ LIMIT 100;
 -- name: ListTeamRequestsAdmin :many
 SELECT r.*, t.slug AS team_slug, t.name AS team_name,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
-       COALESCE(d.email::text, '')::text AS decider_email
+       COALESCE(d.email::text, '')::text AS decider_email,
+       (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
 FROM team_requests r
 JOIN users u ON u.id = r.requester_id
 LEFT JOIN users d ON d.id = r.decided_by
@@ -49,7 +50,8 @@ LIMIT 200;
 -- name: GetTeamRequest :one
 SELECT r.*, t.slug AS team_slug, t.name AS team_name,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
-       COALESCE(d.email::text, '')::text AS decider_email
+       COALESCE(d.email::text, '')::text AS decider_email,
+       (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
 FROM team_requests r
 JOIN users u ON u.id = r.requester_id
 LEFT JOIN users d ON d.id = r.decided_by
@@ -62,7 +64,7 @@ SELECT * FROM team_requests WHERE id = $1 FOR UPDATE;
 -- A decision: pending only, so two reviewers cannot both decide.
 -- name: DecideTeamRequest :one
 UPDATE team_requests
-SET status = $2, decision_reason = $3, decided_by = $4, decided_at = now(), team_id = $5, revision = revision + 1, updated_at = now()
+SET status = $2, decision_reason = $3, decided_by = $4, decided_at = now(), team_id = $5, approved_classification = $6, revision = revision + 1, updated_at = now()
 WHERE id = $1 AND status = 'pending'
 RETURNING *;
 
@@ -80,3 +82,7 @@ SELECT COALESCE(NULLIF(display_name, ''), email::text)::text FROM users WHERE id
 
 -- name: GetTeamRequestRequesterEmail :one
 SELECT email::text FROM users WHERE id = $1;
+
+-- Accounts with this email that are suspended: one cannot own a new team.
+-- name: CountSuspendedUsersByEmail :one
+SELECT count(*) FROM users WHERE email = @email AND status = 'suspended';

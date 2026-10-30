@@ -1152,20 +1152,21 @@ type TeamMember struct {
 }
 
 type TeamRequest struct {
-	ID             uuid.UUID
-	RequesterID    uuid.UUID
-	Name           string
-	Purpose        string
-	OwnerEmail     string
-	Classification string
-	Status         string
-	DecisionReason string
-	DecidedBy      uuid.NullUUID
-	DecidedAt      *time.Time
-	TeamID         uuid.NullUUID
-	Revision       int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                     uuid.UUID
+	RequesterID            uuid.UUID
+	Name                   string
+	Purpose                string
+	OwnerEmail             string
+	Classification         string
+	Status                 string
+	DecisionReason         string
+	DecidedBy              uuid.NullUUID
+	DecidedAt              *time.Time
+	TeamID                 uuid.NullUUID
+	Revision               int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	ApprovedClassification string
 }
 
 type TeamRequestSetting struct {

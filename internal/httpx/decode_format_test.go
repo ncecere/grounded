@@ -26,7 +26,7 @@ func TestDecodeNamesFormatProblems(t *testing.T) {
 		{`{"email":"not-an-email"}`, "invalid_email", "email address"},
 		{`{"from":"notadate"}`, "invalid_date", "RFC 3339"},
 		{`{"day":"31/01/2026"}`, "invalid_date", "2026-01-31"},
-		{`{"id":"not-a-uuid"}`, "invalid_id", "UUID"},
+		{`{"id":"not-a-uuid"}`, "invalid_id", `Field "id" must be an ID`},
 	} {
 		t.Run(tc.in, func(t *testing.T) {
 			w := httptest.NewRecorder()
