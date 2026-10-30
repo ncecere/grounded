@@ -273,14 +273,12 @@ reads "$OLD_PORT" "old (before the upgrade)"
 # The steps that need a feature the old version has (v0.6.0: templates, team requests) are skipped for an older OLD_REF.
 AGENT_ID=$(api "$OLD_PORT" GET /v1/teams/demo/agents | jq -r '[.data[] | select(.status == "active")][0].id')
 call "$OLD_PORT" GET /v1/agent-templates
-[ "$CODE" = 200 ] && HAS_TEMPLATES=1 || HAS_TEMPLATES=0
+case "$CODE" in 200) HAS_TEMPLATES=1 ;; 404) HAS_TEMPLATES=0 ;; *) fail "old: template feature probe returned $CODE" ;; esac
 call "$OLD_PORT" GET /v1/team-requests
-[ "$CODE" = 200 ] && HAS_REQUESTS=1 || HAS_REQUESTS=0
-# The cluster's character classes: with C the old index cannot tell a Unicode-only twin, so the old version saves it (201); in another
-# locale its own lower() folds the name and it answers 409. Either is fine; a 5xx never is.
-CTYPE=$(docker exec "$P-pg" psql -U grounded -d grounded -tAc 'SELECT datctype FROM pg_database WHERE datname = current_database()')
-if [ "$CTYPE" = C ]; then TWIN_CODE=201; else TWIN_CODE=409; fi
-log "old: templates=$HAS_TEMPLATES team requests=$HAS_REQUESTS, datctype=$CTYPE (a Unicode-only twin is $TWIN_CODE for the old version)"
+case "$CODE" in 200) HAS_REQUESTS=1 ;; 404) HAS_REQUESTS=0 ;; *) fail "old: request feature probe returned $CODE" ;; esac
+# Record the old writer's baseline below, rather than infer it from the locale: v0.6.3 and later enforce Unicode uniqueness in the
+# application even with --locale=C. After migration the old writer must keep that same behaviour; a 5xx never passes.
+log "old: templates=$HAS_TEMPLATES team requests=$HAS_REQUESTS"
 
 # save_template port name: the Demo agent saved as a template by whoever the caller is; prints the status, then the id.
 save_template() {
@@ -323,10 +321,14 @@ if [ "$HAS_REQUESTS" = 1 ]; then
 	log "old: request A approved with sensitive (asked open), B pending"
 fi
 if [ "$HAS_TEMPLATES" = 1 ]; then
-	# What the old version's own index allows in this cluster; the new migration renames the later one.
 	[ "$(save_template "$OLD_PORT" 'Twin ÄÖ' | cut -d' ' -f1)" = 201 ] || fail "old: saving a template"
-	[ "$(save_template "$OLD_PORT" 'TWIN äö' | cut -d' ' -f1)" = "$TWIN_CODE" ] || fail "old: saving a Unicode-only twin"
-	log "old: templates saved, including a Unicode-only twin pair"
+	TWIN_CODE=$(save_template "$OLD_PORT" 'TWIN äö' | cut -d' ' -f1)
+	case "$TWIN_CODE" in
+		201) TWIN_RENAME_CODE=200 ;;
+		409) TWIN_RENAME_CODE=409 ;;
+		*) fail "old: saving a Unicode-only twin returned $TWIN_CODE (want 201 or 409, never 5xx)" ;;
+	esac
+	log "old: baseline Unicode-only twin save=$TWIN_CODE, rename=$TWIN_RENAME_CODE"
 fi
 
 # ---- 3-6. the new version ------------------------------------------------------------------
@@ -339,7 +341,7 @@ if [ "$HAS_TEMPLATES" = 1 ]; then
 	[ "$(save_template "$OLD_PORT" 'Zoë Über' | cut -d' ' -f1)" = 201 ] || fail "old on the new schema: saving a template"
 	[ "$(save_template "$OLD_PORT" 'ZOË ÜBER' | cut -d' ' -f1)" = "$TWIN_CODE" ] || fail "old on the new schema: saving a Unicode-only twin"
 	MOVER=$(save_template "$OLD_PORT" 'Rename me' | cut -d' ' -f2)
-	expect_code 200 "$OLD_PORT" PATCH "/v1/admin/agent-templates/$MOVER" '{"name":"zoë über"}'
+	expect_code "$TWIN_RENAME_CODE" "$OLD_PORT" PATCH "/v1/admin/agent-templates/$MOVER" '{"name":"zoë über"}'
 	log "old on the migrated schema: template save, twin and rename-onto-twin answered, no 5xx"
 fi
 if [ "$HAS_REQUESTS" = 1 ]; then
@@ -355,7 +357,13 @@ reads "$NEW_PORT" "new"
 if [ "$HAS_TEMPLATES" = 1 ]; then
 	signin "$NEW_PORT" admin
 	names=$(template_names "$NEW_PORT")
-	for n in 'Twin ÄÖ' 'TWIN äö (2)' 'Zoë Über' 'ZOË ÜBER' 'zoë über'; do
+	expected_names=('Twin ÄÖ' 'Zoë Über')
+	if [ "$TWIN_CODE" = 201 ]; then
+		expected_names+=('TWIN äö (2)' 'ZOË ÜBER' 'zoë über')
+	else
+		expected_names+=('Rename me')
+	fi
+	for n in "${expected_names[@]}"; do
 		printf '%s\n' "$names" | grep -qxF -- "$n" || fail "new: the template '$n' is missing from: $names"
 	done
 	if printf '%s\n' "$names" | grep -qxF -- 'TWIN äö'; then fail "new: migration 00054 did not rename the later duplicate"; fi

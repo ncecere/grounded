@@ -91,7 +91,7 @@ OLD_IMAGE=ghcr.io/ncecere/grounded:v0.1.0 NEW_IMAGE=grounded:dev make upgrade-te
 
 The harness uses development sign-in and the example keys from `.env.example`, which Grounded accepts only because `APP_URL` is a loopback address. It is a test, not a way to run Grounded.
 
-The write steps run only for features the old version has (templates and team requests exist from v0.6.0); an older `OLD_REF` skips them and says so.
+The write steps run only for features the old version has (templates and team requests exist from v0.6.0); a 404 skips them and says so, while an unexpected feature-probe error fails. Before migrating, the harness records whether the old writer accepts a Unicode-only twin (201) or rejects it (409), and requires that same behaviour afterward; it never accepts a 5xx. This also works when v0.6.3 becomes the old baseline: its application rejects twins even in a C-locale database.
 
 **What it doesn't cover:** a Kubernetes rollout itself (`make k8s-smoke` checks the manifests), long-running backfills on large data, and downgrades, which aren't supported: go back by restoring a backup taken before the upgrade.
 
