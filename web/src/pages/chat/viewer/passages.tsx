@@ -43,9 +43,12 @@ export function PassageList({ passages, parent }: { passages: ContextPassage[]; 
     // "nearest": the panel scrolls only when the passage is out of view, and keeps the context above it when it fits.
     citedRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [passages]);
-  if (parent) return <CitedSection passages={passages} parent={parent} citedRef={citedRef} />;
+  // Only the authorized editor document endpoint returns every row as cited.
+  // Ordinary, anonymous and shared-link viewers retain the bounded child window.
+  if (parent && passages.length === parent.passages && passages.every((p) => p.cited)) return <CitedSection passages={passages} parent={parent} citedRef={citedRef} />;
   return (
     <div className={v.passages}>
+      {parent && <p className={v.where}>The model used a larger section ({parent.passages} passages). This view shows the matched passage and nearby context.</p>}
       {passages.map((p) => (
         <Passage key={p.ordinal} p={p} citedRef={p.cited ? citedRef : undefined} />
       ))}

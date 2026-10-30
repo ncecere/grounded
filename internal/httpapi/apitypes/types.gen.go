@@ -6346,7 +6346,7 @@ type CitationParent struct {
 	// Passages Passages in the section
 	Passages int32 `json:"passages"`
 
-	// Sha256 SHA-256 (hex) of the exact text the model was given; the source viewer shows the section only while the document's text for it is still this
+	// Sha256 SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section
 	Sha256 string `json:"sha256"`
 
 	// Tokens The section's size in estimated tokens (characters / 4), as the answer's context budget counted it
@@ -6396,7 +6396,7 @@ type CitationTotals struct {
 	Verified      int64 `json:"verified"`
 }
 
-// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none.
+// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint.
 type CitedPassage struct {
 	// Claims The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
 	Claims     []Claim            `json:"claims"`
@@ -6625,7 +6625,7 @@ type ConnectionUpdate struct {
 
 // ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
 type ContextPassage struct {
-	// Cited The passage the answer cited (or around named); with a parent, every passage of the section the model read
+	// Cited The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section
 	Cited       bool     `json:"cited"`
 	Content     string   `json:"content"`
 	HeadingPath []string `json:"headingPath"`

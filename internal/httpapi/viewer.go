@@ -169,8 +169,8 @@ func parentTextQuery(w http.ResponseWriter, q url.Values, tq sources.DocumentTex
 	if first == "" && last == "" && sum == "" {
 		return tq, true
 	}
-	f, errF := strconv.Atoi(first)
-	l, errL := strconv.Atoi(last)
+	f, errF := strconv.ParseInt(first, 10, 32)
+	l, errL := strconv.ParseInt(last, 10, 32)
 	if errF != nil || errL != nil || f < 0 || l < f || l-f >= chunk.MaxParentChildren || len(sum) != 64 {
 		httpx.Error(w, http.StatusBadRequest, "invalid_parent", "parentFirst, parentLast and parentSha256 name a parent together")
 		return tq, false

@@ -12176,7 +12176,7 @@ components:
           items: { type: string }
         pageStart: { type: integer, format: int32, description: "First page (0 when the format has no pages)" }
         pageEnd: { type: integer, format: int32 }
-        cited: { type: boolean, description: "The passage the answer cited (or around named); with a parent, every passage of the section the model read" }
+        cited: { type: boolean, description: "The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section" }
         matched: { type: boolean, description: "With a parent: the passage that matched the question, inside the section" }
     CitedPassage:
       type: object
@@ -12185,7 +12185,10 @@ components:
         available has the passage with its neighbours; document_deleted
         (the document was deleted since the answer) and passage_changed
         (the document no longer has that text, e.g. it was re-fetched and
-        changed) have none.
+        changed) have none. A parent records generation provenance, not extra
+        viewer access: signed-in, anonymous and shared-link cited viewers keep
+        the existing matched-passage context window. Full parent text is only
+        available through the authorized editor document-text endpoint.
       required: [n, status, documentId, sourceId, title, headingPath, passages, claims]
       properties:
         n: { type: integer }
@@ -14043,7 +14046,7 @@ components:
         passages: { type: integer, format: int32, description: Passages in the section }
         tokens: { type: integer, format: int32, description: "The section's size in estimated tokens (characters / 4), as the answer's context budget counted it" }
         matched: { type: integer, format: int32, description: "How many of the search's matching passages were in this section (they are one source)" }
-        sha256: { type: string, description: "SHA-256 (hex) of the exact text the model was given; the source viewer shows the section only while the document's text for it is still this" }
+        sha256: { type: string, description: "SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section" }
     CitationMarker:
       type: object
       description: The citation check of one [n] marker.

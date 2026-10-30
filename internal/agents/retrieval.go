@@ -196,7 +196,7 @@ func (r *retriever) searchKBs(ctx context.Context, query string) ([]kbResult, in
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache, CollapseParents: true})
+			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache, CollapseParents: !r.noExpand})
 			results[i] = kbResult{res, err}
 		}()
 	}

@@ -225,9 +225,9 @@ describe("the source viewer's cited section", () => {
     return screen.findByRole("region", { name: "Fees" });
   };
 
-  it("shows the whole section as the cited text, with the matched passage named", async () => {
-    mockApi({ "GET /v1/messages/m1/sources/1": () => section() });
-    const { container } = render({ kind: "message" });
+  it("shows the whole section in the authorized editor view, with the matched passage named", async () => {
+    mockApi({ "GET /v1/teams/registrar/sources/s1/documents/d1/text": () => ({ documentId: "d1", sourceId: "s1", title: "Fees", kind: "markdown", total: 30, from: 4, items: section().passages }) });
+    const { container } = render({ kind: "team", team: "registrar" });
     const viewer = await openIt();
     const block = await within(viewer).findByTestId("cited-section");
     expect(within(block).getByText("Cited section")).toBeInTheDocument();
@@ -238,6 +238,19 @@ describe("the source viewer's cited section", () => {
     expect(block).toHaveTextContent("Transcripts are ordered online.");
     expect(block).toHaveTextContent("Pick-up is at the front desk.");
     expect(within(viewer).queryByTestId("cited-passage")).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("does not describe the bounded cited window as the full generation section", async () => {
+    mockApi({ "GET /v1/messages/m1/sources/1": () => section({
+      parent: { ...parent, last: 27, passages: 24 },
+      passages: section().passages.map((p) => ({ ...p, cited: p.ordinal === 5, matched: p.ordinal === 5 })),
+    }) });
+    const { container } = render({ kind: "message" });
+    const viewer = await openIt();
+    expect(await within(viewer).findByText(/The model used a larger section \(24 passages\)/)).toHaveTextContent("This view shows the matched passage and nearby context.");
+    expect(within(viewer).getByTestId("cited-passage")).toHaveTextContent("A transcript costs $10.");
+    expect(within(viewer).queryByTestId("cited-section")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 

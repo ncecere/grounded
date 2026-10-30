@@ -70,6 +70,12 @@ func PassageInContext(ctx context.Context, q *dbgen.Queries, doc dbgen.GetViewer
 	if err != nil {
 		return nil, err
 	}
+	return passagesInContext(rows, ordinal)
+}
+
+// passagesInContext applies the same about-a-page disclosure window to ordinary
+// citations and validated parent citations. The matched passage stays whole.
+func passagesInContext(rows []dbgen.ListViewerChunksRow, ordinal int32) ([]ContextPassage, error) {
 	at := -1
 	for i, r := range rows {
 		if r.Ordinal == ordinal {

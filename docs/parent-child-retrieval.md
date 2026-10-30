@@ -46,7 +46,7 @@ Otherwise a new parent starts there. Consequences, all deterministic and pinned 
 
 The vector and lexical searches, the fusion weights, the minimum similarity, reranking and SystemOne judging all run on **child text**, unchanged. The only differences, for a profile with parents:
 
-- **Siblings are collapsed before the cut.** After fusion (and before the result count is applied) hits that share a parent are merged into the best-ranked one, which keeps its place and its score; the others are dropped and counted (`matched`: the candidate passages, up to four times the result count, that fell in the parent). So several matching siblings never take the places of other matches: a search for `k` results returns `k` distinct parents when that many matched. Reranking asks for the same candidate count as before and keeps the best `rerankTopN` distinct parents.
+- **Siblings are collapsed before the cut.** After fusion (and before the result count is applied) hits that share a parent are merged into the best-ranked one, which keeps its place and its score; the others are dropped and counted (`matched`: the candidate passages, up to four times the result count, that fell in the parent). Within the oversampled candidate pool, siblings do not take each other's result slots: a search for `k` returns `k` distinct parents when that many are present. The pool is bounded at four times `k`, so a very large sibling group can still crowd other parents out of that pool. Reranking asks for the same candidate count as before and keeps the best `rerankTopN` distinct parents.
 - **Nothing is ranked by its parent.** A parent has no score, no vector and no row of its own; its position is its best child's.
 
 Collapse applies to the agent pipeline only (§7). `/retrieve`, the MCP `search` tool, Try it, evaluation retrieval checks, the gap report and the index preview's comparison return and score children as before.
@@ -55,7 +55,7 @@ Collapse applies to the agent pipeline only (§7). `/retrieve`, the MCP `search`
 
 After judging and before sources are numbered, the agent pipeline loads the siblings of each surviving hit (`kbs.ExpandParents`, one query for all of them) and builds the parent's text: the children's contents in order, each stripped of the text it repeats from the one before it, joined by a blank line (`chunk.TrimOverlaps`, the function the source viewer uses).
 
-A parent is used **only if every check passes**; otherwise the model gets the child, exactly as it would without the setting, and the answer is not worse for it:
+A parent is used **only if every check passes**; otherwise the model gets the kept child. Siblings were already collapsed, so this is not a claim of equivalent context or answer quality (§11):
 
 | Check | Why |
 |---|---|
@@ -69,15 +69,15 @@ Context budget, numbering and deduplication in `retriever.number`: a parent cost
 
 ## 6. Citations and the source viewer
 
-The model's source text, the stored citation and the viewer are the same text, and the citation says how the parent was made:
+The citation records the section used for generation. This provenance does not grant more verbatim document access in the cited viewer:
 
 - `Citation.chunkId` is the **matched child** (the ranked passage), as before. `Citation.snippet` is made from the text the model was given (the parent's start), as before.
-- `Citation.parent` (new, optional) records `first`, `last` (ordinals), `passages`, `tokens` (the estimated tokens of the text given), `matched` (how many of the search's candidate passages were in this parent) and `sha256` (of the exact text given). It is absent when the model was given the child.
-- The viewer opens the parent's range with every passage of it marked as cited and the matched one marked as such. Before showing it, it rebuilds the parent's text from the document's current passages and compares its `sha256` with the citation's. **If they differ, the viewer says the passage changed** (`passage_changed`, "This passage is no longer in the document…") and shows what the answer quoted; it never shows other text as the cited one. The check needs no passage ID: a document processed again with the same text (new passage IDs) still shows the section, only without the "matched" mark. A document deleted since is `document_deleted`, as before.
+- `Citation.parent` (new, optional) records `first`, `last` (ordinals), `passages`, `tokens` (estimated context tokens), `matched` (matching candidate passages) and `sha256` of the parent context **before the standard prompt escaping**. Prompt construction still neutralizes source delimiters and trims whitespace. It is absent when the model was given the child.
+- All cited-viewer routes—signed-in conversations, anonymous/public/widget sessions, and signed-in or public share links—retain the existing **matched passage plus bounded nearby context**, not the full parent. Only that matched passage is marked cited. The viewer explains that generation used a larger section, without claiming the displayed window is all of it. Before returning that window, the server validates the entire parent's hash against the citation; if it differs, or the matched passage can no longer be identified, it returns `passage_changed` and no current source text. This includes a re-cut that replaces the matched passage ID even if the larger section's text is identical. Deleted documents remain `document_deleted`.
 - Answers from before the setting, and answers whose model was given a child, have no `parent` and are shown as before.
 - Try it and the widget preview read the section through the team's document endpoint (`GET …/documents/{documentId}/text` with `around`, `parentFirst`, `parentLast` and `parentSha256`), for editors, admins and owners only, with the same hash check. Sending only part of the three is `400 invalid_parent`; a hash that does not match is `404 passage_not_found`.
 
-A citation therefore reveals, to the person who asked, up to one parent (at most `parentTokens`) of the document the agent already answered from, where it used to reveal the passage and its neighbours (about a page). Whole documents remain for the team's editors, admins and owners only.
+There is **no new direct-text grant** to members, anonymous users or share-link recipients. Their cited view remains about a page (at most three neighbours per side, with the existing character budget). Full parent sections and whole documents stay on the already-authorized editor/admin/owner document-text route. This preserves ADR-0009's snippet boundary rather than widening it implicitly.
 
 ## 7. Which surfaces use it
 
@@ -97,7 +97,7 @@ Provenance is the set of fields in §6 plus the audit of the setting: a profile'
 - **Preview.** *Preview new settings…* takes **Parent sections** like it takes the chunker. The candidate profile has the live profile's settings with the change; the held migration builds its children **beside** the live index (copied when the passage settings match, cut again otherwise) and writes their ranges. The live index, its rows and its vectors are not touched until **Switch to the new index**. A preview that only sets `parentTokens` leaves the children, the vectors and so the ranking exactly as they are: **the comparison will show no change in recall or rank, and cannot show whether the model answers better**, because it measures retrieval of children by document. To see a difference in what is *searched*, preview a smaller passage size together with a parent size. The preview page and the profile page show the setting; they do not estimate answer quality.
 - **Equivalence.** The index a preview built and the index an ordinary ingestion of the same documents under the same profile would build have the same children and the same ranges (tested on real Postgres).
 - **Rollback, in order of speed.** (1) Before switching: **Discard preview**. (2) After switching, within the grace period: **Switch back**, which restores the previous profile's children (kept). (3) At any time, without re-indexing: set `RETRIEVAL_PARENT_EXPANSION=false` and restart; searches then neither collapse nor expand, and the columns are ignored. Answers already cached keep their text until they expire. (4) An older release ignores the new columns, so a database upgraded to this release can be run by the previous release: it searches children only.
-- **Migration 00057** is additive (a profile column with a default and two nullable chunk columns), as ADR-0013 requires.
+- **Migration 00057** is additive (a profile column with a default and two nullable chunk columns), as ADR-0013 requires. Its range check deliberately does not relate the range to `ordinal`: old workers temporarily use negative ordinals and can reorder chunks without clearing these new fields. Expansion validates the hit's membership and all sibling ranges on read, falling back for stale metadata. A regression executes the old writer's ordinal transition with populated parent ranges.
 
 ## 10. Compatibility with the chunker v3 and fuzzy boilerplate changes
 
@@ -105,7 +105,7 @@ Neither is on `main` when this is written ([#193](https://github.com/ncecere/gro
 
 ## 11. Limits and what is not measured
 
-- **Siblings are merged before it is known whether their parent can be used.** The passages of a parent that lost the merge are not searched for again: if the parent then cannot be used (a row is missing or stale, or it does not fit the remaining context budget), the model is given the best passage of it and not the others, where without the setting it might have been given two or three. This is the one way in which turning the setting on can give the model less than leaving it off. It is limited to answers where a parent was skipped, and the number of skipped parents is on the search's trace (`grounded.retrieval.parents_skipped`).
+- **Siblings are merged before later filters and parent loading.** If the kept child fails the agent's minimum similarity or SystemOne judging, another sibling that could have passed is not restored. If the parent is missing, stale or over budget, the model gets only the kept child, where the off path might have supplied several. These are opt-in context tradeoffs, not equivalence or quality guarantees. `grounded.retrieval.parents_skipped` counts pre-numbering parent-load outcomes, including single-child parents; it does **not** count later budget fallbacks or filter/judge losses, and is not a complete count of reduced-context cases.
 
 - No answer-quality claim, no latency claim, no cost claim. Parents give the model more text per source, so prompts are larger by up to the context budget; the budget is the bound.
 - A parent is a section's window, not a semantic unit: a heading path that repeats, or a long section cut at `parentTokens`, can put a match at the edge of its parent.

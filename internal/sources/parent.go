@@ -18,12 +18,17 @@ type ParentQuery struct {
 	First, Last int32
 	SHA256      string
 	ChunkID     uuid.UUID
+	// Window keeps cited viewers within the existing matched-passage context
+	// limit. Only the already-authorized editor document path reads all rows.
+	Window bool
 }
 
 // ParentInContext returns the passages of the parent, in order, each without the text it repeats from the one before (so they read as the
 // text the model was given), all marked Cited and the matched one Matched. ErrPassageNotFound unless the document's current passages
 // First..Last, from the source's current profile, make exactly the text the citation hashed: a document that changed, was cut again or whose
-// passages moved never shows other text as the cited section. It does no authorization: callers decide who may see a cited passage.
+// passages moved never shows other text as the cited section. With Window it
+// returns only the matched passage and its bounded context, not the full parent.
+// It does no authorization: callers decide who may see a cited passage.
 func ParentInContext(ctx context.Context, q *dbgen.Queries, doc dbgen.GetViewerDocumentRow, pq ParentQuery) ([]ContextPassage, error) {
 	n := int(pq.Last-pq.First) + 1
 	if pq.First < 0 || n < 1 || n > chunk.MaxParentChildren {
@@ -44,6 +49,18 @@ func ParentInContext(ctx context.Context, q *dbgen.Queries, doc dbgen.GetViewerD
 		contents[i] = r.Content
 	}
 	if chunk.TextHash(chunk.ParentText(contents)) != pq.SHA256 {
+		return nil, ErrPassageNotFound
+	}
+	if pq.Window {
+		for _, row := range rows {
+			if pq.ChunkID != uuid.Nil && row.ID == pq.ChunkID {
+				out, err := passagesInContext(rows, row.Ordinal)
+				for i := range out {
+					out[i].Matched = out[i].Cited
+				}
+				return out, err
+			}
+		}
 		return nil, ErrPassageNotFound
 	}
 	out := toContext(rows, -1)

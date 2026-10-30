@@ -8484,12 +8484,12 @@ export interface components {
             pageStart: number;
             /** Format: int32 */
             pageEnd: number;
-            /** @description The passage the answer cited (or around named); with a parent, every passage of the section the model read */
+            /** @description The matched/cited passage; only the authorized editor document-text parent path marks every passage of a full section */
             cited: boolean;
             /** @description With a parent: the passage that matched the question, inside the section */
             matched?: boolean;
         };
-        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. */
+        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. A parent records generation provenance, not extra viewer access: signed-in, anonymous and shared-link cited viewers keep the existing matched-passage context window. Full parent text is only available through the authorized editor document-text endpoint. */
         CitedPassage: {
             n: number;
             /** @enum {string} */
@@ -10247,7 +10247,7 @@ export interface components {
              * @description How many of the search's matching passages were in this section (they are one source)
              */
             matched: number;
-            /** @description SHA-256 (hex) of the exact text the model was given; the source viewer shows the section only while the document's text for it is still this */
+            /** @description SHA-256 (hex) of the section context before standard prompt escaping; cited viewers validate this snapshot but show only the matched passage and bounded context, while the authorized editor document-text path may show the full section */
             sha256: string;
         };
         /** @description The citation check of one [n] marker. */

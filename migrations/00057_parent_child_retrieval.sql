@@ -7,6 +7,9 @@
 --
 -- Expand only (ADR-0013): a column with a default and two nullable columns, so the previous release, which neither writes nor reads them,
 -- keeps working on this schema (it searches passages only). No rows are rewritten.
+-- The range check deliberately does not reference ordinal: older rechunk workers temporarily move kept rows to negative ordinals and
+-- may reorder them without knowing these columns. Consumers validate membership, completeness and agreement before using a parent;
+-- stale ranges fall back to a child. NOT VALID alone would NOT exempt updates by those older workers.
 
 -- +goose Up
 ALTER TABLE embedding_profiles ADD COLUMN parent_tokens integer NOT NULL DEFAULT 0
@@ -15,7 +18,7 @@ ALTER TABLE embedding_profiles ADD COLUMN parent_tokens integer NOT NULL DEFAULT
 ALTER TABLE chunks ADD COLUMN parent_first integer, ADD COLUMN parent_last integer;
 ALTER TABLE chunks ADD CONSTRAINT chunks_parent_range_check CHECK (
     (parent_first IS NULL AND parent_last IS NULL)
-    OR (parent_first IS NOT NULL AND parent_last IS NOT NULL AND parent_first >= 0 AND parent_first <= ordinal AND ordinal <= parent_last
+    OR (parent_first IS NOT NULL AND parent_last IS NOT NULL AND parent_first >= 0 AND parent_last >= parent_first
         AND parent_last - parent_first < 64)) NOT VALID;
 
 -- +goose Down

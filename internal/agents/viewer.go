@@ -40,7 +40,8 @@ type CitedPassage struct {
 	// DocumentTeam is the source's team slug when the caller may open the
 	// whole document ("" otherwise).
 	DocumentTeam string
-	// Parent is the citation's parent, when the model was given a section: the passages are its range (ParentInContext).
+	// Parent records the section used for generation. Passages remain the
+	// matched child's bounded context, not a grant to read the full section.
 	Parent *CitationParent
 }
 
@@ -176,11 +177,13 @@ func answerText(content json.RawMessage) string {
 	return text
 }
 
-// citedParent is a citation whose model was given a section (parent/child retrieval): the section's passages, while the document still
-// has exactly the text the model read, else passage_changed with what the answer quoted.
+// citedParent validates the section used for generation, then returns only
+// the existing matched-passage window. This policy is shared by signed-in,
+// anonymous and share-link readers; parent context does not widen their grant.
+// A changed section is passage_changed, never substituted with current text.
 func (s *Service) citedParent(ctx context.Context, out CitedPassage, doc dbgen.GetViewerDocumentRow, c *Citation) (CitedPassage, dbgen.GetViewerDocumentRow, error) {
 	out.Parent = c.Parent
-	pq := sources.ParentQuery{First: c.Parent.First, Last: c.Parent.Last, SHA256: c.Parent.SHA256}
+	pq := sources.ParentQuery{First: c.Parent.First, Last: c.Parent.Last, SHA256: c.Parent.SHA256, Window: true}
 	if c.ChunkID != nil {
 		pq.ChunkID = *c.ChunkID
 	}

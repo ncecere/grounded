@@ -96,8 +96,8 @@ func TestParentRangesAreWrittenWithThePassages(t *testing.T) {
 	}
 }
 
-// What the model reads, what the citation records and what the source viewer shows are the same text; the matched passage ranks, the parent is
-// what is given, and the answer is cited to the matched passage's document and passage ID (#20).
+// The matched passage ranks and the parent is given to generation. Its hash
+// binds the editor section view; cited viewers retain bounded child context.
 func TestAnAnswerIsGivenTheParentAndCitesIt(t *testing.T) {
 	env := newParentEnv(t, 512, 6)
 	rows := env.rows(t, env.source.Id, env.profile.Id)
@@ -133,19 +133,31 @@ func TestAnAnswerIsGivenTheParentAndCitesIt(t *testing.T) {
 		t.Errorf("snippet = %q", c.Snippet)
 	}
 
-	// The source viewer: the same range, every passage cited, the matched one marked, and joined they are what the model read.
+	// The cited viewer records parent provenance but grants no larger text window.
 	var cited apitypes.CitedPassage
 	if code := env.member.get("/v1/messages/"+end.MessageId.String()+"/sources/1", &cited); code != 200 {
 		t.Fatalf("viewer = %d", code)
 	}
-	if string(cited.Status) != "available" || cited.Parent == nil || cited.Parent.Sha256 != p.Sha256 || len(cited.Passages) != int(p.Passages) {
+	if string(cited.Status) != "available" || cited.Parent == nil || cited.Parent.Sha256 != p.Sha256 || len(cited.Passages) > 7 {
 		t.Fatalf("viewer = %+v", cited)
 	}
-	parts := make([]string, len(cited.Passages))
 	for i, ps := range cited.Passages {
-		parts[i] = ps.Content
-		if !ps.Cited || (ps.Matched != nil && *ps.Matched) != (ps.Ordinal == matched.Ordinal) || ps.Ordinal != p.First+int32(i) {
+		if ps.Cited != (ps.Ordinal == matched.Ordinal) || (ps.Matched != nil && *ps.Matched) != ps.Cited {
 			t.Errorf("viewer passage %d = %+v", i, ps)
+		}
+	}
+	// The full, hash-validated section is still available to an editor through
+	// the document-text route. It, not the cited viewer, matches the source body.
+	path := fmt.Sprintf("%s/sources/%s/documents/%s/text?around=%s&parentFirst=%d&parentLast=%d&parentSha256=%s", env.base, c.SourceId, c.DocumentId, c.ChunkId, p.First, p.Last, p.Sha256)
+	var full apitypes.DocumentText
+	if code := env.editor.get(path, &full); code != 200 || len(full.Items) != int(p.Passages) {
+		t.Fatalf("editor section = %d %+v", code, full)
+	}
+	parts := make([]string, len(full.Items))
+	for i, ps := range full.Items {
+		parts[i] = ps.Content
+		if !ps.Cited || ps.Ordinal != p.First+int32(i) {
+			t.Errorf("editor section passage %d = %+v", i, ps)
 		}
 	}
 	shown := strings.Join(parts, "\n\n")

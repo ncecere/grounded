@@ -126,7 +126,9 @@ func TestSetParentsIsANoOpWithoutParents(t *testing.T) {
 	}
 }
 
-// The database refuses a range that does not hold its own passage, one with only one end, and one wider than a parent can be.
+// The database enforces range shape and width, but not membership of ordinal:
+// old workers reorder ordinals without knowing the parent fields. Expansion
+// validates membership before reading a range (HTTP parent review regression).
 func TestParentRangeCheckConstraint(t *testing.T) {
 	pool, _ := testutil.NewDB(t)
 	ctx := context.Background()
@@ -147,18 +149,23 @@ func TestParentRangeCheckConstraint(t *testing.T) {
 		}
 	}
 	for name, set := range map[string]string{
-		"the range does not hold the passage (before)": "parent_first = 6, parent_last = 8",
-		"the range does not hold the passage (after)":  "parent_first = 1, parent_last = 4",
 		"only the first":        "parent_first = 5",
 		"only the last":         "parent_last = 5",
 		"more than 64 passages": "parent_first = 0, parent_last = 64",
 		"a negative first":      "parent_first = -1, parent_last = 5",
+		"a reversed range":      "parent_first = 8, parent_last = 6",
 	} {
 		if _, err := pool.Exec(ctx, `UPDATE chunks SET `+set+` WHERE document_id = $1`, doc); err == nil {
 			t.Errorf("%s: the database accepted it", name)
 		}
 	}
-	for name, set := range map[string]string{"its own passage": "parent_first = 5, parent_last = 5", "64 passages": "parent_first = 2, parent_last = 65", "none": "parent_first = NULL, parent_last = NULL"} {
+	for name, set := range map[string]string{
+		"its own passage":                 "parent_first = 5, parent_last = 5",
+		"64 passages":                     "parent_first = 2, parent_last = 65",
+		"old-worker range before ordinal": "parent_first = 1, parent_last = 4",
+		"old-worker range after ordinal":  "parent_first = 6, parent_last = 8",
+		"none":                            "parent_first = NULL, parent_last = NULL",
+	} {
 		if _, err := pool.Exec(ctx, `UPDATE chunks SET `+set+` WHERE document_id = $1`, doc); err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
