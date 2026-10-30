@@ -136,6 +136,26 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
+### v0.6.3 preparation — 2026-10-30
+
+The dependency/licence inventory above is regenerated for the patch. Fresh
+`govulncheck` and both installed-lockfile npm audits (runtime and full) report
+**0 vulnerabilities**. An archived preparation-source scan reports **0 secrets**
+and **71 IaC findings** (43 LOW, 25 MEDIUM, 3 HIGH), in the previously reviewed
+categories below; these findings are retained, not counted as fixed.
+
+Main runtime candidate `4338076efe331d4ff43000297f44be52c419c14f` passed its full
+pipeline and independent signed-image/provenance/SBOM verification on amd64 and
+arm64. On each platform the app and OCR images have **0 Go findings** and **0
+fixable HIGH/CRITICAL findings**. The app retains **4 UNKNOWN** certificate and
+timezone-data advisories; the extra entry since the earlier v0.6.2 scan is
+tzdata `DLA-4867-1` (`2026b` to `2026f`), with the installed package unchanged.
+OCR retains **341 Debian findings** (157 LOW, 110 MEDIUM, 69 HIGH, 1 CRITICAL,
+4 UNKNOWN), with no published fixes in the scan. Neither image is
+vulnerability-free. Immutable candidate digests and the scope of verification
+are in the [v0.6.3 validation record](validation/v0.6.3.md). Final preparation and
+tag artifacts still require their own exact-source checks.
+
 ### 2026-10-28 toolchain advisory follow-up
 
 The historical results below are not a current clean bill of health. Dependency
@@ -216,7 +236,7 @@ Run on 2026-10-15 with Go 1.26.9, npm 10.9.8 and Trivy 0.75.0. The source scans 
 - **The four high findings in `libmount1` (util-linux) are not reachable:** `tesseract` does not link it, and the service never runs a mount helper (non-root, no capabilities).
 - **What an image does reach** is `libpng`, `zlib`, Leptonica and the C and C++ runtimes. In those packages the scan lists no high or critical finding (two low in `libpng`, two medium in `zlib`, and medium or low in `libc6`, `libstdc++6`, `libgcc-s1` and `libgomp1`).
 
-**What this does not show.** It covers the findings Trivy knows today; an unknown flaw in `libpng` or Leptonica is possible in any image that decodes images. It rests on the sidecar keeping the PNG check, the fixed path and the language check: a change that passes a URL, an archive or a caller's model file to Tesseract would make the findings above reachable. Until Debian fixes them, the base-image findings stay in scans; the shipped component limits what the service can do (non-root, all capabilities dropped, read-only root filesystem, a seccomp profile, no service account token, and a NetworkPolicy that lets only the API and the worker reach it). In v0.6.2 and earlier the OCR policy restricted ingress only. The unreleased hardening in [#77](https://github.com/ncecere/grounded/issues/77) also isolates egress and excludes OCR from the base DNS grant: policies combine by union, so the old namespace-wide DNS allow would otherwise defeat OCR's own restriction. The [real NetworkPolicy acceptance test](../../deploy/kubernetes/test/ocr-networkpolicy.md) checks standalone and composed policies with positive controls, API/worker access and fresh readiness probes; operators adding broader allow policies must exclude OCR to retain isolation. Do not expose the OCR service outside the namespace.
+**What this does not show.** It covers the findings Trivy knows today; an unknown flaw in `libpng` or Leptonica is possible in any image that decodes images. It rests on the sidecar keeping the PNG check, the fixed path and the language check: a change that passes a URL, an archive or a caller's model file to Tesseract would make the findings above reachable. Until Debian fixes them, the base-image findings stay in scans; the shipped component limits what the service can do (non-root, all capabilities dropped, read-only root filesystem, a seccomp profile, no service account token, and a NetworkPolicy that lets only the API and the worker reach it). In v0.6.2 and earlier the OCR policy restricted ingress only. The hardening for v0.6.3 in [#77](https://github.com/ncecere/grounded/issues/77) also isolates egress and excludes OCR from the base DNS grant: policies combine by union, so the old namespace-wide DNS allow would otherwise defeat OCR's own restriction. The [real NetworkPolicy acceptance test](../../deploy/kubernetes/test/ocr-networkpolicy.md) checks standalone and composed policies with positive controls, API/worker access and fresh readiness probes; operators adding broader allow policies must exclude OCR to retain isolation. Do not expose the OCR service outside the namespace.
 
 Misconfiguration findings, all reviewed:
 
