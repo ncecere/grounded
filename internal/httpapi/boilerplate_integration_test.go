@@ -64,14 +64,35 @@ func waitBoilerplate(t *testing.T, s *session, srcPath string, done func(apitype
 		if code := s.get(srcPath, &src); code != 200 {
 			t.Fatalf("get source = %d", code)
 		}
-		if b := src.Boilerplate; !b.Pending && done(b) {
-			return b
+		if boilerplateSettled(t, s, src, done) {
+			return src.Boilerplate
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("boilerplate refresh did not settle: %+v", src.Boilerplate)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
+}
+
+// boilerplateSettled is the fixture's completion predicate. A source's
+// logical pending flag alone is not a statement about the worker job's state.
+func boilerplateSettled(t *testing.T, s *session, src apitypes.DataSource, done func(apitypes.SourceBoilerplate) bool) bool {
+	t.Helper()
+	if src.Boilerplate.Pending || !done(src.Boilerplate) {
+		return false
+	}
+	// River's unique job can still be running after the logical updates
+	// finish. A second mutation in that gap waits for the periodic sweep.
+	// Require acknowledgment too, retaining the existing overall deadline.
+	ctx, cancel := context.WithTimeout(t.Context(), testutil.Scale(5*time.Second))
+	defer cancel()
+	var active bool
+	if err := s.app.Pool.QueryRow(ctx, `SELECT EXISTS (
+SELECT 1 FROM river_job WHERE kind = 'boilerplate.refresh' AND args->>'sourceId' = $1
+AND state IN ('available', 'pending', 'running', 'retryable', 'scheduled'))`, src.Id.String()).Scan(&active); err != nil {
+		t.Fatalf("refresh job completion: %v", err)
+	}
+	return !active
 }
 
 // chunksContaining counts a source's chunks containing text, per document URL.

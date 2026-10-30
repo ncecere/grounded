@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Shared-runner test deadlines are applied consistently.** Explicit browser-test and polling limits now use `TEST_TIME_SCALE`, just like the suite defaults; scale 1 keeps every previous deadline, and intentional fixture delays stay unchanged. The guard now scans E2E files and helpers as well as UI unit tests. Boilerplate test fixtures wait for the refresh job's acknowledgement as well as the source's logical completion before another settings mutation, avoiding a one-minute sweep wait. Production worker behaviour, assertions and the global Go package timeout are unchanged. (#201)
+
 ## [0.6.3] - 2026-10-30
 
 QA, API and accessibility fixes, plus OCR egress isolation. Schema 55, with staged
