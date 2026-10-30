@@ -91,6 +91,7 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 		if len(docs) == 0 {
 			break
 		}
+		w.setError(ctx, q, args, "") // a wait's reason (a cap) is shown only while it lasts
 		if wait, err := w.step(ctx, q, src, target, docs); err != nil {
 			return err
 		} else if wait > 0 {
@@ -182,6 +183,11 @@ func (w *SetWorker) outcome(ctx context.Context, q *dbgen.Queries, src dbgen.Dat
 		return 0, nil
 	case ctx.Err() != nil:
 		return 0, nil // shutting down: the next run resumes
+	}
+	if d, msg, ok := ingest.ContextWait(err); ok {
+		// A contextual-chunks cap, budget or quota: the set waits, and says why (docs/contextual-chunks.md section 5).
+		w.setError(ctx, q, ingest.SetArgs{SourceID: src.ID, ProfileID: target.Profile.ID}, msg)
+		return d, nil
 	}
 	if d, ok := ingest.Backpressure(err); ok {
 		return d, nil

@@ -21,6 +21,9 @@ type CandidateChanges struct {
 	DocumentPrefix, QueryPrefix *string
 	ChunkSize, ChunkOverlap     *int32
 	ChunkerVersion              *int32
+	// Contextual builds the candidate with contextual chunks for the sources that opted in (true), or without (false); nil keeps the live
+	// profile's (contextual.go: docs/contextual-chunks.md).
+	Contextual *bool
 }
 
 // CreateCandidate copies the live profile with the changes applied, hidden (candidate_of is set, so it is in no list or picker, is never
@@ -48,6 +51,7 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 		ChunkSize:      pick(ch.ChunkSize, live.ChunkSize),
 		ChunkOverlap:   pick(ch.ChunkOverlap, live.ChunkOverlap),
 		ChunkerVersion: pick(ch.ChunkerVersion, live.ChunkerVersion),
+		Contextual:     pick(ch.Contextual, live.Contextual),
 		// A new model has its own dimensions: only a model that is kept keeps the live profile's truncation.
 		OutputDimensions: nil,
 	}

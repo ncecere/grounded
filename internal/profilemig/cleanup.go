@@ -11,6 +11,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -175,8 +176,27 @@ func (s *Service) deleteSet(ctx context.Context, set dbgen.UnneededEmbeddingSets
 		if err := q.DeleteSetFailuresFor(ctx, dbgen.DeleteSetFailuresForParams(set)); err != nil {
 			return err
 		}
+		if err := deleteSetContextual(ctx, q, set.SourceID, set.ProfileID); err != nil {
+			return err
+		}
 		return q.DeleteEmbeddingSet(ctx, dbgen.DeleteEmbeddingSetParams(set))
 	})
+}
+
+// deleteSetContextual removes what contextual chunks kept for a deleted set: its snapshot and marks, and, when no set of the source uses
+// context any more, the generated text (it follows the sets that needed it; docs/contextual-chunks.md section 9).
+func deleteSetContextual(ctx context.Context, q *dbgen.Queries, sourceID, profileID uuid.UUID) error {
+	if err := q.DeleteSetContextual(ctx, dbgen.DeleteSetContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
+		return err
+	}
+	if err := q.DeleteSetDocumentContextual(ctx, dbgen.DeleteSetDocumentContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
+		return err
+	}
+	if has, err := q.SourceHasContextualSets(ctx, sourceID); err != nil || has {
+		return err
+	}
+	_, err := q.DeleteSourceContextualCache(ctx, sourceID)
+	return err
 }
 
 // SweepArgs enqueues embedding for every set and advances running

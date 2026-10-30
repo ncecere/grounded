@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -80,6 +81,13 @@ func (s *Service) Start(ctx context.Context, a authz.Actor, in StartInput) (Migr
 			return err
 		}
 		id = m.ID
+		// Contextual chunks: the opted-in sources' settings are fixed for these sets before their jobs can run.
+		contextualSources := 0
+		if pf.Target.Contextual {
+			if contextualSources, err = contextual.Snapshot(ctx, q, kb.ID, pf.Target.ID); err != nil {
+				return err
+			}
+		}
 		if err := s.addSets(ctx, q, tx, kb.ID, pf.Target.ID); err != nil {
 			return err
 		}
@@ -88,6 +96,12 @@ func (s *Service) Start(ctx context.Context, a authz.Actor, in StartInput) (Migr
 			"sources": len(pf.Sources), "documents": pf.Estimate.Documents, "passages": pf.Estimate.Passages,
 			"embeddingCalls": pf.Estimate.EmbeddingCalls, "rechunk": pf.Estimate.Rechunk, "graceDays": grace, "hold": in.Hold,
 		}))
+		if pf.Target.Contextual {
+			e.Metadata["contextualSources"] = contextualSources
+			if c := pf.Estimate.Contextual; c != nil {
+				e.Metadata["contextualCalls"] = c.Calls
+			}
+		}
 		return audit.Record(ctx, q, e)
 	})
 	if err != nil {

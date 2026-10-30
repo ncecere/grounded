@@ -1,8 +1,8 @@
 # Contextual chunks (A4, #21)
 
-Status: **design, written before the code** (2026-10-30); the "As built" section at the end is filled in as the work lands. Decision record: [ADR-0028](adr/0028-contextual-chunks.md). Roadmap: [`roadmap.md`](roadmap.md) A4. Builds on the [index preview](specs/index-preview/SPEC.md) and the profile migration ([`operations/profile-migration.md`](operations/profile-migration.md)).
+Status: **unfinished implementation; design was written before the code** (2026-10-30). The main thread has taken over the preserved work; it is not ready to enable, merge or release. The "As built" section records only checks actually run. Decision record: [ADR-0028](adr/0028-contextual-chunks.md). Roadmap: [`roadmap.md`](roadmap.md) A4. Builds on the [index preview](specs/index-preview/SPEC.md) and the profile migration ([`operations/profile-migration.md`](operations/profile-migration.md)).
 
-> **Real-model acceptance is PENDING.** The owner requires a bounded run against a real model before #21 is closed ([`operations/contextual-chunks.md`](operations/contextual-chunks.md), "Real-model acceptance"). Everything in this change was exercised against fake models only. Nothing here claims that contextual chunks improve retrieval, answer quality or cost-effectiveness.
+> **Real-model acceptance is PENDING.** The owner requires a bounded run against a real model before #21 is closed ([`operations/contextual-chunks.md`](operations/contextual-chunks.md), "Real-model acceptance"). Only the narrow fake-model unit checks recorded below have run; full integration, authorization, UI, cost-control and final-source CI/cluster acceptance remain pending. Nothing here claims that contextual chunks improve retrieval, answer quality or cost-effectiveness.
 
 ## 1. What it is, and what it is not
 
@@ -37,6 +37,12 @@ The context lives in one table (`contextual_cache`) that no read API touches. It
 | No half-built index; marked fallback only by explicit policy | a set with unembedded documents never becomes ready; `plain` is opt-in and marks | 10 |
 | Cancellation and "off" stop calls at checkpoints | one checkpoint before every call | 11 |
 | Actual usage honest, retries not silently double-billed | per-attempt ledger, success cached | 5, 7 |
+
+### Main-thread review gates still unimplemented
+
+The preserved code has call caps, but **does not yet implement the required explicit token and configured-price spend admission caps**. Before accepting this design or making a real request, reserve source/build and UTC-day call/token/spend headroom atomically, including build fan-out and platform-owned sources; unknown prices cannot bypass a required spend cap. Settlement must be idempotent, unknown usage must conservatively retain reservations, and persistence/cancellation must be bounded. Local configured-price accounting is not an external invoice guarantee.
+
+Cache isolation/lifecycle across documents and active profile plans, upstream-429 accounting, model/scope checkpoints and off-path/preview/rollback integration also need review. The sections below describe the target design, not proof that these controls are complete. See the [acceptance plan](operations/contextual-chunks.md).
 
 ## 3. Per-source settings
 
@@ -169,4 +175,6 @@ Unit: unit planning and bounds, key invalidation (each input), prompt constructi
 
 ## 16. As built
 
-*(Filled in when the change is complete.)*
+- Fake-generator and chunk unit tests pass under the race detector after correcting a fixture that counted checkpoint hook invocations instead of actual requests. The two-request assertion remains, and now also requires that the stopped reply is not cached and both completed requests are accounted for; ten repetitions pass.
+- The preserved application, HTTP API, ingest and profile-migration packages compile with `go test -run '^$'`; this executes **no integration tests** and is not an application acceptance pass.
+- Database/HTTP/UI/cost-admission/preview/rollback tests, integration with migrations 00056–00058, final CI/cluster gates, an acceptance harness and the owner-approved real-model run are **pending**. No real-provider requests, production changes or release have occurred.

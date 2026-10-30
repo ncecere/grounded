@@ -102,6 +102,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		Public: svc.Public, Retention: svc.Retention, BreakGlass: svc.BreakGlass, Web: testWeb, WebBuilt: true,
 	}
 	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
+	deps.Contextual = svc.Contextual
 	deps.TeamRequests = svc.TeamRequests
 	deps.Webhooks = svc.Webhooks
 	deps.Gaps = svc.Gaps

@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/captcha"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/gaps"
@@ -99,6 +100,8 @@ type Deps struct {
 	// ProfileMigrations moves knowledge bases between embedding profiles
 	// (docs/phase5-deploy.md §5 P2).
 	ProfileMigrations *profilemig.Service
+	// Contextual holds sources' contextual-chunks settings (A4).
+	Contextual *contextual.Service
 	// Evaluations runs evaluation sets (docs/evaluations.md).
 	Evaluations *evals.Service
 	// TeamRequests handles in-app requests for a team (v0.6.0, E3).
@@ -165,7 +168,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(),
+		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)

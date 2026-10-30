@@ -31,6 +31,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -81,7 +82,9 @@ type Service struct {
 	// (internal/evals starts the live and candidate runs of the knowledge base's evaluation sets). It returns how many sets it started
 	// (nil: none).
 	OnPreviewReady func(ctx context.Context, tx pgx.Tx, kbID, migrationID, liveProfile, candidateProfile uuid.UUID) (int, error)
-	q              *dbgen.Queries
+	// Contextual estimates and checks the model work of contextual chunks (nil: a contextual target is refused).
+	Contextual *contextual.Service
+	q          *dbgen.Queries
 }
 
 // New returns a Service.
@@ -107,6 +110,8 @@ type Estimate struct {
 	RequestsPerMinute *int32   `json:"requestsPerMinute"`
 	Minutes           *float64 `json:"minutes"`
 	Rechunk           bool     `json:"rechunk"`
+	// Contextual is the model work of a contextual-chunks build (nil: the target has none).
+	Contextual *ContextualEstimate `json:"contextual,omitempty"`
 }
 
 // Progress totals a running migration's sources.
@@ -132,6 +137,8 @@ type Migration struct {
 	Progress Progress
 	Sources  []SourceProgress
 	Failures []dbgen.ListSetFailuresRow
+	// Contextual is how contextual chunks went (nil: the target has none; only with detail).
+	Contextual *ContextualProgress
 }
 
 // CanSwitch reports whether an admin may switch a held migration now. Whether its documents are all embedded is
@@ -222,6 +229,12 @@ func (s *Service) view(ctx context.Context, r dbgen.ListProfileMigrationViewsRow
 	m := Migration{ListProfileMigrationViewsRow: r}
 	_ = json.Unmarshal(r.ProfileMigration.Estimate, &m.Estimate)
 	pm := r.ProfileMigration
+	if detail {
+		var err error
+		if m.Contextual, err = s.contextualProgress(ctx, pm); err != nil {
+			return m, err
+		}
+	}
 	if pm.Status != StatusRunning {
 		return m, nil
 	}

@@ -128,12 +128,17 @@ func (p *Processor) Reembed(ctx context.Context, src dbgen.DataSource, doc dbgen
 	if title == "" {
 		title = doc.Filename
 	}
-	vectors, usage, err := p.embed(ctx, target, p.embedTexts(target, title, chunks), doc.TeamID)
+	sc := ctxScope{src: src, docID: doc.ID, title: title, team: doc.TeamID, user: doc.UploadedBy, own: src.EmbeddingProfileID == target.Profile.ID}
+	texts, mark, err := p.contextualTexts(ctx, sc, doc.Version, target, chunks)
+	if err != nil {
+		return out, err
+	}
+	vectors, usage, err := p.embed(ctx, target, texts, doc.TeamID)
 	if err != nil {
 		return out, err
 	}
 	out = Reembedded{Chunks: len(chunks), Rechunk: rechunk, Tokens: usage.Counted, Requests: usage.Requests}
-	return out, p.commitSet(ctx, src, doc, target, rechunked{chunks: chunks, vectors: vectors, usage: usage})
+	return out, p.commitSet(ctx, src, doc, target, rechunked{chunks: chunks, vectors: vectors, usage: usage, mark: mark})
 }
 
 // setChunks are the document's chunks for target: copies of the chunks of
@@ -255,6 +260,9 @@ func (p *Processor) commitSet(ctx context.Context, src dbgen.DataSource, doc dbg
 		}
 		rc.fresh = all
 		if err := insertFresh(ctx, tx, p, src.ID, doc.ID, prof, rc); err != nil {
+			return err
+		}
+		if err := writeMark(ctx, tx, src.ID, doc.ID, rc.mark); err != nil {
 			return err
 		}
 		if err := q.DeleteSetFailure(ctx, dbgen.DeleteSetFailureParams{DocumentID: doc.ID, ProfileID: prof.ID}); err != nil {

@@ -267,6 +267,30 @@ type ClassificationLevel struct {
 	DirectRetrieve            bool
 }
 
+type ContextualCache struct {
+	DocumentID uuid.UUID
+	Key        []byte
+	SourceID   uuid.UUID
+	Context    string
+	TokensIn   *int32
+	TokensOut  *int32
+	CreatedAt  time.Time
+}
+
+type ContextualCall struct {
+	ID         int64
+	SourceID   uuid.UUID
+	ProfileID  uuid.UUID
+	DocumentID uuid.NullUUID
+	ModelID    uuid.UUID
+	Phase      string
+	Outcome    string
+	TokensIn   *int32
+	TokensOut  *int32
+	CreatedAt  time.Time
+	FinishedAt *time.Time
+}
+
 type Conversation struct {
 	ID            uuid.UUID
 	AgentID       uuid.UUID
@@ -398,6 +422,18 @@ type DocumentBlock struct {
 	Rev        int32
 }
 
+type DocumentContextual struct {
+	DocumentID uuid.UUID
+	ProfileID  uuid.UUID
+	SourceID   uuid.UUID
+	Version    int32
+	State      string
+	Code       string
+	Passages   int32
+	Contextual int32
+	UpdatedAt  time.Time
+}
+
 type EmbeddingProfile struct {
 	ID                   uuid.UUID
 	Key                  string
@@ -421,6 +457,7 @@ type EmbeddingProfile struct {
 	DefaultVectorWeight  *float64
 	DefaultKeywordWeight *float64
 	CandidateOf          uuid.NullUUID
+	Contextual           bool
 }
 
 type EmbeddingSetFailure struct {
@@ -1009,6 +1046,15 @@ type Session struct {
 	ExpiresAt   time.Time
 }
 
+type SetContextual struct {
+	SourceID      uuid.UUID
+	ProfileID     uuid.UUID
+	ModelID       uuid.UUID
+	FailurePolicy string
+	PromptVersion int16
+	CreatedAt     time.Time
+}
+
 type SourceBoilerplate struct {
 	SourceID    uuid.UUID
 	Enabled     pgtype.Bool
@@ -1027,6 +1073,18 @@ type SourceBoilerplateBlock struct {
 	DocCount            int32
 	Sample              string
 	CanonicalDocumentID uuid.NullUUID
+}
+
+type SourceContextual struct {
+	SourceID       uuid.UUID
+	Enabled        bool
+	ModelID        uuid.NullUUID
+	FailurePolicy  string
+	MaxCalls       int32
+	MaxCallsPerDay int32
+	Revision       int64
+	UpdatedBy      uuid.NullUUID
+	UpdatedAt      time.Time
 }
 
 type SourceEmbeddingSet struct {

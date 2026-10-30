@@ -88,6 +88,9 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		if err := p.Vectors.Upsert(ctx, tx, prof, recs); err != nil {
 			return fmt.Errorf("insert vectors: %w", err)
 		}
+		if err := writeMark(ctx, tx, doc.SourceID, doc.ID, res.mark); err != nil {
+			return err
+		}
 		code, msg := readyError(res.parsed)
 		if err := q.FinishDocument(ctx, dbgen.FinishDocumentParams{
 			ID: doc.ID, Status: StatusReady, ErrorCode: code, ErrorMessage: msg, Title: clip(res.parsed.Title, 500), Kind: string(res.kind),

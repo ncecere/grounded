@@ -142,6 +142,8 @@ var settings = append([]setting{
 	}},
 	{key: "INGEST_MAX_INFLIGHT", apply: integer(func(c *Config) *int { return &c.IngestMaxInflight }, 1, 10000)},
 	{key: "INGEST_MAX_INFLIGHT_PER_TEAM", apply: integer(func(c *Config) *int { return &c.IngestMaxInflightTeam }, 1, 10000)},
+	{key: "CONTEXTUAL_CHUNKS", apply: boolean(func(c *Config) *bool { return &c.ContextualChunks })},
+	{key: "CONTEXTUAL_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.ContextualConcurrency }, 1, 16)},
 	{key: "INGEST_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.IngestConcurrency }, 1, 256)},
 	{key: "EMBED_BATCH_SIZE", apply: integer(func(c *Config) *int { return &c.EmbedBatchSize }, 1, 2048)},
 	{key: "EMBED_BATCH_TOKENS", apply: integer(func(c *Config) *int { return &c.EmbedBatchTokens }, 0, 10_000_000)},

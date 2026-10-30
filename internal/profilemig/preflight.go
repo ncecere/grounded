@@ -88,6 +88,11 @@ func (s *Service) Preflight(ctx context.Context, a authz.Actor, kbID, targetID u
 	if err := s.blockers(ctx, &pf); err != nil {
 		return pf, err
 	}
+	if pf.Target.Contextual {
+		if err := s.contextualPreflight(ctx, a, &pf); err != nil {
+			return pf, err
+		}
+	}
 	st, err := platform.Maintenance(ctx, s.Pool)
 	if err != nil {
 		return pf, err

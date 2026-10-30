@@ -2421,6 +2421,130 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/profile-migrations/contextual-estimate:
+    post:
+      tags: [admin]
+      operationId: adminEstimateContextualKB
+      summary: What contextual chunks would involve for a knowledge base's sources that opted in (platform admins and auditors; makes no model call, changes nothing)
+      description: >-
+        Calls and tokens are limits, not predictions: one model call per section of each document, at most as many tokens as
+        the prompt and reply bounds allow, with the share added for tokenizer differences. The cost is a ceiling only when the
+        context model has chat prices (priceKnown); otherwise it is unknown and no amount is given. Sources that did not opt
+        in are counted in sourcesWithout and are embedded as they are. docs/contextual-chunks.md section 5.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kbId]
+              properties:
+                kbId: { type: string, format: uuid }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The estimate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ContextualKBEstimate" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/sources/{sourceId}/contextual:
+    parameters:
+      - $ref: "#/components/parameters/SourceIdParam"
+    get:
+      tags: [admin]
+      operationId: adminGetSourceContextual
+      summary: A source's contextual-chunks settings and what they have done (platform admins and auditors; any source)
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The settings (off, with default limits and revision 1, until saved)
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ContextualChunks" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutSourceContextual
+      summary: Replace a source's contextual-chunks settings (platform admins with a session; audited)
+      description: >-
+        Saving changes no vector, starts no job and makes no model call: the source takes part in an index preview that asks for
+        contextual chunks (POST /v1/admin/profile-migrations/preview with changes.contextualChunks), which builds beside the live
+        index and is switched explicitly. Turning a source off deletes the text generated for it and stops further calls at their
+        next checkpoint. 400 invalid_failure_policy, invalid_cap, model_required or invalid_model; 409 model_classification (the
+        model may not process the source's classification), model_unavailable, model_context_window or contextual_unavailable
+        (CONTEXTUAL_CHUNKS is off).
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContextualSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ContextualChunks" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/sources/{sourceId}/contextual/estimate:
+    parameters:
+      - $ref: "#/components/parameters/SourceIdParam"
+    post:
+      tags: [admin]
+      operationId: adminEstimateSourceContextual
+      summary: What contextual chunks would involve for one source, before it opts in (platform admins and auditors; makes no model call, changes nothing)
+      description: >-
+        Reads the sizes and heading paths of the source's indexed passages (no text). A model in the body is priced instead of
+        the source's. blockers name what would refuse the opt-in or the build.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                modelId: { type: string, format: uuid, nullable: true }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The estimate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ContextualSourceEstimate" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/profile-migrations/{migrationId}:
     parameters:
       - $ref: "#/components/parameters/MigrationIdParam"
@@ -3168,6 +3292,30 @@ paths:
         default: { $ref: "#/components/responses/DefaultErrorReply" }
         "200": { $ref: "#/components/responses/BoilerplateBlockListReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/contextual:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+    get:
+      tags: [sources]
+      operationId: getSourceContextual
+      summary: Whether a source has contextual chunks, and how its indexes were built (team members, session only; read-only)
+      description: >-
+        Counts and names only. The generated context is embedding input and is never returned by any API. Changing the setting is
+        for platform admins.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ContextualChunks" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/sources/{sourceId}/crawls:
@@ -11459,6 +11607,7 @@ components:
         chunkerVersion: { type: integer, format: int32 }
         status: { type: string, enum: [active, retired] }
         isDefault: { type: boolean }
+        contextual: { type: boolean, description: "Built with contextual chunks for the sources that opted in (ADR-0028); omitted when false" }
         candidateOf: { type: string, format: uuid, nullable: true, description: "Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id." }
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
@@ -11651,6 +11800,15 @@ components:
                 The chunker: 1, the original, or 2, which merges short
                 neighbouring sections and drops chunks with no body. Anything
                 else is refused (400 invalid_chunker_version).
+            contextualChunks:
+              type: boolean
+              description: >-
+                true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written
+                context in front of each passage's embedding input; the passages themselves are unchanged); false builds it
+                without, the way back from a contextual profile. It must be the only passage-affecting change when true: the
+                passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages).
+                Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a
+                model may not process a source's classification. docs/contextual-chunks.md.
     ProfileMigrationStatus:
       type: string
       description: >-
@@ -11671,7 +11829,12 @@ components:
             Blockers: same_profile, profile_retired, profile_unusable,
             model_classification, dimensions, migration_active. Warnings:
             rechunk, shared_sources, documents_in_progress, failed_documents,
-            no_rate_limit, maintenance_suggested, no_sources.
+            no_rate_limit, maintenance_suggested, no_sources. Contextual chunks
+            blockers: contextual_unavailable, contextual_needs_same_passages,
+            no_opted_in_sources, platform_off, model_required, invalid_model,
+            model_unavailable, model_classification, model_context_window,
+            calls_over_cap; warnings: contextual_price_unknown,
+            contextual_sources_without.
         message: { type: string }
     ProfileMigrationEstimate:
       type: object
@@ -11684,6 +11847,9 @@ components:
         requestsPerMinute: { type: integer, format: int32, nullable: true, description: "The target connection's request limit; null: not limited by Grounded" }
         minutes: { type: number, format: double, nullable: true, description: Time at the connection's request limit; null without one }
         rechunk: { type: boolean, description: "The target's chunk settings differ, so passages are cut again from the stored parsed text" }
+        contextual:
+          allOf: [{ $ref: "#/components/schemas/ContextualMigrationEstimate" }]
+          description: The model work of a contextual-chunks build; omitted when the target has none
     ProfileMigrationPreflightSource:
       type: object
       required: [id, name, shared, otherKnowledgeBases, documents, passages, tokens, inProgress, failed, alreadyEmbedded]
@@ -11805,7 +11971,170 @@ components:
           type: array
           description: Documents that failed, newest first (at most 50; one migration, running only)
           items: { $ref: "#/components/schemas/ProfileMigrationFailure" }
+        contextual:
+          allOf: [{ $ref: "#/components/schemas/ContextualMigrationProgress" }]
+          description: How contextual chunks went (one migration; omitted when the target has none)
         revision: { $ref: "#/components/schemas/Revision" }
+    ContextualSettingsInput:
+      type: object
+      required: [enabled, modelId, failurePolicy, maxCalls, maxCallsPerDay]
+      properties:
+        enabled: { type: boolean, description: "The source takes part in index previews with contextual chunks. Off by default." }
+        modelId: { type: string, format: uuid, nullable: true, description: The chat model that writes the context; required when enabled. It must be cleared for the source's classification. }
+        failurePolicy:
+          type: string
+          enum: [fail, plain]
+          description: >-
+            fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready
+            until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
+        maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls (attempts, including failed ones) one build of a set may make }
+        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls per UTC day for documents processed after the build }
+    ContextualCallStats:
+      type: object
+      required: [attempts, ok, unusable, unknown, tokensIn, tokensOut]
+      properties:
+        attempts: { type: integer, format: int64 }
+        ok: { type: integer, format: int64 }
+        unusable: { type: integer, format: int64, description: Replies that were refused or could not be used }
+        unknown: { type: integer, format: int64, description: "Attempts whose usage is not known: errors, timeouts, cancellations (the provider may still have billed them)" }
+        tokensIn: { type: integer, format: int64, description: Input tokens the gateway reported }
+        tokensOut: { type: integer, format: int64, description: Output tokens the gateway reported }
+    ContextualSet:
+      type: object
+      required: [profileId, profileKey, live, documentsWithContext, documentsFallback, documentsTooLarge, documentsOff, documentsNoRoom, passages, passagesWithContext, calls]
+      properties:
+        profileId: { type: string, format: uuid }
+        profileKey: { type: string }
+        live: { type: boolean, description: The source's own profile (what its knowledge bases search unless they are moving) }
+        documentsWithContext: { type: integer, format: int64 }
+        documentsFallback: { type: integer, format: int64, description: Embedded without context under the plain policy }
+        documentsTooLarge: { type: integer, format: int64, description: Embedded without context because they have more sections than the limit }
+        documentsOff: { type: integer, format: int64, description: Embedded without context after the source (or the platform) was switched off }
+        documentsNoRoom: { type: integer, format: int64, description: No passage had room in the embedding model's input }
+        passages: { type: integer, format: int64 }
+        passagesWithContext: { type: integer, format: int64 }
+        calls: { $ref: "#/components/schemas/ContextualCallStats" }
+    ContextualChunks:
+      type: object
+      required: [sourceId, sourceName, classification, platformEnabled, enabled, modelId, modelName, failurePolicy, maxCalls, maxCallsPerDay, cachedContexts, calls, sets, revision]
+      properties:
+        sourceId: { type: string, format: uuid }
+        sourceName: { type: string }
+        classification: { type: string }
+        platformEnabled: { type: boolean, description: The platform switch CONTEXTUAL_CHUNKS }
+        enabled: { type: boolean }
+        modelId: { type: string, format: uuid, nullable: true }
+        modelName: { type: string }
+        failurePolicy: { type: string, enum: [fail, plain] }
+        maxCalls: { type: integer, format: int32 }
+        maxCallsPerDay: { type: integer, format: int32 }
+        cachedContexts: { type: integer, format: int64, description: Sections with a generated context kept for the source's documents }
+        calls: { $ref: "#/components/schemas/ContextualCallStats" }
+        sets:
+          type: array
+          description: The profiles the source was snapshotted for, oldest first
+          items: { $ref: "#/components/schemas/ContextualSet" }
+        revision: { $ref: "#/components/schemas/Revision" }
+    ContextualCost:
+      type: object
+      required: [priceKnown, currency, inputPerMillion, outputPerMillion, maxAmount]
+      properties:
+        priceKnown: { type: boolean, description: The model has both a chat input and a chat output price. When false no amount is given. }
+        currency: { type: string, description: The install's display currency code }
+        inputPerMillion: { type: string, nullable: true, description: Decimal string }
+        outputPerMillion: { type: string, nullable: true, description: Decimal string }
+        maxAmount: { type: string, nullable: true, description: A ceiling (decimal string), not a prediction; null when the price is unknown }
+    ContextualTotals:
+      type: object
+      required: [documents, passages, units, calls, documentsOver, passagesOver, inputTokensMax, outputTokensMax, embeddingTokensAdded]
+      properties:
+        documents: { type: integer, format: int64 }
+        passages: { type: integer, format: int64 }
+        units: { type: integer, format: int64, description: Sections (one model call each) }
+        calls: { type: integer, format: int64, description: Model calls, a ceiling (cached contexts are not subtracted) }
+        documentsOver: { type: integer, format: int64, description: Documents with more sections than the limit; they are embedded without context and make no call }
+        passagesOver: { type: integer, format: int64 }
+        inputTokensMax: { type: integer, format: int64, description: A ceiling of the model's input tokens, with the share added for tokenizer differences }
+        outputTokensMax: { type: integer, format: int64, description: A ceiling of the model's output tokens }
+        embeddingTokensAdded: { type: integer, format: int64, description: A ceiling of the tokens the contexts add to the embedding inputs }
+    ContextualIssue:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+    ContextualSourceEstimate:
+      allOf:
+        - $ref: "#/components/schemas/ContextualTotals"
+        - type: object
+          required: [sourceId, name, classification, enabled, modelId, modelName, cachedContexts, maxCalls, maxCallsPerDay, unknownCallTokensIn, unknownCallTokensOut, cost, blockers]
+          properties:
+            sourceId: { type: string, format: uuid }
+            name: { type: string }
+            classification: { type: string }
+            enabled: { type: boolean }
+            modelId: { type: string, format: uuid, nullable: true }
+            modelName: { type: string }
+            cachedContexts: { type: integer, format: int64 }
+            maxCalls: { type: integer, format: int32 }
+            maxCallsPerDay: { type: integer, format: int32 }
+            unknownCallTokensIn: { type: integer, format: int32, description: The most input tokens one attempt of unknown usage (a timeout) may have cost }
+            unknownCallTokensOut: { type: integer, format: int32 }
+            cost: { $ref: "#/components/schemas/ContextualCost" }
+            blockers:
+              type: array
+              items: { $ref: "#/components/schemas/ContextualIssue" }
+    ContextualKBEstimate:
+      allOf:
+        - $ref: "#/components/schemas/ContextualTotals"
+        - type: object
+          required: [kbId, sources, sourcesWithout, cost, blockers]
+          properties:
+            kbId: { type: string, format: uuid }
+            sources:
+              type: array
+              items: { $ref: "#/components/schemas/ContextualSourceEstimate" }
+            sourcesWithout: { type: integer, format: int32, description: Sources that did not opt in (embedded as they are) }
+            cost: { $ref: "#/components/schemas/ContextualCost" }
+            blockers:
+              type: array
+              items: { $ref: "#/components/schemas/ContextualIssue" }
+    ContextualMigrationEstimate:
+      type: object
+      required: [sources, sourcesWithout, documents, passages, units, calls, documentsOver, inputTokensMax, outputTokensMax, embeddingTokensAdded, priceKnown]
+      properties:
+        sources: { type: integer, format: int32 }
+        sourcesWithout: { type: integer, format: int32 }
+        documents: { type: integer, format: int64 }
+        passages: { type: integer, format: int64 }
+        units: { type: integer, format: int64 }
+        calls: { type: integer, format: int64 }
+        documentsOver: { type: integer, format: int64 }
+        inputTokensMax: { type: integer, format: int64 }
+        outputTokensMax: { type: integer, format: int64 }
+        embeddingTokensAdded: { type: integer, format: int64 }
+        priceKnown: { type: boolean }
+        currency: { type: string }
+        costMax: { type: string, description: A ceiling (decimal string); omitted when the price is unknown }
+    ContextualMigrationSource:
+      allOf:
+        - $ref: "#/components/schemas/ContextualSet"
+        - type: object
+          required: [id, name, failurePolicy, maxCalls, capReached]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            failurePolicy: { type: string, enum: [fail, plain] }
+            maxCalls: { type: integer, format: int32 }
+            capReached: { type: boolean, description: The build's call limit is used up; the set waits until it is raised }
+    ContextualMigrationProgress:
+      type: object
+      required: [sources, sourcesWithout]
+      properties:
+        sources:
+          type: array
+          items: { $ref: "#/components/schemas/ContextualMigrationSource" }
+        sourcesWithout: { type: integer, format: int32, description: Sources embedded as they are (they did not opt in) }
     ChatModelOption:
       type: object
       required: [id, key, displayName, description, maxClassification, supportsTools, supportsReasoningEffort, supportsThinkingOff, health]

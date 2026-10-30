@@ -131,6 +131,9 @@ type FakeProxy struct {
 	scopeFail  int
 	scopeDelay time.Duration
 
+	// Contextual chunks and the embedding inputs (fakecontext.go).
+	ctx fakeContext
+
 	// Rerank models (fakererank.go).
 	rerankFail  int
 	rerankDelay time.Duration
@@ -508,6 +511,7 @@ func (p *FakeProxy) embeddings(w http.ResponseWriter, r *http.Request) {
 			inputs = append(inputs, str)
 		}
 	}
+	p.recordEmbedInputs(inputs)
 	p.mu.Lock()
 	bad := p.rejectInput
 	p.mu.Unlock()
