@@ -2754,7 +2754,7 @@ export interface paths {
         put?: never;
         /**
          * Validate the draft strictly and publish it as a new immutable version (editors)
-         * @description The draft's audience becomes the agent's grant. 403 audience_forbidden when an editor publishes beyond the team; 422 agent_invalid when the classification's max audience is exceeded (field audience); 409 public_disabled while public access is off and 409 moderation_not_ready without a working public moderation policy. Publishing to a wider audience than before notifies the team's owners.
+         * @description The draft's audience becomes the agent's grant. 403 audience_forbidden when an editor publishes beyond the team; 422 agent_invalid when the classification's max audience is exceeded (field audience); 409 public_disabled while public access is off and 409 moderation_not_ready without a working public moderation policy. 409 no_changes when the draft is exactly the published version (the editor shows "No changes since version N" and offers no Publish): no identical version is created. Publishing to a wider audience than before notifies the team's owners.
          */
         post: operations["publishAgent"];
         delete?: never;
@@ -3247,7 +3247,7 @@ export interface paths {
         put?: never;
         /**
          * Ask an agent (session, or an API key with the query scope)
-         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, status (what the agent is doing before the answer's first words: rewriting, searching, checking, thinking, waiting, answering; one event per step, and clients should ignore steps they don't know), retrieval (always mode), message_start, then thinking_delta / text_delta / text_reset / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), suggestions (follow-up questions, v0.4.1 and later: only after an answer with citations, when the agent offers them; it follows message_end and citations_checked, and the answer is complete before it), done. A blocked question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the stream starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, and model_unavailable when the agent's model is unusable) are plain HTTP errors; a failure after the first status event (model_unavailable or model_busy when the model is called) is an error event. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
+         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, status (what the agent is doing before the answer's first words: rewriting, searching, checking, thinking, waiting, answering; one event per step, and clients should ignore steps they don't know), retrieval (always mode), message_start, then thinking_delta / text_delta / text_reset / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), suggestions (follow-up questions, v0.4.1 and later: only after an answer with citations, when the agent offers them; it follows message_end and citations_checked, and the answer is complete before it), done. A blocked question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the stream starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, and model_unavailable when the agent's model is unusable) are plain HTTP errors; a failure after the first status event (model_unavailable or model_busy when the model is called) is an error event. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted. A conversationId that is not an ID is 400 invalid_id.
          */
         post: operations["chat"];
         delete?: never;
@@ -3371,7 +3371,7 @@ export interface paths {
         put?: never;
         /**
          * Make a link to a read-only view of your own conversation, up to its last finished answer
-         * @description Who can open it: signed-in people who may chat with the agent (agent_users), or, for a public agent with public access on, anyone (anyone). The view shows the questions, the answers and their citations, never feedback, reasoning or the agent's steps, and your name only if showName. It is a snapshot: later messages are not in it. The link ends when you revoke it, delete the conversation (or retention removes it), or the agent is disabled, unpublished or deleted. The response holds the link once. 409 nothing_to_share (no finished answer yet), agent_unavailable, public_share_unavailable, too_many_shares (10 per conversation). 404 for anyone but the conversation's user; 403 for an API key.
+         * @description Who can open it: signed-in people who may chat with the agent (agent_users), or, for a public agent with public access on, anyone (anyone). The view shows the questions, the answers and their citations, never feedback, reasoning or the agent's steps, and your name only if showName. It is a snapshot: later messages are not in it. The link ends when you revoke it, delete the conversation (or retention removes it), or the agent is disabled, unpublished or deleted. The response holds the link once. 409 nothing_to_share (no finished answer yet), agent_unavailable, public_share_unavailable, too_many_shares (10 per conversation). 404 for anyone but the conversation's user; 401 unauthorized for an API key, even a personal one that can read the conversation (a link is a signed-in person's own act).
          */
         post: operations["createConversationShare"];
         delete?: never;
@@ -4525,7 +4525,7 @@ export interface paths {
         };
         /**
          * Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
-         * @description Every member sees the state (none without a budget) and whether it is enforced (a Track-only budget has a state but never blocks); only owners, admins and platform readers get the amounts.
+         * @description Every member sees the state (none without a budget), whether it is enforced (a Track-only budget has a state but never blocks) and the team's effective cost mode (off: nothing is tracked, and the spend endpoint answers 404 costs_off); only owners, admins and platform readers get the amounts.
          */
         get: operations["getTeamBudgetStatus"];
         put?: never;
@@ -5156,7 +5156,7 @@ export interface paths {
         put?: never;
         /**
          * Approve a pending request and create the team (platform admins)
-         * @description One step: the team is created with the requester (or the person they named) as owner and the request is decided; a failure (409 slug_taken, 404 template_not_found, 409 request_already_decided) leaves the request pending and no team behind. starterTemplateId also starts the team with one agent made from that template.
+         * @description One step: the team is created with the requester (or the person they named, or ownerEmail) as owner and the request is decided; a failure (409 slug_taken, 404 template_not_found, 409 request_already_decided, 409 owner_suspended) leaves the request pending and no team behind. A team is never created with a suspended person as its only owner: when the would-be owner is suspended (ownerSuspended on the request), the reviewer must name a different owner in ownerEmail. starterTemplateId also starts the team with one agent made from that template.
          */
         post: operations["adminApproveTeamRequest"];
         delete?: never;
@@ -5263,7 +5263,10 @@ export interface paths {
         delete: operations["deleteTeamWebhook"];
         options?: never;
         head?: never;
-        /** Change a webhook (If-Match); turning it on again clears what paused it */
+        /**
+         * Change a webhook (If-Match); turning it on again clears what paused it
+         * @description A webhook whose destination was withdrawn since stays: it can be turned off and its description and events changed (nothing is sent to it), but not turned on, and its address cannot be changed to a host that is not approved (400 destination_not_approved) until a platform admin approves the destination again.
+         */
         patch: operations["updateTeamWebhook"];
         trace?: never;
     };
@@ -5390,7 +5393,10 @@ export interface paths {
         delete: operations["deletePlatformWebhook"];
         options?: never;
         head?: never;
-        /** Change a webhook (If-Match); turning it on again clears what paused it */
+        /**
+         * Change a webhook (If-Match); turning it on again clears what paused it
+         * @description A webhook whose destination was withdrawn since stays: it can be turned off and its description and events changed (nothing is sent to it), but not turned on, and its address cannot be changed to a host that is not approved (400 destination_not_approved) until a platform admin approves the destination again.
+         */
         patch: operations["updatePlatformWebhook"];
         trace?: never;
     };
@@ -5831,6 +5837,8 @@ export interface components {
         };
         TeamBudgetBanner: {
             state: components["schemas"]["BudgetState"];
+            /** @description The team's effective cost mode (its own, or the platform's while it inherits). "off" means cost tracking is off for the team: GET /v1/teams/{team}/spend answers 404 costs_off, so a client does not ask for it */
+            mode: components["schemas"]["CostMode"];
             /** @description false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits */
             enforced: boolean;
             /** Format: date-time */
@@ -11930,8 +11938,10 @@ export interface components {
             purpose: string;
             /** @description Who should own the team ("" is the requester) */
             ownerEmail: string;
-            /** @description The highest classification the team's data will need */
+            /** @description The highest classification the team's data will need, as asked for */
             classification: string;
+            /** @description The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved) */
+            approvedClassification: string;
             status: components["schemas"]["TeamRequestStatus"];
             /** @description The reviewer's reason for a declined request */
             decisionReason: string;
@@ -11971,6 +11981,8 @@ export interface components {
             purpose: string;
             ownerEmail: string;
             classification: string;
+            /** @description "" unless the request is approved */
+            approvedClassification: string;
             status: components["schemas"]["TeamRequestStatus"];
             decisionReason: string;
             /** Format: date-time */
@@ -11985,6 +11997,8 @@ export interface components {
             requesterEmail: string;
             requesterName: string;
             deciderEmail: string;
+            /** @description A pending request whose would-be owner (the person named, else the requester) has a suspended account: approving it needs another owner (ownerEmail) */
+            ownerSuspended: boolean;
         };
         TeamRequestApprove: {
             /** @description The team's address (same rules as team slugs); the request has none */
@@ -11993,6 +12007,8 @@ export interface components {
             name?: string;
             /** @description Keeps the requested classification when empty */
             maxClassification?: string;
+            /** @description Owns the team instead of the person named in the request or the requester. Required when that person is suspended (409 owner_suspended otherwise); the requester is told when someone else owns the team */
+            ownerEmail?: string;
             /** @description Also start the team with one agent made from this agent template (GET /v1/agent-templates) */
             starterTemplateId?: string;
         };

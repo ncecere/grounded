@@ -5,6 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link2, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ApiError, api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery } from "../../api/queries";
@@ -19,6 +20,7 @@ import { RadioGroup } from "@/components/ui/radio-group/radio-group";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
 import { toast } from "@/components/ui/toast/toast";
 import { RelativeTime } from "../../components/templates/list-page";
+import { conversationQuery } from "../conversations/transcript";
 import type { ConversationSummary } from "./conversations";
 
 type Audience = Schemas["ShareAudience"];
@@ -44,6 +46,10 @@ export function ShareDialog({ conversation, onClose }: { conversation: Conversat
   const [made, setMade] = useState<Schemas["ConversationShareCreated"] | null>(null);
   const [revoking, setRevoking] = useState<Share | null>(null);
   const isPublic = card.data?.audience === "public";
+  // A router's conversation holds answers from other agents, whose audience may differ (409 not_shareable): the dialog says so before the
+  // person makes a choice, not after Create link. One that holds only the router's own small talk can still be shared, so the messages decide.
+  const routerConversation = useQuery({ ...conversationQuery(conversation.id), enabled: !conversation.agentDeleted && card.data?.router === true });
+  const routedTo = routerConversation.data?.messages.findLast((m) => m.routedTo)?.routedTo;
   const create = useMutation({
     mutationFn: async () =>
       unwrap(await api.POST("/v1/conversations/{conversationId}/shares", { params: { path: { conversationId: conversation.id } }, body: { audience, showName } })),
@@ -68,6 +74,24 @@ export function ShareDialog({ conversation, onClose }: { conversation: Conversat
       {conversation.agentDeleted ? (
         <Alert tone="info" title="This agent was deleted">
           A conversation with a deleted agent can't be shared.
+        </Alert>
+      ) : card.data?.router && routerConversation.isLoading ? (
+        <Skeleton height="6rem" />
+      ) : routedTo ? (
+        <Alert tone="info" title="This conversation can't be shared">
+          {conversation.agentName} sent your question to <strong>{routedTo.name || "another agent"}</strong>
+          {routedTo.teamName ? ` (${routedTo.teamName})` : ""}, and that agent's audience may not be the router's, so a link to this conversation is not offered.{" "}
+          {!routedTo.gone && routedTo.conversationId ? (
+            <>
+              Open your conversation with that agent and share that one:{" "}
+              <Link to="/a/$team/$agent" params={{ team: routedTo.teamSlug, agent: routedTo.slug }} search={{ c: routedTo.conversationId }} onClick={onClose}>
+                Continue there
+              </Link>
+              .
+            </>
+          ) : (
+            "That agent has been removed since."
+          )}
         </Alert>
       ) : (
         <>

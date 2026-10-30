@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countOpenTeamRequests = `-- name: CountOpenTeamRequests :one
@@ -34,19 +35,32 @@ func (q *Queries) CountPendingTeamRequests(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSuspendedUsersByEmail = `-- name: CountSuspendedUsersByEmail :one
+SELECT count(*) FROM users WHERE email = $1 AND status = 'suspended'
+`
+
+// Accounts with this email that are suspended: one cannot own a new team.
+func (q *Queries) CountSuspendedUsersByEmail(ctx context.Context, email string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSuspendedUsersByEmail, email)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const decideTeamRequest = `-- name: DecideTeamRequest :one
 UPDATE team_requests
-SET status = $2, decision_reason = $3, decided_by = $4, decided_at = now(), team_id = $5, revision = revision + 1, updated_at = now()
+SET status = $2, decision_reason = $3, decided_by = $4, decided_at = now(), team_id = $5, approved_classification = $6, revision = revision + 1, updated_at = now()
 WHERE id = $1 AND status = 'pending'
-RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at
+RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at, approved_classification
 `
 
 type DecideTeamRequestParams struct {
-	ID             uuid.UUID
-	Status         string
-	DecisionReason string
-	DecidedBy      uuid.NullUUID
-	TeamID         uuid.NullUUID
+	ID                     uuid.UUID
+	Status                 string
+	DecisionReason         string
+	DecidedBy              uuid.NullUUID
+	TeamID                 uuid.NullUUID
+	ApprovedClassification string
 }
 
 // A decision: pending only, so two reviewers cannot both decide.
@@ -57,6 +71,7 @@ func (q *Queries) DecideTeamRequest(ctx context.Context, arg DecideTeamRequestPa
 		arg.DecisionReason,
 		arg.DecidedBy,
 		arg.TeamID,
+		arg.ApprovedClassification,
 	)
 	var i TeamRequest
 	err := row.Scan(
@@ -74,14 +89,16 @@ func (q *Queries) DecideTeamRequest(ctx context.Context, arg DecideTeamRequestPa
 		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApprovedClassification,
 	)
 	return i, err
 }
 
 const getTeamRequest = `-- name: GetTeamRequest :one
-SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, t.slug AS team_slug, t.name AS team_name,
+SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
-       COALESCE(d.email::text, '')::text AS decider_email
+       COALESCE(d.email::text, '')::text AS decider_email,
+       (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
 FROM team_requests r
 JOIN users u ON u.id = r.requester_id
 LEFT JOIN users d ON d.id = r.decided_by
@@ -90,25 +107,27 @@ WHERE r.id = $1
 `
 
 type GetTeamRequestRow struct {
-	ID             uuid.UUID
-	RequesterID    uuid.UUID
-	Name           string
-	Purpose        string
-	OwnerEmail     string
-	Classification string
-	Status         string
-	DecisionReason string
-	DecidedBy      uuid.NullUUID
-	DecidedAt      *time.Time
-	TeamID         uuid.NullUUID
-	Revision       int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	TeamSlug       *string
-	TeamName       *string
-	RequesterEmail string
-	RequesterName  string
-	DeciderEmail   string
+	ID                     uuid.UUID
+	RequesterID            uuid.UUID
+	Name                   string
+	Purpose                string
+	OwnerEmail             string
+	Classification         string
+	Status                 string
+	DecisionReason         string
+	DecidedBy              uuid.NullUUID
+	DecidedAt              *time.Time
+	TeamID                 uuid.NullUUID
+	Revision               int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	ApprovedClassification string
+	TeamSlug               *string
+	TeamName               *string
+	RequesterEmail         string
+	RequesterName          string
+	DeciderEmail           string
+	OwnerSuspended         pgtype.Bool
 }
 
 func (q *Queries) GetTeamRequest(ctx context.Context, id uuid.UUID) (GetTeamRequestRow, error) {
@@ -129,11 +148,13 @@ func (q *Queries) GetTeamRequest(ctx context.Context, id uuid.UUID) (GetTeamRequ
 		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApprovedClassification,
 		&i.TeamSlug,
 		&i.TeamName,
 		&i.RequesterEmail,
 		&i.RequesterName,
 		&i.DeciderEmail,
+		&i.OwnerSuspended,
 	)
 	return i, err
 }
@@ -184,7 +205,7 @@ func (q *Queries) GetTeamRequestSettings(ctx context.Context) (TeamRequestSettin
 const insertTeamRequest = `-- name: InsertTeamRequest :one
 INSERT INTO team_requests (requester_id, name, purpose, owner_email, classification)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at
+RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at, approved_classification
 `
 
 type InsertTeamRequestParams struct {
@@ -219,12 +240,13 @@ func (q *Queries) InsertTeamRequest(ctx context.Context, arg InsertTeamRequestPa
 		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApprovedClassification,
 	)
 	return i, err
 }
 
 const listMyTeamRequests = `-- name: ListMyTeamRequests :many
-SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, t.slug AS team_slug, t.name AS team_name
+SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name
 FROM team_requests r LEFT JOIN teams t ON t.id = r.team_id
 WHERE r.requester_id = $1
 ORDER BY r.created_at DESC
@@ -232,22 +254,23 @@ LIMIT 100
 `
 
 type ListMyTeamRequestsRow struct {
-	ID             uuid.UUID
-	RequesterID    uuid.UUID
-	Name           string
-	Purpose        string
-	OwnerEmail     string
-	Classification string
-	Status         string
-	DecisionReason string
-	DecidedBy      uuid.NullUUID
-	DecidedAt      *time.Time
-	TeamID         uuid.NullUUID
-	Revision       int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	TeamSlug       *string
-	TeamName       *string
+	ID                     uuid.UUID
+	RequesterID            uuid.UUID
+	Name                   string
+	Purpose                string
+	OwnerEmail             string
+	Classification         string
+	Status                 string
+	DecisionReason         string
+	DecidedBy              uuid.NullUUID
+	DecidedAt              *time.Time
+	TeamID                 uuid.NullUUID
+	Revision               int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	ApprovedClassification string
+	TeamSlug               *string
+	TeamName               *string
 }
 
 // A person's own requests, newest first.
@@ -275,6 +298,7 @@ func (q *Queries) ListMyTeamRequests(ctx context.Context, requesterID uuid.UUID)
 			&i.Revision,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApprovedClassification,
 			&i.TeamSlug,
 			&i.TeamName,
 		); err != nil {
@@ -289,9 +313,10 @@ func (q *Queries) ListMyTeamRequests(ctx context.Context, requesterID uuid.UUID)
 }
 
 const listTeamRequestsAdmin = `-- name: ListTeamRequestsAdmin :many
-SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, t.slug AS team_slug, t.name AS team_name,
+SELECT r.id, r.requester_id, r.name, r.purpose, r.owner_email, r.classification, r.status, r.decision_reason, r.decided_by, r.decided_at, r.team_id, r.revision, r.created_at, r.updated_at, r.approved_classification, t.slug AS team_slug, t.name AS team_name,
        u.email::text AS requester_email, COALESCE(NULLIF(u.display_name, ''), u.email::text)::text AS requester_name,
-       COALESCE(d.email::text, '')::text AS decider_email
+       COALESCE(d.email::text, '')::text AS decider_email,
+       (r.status = 'pending' AND EXISTS (SELECT 1 FROM users o WHERE o.status = 'suspended' AND o.email = COALESCE(NULLIF(r.owner_email, ''), u.email))) AS owner_suspended
 FROM team_requests r
 JOIN users u ON u.id = r.requester_id
 LEFT JOIN users d ON d.id = r.decided_by
@@ -304,25 +329,27 @@ LIMIT 200
 `
 
 type ListTeamRequestsAdminRow struct {
-	ID             uuid.UUID
-	RequesterID    uuid.UUID
-	Name           string
-	Purpose        string
-	OwnerEmail     string
-	Classification string
-	Status         string
-	DecisionReason string
-	DecidedBy      uuid.NullUUID
-	DecidedAt      *time.Time
-	TeamID         uuid.NullUUID
-	Revision       int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	TeamSlug       *string
-	TeamName       *string
-	RequesterEmail string
-	RequesterName  string
-	DeciderEmail   string
+	ID                     uuid.UUID
+	RequesterID            uuid.UUID
+	Name                   string
+	Purpose                string
+	OwnerEmail             string
+	Classification         string
+	Status                 string
+	DecisionReason         string
+	DecidedBy              uuid.NullUUID
+	DecidedAt              *time.Time
+	TeamID                 uuid.NullUUID
+	Revision               int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	ApprovedClassification string
+	TeamSlug               *string
+	TeamName               *string
+	RequesterEmail         string
+	RequesterName          string
+	DeciderEmail           string
+	OwnerSuspended         pgtype.Bool
 }
 
 // The review queue: pending first (oldest first, so nobody waits behind newer ones), then decided ones, newest first.
@@ -350,11 +377,13 @@ func (q *Queries) ListTeamRequestsAdmin(ctx context.Context, status *string) ([]
 			&i.Revision,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApprovedClassification,
 			&i.TeamSlug,
 			&i.TeamName,
 			&i.RequesterEmail,
 			&i.RequesterName,
 			&i.DeciderEmail,
+			&i.OwnerSuspended,
 		); err != nil {
 			return nil, err
 		}
@@ -367,7 +396,7 @@ func (q *Queries) ListTeamRequestsAdmin(ctx context.Context, status *string) ([]
 }
 
 const lockTeamRequest = `-- name: LockTeamRequest :one
-SELECT id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at FROM team_requests WHERE id = $1 FOR UPDATE
+SELECT id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at, approved_classification FROM team_requests WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockTeamRequest(ctx context.Context, id uuid.UUID) (TeamRequest, error) {
@@ -388,6 +417,7 @@ func (q *Queries) LockTeamRequest(ctx context.Context, id uuid.UUID) (TeamReques
 		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApprovedClassification,
 	)
 	return i, err
 }
@@ -460,7 +490,7 @@ const withdrawTeamRequest = `-- name: WithdrawTeamRequest :one
 UPDATE team_requests
 SET status = 'withdrawn', revision = revision + 1, updated_at = now()
 WHERE id = $1 AND requester_id = $2 AND status = 'pending'
-RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at
+RETURNING id, requester_id, name, purpose, owner_email, classification, status, decision_reason, decided_by, decided_at, team_id, revision, created_at, updated_at, approved_classification
 `
 
 type WithdrawTeamRequestParams struct {
@@ -486,6 +516,7 @@ func (q *Queries) WithdrawTeamRequest(ctx context.Context, arg WithdrawTeamReque
 		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApprovedClassification,
 	)
 	return i, err
 }

@@ -342,6 +342,11 @@ func (st *renderState) renderImage(b *strings.Builder, n *xhtml.Node) {
 		return
 	}
 	alt := imageAltEscaper.Replace(limitUTF8(cleanSpace(attr(n, "alt")), metadataStringLimit))
+	if alt == "" {
+		// An image with no alt text says nothing a question can be answered from, and "![](<x>)" in a passage reads as
+		// stray punctuation ("…badge. !") once the target is hidden (#132).
+		return
+	}
 	b.WriteString("![" + alt + "](<" + src + ">)")
 }
 

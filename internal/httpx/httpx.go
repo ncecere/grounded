@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/ncecere/grounded/internal/apperr"
 )
 
@@ -172,10 +174,61 @@ func decodeProblem(err error) string {
 	return "The request body does not fit this operation: check its fields"
 }
 
+var uuidType = reflect.TypeOf(uuid.UUID{})
+
+// isUUIDError reports whether err is a text that does not parse as a UUID (encoding/json hands on UnmarshalText's error as it is).
+func isUUIDError(err error) bool {
+	var typed *json.UnmarshalTypeError
+	if errors.As(err, &typed) {
+		return typed.Type == uuidType || (typed.Type != nil && typed.Type.Kind() == reflect.Pointer && typed.Type.Elem() == uuidType)
+	}
+	msg := err.Error()
+	return strings.HasPrefix(msg, "invalid UUID") || strings.HasPrefix(msg, "invalid urn prefix") || strings.HasPrefix(msg, "invalid bracketed UUID")
+}
+
+// badIDMessage names the top-level field of dst that holds an ID that is not one (the first, in the struct's order), or says so without a name.
+func badIDMessage(raw []byte, dst any) string {
+	const tail = " must be an ID, such as 123e4567-e89b-12d3-a456-426614174000"
+	t := reflect.TypeOf(dst)
+	var fields map[string]json.RawMessage
+	if t == nil || json.Unmarshal(raw, &fields) != nil {
+		return "An ID in the request body is not valid"
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return "An ID in the request body is not valid"
+	}
+	for i := range t.NumField() {
+		f := t.Field(i)
+		ft := f.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if ft != uuidType || name == "" || name == "-" {
+			continue
+		}
+		var text string
+		if v, ok := fields[name]; ok && json.Unmarshal(v, &text) == nil {
+			if _, err := uuid.Parse(text); err != nil {
+				return fmt.Sprintf("Field %q%s", clip(name, 80), tail)
+			}
+		} else if ok && string(v) != "null" {
+			return fmt.Sprintf("Field %q%s", clip(name, 80), tail)
+		}
+	}
+	return "An ID in the request body is not valid"
+}
+
 // jsonKind names what a Go type holds, as a person sending JSON would say it.
 func jsonKind(t reflect.Type) string {
 	if t == nil {
 		return "a different kind of value"
+	}
+	if t == uuidType {
+		return "an ID, such as 123e4567-e89b-12d3-a456-426614174000"
 	}
 	switch t.Kind() {
 	case reflect.String:
@@ -230,6 +283,11 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
+		if isUUIDError(err) {
+			// An ID that is not one is the same answer here as in a path (pathUUID): invalid_id, naming the field when it can.
+			Error(w, http.StatusBadRequest, "invalid_id", badIDMessage(raw, dst))
+			return false
+		}
 		if code, msg, ok := formatProblem(err); ok {
 			Error(w, http.StatusBadRequest, code, msg)
 			return false

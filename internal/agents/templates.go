@@ -147,6 +147,13 @@ func requireTemplateAdmin(a authz.Actor) error {
 	return nil
 }
 
+// isTemplateNameTaken reports a unique violation on a template's name: the index of migration 00054 (lower() of the name under the ICU root
+// collation, so "qa über" and "QA ÜBER" are one name whatever the cluster's locale) or the older one on the database's own lower(), which
+// stays until a later release drops it (ADR-0013).
+func isTemplateNameTaken(err error) bool {
+	return apperr.IsUniqueViolation(err, "agent_templates_name_fold_key") || apperr.IsUniqueViolation(err, "agent_templates_name_key")
+}
+
 func templateName(name string) (string, error) {
 	n := strings.TrimSpace(name)
 	if l := len([]rune(n)); l < 1 || l > 80 {
@@ -203,7 +210,7 @@ func (s *Service) SaveAsTemplate(ctx context.Context, a authz.Actor, teamRef str
 			StarterQuestions: ag.StarterQuestions, Config: TemplateConfig(DecodeConfig(ag.Draft)).JSON(),
 			CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
 		})
-		if apperr.IsUniqueViolation(err, "agent_templates_name_key") {
+		if isTemplateNameTaken(err) {
 			return errTemplateName
 		} else if err != nil {
 			return err
@@ -246,7 +253,7 @@ func (s *Service) UpdateTemplate(ctx context.Context, a authz.Actor, id string, 
 	var out dbgen.AgentTemplate
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		out, err = q.UpdateAgentTemplate(ctx, dbgen.UpdateAgentTemplateParams{ID: uuid.MustParse(cur.ID), Name: name, Description: desc})
-		if apperr.IsUniqueViolation(err, "agent_templates_name_key") {
+		if isTemplateNameTaken(err) {
 			return errTemplateName
 		} else if err != nil {
 			return err

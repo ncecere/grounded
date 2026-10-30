@@ -81,3 +81,14 @@ export const webhookCalls = (s: WebhookScope) => ({
       ? unwrap(await api.POST("/v1/teams/{team}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver", { params: { path: { team: s.team, webhookId: w.id, deliveryId: d.id } } }))
       : unwrap(await api.POST("/v1/admin/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver", { params: { path: { webhookId: w.id, deliveryId: d.id } } })),
 });
+
+/** Whether an approved pattern covers the host of an address ("*.example.edu" covers example.edu and its subdomains; a name that host only). */
+export function destinationCovers(patterns: WebhookDestination[], address: string): boolean {
+  let host: string;
+  try {
+    host = new URL(address).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return true; // not an address yet: the server says what is wrong with it
+  }
+  return patterns.some(({ pattern }) => (pattern.startsWith("*.") ? host === pattern.slice(2) || host.endsWith(pattern.slice(1)) : host === pattern));
+}

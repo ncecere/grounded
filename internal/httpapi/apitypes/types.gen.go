@@ -4960,14 +4960,19 @@ type AdminSetupState struct {
 
 // AdminTeamRequest defines model for AdminTeamRequest.
 type AdminTeamRequest struct {
-	Classification string             `json:"classification"`
-	CreatedAt      time.Time          `json:"createdAt"`
-	DecidedAt      *time.Time         `json:"decidedAt,omitempty"`
-	DeciderEmail   string             `json:"deciderEmail"`
-	DecisionReason string             `json:"decisionReason"`
-	Id             openapi_types.UUID `json:"id"`
-	Name           string             `json:"name"`
-	OwnerEmail     string             `json:"ownerEmail"`
+	// ApprovedClassification "" unless the request is approved
+	ApprovedClassification string             `json:"approvedClassification"`
+	Classification         string             `json:"classification"`
+	CreatedAt              time.Time          `json:"createdAt"`
+	DecidedAt              *time.Time         `json:"decidedAt,omitempty"`
+	DeciderEmail           string             `json:"deciderEmail"`
+	DecisionReason         string             `json:"decisionReason"`
+	Id                     openapi_types.UUID `json:"id"`
+	Name                   string             `json:"name"`
+	OwnerEmail             string             `json:"ownerEmail"`
+
+	// OwnerSuspended A pending request whose would-be owner (the person named, else the requester) has a suspended account: approving it needs another owner (ownerEmail)
+	OwnerSuspended bool               `json:"ownerSuspended"`
 	Purpose        string             `json:"purpose"`
 	RequesterEmail string             `json:"requesterEmail"`
 	RequesterId    openapi_types.UUID `json:"requesterId"`
@@ -11261,7 +11266,10 @@ type TeamBudgetBanner struct {
 	} `json:"amounts,omitempty"`
 
 	// Enforced false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits
-	Enforced bool       `json:"enforced"`
+	Enforced bool `json:"enforced"`
+
+	// Mode The team's effective cost mode (its own, or the platform's while it inherits). "off" means cost tracking is off for the team: GET /v1/teams/{team}/spend answers 404 costs_off, so a client does not ask for it
+	Mode     CostMode   `json:"mode"`
 	ResetsAt *time.Time `json:"resetsAt,omitempty"`
 
 	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
@@ -11451,7 +11459,10 @@ type TeamRef struct {
 
 // TeamRequest defines model for TeamRequest.
 type TeamRequest struct {
-	// Classification The highest classification the team's data will need
+	// ApprovedClassification The highest classification the reviewer approved, which may differ from the one asked for ("" unless the request is approved)
+	ApprovedClassification string `json:"approvedClassification"`
+
+	// Classification The highest classification the team's data will need, as asked for
 	Classification string     `json:"classification"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	DecidedAt      *time.Time `json:"decidedAt,omitempty"`
@@ -11481,6 +11492,9 @@ type TeamRequestApprove struct {
 
 	// Name Keeps the requested name when empty
 	Name *string `json:"name,omitempty"`
+
+	// OwnerEmail Owns the team instead of the person named in the request or the requester. Required when that person is suspended (409 owner_suspended otherwise); the requester is told when someone else owns the team
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
 
 	// Slug The team's address (same rules as team slugs); the request has none
 	Slug string `json:"slug"`

@@ -11,11 +11,11 @@ beforeAll(() => {
 });
 
 const req = (extra: Partial<Schemas["TeamRequest"]> = {}): Schemas["TeamRequest"] => ({
-  id: "r1", name: "Library tech", purpose: "Run library technology together.", ownerEmail: "", classification: "open", status: "pending",
+  id: "r1", name: "Library tech", purpose: "Run library technology together.", ownerEmail: "", classification: "open", approvedClassification: "", status: "pending",
   decisionReason: "", decidedAt: null, teamSlug: "", teamName: "", revision: 1, createdAt: "2026-10-15T09:00:00Z", ...extra,
 });
 const adminReq = (extra: Partial<Schemas["AdminTeamRequest"]> = {}): Schemas["AdminTeamRequest"] => ({
-  ...req(), requesterId: "u9", requesterEmail: "sam@example.edu", requesterName: "Sam Student", deciderEmail: "", ...extra,
+  ...req(), requesterId: "u9", requesterEmail: "sam@example.edu", requesterName: "Sam Student", deciderEmail: "", ownerSuspended: false, ...extra,
 });
 const mineOf = (extra: Partial<Schemas["TeamRequestsOverview"]> = {}): Schemas["TeamRequestsOverview"] => ({ enabled: true, canAsk: true, blocked: "", maxOpen: 2, openCount: 1, items: [req()], ...extra });
 
@@ -106,5 +106,77 @@ describe("the Withdraw dialog", () => {
   });
   it("does not say it for an account that may not ask", async () => {
     expect(await withdrawText(mineOf({ canAsk: false, blocked: "group" }))).not.toContain("ask again");
+  });
+});
+
+describe("approving a request whose owner is suspended (#140)", () => {
+  const suspended = (extra: Partial<Schemas["AdminTeamRequest"]> = {}) => adminReq({ ownerSuspended: true, ...extra });
+  const open = async () => {
+    renderApp("/admin/teams?tab=requests");
+    await openAction("Approve…");
+    return screen.findByRole("dialog", { name: /Approve "Library tech"/ });
+  };
+
+  it("warns up front, asks for a different owner and sends nothing without one", async () => {
+    const calls = mockApi(adminRoutes({ "GET /v1/admin/team-requests": () => [suspended()] }));
+    const dialog = await open();
+    expect(within(dialog).getByText("The owner's account is suspended")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/sam@example\.edu is suspended and cannot sign in/);
+    const owner = within(dialog).getByRole("textbox", { name: /Owner/ });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve and create the team" }));
+    expect(await within(dialog).findByText("Enter the email of a different owner.")).toBeInTheDocument();
+    expect(calls.filter((c) => c.url.endsWith("/approve"))).toHaveLength(0);
+    // The suspended person cannot be named again.
+    await userEvent.type(owner, "Sam@Example.edu");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve and create the team" }));
+    expect(await within(dialog).findByText("sam@example.edu is the suspended account. Choose a different owner.")).toBeInTheDocument();
+    expect(calls.filter((c) => c.url.endsWith("/approve"))).toHaveLength(0);
+  });
+
+  it("approves with the explicit owner", async () => {
+    const calls = mockApi(adminRoutes({
+      "GET /v1/admin/team-requests": () => [suspended()],
+      "POST /v1/admin/team-requests/r1/approve": () => adminReq({ status: "approved", teamSlug: "library-tech", teamName: "Library tech", revision: 2, decidedAt: "2026-10-15T10:00:00Z" }),
+    }));
+    const dialog = await open();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Owner/ }), "casey@example.edu");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve and create the team" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /Approve/ })).toBeNull());
+    const sent = calls.filter((c) => c.url === "/v1/admin/team-requests/r1/approve").at(-1)!;
+    expect(sent.body).toEqual({ slug: "library-tech", name: "Library tech", maxClassification: "open", ownerEmail: "casey@example.edu" });
+    expect(await screen.findByText("casey@example.edu is its owner.")).toBeInTheDocument();
+  });
+
+  it("offers no owner field while the owner is active, and shows it when the server refuses the owner", async () => {
+    mockApi(adminRoutes({ "POST /v1/admin/team-requests/r1/approve": () => Reply.error(409, "owner_suspended", "The account that would own this team is suspended: choose a different owner") }));
+    const dialog = await open();
+    expect(within(dialog).queryByText("The owner's account is suspended")).toBeNull();
+    expect(within(dialog).queryByRole("textbox", { name: /Owner/ })).toBeNull();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve and create the team" }));
+    expect(await within(dialog).findByText("The owner's account is suspended")).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: /Owner/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /Approve/ })).toBeInTheDocument();
+  });
+});
+
+describe("the requester's page and the classification (#140)", () => {
+  it("shows the level the reviewer approved, and what was asked for when it differs", async () => {
+    mockApi({
+      ...shellRoutes("none"),
+      "GET /v1/team-requests": () => mineOf({ items: [
+        req({ id: "a", name: "Raised", status: "approved", classification: "open", approvedClassification: "sensitive", teamSlug: "raised", teamName: "Raised", decidedAt: "2026-10-14T09:00:00Z" }),
+        req({ id: "b", name: "Same", status: "approved", classification: "open", approvedClassification: "open", teamSlug: "same", teamName: "Same", decidedAt: "2026-10-14T09:00:00Z" }),
+        req({ id: "c", name: "Waiting", classification: "restricted" }),
+      ] }),
+    });
+    renderApp("/team-requests");
+    const table = await screen.findByRole("table", { name: "Your team requests" }, { timeout: scaled(5000) });
+    const raised = await within(table).findByRole("row", { name: /Raised/ });
+    expect(raised).toHaveTextContent("Sensitive");
+    expect(raised).toHaveTextContent("Asked for Open");
+    const same = within(table).getByRole("row", { name: /Same/ });
+    expect(same).toHaveTextContent("Open");
+    expect(same).not.toHaveTextContent("Asked for");
+    expect(within(table).getByRole("row", { name: /Waiting/ })).toHaveTextContent("Restricted");
   });
 });

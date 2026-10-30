@@ -377,6 +377,9 @@ func ExportMarkdown(v ConversationView, loc *time.Location) string {
 			who = v.Agent.Name
 		}
 		fmt.Fprintf(&b, "## %s (%s)\n\n", who, m.CreatedAt.In(loc).Format("2006-01-02 15:04 MST"))
+		if line := answeredBy(m.RoutedTo); line != "" {
+			b.WriteString(line + "\n\n")
+		}
 		text := strings.TrimSpace(m.Text)
 		switch {
 		case text != "":
@@ -408,6 +411,31 @@ func ExportMarkdown(v ConversationView, loc *time.Location) string {
 		}
 	}
 	return b.String()
+}
+
+// answeredBy is the line an export puts under a routed answer, saying which agent answered (the chat's "Answered by Agent · Team"): a
+// router's own heading names the router, and without this nobody reading the export could tell who wrote the answer.
+func answeredBy(r *RoutedView) string {
+	if r == nil || r.Name == "" {
+		return ""
+	}
+	line := "_Answered by " + r.Name
+	if team := firstNonEmpty(r.TeamName, r.TeamSlug); team != "" {
+		line += " · " + team
+	}
+	if r.Gone {
+		line += " (no longer available)"
+	}
+	return line + "_"
+}
+
+func firstNonEmpty(ss ...string) string {
+	for _, s := range ss {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // FeedbackNone takes a rating back (v0.4.2 US-11): the answer has none again.

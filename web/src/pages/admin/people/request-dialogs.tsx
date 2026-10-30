@@ -3,15 +3,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, api, ifMatch, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
+import { Alert } from "@/components/ui/alert/alert";
 import { FormDialog } from "@/components/form-dialog";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { slugify } from "../../agents/common";
+import { slugFromName } from "@/lib/slug";
 import { useAgentTemplates } from "../../agents/templates";
 import { useClassificationLevels } from "../../team/common";
-import { type AdminTeamRequest, RequestStatusBadge, adminTeamRequestsKey, statusLabels } from "../../team-requests/common";
+import { type AdminTeamRequest, RequestStatusBadge, adminTeamRequestsKey, standingClassification, statusLabels } from "../../team-requests/common";
 
 const slugRE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -49,26 +50,45 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
   const [slugEdited, setSlugEdited] = useState(false);
   const [classification, setClassification] = useState(request.classification);
   const [starter, setStarter] = useState("");
+  const [otherOwner, setOtherOwner] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const shownSlug = slugEdited ? slug : slugify(name);
-  const owner = request.ownerEmail || request.requesterEmail;
+  const shownSlug = slugEdited ? slug : slugFromName(name);
+  const asked = request.ownerEmail || request.requesterEmail;
   const decidedElsewhere = useDecidedElsewhere(request, onClose);
+  const [refused, setRefused] = useState(false);
   const approve = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.POST("/v1/admin/team-requests/{requestId}/approve", {
           params: { path: { requestId: request.id }, header: ifMatch(request.revision) },
-          body: { slug: shownSlug, name: name.trim(), maxClassification: classification, starterTemplateId: starter || undefined },
+          body: { slug: shownSlug, name: name.trim(), maxClassification: classification, ownerEmail: otherOwner.trim() || undefined, starterTemplateId: starter || undefined },
         }),
       ),
     onSuccess: (r) => {
       refresh();
-      toast.success(`"${r.teamName}" was created`, `${owner} is its owner.`);
+      toast.success(`"${r.teamName}" was created`, `${otherOwner.trim() || asked} is its owner.`);
       onClose();
     },
-    onError: decidedElsewhere,
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === "owner_suspended") setRefused(true);
+      decidedElsewhere(e);
+    },
   });
   const taken = approve.error instanceof ApiError && approve.error.code === "slug_taken";
+  // A suspended person cannot own a team (the server refuses, 409 owner_suspended): the reviewer is told before they fill the dialog in, and
+  // names someone else. The refusal also shows the field when the account was suspended after the queue loaded, or the person named is.
+  const needsOwner = request.ownerSuspended || refused;
+  const serverRefusedOwner = approve.error instanceof ApiError && approve.error.code === "owner_suspended";
+  const named = otherOwner.trim();
+  const ownerError = !needsOwner
+    ? undefined
+    : !named
+      ? `Enter the email of ${request.ownerSuspended ? "a different owner" : "an owner"}.`
+      : request.ownerSuspended && named.toLowerCase() === asked.toLowerCase()
+        ? `${asked} is the suspended account. Choose a different owner.`
+        : serverRefusedOwner
+          ? "That account is suspended too. Choose a different owner."
+          : undefined;
   const slugError = !slugRE.test(shownSlug) ? "Use lower-case letters, digits and hyphens." : taken ? "A team with that address already exists." : undefined;
   const nameError = !name.trim() ? "Enter a name." : undefined;
   return (
@@ -79,12 +99,17 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
       onClose={onClose}
       onSubmit={() => {
         setSubmitted(true);
-        if (!slugError && !nameError) approve.mutate();
+        if (!slugError && !nameError && !ownerError) approve.mutate();
       }}
       submitLabel="Approve and create the team"
       busy={approve.isPending}
       formProps={{ noValidate: true }}
     >
+      {needsOwner && (
+        <Alert tone="warning" title="The owner's account is suspended">
+          {request.ownerSuspended ? asked : "The person named as owner"} is suspended and cannot sign in, so a team they alone owned would have no one to run it. Choose a different owner to approve this request, or decline it.
+        </Alert>
+      )}
       <Field label="Team name" error={submitted ? nameError : undefined}>
         <Input aria-required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
@@ -121,10 +146,16 @@ export function ApproveDialog({ request, onClose }: { request: AdminTeamRequest;
           ))}
         </NativeSelect>
       </Field>
-      <p>
-        Owner: <strong>{owner}</strong>. {request.ownerEmail ? "They were named in the request." : "The person who asked."} Someone who has never signed in is invited by email.
-      </p>
-      {!taken && <ApiErrorAlert error={approve.error} />}
+      {needsOwner ? (
+        <Field label="Owner" description="The email of the person who will own the team. The person who asked is told, and is not on the team." error={submitted || serverRefusedOwner ? ownerError : undefined}>
+          <Input aria-required type="email" autoComplete="off" value={otherOwner} onChange={(e) => (setOtherOwner(e.target.value), approve.reset())} />
+        </Field>
+      ) : (
+        <p>
+          Owner: <strong>{asked}</strong>. {request.ownerEmail ? "They were named in the request." : "The person who asked."} Someone who has never signed in is invited by email.
+        </p>
+      )}
+      {!taken && !serverRefusedOwner && <ApiErrorAlert error={approve.error} />}
     </FormDialog>
   );
 }
@@ -180,8 +211,8 @@ export function ViewRequestDialog({ request, onClose }: { request: AdminTeamRequ
       <Field label="Purpose">
         <Textarea readOnly rows={5} value={request.purpose} />
       </Field>
-      <Field label="Highest classification">
-        <Input readOnly value={request.classification} />
+      <Field label="Highest classification" description={request.status === "approved" && standingClassification(request) !== request.classification ? `Asked for ${request.classification}; the reviewer approved ${standingClassification(request)}.` : undefined}>
+        <Input readOnly value={standingClassification(request)} />
       </Field>
       <Field label="Owner">
         <Input readOnly value={request.ownerEmail || `${request.requesterEmail} (the requester)`} />

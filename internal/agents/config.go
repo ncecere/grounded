@@ -35,7 +35,9 @@ const (
 	DefaultTokenBudget = 6000
 
 	MaxInstructions = 20000
-	MaxKBs          = 5
+	// MaxOutputTokensLimit is the most an agent may ask a model to write in one answer.
+	MaxOutputTokensLimit = 1_000_000
+	MaxKBs               = 5
 	// MaxTools bounds the MCP tools of an agent (docs/mcp-client.md).
 	MaxTools = 10
 )
@@ -271,8 +273,11 @@ func (c *Config) normalizeModel(in configInput, p *problems) {
 	if t := c.Temperature; t != nil && (math.IsNaN(*t) || *t < 0 || *t > 2) {
 		p.bad("temperature", "Temperature must be between 0 and 2")
 	}
-	if m := c.MaxOutputTokens; m != nil && (*m < 1 || *m > 1_000_000) {
+	if m := c.MaxOutputTokens; m != nil && *m < 1 {
 		p.bad("maxOutputTokens", "Maximum output tokens must be a positive number")
+	} else if m != nil && *m > MaxOutputTokensLimit {
+		// A positive number that is too large is not "not positive" (#132): say so, with the limit.
+		p.bad("maxOutputTokens", "Maximum output tokens is too large. The most is %d", MaxOutputTokensLimit)
 	}
 	setIf(&c.ReasoningEffort, in.ReasoningEffort)
 	switch c.ReasoningEffort {
