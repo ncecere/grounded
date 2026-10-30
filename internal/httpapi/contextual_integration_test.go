@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -24,7 +25,11 @@ type ctxEnv struct {
 }
 
 func newCtxEnv(t *testing.T) *ctxEnv {
-	env := &ctxEnv{migEnv: newMigEnv(t)}
+	return newCtxEnvWith(t, func(c *config.Config) { c.ContextualChunks = true })
+}
+
+func newCtxEnvWith(t *testing.T, mutate func(*config.Config)) *ctxEnv {
+	env := &ctxEnv{migEnv: newMigEnvWith(t, mutate)}
 	var conns []apitypes.Connection
 	env.admin.get("/v1/admin/connections", &conns)
 	env.proxy.AddChatModel("test-chat-open")

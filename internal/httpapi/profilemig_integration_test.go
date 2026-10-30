@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -24,8 +25,10 @@ type migEnv struct {
 	from, wide, twin apitypes.EmbeddingProfile
 }
 
-func newMigEnv(t *testing.T) *migEnv {
-	env := &migEnv{ragEnv: newRAGEnv(t)}
+func newMigEnv(t *testing.T) *migEnv { return newMigEnvWith(t, nil) }
+
+func newMigEnvWith(t *testing.T, mutate func(*config.Config)) *migEnv {
+	env := &migEnv{ragEnv: newRAGEnvWith(t, mutate)}
 	env.base = "/v1/teams/" + env.team
 	env.proxy.AddMatryoshkaEmbeddingModel("mrl-2560", 2560)
 	env.proxy.AddEmbeddingModel("bow-48", 48)

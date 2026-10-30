@@ -176,6 +176,9 @@ func serverEnv(s settings, appURL, dbURL, prefix, blobs string) []string {
 		"LOGIN_ATTEMPTS_PER_MINUTE=10000",
 		"REQUESTS_PER_MINUTE=100000",
 		"EMBED_BATCH_WAIT=10ms",
+		// The isolated harness has only fake models. Exercise explicit consent,
+		// admission and rollback without changing the production default (off).
+		"CONTEXTUAL_CHUNKS=true",
 	}
 	for _, k := range []string{"PATH", "HOME", "TMPDIR"} {
 		if v, ok := os.LookupEnv(k); ok {

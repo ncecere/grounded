@@ -244,7 +244,7 @@ func Defaults() Config {
 		MaxUploadBytes:         100 << 20,
 		IngestMaxInflight:      32,
 		IngestMaxInflightTeam:  8,
-		ContextualChunks:       true,
+		ContextualChunks:       false,
 		ContextualConcurrency:  2,
 		IngestConcurrency:      4,
 		EmbedBatchSize:         64,
