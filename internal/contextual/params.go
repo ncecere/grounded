@@ -99,5 +99,7 @@ type Failure struct {
 	Permanent bool
 }
 
-func (f *Failure) Error() string { return fmt.Sprintf("contextual chunks: %s: %v", f.Code, f.Err) }
+// Error is safe for job logs and stored status: a provider may echo document
+// text in its error. Keep that cause only behind Unwrap, never in the string.
+func (f *Failure) Error() string { return fmt.Sprintf("contextual chunks: %s", f.Code) }
 func (f *Failure) Unwrap() error { return f.Err }

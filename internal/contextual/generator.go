@@ -420,7 +420,7 @@ func (g *Generator) failed(ctx, callCtx context.Context, id int64, err error, se
 		// Preserve backpressure/snooze behavior, but retain unknown admission for
 		// a remote 429/503: no response proves that it was unprocessed/unbilled.
 		_ = settle(Settlement{Outcome: OutcomeError})
-		return err
+		return &gateway.Error{Kind: ge.Kind, Status: ge.Status, RetryAfter: ge.RetryAfter, Message: "The context model asked to retry later"}
 	case callCtx.Err() != nil || (errors.As(err, &ge) && ge.TimedOut()):
 		// No answer in time. The provider may still have processed and billed it; Grounded cannot know.
 		_ = settle(Settlement{Outcome: OutcomeTimeout})
