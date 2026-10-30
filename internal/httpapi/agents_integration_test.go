@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -162,8 +164,13 @@ func newAgentEnv(t *testing.T) *agentEnv { return newAgentEnvWith(t, nil) }
 
 // newAgentEnvWith also applies mutate to the configuration.
 func newAgentEnvWith(t *testing.T, mutate func(*config.Config)) *agentEnv {
+	return newAgentEnvOn(t, nil, mutate)
+}
+
+// newAgentEnvOn is newAgentEnvWith over an existing database (nil: a new one).
+func newAgentEnvOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config)) *agentEnv {
 	t.Helper()
-	env := &agentEnv{webEnv: newWebEnvWith(t, true, mutate)}
+	env := &agentEnv{webEnv: newWebEnvOn(t, pool, true, mutate)}
 	env.proxy.AddChatModel("chat-tools")
 	var conns []apitypes.Connection
 	if code := env.admin.get("/v1/admin/connections", &conns); code != 200 || len(conns) != 1 {

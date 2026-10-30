@@ -36,7 +36,7 @@ deploy/observability/       Grafana dashboards and Prometheus alert rules (docs/
 - An S3-compatible bucket for Grounded's files (documents, parsed text). Postgres backups should go to a *different* storage system.
 - An OIDC provider with a confidential client whose redirect URI is `<APP_URL>/auth/callback`.
 - An ingress controller (or Gateway) with TLS. `APP_URL` must be https.
-- Postgres with pgvector: the `postgres-single` component, the `postgres-cnpg` component (needs the CloudNativePG operator 1.26+ and the Barman Cloud Plugin), or a managed service with the `vector`, `citext`, `btree_gin` and `pg_trgm` extensions available.
+- Postgres with pgvector: the `postgres-single` component, the `postgres-cnpg` component (needs the CloudNativePG operator 1.26+ and the Barman Cloud Plugin), or a managed service with the `vector`, `citext`, `btree_gin` and `pg_trgm` extensions available. The server must be built with ICU (migration 00054 uses the `und-x-icu` collation and says so, before changing anything, if it is missing; [upgrades](../operations/upgrades.md#staged-constraints)).
 - Valkey or a Redis-compatible service: the `valkey-single` component or one endpoint of an HA service (Grounded does not speak the Sentinel protocol).
 - Optionally a secrets operator (External Secrets, Sealed Secrets, ...). The base only names secrets.
 

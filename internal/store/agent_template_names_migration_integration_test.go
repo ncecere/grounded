@@ -5,16 +5,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/testutil"
 	"github.com/ncecere/grounded/migrations"
 )
 
-// Template names are unique ignoring case for every script (#140, migration 00054), also in a cluster created with --locale=C, where the
-// database's own lower() changes ASCII letters only: "qa über" and "QA ÜBER" were two templates and the picker showed two that look alike.
-func TestTemplateNamesAreUniqueIgnoringUnicodeCase(t *testing.T) {
+// Template names are unique ignoring case for every script (#140), also in a cluster created with --locale=C, where the database's own
+// lower() changes ASCII letters only: "qa über" and "QA ÜBER" were two templates and the picker showed two that look alike.
+//
+// What this test asserts changed with #195. It used to expect the DATABASE to refuse the Unicode twin (a UNIQUE index in migration 00054).
+// That is a tighter constraint shipped in the same release as the code, which ADR-0013 forbids: the previous release's pods know only
+// agent_templates_name_key, so a violation of a new index was a 500 for their admins during a rollout. The rule is now enforced by the
+// service under a lock (internal/agents, internal/httpapi: TestTemplateNamesUniqueUnderConcurrency...), and the database must NOT refuse
+// the twin yet, so a v0.6.2 pod gets an ordinary answer. The uniqueness assertions moved there and are stricter (concurrent writers,
+// renames, HTTP 409); this one pins the staging: the old index still catches what it always caught, there is a lookup index, and no
+// unique index on the folded name exists until the later release adds it.
+func TestMigration00054AddsNoStricterTemplateConstraint(t *testing.T) {
 	pool, _ := testutil.NewDBInCLocale(t)
 	ctx := context.Background()
 	insert := func(name string) error {
@@ -24,26 +34,48 @@ func TestTemplateNamesAreUniqueIgnoringUnicodeCase(t *testing.T) {
 	if err := insert("qa über"); err != nil {
 		t.Fatal(err)
 	}
-	for _, dup := range []string{"QA ÜBER", "Qa Über", "qa über"} {
-		if err := insert(dup); err == nil {
-			t.Errorf("a second template named %q was saved next to %q", dup, "qa über")
+	// What the previous release's index always refused (the database's lower(): ASCII only in this cluster) is still refused, under the
+	// name that release's code recognises.
+	err := insert("QA über")
+	if !apperr.IsUniqueViolation(err, "agent_templates_name_key") {
+		t.Errorf("an ASCII-case twin = %v, want a violation of agent_templates_name_key", err)
+	}
+	// A twin that differs beyond ASCII is accepted by the database: a violation of a new index would be unknown to the previous release.
+	for _, twin := range []string{"QA ÜBER"} {
+		if err := insert(twin); err != nil {
+			t.Errorf("the database refused %q: a stricter constraint belongs to a later release (ADR-0013): %v", twin, err)
 		}
 	}
 	if err := insert("é"); err != nil {
 		t.Fatal(err)
 	}
-	if err := insert("É"); err == nil {
-		t.Error("é and É were both saved")
+	if err := insert("É"); err != nil {
+		t.Errorf("the database refused É next to é: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE agent_templates SET name = 'ÖÖ' WHERE name = 'qa über'`); err != nil {
-		t.Errorf("renaming to a free name: %v", err)
+	var unique, plain int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE indisunique), count(*) FILTER (WHERE NOT indisunique)
+		FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+		WHERE i.indrelid = 'agent_templates'::regclass AND pg_get_indexdef(i.indexrelid) LIKE '%und-x-icu%'`).Scan(&unique, &plain); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE agent_templates SET name = 'É' WHERE name = 'é'`); err != nil {
-		t.Errorf("a template may change the case of its own name: %v", err)
+	if unique != 0 || plain != 1 {
+		t.Errorf("folded-name indexes: %d unique, %d plain; want no unique one and the lookup index", unique, plain)
 	}
-	if err := insert("qa über"); err != nil {
-		t.Errorf("a free name after the rename: %v", err)
+	if n := countRows(t, pool, `SELECT count(*) FROM pg_indexes WHERE tablename = 'agent_templates' AND indexname = 'agent_templates_name_fold_idx'`); n != 1 {
+		t.Errorf("agent_templates_name_fold_idx exists %d times", n)
 	}
+	if n := countRows(t, pool, `SELECT count(*) FROM pg_indexes WHERE tablename = 'agent_templates' AND indexname = 'agent_templates_name_key'`); n != 1 {
+		t.Errorf("the previous release's index agent_templates_name_key must stay until a contract release: %d", n)
+	}
+}
+
+func countRows(t *testing.T, pool *pgxpool.Pool, query string) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(), query).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }
 
 // A cluster that already holds names which differ only in case beyond ASCII is migrated without losing a template: the oldest keeps its

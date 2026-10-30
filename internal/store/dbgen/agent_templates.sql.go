@@ -12,6 +12,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const agentTemplateNameTaken = `-- name: AgentTemplateNameTaken :one
+SELECT EXISTS (SELECT 1 FROM agent_templates
+               WHERE lower(name COLLATE "und-x-icu") = lower($1::text COLLATE "und-x-icu") AND id <> $2::uuid)
+`
+
+type AgentTemplateNameTakenParams struct {
+	Name     string
+	ExceptID uuid.UUID
+}
+
+// Whether another template (not except_id; uuid.Nil for a new one) has this name once case is folded by the ICU root collation, which does
+// not depend on the cluster's locale. Uses agent_templates_name_fold_idx (migration 00054).
+func (q *Queries) AgentTemplateNameTaken(ctx context.Context, arg AgentTemplateNameTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, agentTemplateNameTaken, arg.Name, arg.ExceptID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const deleteAgentTemplate = `-- name: DeleteAgentTemplate :one
 DELETE FROM agent_templates WHERE id = $1 RETURNING id, name, description, accent_color, welcome_message, starter_questions, config, created_by, created_at, updated_at
 `
@@ -133,6 +152,18 @@ func (q *Queries) ListAgentTemplates(ctx context.Context) ([]AgentTemplate, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAgentTemplateNames = `-- name: LockAgentTemplateNames :exec
+SELECT pg_advisory_xact_lock(hashtextextended('grounded.agent_template_names', 0))
+`
+
+// Template names are unique ignoring case for every script (#140, #195). v0.6.3 enforces that here, in the application, and not with a
+// unique index yet (ADR-0013: a tighter constraint ships one release after the code that writes valid data), so every writer of a name takes
+// this lock first, in its transaction and BEFORE it reads whether the name is free: two writers cannot both see it free.
+func (q *Queries) LockAgentTemplateNames(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAgentTemplateNames)
+	return err
 }
 
 const updateAgentTemplate = `-- name: UpdateAgentTemplate :one
