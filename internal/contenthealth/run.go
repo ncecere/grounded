@@ -50,6 +50,8 @@ func (s *Service) signalTimeout() time.Duration {
 // report was cancelled or deleted meanwhile. A report that cannot be made ends as failed with a coarse code. It is called by
 // the River job (worker.go) and by tests; a request never calls it.
 func (s *Service) Execute(ctx context.Context, reportID uuid.UUID) error {
+	ctx, cancel := context.WithTimeout(ctx, ReportTimeout)
+	defer cancel()
 	rep, err := s.q.GetContentHealthReportByID(ctx, reportID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -91,9 +93,26 @@ func (s *Service) Execute(ctx context.Context, reportID uuid.UUID) error {
 	return s.store(ctx, rep, out)
 }
 
-// fail ends a report as failed, whatever the state of the request context.
+// finalizationContext gives terminal-state persistence a bounded grace after the
+// work context expires. A blocked or unavailable database must not retain a worker forever.
+func (s *Service) finalizationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	limit := FinalizationTimeout
+	if s.finalizeLimit > 0 {
+		limit = s.finalizeLimit
+	}
+	return context.WithTimeout(context.WithoutCancel(ctx), limit)
+}
+
+// fail attempts terminal-state persistence even after cancellation, within its own bounded grace.
 func (s *Service) fail(ctx context.Context, id uuid.UUID, code string) error {
-	n, err := s.q.FailContentHealthReport(context.WithoutCancel(ctx), dbgen.FailContentHealthReportParams{ID: id, ErrorCode: code, RetentionDays: RetentionDays})
+	ctx, cancel := s.finalizationContext(ctx)
+	defer cancel()
+	return s.markFailed(ctx, id, code)
+}
+
+// markFailed uses an existing finalization budget, without resetting its deadline.
+func (s *Service) markFailed(ctx context.Context, id uuid.UUID, code string) error {
+	n, err := s.q.FailContentHealthReport(ctx, dbgen.FailContentHealthReportParams{ID: id, ErrorCode: code, RetentionDays: RetentionDays})
 	if err == nil && n > 0 {
 		observability.ContentHealthReports.WithLabelValues(StatusFailed).Inc()
 	}
@@ -151,7 +170,13 @@ func (s *Service) collectOne(ctx context.Context, sig Signal, env *Env) (Result,
 	sctx, cancel := context.WithTimeout(ctx, s.signalTimeout())
 	defer cancel()
 	staged := env.stage()
-	res, err := sig.Collect(sctx, staged)
+	var res Result
+	err := pgx.BeginTxFunc(sctx, s.Pool, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		staged.Q = dbgen.New(tx)
+		var err error
+		res, err = sig.Collect(sctx, staged)
+		return err
+	})
 	if err != nil && ctx.Err() == nil && errors.Is(sctx.Err(), context.DeadlineExceeded) {
 		if n, ok := sig.(timeoutNoter); ok {
 			n.NoteTimeout(env)

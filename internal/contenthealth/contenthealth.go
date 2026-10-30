@@ -65,6 +65,9 @@ const (
 	// statement on the server); it is not a server-side statement_timeout. ReportTimeout bounds the whole job.
 	SignalTimeout = 45 * time.Second
 	ReportTimeout = 10 * time.Minute
+	// FinalizationTimeout bounds best-effort failure-state persistence after work is cancelled.
+	// If the database cannot write within this grace, the existing prune job recovers the stuck report.
+	FinalizationTimeout = 10 * time.Second
 	// NotFinishedAfter is how long a document may be pending, queued or processing before it counts as not finished.
 	NotFinishedAfter = 24 * time.Hour
 
@@ -114,7 +117,9 @@ type Service struct {
 	Signals []Signal
 	// afterLock is a test seam: it runs inside the store's transaction once the live sources and documents are locked.
 	afterLock func()
-	q         *dbgen.Queries
+	// finalizeLimit is a test seam for a shorter failure-state cleanup budget.
+	finalizeLimit time.Duration
+	q             *dbgen.Queries
 }
 
 // New returns a Service with the five built-in signals.

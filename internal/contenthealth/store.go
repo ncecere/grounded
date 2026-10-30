@@ -25,13 +25,13 @@ const storeAttempts = 3
 //  2. The platform switch is read under a share lock: a switch turned off before this point stops the store (failed: disabled).
 //  3. The sources and documents the snapshot refers to are locked against deletion, and a finding whose source or document no
 //     longer exists (or left the scope) is skipped, with the counts adjusted (reconcile): never a foreign-key error.
-//  4. Whatever still goes wrong is a real error: the report ends as failed (internal) and the error is returned. It is never
-//     reported as success and never left running for the hourly job to find.
+//  4. Successful storage honors the report deadline. Errors are returned, with a bounded best-effort terminal-state update.
+//     A database outage or lock can prevent that update; the hourly stuck-report job then recovers it instead of a worker
+//     waiting indefinitely.
 func (s *Service) store(ctx context.Context, rep dbgen.ContentHealthReport, out *outcome) error {
-	bg := context.WithoutCancel(ctx) // the report is stored even when the job's own time is up: it was made
 	var err error
 	for range storeAttempts {
-		if err = s.storeOnce(bg, rep, out); !isRace(err) {
+		if err = s.storeOnce(ctx, rep, out); !isRace(err) {
 			break
 		}
 	}
@@ -42,12 +42,18 @@ func (s *Service) store(ctx context.Context, rep dbgen.ContentHealthReport, out 
 	case errors.Is(err, errCancelled):
 		return nil
 	case errors.Is(err, errDisabled):
-		return s.fail(bg, rep.ID, ErrDisabled)
+		return s.fail(ctx, rep.ID, ErrDisabled)
 	}
-	if st, serr := s.q.ContentHealthReportStatus(bg, rep.ID); errors.Is(serr, pgx.ErrNoRows) || (serr == nil && st != StatusRunning) {
+	cleanup, cancel := s.finalizationContext(ctx)
+	defer cancel()
+	if st, serr := s.q.ContentHealthReportStatus(cleanup, rep.ID); errors.Is(serr, pgx.ErrNoRows) || (serr == nil && st != StatusRunning) {
 		return nil // deleted or ended meanwhile (with its team, say): there is nothing left to end
 	}
-	if ferr := s.fail(bg, rep.ID, ErrInternal); ferr != nil {
+	code := ErrInternal
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		code = ErrTimedOut
+	}
+	if ferr := s.markFailed(cleanup, rep.ID, code); ferr != nil {
 		s.Log.WarnContext(ctx, "could not record a failed content health report", "report", rep.ID, "err", ferr)
 	}
 	return err

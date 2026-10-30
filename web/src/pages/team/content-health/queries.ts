@@ -75,7 +75,7 @@ export const signalWords: Record<SignalName, SignalWords> = {
     measures:
       "Ready documents of sources a published agent reaches, for which the kept answer records show no citation in the team-wide window. Only documents that existed when their source became reachable are judged, and only when enough answers were kept since.",
     notMeans:
-      "It does not mean a document is unused, outdated or poor, and it is not a claim that the document had a fair chance of being cited: Grounded does not record which documents a question could have reached. The window is team-wide and starts at the team's first kept answer, not when any document became reachable. Answers that were never kept, or that the analytics retention period removed, are invisible; deleting a conversation does not remove its record. Draft test chats, refusals, errors and answers with no passages are not counted. A document can be rarely cited simply because few people ask about it.",
+      "It does not mean a document is unused, outdated or poor, and it is not a claim that the document had a fair chance of being cited: Grounded does not record which documents a question could have reached. The window is team-wide and starts at the team's first kept answer, not when any document became reachable. Answers that were never kept, or that the analytics retention period removed, are invisible; deleting a conversation does not remove its record. Draft test chats are excluded. Refusals, errors and answers with no passages do not count toward the minimum, but their records consume the scan budget and any retained non-test citation still counts as evidence. A document can be rarely cited simply because few people ask about it.",
     empty: "Every document that could be judged has a citation in the kept answers.",
   },
   ingestion_failure: {
@@ -95,9 +95,9 @@ export const reasonText: Record<string, string> = {
   one_source: "Needs at least two sources in the scope.",
   no_web_sources: "There is no web source in this scope.",
   no_crawl_record: "No web source has a usable crawl record.",
-  no_answers: "No answers are kept for this team's agents in the window.",
+  no_answers: "No kept non-test answers could have cited passages in this team's window.",
   too_few_answers: "Too few kept answers that could have cited something, team-wide, to say which documents have no citation evidence.",
-  too_many_answers: "More answers than a report reads. Try a shorter window: a narrower scope does not reduce what is read.",
+  too_many_answers: "More retained answer records than a report admits, including refusals and errors. Try a shorter window: a narrower scope does not reduce what is read.",
   too_many_agents: "This team has more agents than a report reads answers for, so it cannot say which documents have no citation evidence.",
   no_exposure: "No source could be judged: no published agent reaches it through a knowledge base, too few answers were kept since it became reachable, or its documents were added later.",
   timed_out: "It took longer than a report may take.",
@@ -116,9 +116,9 @@ export const statusLabel: Record<Report["status"], string> = {
 
 export const failureText: Record<string, string> = {
   internal: "The report couldn't be made. Try again; if it keeps failing, ask a platform admin to check the logs.",
-  timed_out: "The report took too long and was stopped. Try a smaller scope (one source or one knowledge base).",
+  timed_out: "The report took too long and was stopped. Try a smaller scope or a shorter citation window. If it keeps failing, ask a platform admin to check the logs.",
   too_many_sources: "This team has more sources than one report covers. Choose one source or one knowledge base.",
-  disabled: "Content health reports were switched off before this one started.",
+  disabled: "Content health reports were switched off while this one was waiting or running.",
 };
 
 export const linkCodeLabel: Record<string, string> = { not_found: "Not found (404 or 410)", http_error: "Server error or refused", network_error: "Couldn't connect" };

@@ -1,6 +1,6 @@
 -- The content health report (docs/content-health.md, ADR-0027). Every read of a team's data names the team, so
--- a report can never join across teams; every collection query is bounded by LIMIT and runs under a
--- statement timeout set by the caller.
+-- a report can never join across teams. Collection runs in a read-only, repeatable-read transaction per signal under a
+-- client context deadline (not a server statement_timeout). The event cap applies before outcome filtering.
 
 -- ---- the platform switch ---------------------------------------------------------------------
 
@@ -186,24 +186,20 @@ ORDER BY y.sha256, y.n;
 -- name: ContentHealthTeamAgents :many
 SELECT id FROM agents WHERE team_id = @team_id ORDER BY id LIMIT @cap::int;
 
--- Answers that could have cited something: a retained, content-free event of a real answer (not a draft test chat) that is not
--- an error, a refusal, an answer with no context, one with no retrieved passage, or one moderation blocked. The denominator of
--- the minimum, and of each source's exposure. Counted up to @cap_plus_one (more means the scan is too big).
+-- Bound ALL non-test events before outcome filtering: refusal/error traffic also costs work in subsequent citation reads.
+-- Within that bound, only answers that could cite count toward the minimum. The observation window starts at the earliest
+-- retained non-test event, even if that event cannot count toward the minimum. The caller uses one repeatable-read snapshot
+-- for the preflight and all subsequent exposure/citation queries, so a later commit cannot bypass this bound.
 -- name: ContentHealthAnswerCount :one
-SELECT count(*)::bigint AS answers
-FROM (SELECT 1 FROM message_events e
+SELECT count(*)::bigint AS events,
+       (count(*) FILTER (WHERE x.error_code = '' AND NOT x.refused AND NOT x.no_context AND x.hit_count > 0
+          AND coalesce(x.moderation_input->>'decision', '') NOT IN ('block', 'support')
+          AND coalesce(x.moderation_output->>'decision', '') NOT IN ('block', 'support')))::bigint AS answers,
+       coalesce(min(x.created_at), 'epoch'::timestamptz)::timestamptz AS first_at
+FROM (SELECT e.created_at, e.error_code, e.refused, e.no_context, e.hit_count, e.moderation_input, e.moderation_output
+      FROM message_events e
       WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz
-        AND e.error_code = '' AND NOT e.refused AND NOT e.no_context AND e.hit_count > 0
-        AND coalesce(e.moderation_input->>'decision', '') NOT IN ('block', 'support') AND coalesce(e.moderation_output->>'decision', '') NOT IN ('block', 'support')
       LIMIT @cap_plus_one::int) x;
-
--- The earliest of those answers (called only when their number is within the bound).
--- name: ContentHealthFirstAnswer :one
-SELECT coalesce(min(e.created_at), 'epoch'::timestamptz)::timestamptz AS first_at
-FROM message_events e
-WHERE e.agent_id = ANY(@agent_ids::uuid[]) AND e.channel <> 'test' AND e.created_at >= @from_at::timestamptz AND e.created_at <= @to_at::timestamptz
-  AND e.error_code = '' AND NOT e.refused AND NOT e.no_context AND e.hit_count > 0
-  AND coalesce(e.moderation_input->>'decision', '') NOT IN ('block', 'support') AND coalesce(e.moderation_output->>'decision', '') NOT IN ('block', 'support');
 
 -- Per source of the scope: whether an active, published agent of the team reaches it through a knowledge base, since when (the
 -- later of the source's attachment to the knowledge base and the agent's publish time, as the next UTC day: a conservative

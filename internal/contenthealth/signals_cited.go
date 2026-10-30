@@ -53,24 +53,21 @@ func (citedSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 		return unavailable(ReasonNoAnswers), nil
 	}
 	floor := env.AsOf.Add(-time.Duration(env.Params.CitationWindowDays) * day)
-	answers, err := env.Q.ContentHealthAnswerCount(ctx, dbgen.ContentHealthAnswerCountParams{AgentIDs: agents, FromAt: floor, ToAt: env.AsOf, CapPlusOne: int32(env.scanLimit() + 1)})
+	window, err := env.Q.ContentHealthAnswerCount(ctx, dbgen.ContentHealthAnswerCountParams{AgentIDs: agents, FromAt: floor, ToAt: env.AsOf, CapPlusOne: int32(env.scanLimit() + 1)})
 	if err != nil {
 		return Result{}, err
 	}
-	counts := map[string]int64{"answers": answers, "minAnswers": MinAnswers}
+	counts := map[string]int64{"answers": window.Answers, "minAnswers": MinAnswers}
 	switch {
-	case answers > env.scanLimit():
-		delete(counts, "answers")
+	case window.Events > env.scanLimit():
+		delete(counts, "answers") // the limited prefix is not the whole window's denominator
 		return Result{State: StateUnavailable, Reason: ReasonTooManyAnswers, Counts: counts}, nil
-	case answers == 0:
+	case window.Answers == 0:
 		return Result{State: StateUnavailable, Reason: ReasonNoAnswers, Counts: counts}, nil
-	case answers < MinAnswers:
+	case window.Answers < MinAnswers:
 		return Result{State: StateUnavailable, Reason: ReasonTooFewAnswers, Counts: counts}, nil
 	}
-	since, err := env.Q.ContentHealthFirstAnswer(ctx, dbgen.ContentHealthFirstAnswerParams{AgentIDs: agents, FromAt: floor, ToAt: env.AsOf})
-	if err != nil {
-		return Result{}, err
-	}
+	since := window.FirstAt
 	elig, err := env.exposure(ctx, since, counts)
 	if err != nil {
 		return Result{}, err
