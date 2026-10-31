@@ -36,7 +36,7 @@ func newSettlementFixture(t *testing.T) settlementFixture {
 	exec(`INSERT INTO teams (id, slug, name, max_classification) VALUES ($1, 'contextual', 'Contextual', 'open')`, team)
 	exec(`INSERT INTO model_connections (id, name, base_url) VALUES ($1, 'c', 'http://example.test/v1')`, conn)
 	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification, dimensions) VALUES ($1, $2, 'e', 'e', 'E', 'embedding', 'open', 4)`, embed, conn)
-	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification) VALUES ($1, $2, 'c', 'c', 'C', 'chat', 'open')`, chat, conn)
+	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification, context_window) VALUES ($1, $2, 'c', 'c', 'C', 'chat', 'open', 32000)`, chat, conn)
 	exec(`INSERT INTO embedding_profiles (id, key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap) VALUES ($1, 'p', 'P', $2, 4, 'halfvec', 128, 0)`, profile, embed)
 	exec(`INSERT INTO data_sources (id, team_id, name, type, classification, embedding_profile_id) VALUES ($1, $2, 's', 'web', 'open', $3)`, source, team, profile)
 	exec(`INSERT INTO documents (id, source_id, external_id, status, version) VALUES ($1, $2, 'https://example.edu/document', 'ready', 1)`, doc, source)

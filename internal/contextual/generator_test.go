@@ -38,8 +38,9 @@ func newGen(t *testing.T) *genEnv {
 	model := uuid.New()
 	cl := gateway.New(proxy.BaseURL(), proxy.APIKey, 20*time.Second)
 	st := newMemStore()
+	window := int32(32000) // The synthetic resolver supplies known usable model metadata.
 	return &genEnv{proxy: proxy, store: st, model: model, g: &Generator{Store: st, Counter: counter(t), Concurrency: 2,
-		Catalog: fixedResolver{catalog.ChatTarget{Model: dbgen.Model{ID: model, UpstreamModel: "ctx-writer", Kind: "chat"}, Client: cl}}}}
+		Catalog: fixedResolver{catalog.ChatTarget{Model: dbgen.Model{ID: model, UpstreamModel: "ctx-writer", Kind: "chat", ContextWindow: &window}, Client: cl}}}}
 }
 
 func (e *genEnv) req(chunks []chunk.Chunk) Request {

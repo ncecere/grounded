@@ -20,7 +20,7 @@ test("contextual source consent, estimate, held preview and explicit switch-back
   // connection, and shared seed pricing must remain unchanged for other specs.
   const connection = await admin.post<Schemas["Connection"]>("/v1/admin/connections", { name: unique("Contextual fake models"), baseUrl: fakeURL, apiKey: fakeKey });
   const model = await admin.post<Schemas["Model"]>("/v1/admin/models", { key: unique("ctx"), displayName: unique("Context writer"),
-    connectionId: connection.id, upstreamModel: fakeChatModel, kind: "chat", maxClassification: "open" });
+    connectionId: connection.id, upstreamModel: fakeChatModel, kind: "chat", maxClassification: "open", contextWindow: 32000 });
   // A dedicated model/rate avoids changing shared pricing while other specs run.
   await admin.post(`/v1/admin/models/${model.id}/prices`, { effectiveFrom: new Date().toISOString().slice(0, 10),
     prices: [{ unit: "chat_tokens_in", price: "1.000000" }, { unit: "chat_tokens_out", price: "1.000000" }] }, { expect: 201 });

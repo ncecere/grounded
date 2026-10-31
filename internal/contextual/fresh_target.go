@@ -40,6 +40,9 @@ func (g *Generator) currentTarget(ctx context.Context, req Request, planned Mode
 // unsent, unlike a request cancelled after entering the provider.
 func (g *Generator) dispatch(ctx context.Context, req Request, m Model, in Input, key [32]byte, id int64) (flightResult, error) {
 	target, err := g.currentTarget(ctx, req, m)
+	if err == nil {
+		err = g.checkPromptCapacity(target, in)
+	}
 	if err != nil {
 		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), g.persistenceTimeout())
 		defer cancel()

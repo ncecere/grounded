@@ -2494,7 +2494,8 @@ paths:
         contextual chunks (POST /v1/admin/profile-migrations/preview with changes.contextualChunks), which builds beside the live
         index and is switched explicitly. Turning a source off deletes the text generated for it and stops further calls at their
         next checkpoint. 400 invalid_failure_policy, invalid_cap, model_required or invalid_model; 409 model_classification (the
-        model may not process the source's classification), model_unavailable, model_context_window or contextual_unavailable
+        model may not process the source's classification), model_unavailable, model_context_window (the context window must be
+        declared and meet the activation floor; actual escaped input is rechecked before dispatch) or contextual_unavailable
         (CONTEXTUAL_CHUNKS is off).
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"

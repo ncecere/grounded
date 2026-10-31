@@ -1419,7 +1419,7 @@ export interface paths {
         get: operations["adminGetSourceContextual"];
         /**
          * Replace a source's contextual-chunks settings (platform admins with a session; audited)
-         * @description Saving changes no vector, starts no job and makes no model call: the source takes part in an index preview that asks for contextual chunks (POST /v1/admin/profile-migrations/preview with changes.contextualChunks), which builds beside the live index and is switched explicitly. Turning a source off deletes the text generated for it and stops further calls at their next checkpoint. 400 invalid_failure_policy, invalid_cap, model_required or invalid_model; 409 model_classification (the model may not process the source's classification), model_unavailable, model_context_window or contextual_unavailable (CONTEXTUAL_CHUNKS is off).
+         * @description Saving changes no vector, starts no job and makes no model call: the source takes part in an index preview that asks for contextual chunks (POST /v1/admin/profile-migrations/preview with changes.contextualChunks), which builds beside the live index and is switched explicitly. Turning a source off deletes the text generated for it and stops further calls at their next checkpoint. 400 invalid_failure_policy, invalid_cap, model_required or invalid_model; 409 model_classification (the model may not process the source's classification), model_unavailable, model_context_window (the context window must be declared and meet the activation floor; actual escaped input is rechecked before dispatch) or contextual_unavailable (CONTEXTUAL_CHUNKS is off).
          */
         put: operations["adminPutSourceContextual"];
         post?: never;

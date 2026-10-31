@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -34,8 +35,8 @@ func newContextualScopeFixture(t *testing.T) contextualScopeFixture {
 	exec(`INSERT INTO model_connections (id, name, base_url) VALUES ($1, 'c', 'http://example.test/v1')`, conn)
 	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification, dimensions)
 		VALUES ($1, $2, 'e', 'e', 'E', 'embedding', 'open', 4)`, embed, conn)
-	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification)
-		VALUES ($1, $2, 'c', 'c', 'C', 'chat', 'open')`, chat, conn)
+	exec(`INSERT INTO models (id, connection_id, key, upstream_model, display_name, kind, max_classification, context_window)
+		VALUES ($1, $2, 'c', 'c', 'C', 'chat', 'open', 32000)`, chat, conn)
 	for _, id := range []uuid.UUID{profile, other} {
 		exec(`INSERT INTO embedding_profiles (id, key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap, contextual)
 			VALUES ($1, $2, 'Contextual', $3, 4, 'halfvec', 128, 0, true)`, id, id.String(), embed)
@@ -105,6 +106,22 @@ func TestContextualCheckpointChecksCurrentModelWindow(t *testing.T) {
 	}
 	if err := check(t.Context()); err == nil {
 		t.Fatal("checkpoint accepted a context window too small for the bounded prompt")
+	}
+}
+
+func TestContextualCheckpointChecksUnknownModelWindow(t *testing.T) {
+	f := newContextualScopeFixture(t)
+	check := f.p.checkpoint(f.sc, f.target, f.chat)
+	if err := check(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(), `UPDATE models SET context_window = NULL WHERE id = $1`, f.chat); err != nil {
+		t.Fatal(err)
+	}
+	err := check(t.Context())
+	var failure *contextual.Failure
+	if !errors.As(err, &failure) || failure.Code != contextual.CodeModelError || !failure.Permanent {
+		t.Fatalf("checkpoint did not stop unknown model window as a permanent configuration error: %v", err)
 	}
 }
 

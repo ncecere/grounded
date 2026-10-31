@@ -36,7 +36,7 @@ func newCtxEnvWith(t *testing.T, mutate func(*config.Config)) *ctxEnv {
 	model := func(key, upstream, ceiling string) apitypes.Model {
 		var m apitypes.Model
 		code, e := env.admin.call("POST", "/v1/admin/models", map[string]any{"connectionId": conns[0].Id, "key": key, "upstreamModel": upstream,
-			"displayName": key, "kind": "chat", "maxClassification": ceiling}, &m, nil)
+			"displayName": key, "kind": "chat", "maxClassification": ceiling, "contextWindow": 32000}, &m, nil)
 		mustCode(t, "chat model "+key, code, e, 201, "")
 		return m
 	}

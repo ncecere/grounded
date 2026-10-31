@@ -277,7 +277,8 @@ func (g *Generator) call(ctx context.Context, req Request, m Model, in Input, ke
 	case <-ctx.Done():
 		return zero, &StopError{Reason: "cancelled", Err: ctx.Err()}
 	}
-	if _, err := g.currentTarget(ctx, req, m); err != nil {
+	target, err := g.currentTarget(ctx, req, m)
+	if err != nil {
 		return zero, err
 	}
 	// Another process, or an earlier run, may have made it meanwhile.
@@ -286,6 +287,9 @@ func (g *Generator) call(ctx context.Context, req Request, m Model, in Input, ke
 	} else if text, ok := known[key]; ok {
 		return flightResult{text: text}, nil
 	}
+	if err := g.checkPromptCapacity(target, in); err != nil {
+		return zero, err
+	}
 	if g.Gate != nil && req.Team.Valid {
 		if w := g.Gate(ctx, req.Team.UUID); w != nil {
 			return zero, w
@@ -293,7 +297,7 @@ func (g *Generator) call(ctx context.Context, req Request, m Model, in Input, ke
 	}
 	id, err := g.Store.Reserve(ctx, Reservation{SourceID: req.SourceID, ProfileID: req.ProfileID, DocumentID: req.DocumentID, ModelID: m.ID,
 		Phase: req.Phase, Cap: req.Cap, Since: req.Since,
-		InputTokens: int64(WithMargin(g.Counter.Count(SystemPrompt) + g.Counter.Count(UserMessage(in)) + 16)), OutputTokens: RequestMaxTokens})
+		InputTokens: g.promptInputTokens(in), OutputTokens: RequestMaxTokens})
 	var admission *AdmissionLimit
 	if errors.As(err, &admission) {
 		return zero, &Wait{Code: "contextual_cap", Until: admission.Until, Message: admission.Error()}

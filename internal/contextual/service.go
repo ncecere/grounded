@@ -323,8 +323,8 @@ func validateCaps(in PutInput) error {
 }
 
 // ModelProblem says why a model cannot write contexts for a source of the classification (nil: it can): it must be an enabled chat model
-// on an enabled connection, cleared for the classification (ADR-0006 rule 4), and, if it declares its context window, have room for the
-// bounded prompt and reply.
+// on an enabled connection, cleared for the classification (ADR-0006 rule 4),
+// with a known window meeting the activation floor. Actual prompts are checked again.
 func ModelProblem(ctx context.Context, q *dbgen.Queries, modelID *uuid.UUID, classification string) *apperr.Error {
 	if modelID == nil {
 		return apperr.Invalid("model_required", "Choose the chat model that writes the context")
@@ -344,13 +344,18 @@ func ModelProblem(ctx context.Context, q *dbgen.Queries, modelID *uuid.UUID, cla
 	if err != nil || !ok {
 		return apperr.Conflict("model_classification", "That model may not process data at this source's classification. Choose a model cleared for it")
 	}
-	if m.ContextWindow != nil && int(*m.ContextWindow) < MinContextWindow() {
+	if m.ContextWindow == nil {
+		return apperr.Conflict("model_context_window", "Declare this model's context window before enabling contextual chunks")
+	}
+	if int(*m.ContextWindow) < MinContextWindow() {
 		return apperr.Conflict("model_context_window", fmt.Sprintf("That model's context window (%d tokens) is too small for the bounded prompt (%d tokens)", *m.ContextWindow, MinContextWindow()))
 	}
 	return nil
 }
 
-// MinContextWindow is the smallest context window that holds the largest bounded prompt, with the margin, and the reply.
+// MinContextWindow is a coarse activation floor. Actual escaped messages and
+// framing are locally counted and checked again before admission and dispatch;
+// this floor is not proof that every document fits a model's own tokenizer.
 func MinContextWindow() int {
 	return WithMargin(CallInputMax(approxCounter{}, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)) + RequestMaxTokens
 }

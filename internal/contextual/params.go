@@ -89,7 +89,7 @@ const (
 	CodeInvalid     Code = "context_invalid"         // the reply was unusable
 	CodeForbidden   Code = "context_model_forbidden" // the model may not read the source's classification, or is gone
 	CodeOff         Code = "context_off"             // the source was switched off while it was being built
-	CodeModelError  Code = "context_model_error"     // the gateway rejected the request (key, model name or request): needs an admin
+	CodeModelError  Code = "context_model_error"     // model/request configuration, including local prompt capacity: needs an admin
 )
 
 // Failure is a document that could not be given context: the code names why, Err is the cause (never the text of a prompt or a reply).

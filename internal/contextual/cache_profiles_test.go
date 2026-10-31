@@ -82,7 +82,7 @@ func newPGProfileCacheEnv(t *testing.T) (*genEnv, Request, uuid.UUID) {
 	f := newSettlementFixture(t)
 	e := newGen(t)
 	otherProfile := anotherAdmissionProfile(t, f)
-	_, err := f.pool.Exec(t.Context(), `UPDATE models SET upstream_model = 'ctx-writer' WHERE id = $1`, f.res.ModelID)
+	_, err := f.pool.Exec(t.Context(), `UPDATE models SET upstream_model = 'ctx-writer', context_window = 32000 WHERE id = $1`, f.res.ModelID)
 	if err != nil {
 		t.Fatal(err)
 	}

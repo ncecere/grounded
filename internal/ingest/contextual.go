@@ -204,7 +204,10 @@ func modelAllowed(ctx context.Context, q *dbgen.Queries, sourceID, modelID, expe
 	if !conn.Enabled {
 		return &contextual.Failure{Code: contextual.CodeForbidden, Err: errors.New("the context model connection is disabled"), Permanent: true}
 	}
-	if m.ContextWindow != nil && int(*m.ContextWindow) < contextual.MinContextWindow() {
+	if m.ContextWindow == nil {
+		return &contextual.Failure{Code: contextual.CodeModelError, Err: errors.New("the configured context model window is unknown"), Permanent: true}
+	}
+	if int(*m.ContextWindow) < contextual.MinContextWindow() {
 		return &contextual.Failure{Code: contextual.CodeUnavailable, Err: errors.New("the configured context model window is too small for the bounded prompt")}
 	}
 	return nil
@@ -243,7 +246,7 @@ func classifyContext(err error) (outcome, bool) {
 	case contextual.CodeOff:
 		o.message = "Contextual chunks were switched off for this source while its index was built. Discard the preview."
 	default:
-		o.message = "The gateway rejected the request for a contextual-chunk description. Ask a platform admin."
+		o.message = "The model or request configuration cannot produce a contextual-chunk description. Ask a platform admin to check the context window and gateway settings."
 	}
 	return o, true
 }
