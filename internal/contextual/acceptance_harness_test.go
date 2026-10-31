@@ -23,6 +23,7 @@ type acceptanceReport struct {
 	ExplicitLimits       acceptanceLimits     `json:"explicitLimitsAndConfiguredPrices"`
 	Currency             string               `json:"configuredCurrency"`
 	Dimensions           int                  `json:"embeddingDimensions"`
+	ChatCompat           acceptanceChatCompat `json:"explicitChatCompatibility"`
 	PhaseMilliseconds    map[string]int64     `json:"phaseMilliseconds"`
 	AccountingCollected  bool                 `json:"accountingCollected"`
 	AccountingReadFailed bool                 `json:"accountingReadFailed"`
@@ -59,6 +60,7 @@ func (r *acceptanceRun) execute(ctx context.Context) (report acceptanceReport, e
 	r.report.Status = "failed"
 	r.report.CorpusSHA256 = acceptanceCorpusSHA256()
 	r.report.ExplicitLimits, r.report.Currency, r.report.Dimensions = r.config.Limits, r.config.Currency, r.config.Dimensions
+	r.report.ChatCompat = r.config.ChatCompat
 	r.report.PhaseMilliseconds = make(map[string]int64)
 	r.report.Limitations = "Synthetic generator/PG admission and real-or-fake embedding comparison only; not a full HTTP product walk, representative corpus, answer-quality/latency/generalization result, or external invoice guarantee. Equal or worse retrieval is reported, not hidden."
 	defer func() {

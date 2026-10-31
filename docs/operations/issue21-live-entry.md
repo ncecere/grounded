@@ -26,6 +26,15 @@ schema in acceptance_authority_test.go requires:
 - KeyFile and ReportFile: absolute canonical paths; report must not exist.
 - Config: Endpoint, Currency (USD), Dimensions (1..4000), ContextWindow (known
   sufficient), Seconds (1..300), Limits.
+- Optional Config.ChatCompat: strictly typed `maxTokensField` (empty/default,
+  `max_tokens`, or `max_completion_tokens`) and `thinkingOff` (empty/default or
+  `reasoning_effort_none`). These configure only the disposable catalog model
+  through the existing adapter, are recorded in evidence, and do not select a
+  model or authorize arbitrary provider JSON. For an explicitly approved modern
+  OpenAI model supporting these modes, use `max_completion_tokens` and
+  `reasoning_effort_none`; output remains capped at 384 tokens, including reasoning.
+  Only exact `reasoning_effort: "none"` is accepted by the context transport;
+  reasoning options are forbidden in embedding requests.
 - Limits: Requests, InputTokens, OutputTokens, Amount, ContextModel,
   EmbeddingModel, InputPrice, OutputPrice, EmbeddingPrice. Prices and amounts
   are bounded decimal strings, never exponents/floats. No spending defaults.

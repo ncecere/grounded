@@ -147,10 +147,11 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 			Role    string          `json:"role"`
 			Content json.RawMessage `json:"content"`
 		} `json:"messages"`
-		Input               []string `json:"input"`
-		MaxTokens           int      `json:"max_tokens"`
-		MaxCompletionTokens int      `json:"max_completion_tokens"`
-		Stream              bool     `json:"stream"`
+		Input               []string        `json:"input"`
+		MaxTokens           int             `json:"max_tokens"`
+		MaxCompletionTokens int             `json:"max_completion_tokens"`
+		ReasoningEffort     json.RawMessage `json:"reasoning_effort"`
+		Stream              bool            `json:"stream"`
 		StreamOptions       *struct {
 			IncludeUsage bool `json:"include_usage"`
 		} `json:"stream_options"`
@@ -166,7 +167,7 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 	prefix := strings.TrimRight(g.endpoint.EscapedPath(), "/")
 	switch path {
 	case prefix + "/chat/completions":
-		if request.Model != g.limits.ContextModel || len(request.Messages) != 2 || len(request.Input) != 0 || request.Dimensions != 0 || request.EncodingFormat != "" || (request.MaxTokens > 0 && request.MaxCompletionTokens > 0) {
+		if request.Model != g.limits.ContextModel || len(request.Messages) != 2 || len(request.Input) != 0 || request.Dimensions != 0 || request.EncodingFormat != "" || !acceptanceChatEffort(request.ReasoningEffort) || (request.MaxTokens > 0 && request.MaxCompletionTokens > 0) {
 			return "", 0, 0, errors.New("acceptance refused unexpected context request")
 		}
 		var text [2]string
@@ -186,7 +187,7 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 		}
 		return "context", int64(WithMargin(g.counter.Count(text[0]) + g.counter.Count(text[1]) + 16)), int64(output), nil
 	case prefix + "/embeddings":
-		if request.Model != g.limits.EmbeddingModel || len(request.Input) < 1 || len(request.Input) > 32 || len(request.Messages) != 0 || request.Stream || request.StreamOptions != nil || request.MaxTokens != 0 || request.MaxCompletionTokens != 0 || request.Dimensions < 0 || request.Dimensions > 4000 || (request.EncodingFormat != "" && request.EncodingFormat != "float") {
+		if request.Model != g.limits.EmbeddingModel || len(request.Input) < 1 || len(request.Input) > 32 || len(request.Messages) != 0 || request.Stream || request.StreamOptions != nil || request.MaxTokens != 0 || request.MaxCompletionTokens != 0 || len(request.ReasoningEffort) != 0 || request.Dimensions < 0 || request.Dimensions > 4000 || (request.EncodingFormat != "" && request.EncodingFormat != "float") {
 			return "", 0, 0, errors.New("acceptance refused unexpected embedding request")
 		}
 		input := 0
@@ -196,6 +197,15 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 		return "embedding", int64(WithMargin(input)), 0, nil
 	}
 	return "", 0, 0, errors.New("acceptance refused unexpected gateway path")
+}
+
+// No unbounded reasoning option or arbitrary provider setting is authorized.
+func acceptanceChatEffort(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return true
+	}
+	var effort string
+	return json.Unmarshal(raw, &effort) == nil && effort == "none"
 }
 
 // OpenAI adapters may encode plain text as a string or text-only content
