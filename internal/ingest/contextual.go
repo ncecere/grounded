@@ -54,7 +54,13 @@ func (p *Processor) snapshot(ctx context.Context, q *dbgen.Queries, srcID uuid.U
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
 		return nil, nil
 	}
-	return &snap, err
+	if err != nil {
+		return nil, err
+	}
+	if snap.PromptVersion != contextual.PromptVersion {
+		return nil, &contextual.StopError{Reason: "this worker does not support the contextual snapshot's prompt version"}
+	}
+	return &snap, nil
 }
 
 // contextualTexts are the inputs to embed for a document's passages. mark is nil when contextual chunks do not apply.
@@ -140,8 +146,8 @@ func (p *Processor) withContexts(t catalog.EmbedTarget, title string, chunks []c
 	return texts, n
 }
 
-// checkpoint is asked before every model call of a document: the platform switch, the source's opt-in, the set, and the model's classification
-// ceiling against the source's classification as it is now.
+// checkpoint gates calls and cached returns: platform/source opt-in, current
+// own-profile or extra-set scope, and current model/connection eligibility.
 func (p *Processor) checkpoint(sc ctxScope, t catalog.EmbedTarget, modelID uuid.UUID) func(context.Context) error {
 	return func(ctx context.Context) error {
 		if p.ContextualOff {
@@ -162,16 +168,23 @@ func (p *Processor) checkpoint(sc ctxScope, t catalog.EmbedTarget, modelID uuid.
 				return err
 			}
 		}
-		return modelAllowed(ctx, q, sc.src.ID, modelID)
+		expectedOwn := uuid.Nil
+		if sc.own {
+			expectedOwn = t.Profile.ID
+		}
+		return modelAllowed(ctx, q, sc.src.ID, modelID, expectedOwn)
 	}
 }
 
-// modelAllowed checks that the set's model may still read the source's data (ADR-0006 rule 4); a reclassified source stops the calls
-// instead of sending its text.
-func modelAllowed(ctx context.Context, q *dbgen.Queries, sourceID, modelID uuid.UUID) error {
+// modelAllowed checks current own-profile identity, source classification,
+// model/connection eligibility and configured prompt capacity (ADR-0006 rule 4).
+func modelAllowed(ctx context.Context, q *dbgen.Queries, sourceID, modelID, expectedOwn uuid.UUID) error {
 	src, err := q.GetSource(ctx, sourceID)
 	if err != nil {
 		return err
+	}
+	if expectedOwn != uuid.Nil && src.EmbeddingProfileID != expectedOwn {
+		return &contextual.StopError{Reason: "the source's own embedding profile changed"}
 	}
 	m, err := q.GetModel(ctx, modelID)
 	if err != nil {
@@ -181,8 +194,18 @@ func modelAllowed(ctx context.Context, q *dbgen.Queries, sourceID, modelID uuid.
 	if err != nil {
 		return err
 	}
-	if !ok || !m.Enabled {
+	if !ok || !m.Enabled || m.Kind != catalog.KindChat {
 		return &contextual.Failure{Code: contextual.CodeForbidden, Err: errors.New("the context model may not read this source's classification, or is disabled"), Permanent: true}
+	}
+	conn, err := q.GetConnection(ctx, m.ConnectionID)
+	if err != nil {
+		return err
+	}
+	if !conn.Enabled {
+		return &contextual.Failure{Code: contextual.CodeForbidden, Err: errors.New("the context model connection is disabled"), Permanent: true}
+	}
+	if m.ContextWindow != nil && int(*m.ContextWindow) < contextual.MinContextWindow() {
+		return &contextual.Failure{Code: contextual.CodeUnavailable, Err: errors.New("the configured context model window is too small for the bounded prompt")}
 	}
 	return nil
 }
