@@ -8433,7 +8433,7 @@ export interface components {
             passagesOver: number;
             /**
              * Format: int64
-             * @description A ceiling of the model's input tokens
+             * @description A ceiling of locally counted request input reserved for planning and admission
              */
             inputTokensMax: number;
             /**
@@ -8470,7 +8470,7 @@ export interface components {
             admission: components["schemas"]["ContextualAdmission"] | null;
             /**
              * Format: int32
-             * @description The most input tokens one attempt of unknown usage (a timeout) may have cost
+             * @description Local input-reservation headroom for one attempt of unknown usage; not measured usage or a provider-billing guarantee
              */
             unknownCallTokensIn: number;
             /** Format: int32 */

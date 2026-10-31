@@ -71,13 +71,19 @@ func TestContextualCheckpointStopsReplacedOwnProfile(t *testing.T) {
 }
 
 func TestContextualSnapshotRejectsUnsupportedPromptVersion(t *testing.T) {
-	f := newContextualScopeFixture(t)
-	if _, err := f.pool.Exec(t.Context(), `UPDATE set_contextual SET prompt_version = $2 WHERE source_id = $1`, f.sc.src.ID, contextual.PromptVersion+1); err != nil {
-		t.Fatal(err)
-	}
-	snapshot, err := f.p.snapshot(t.Context(), dbgen.New(f.pool), f.sc.src.ID, f.target)
-	if err == nil || snapshot != nil {
-		t.Fatal("worker accepted a snapshot with an unsupported future prompt version")
+	for _, version := range []int{contextual.PromptVersion - 1, contextual.PromptVersion + 1} {
+		f := newContextualScopeFixture(t)
+		supported, err := f.p.snapshot(t.Context(), dbgen.New(f.pool), f.sc.src.ID, f.target)
+		if err != nil || supported == nil || supported.PromptVersion != contextual.PromptVersion {
+			t.Fatalf("current private snapshot unsupported: %+v %v", supported, err)
+		}
+		if _, err := f.pool.Exec(t.Context(), `UPDATE set_contextual SET prompt_version = $2 WHERE source_id = $1`, f.sc.src.ID, version); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := f.p.snapshot(t.Context(), dbgen.New(f.pool), f.sc.src.ID, f.target)
+		if err == nil || snapshot != nil {
+			t.Fatalf("worker accepted unsupported prompt version %d", version)
+		}
 	}
 }
 

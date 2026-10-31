@@ -185,7 +185,7 @@ func TestEstimateBoundsEveryCall(t *testing.T) {
 		var sum int64
 		for _, u := range units {
 			in := BuildInput(strings.Repeat("Title ", 100), u.Path, opening, UnitText(chunks, u, c), c)
-			actual := c.Count(SystemPrompt) + c.Count(UserMessage(in))
+			actual := WithMargin(promptTokens(in, c))
 			docTokens := 0
 			for _, ch := range chunks {
 				docTokens += ch.Tokens

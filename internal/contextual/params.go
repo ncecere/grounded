@@ -10,9 +10,9 @@ import "fmt"
 
 // PromptVersion changes with anything that can change what is sent or kept: the prompt, a bound below, the cleaning of a reply. It is part of
 // every cache key, so old text is never reused for new rules.
-const PromptVersion = 1
+const PromptVersion = 2
 
-// Bounds of prompt version 1 (docs/contextual-chunks.md section 7).
+// Bounds of prompt version 2 (docs/contextual-chunks.md section 7).
 const (
 	// TitleMaxTokens and PathMaxTokens bound the document title and the heading path in the prompt.
 	TitleMaxTokens = 60

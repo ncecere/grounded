@@ -9,10 +9,12 @@ const cutSlack = 8
 
 // PromptOverhead is what a call carries besides the document's text: the instructions and the empty frame of the user message.
 func PromptOverhead(c chunk.TokenCounter) int {
-	return c.Count(SystemPrompt) + c.Count(UserMessage(Input{})) + 4*cutSlack
+	return c.Count(SystemPrompt) + c.Count(UserMessage(Input{})) + 16 + 4*cutSlack
 }
 
-// CallInputMax is the most input tokens one call of a document can carry, counted with c: the overhead, the title and heading path at their
+// CallInputMax is the ceiling enforced by fitInput on derived prompt fields,
+// including escaped delimiters, joins, cut marks and local chat framing.
+// It is the most local input tokens one call of a document can carry, counted with c: the overhead, the title and heading path at their
 // bounds, the start of the document (at most its own length) and the unit's text (at most its own length). docTokens is the document's
 // passages' tokens added up; unitTokens the unit's.
 func CallInputMax(c chunk.TokenCounter, docTokens, unitTokens int) int {
@@ -89,7 +91,7 @@ func (t *Totals) Merge(o Totals) {
 }
 
 // UnknownCallTokensMax is the most one attempt of unknown usage (a timeout, an error, a crash) can have cost in tokens: an input at the
-// per-call bound and a full requested output. It bounds what the provider may have billed; it is not a measure.
+// per-call bound and a full requested output. It is local accounting headroom, not a provider billing guarantee.
 func UnknownCallTokensMax(c chunk.TokenCounter) (in, out int) {
 	return WithMargin(CallInputMax(c, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)), RequestMaxTokens
 }
