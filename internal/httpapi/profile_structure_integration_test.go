@@ -42,7 +42,9 @@ func TestChunkerV4PreviewApplyParents(t *testing.T) {
 		t.Fatalf("preview/direct mismatch: %q vs %q", preview, got)
 	}
 	// Matching v4 chunk settings still need structural identities when parents change.
-	kb2 := env.kb(t, "Direct structure", direct.Id)
+	kb2 := env.kbOn(t, "Direct structure", fresh.Id)
+	code, apiErr := env.owner.call("PUT", env.base+"/kbs/"+kb2.Id.String()+"/sources/"+direct.Id.String(), nil, &kb2, nil)
+	mustCode(t, "attach v4 source", code, apiErr, 200, "")
 	m2 := env.waitStatus(t, env.preview(t, kb2.Id, map[string]any{"parentTokens": 1024}).Id, statusReady)
 	if !m2.Estimate.Rechunk {
 		t.Fatal("v4 estimate did not report re-cutting")
