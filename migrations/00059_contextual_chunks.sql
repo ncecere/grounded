@@ -79,7 +79,9 @@ CREATE INDEX contextual_cache_source_idx ON contextual_cache (source_id);
 
 CREATE TABLE contextual_calls (
     id          bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    source_id   uuid        NOT NULL REFERENCES data_sources (id) ON DELETE CASCADE,
+    -- Historical accounting identity, like usage_events: deleting source
+    -- content must not erase an in-flight paid attempt before settlement.
+    source_id   uuid        NOT NULL,
     -- Historical identity, not a cascading FK: discarding an index cannot restore daily headroom.
     profile_id  uuid        NOT NULL,
     -- Survives the document's deletion: the attempt happened.

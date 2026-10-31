@@ -140,7 +140,7 @@ func sorted(in []string) []string {
 func contextTables(t *testing.T, env *ctxEnv) map[string]int64 {
 	t.Helper()
 	out := map[string]int64{}
-	for _, tb := range []string{"source_contextual", "set_contextual", "contextual_cache", "contextual_calls", "document_contextual"} {
+	for _, tb := range []string{"source_contextual", "set_contextual", "contextual_cache", "contextual_cache_plans", "contextual_calls", "document_contextual"} {
 		out[tb] = env.scalar(t, "SELECT count(*) FROM "+tb)
 	}
 	return out

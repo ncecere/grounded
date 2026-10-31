@@ -21,12 +21,12 @@ func settlementAdmission(ctx context.Context, q *dbgen.Queries, st Settlement) (
 		return nil, false, err
 	}
 	cur, err := q.LockSourceContextual(ctx, call.SourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, false, nil // deleting the source also deletes its attempts
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, false, err
 	}
+	// Source content/settings can disappear during a paid request. Retained
+	// attempts may still settle usage, but can never republish cached text.
+	cacheAllowed := err == nil && cur.Enabled
 	call, err = q.LockContextualCall(ctx, st.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, false, nil
@@ -41,7 +41,7 @@ func settlementAdmission(ctx context.Context, q *dbgen.Queries, st Settlement) (
 	if err := reconcileAdmission(call, st, p); err != nil {
 		return nil, false, err
 	}
-	return p, cur.Enabled, nil
+	return p, cacheAllowed, nil
 }
 
 // reconcileAdmission changes headroom only for complete reported usage of the
