@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
@@ -66,7 +66,10 @@ const overview: Schemas["PlatformAnalytics"] = {
 describe("admin analytics page", () => {
   it("reads the range from the URL (Q13)", async () => {
     const calls = mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/analytics": () => overview });
-    renderApp("/admin/analytics?range=7d");
+    const { router } = renderApp("/admin/analytics?range=7d");
+    // A cold lazy-route import can outlast RTL's element wait on a busy
+    // runner. Wait for the actual route load, not a larger wall-clock budget.
+    await act(async () => { await router.load(); });
     expect(await screen.findByRole("heading", { name: "Analytics", level: 1 })).toBeInTheDocument();
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/analytics")?.search.get("from")).toBe(daysAgoLocal(6)));
   });
