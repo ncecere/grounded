@@ -68,3 +68,4 @@ Once an ADR is accepted, leave its substance alone. To reverse or replace a deci
 | [0026](0026-parent-child-retrieval.md) | Parent/child retrieval | Accepted | 2026-10-30 |
 | [0027](0027-content-health-report.md) | Content health reports are bounded, opt-in, ID-only snapshots | Accepted | 2026-10-30 |
 | [0028](0028-contextual-chunks.md) | Contextual chunks | Proposed | 2026-10-30 |
+| [0031](0031-generated-helm.md) | Generated Helm alongside canonical Kustomize | Proposed | 2026-10-31 |

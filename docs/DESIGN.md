@@ -742,7 +742,7 @@ Settings come from environment variables, optionally layered over a flat YAML fi
 Following yoink's pipeline:
 - **CI (GitHub Actions):** `gofmt`, `go vet`, `go test -race` against real Postgres, frontend tests and accessibility checks, then the build.
 - **Images** are published to GHCR and **deployed by digest, never by `latest`**.
-- **Manifests:** Kustomize, with a `base` plus `staging` and `prod` overlays.
+- **Manifests:** Kustomize remains canonical. A proposed generated Helm delivery format for common choices is specified in [the Helm design](specs/generated-helm/DESIGN.md) and Proposed [ADR-0031](adr/0031-generated-helm.md); existing overlays are unchanged. See [chart usage and limits](../deploy/helm/README.md).
 - **Environments:** local compose for development; staging and prod on the operator's Kubernetes.
 - **Secrets:** ExternalSecrets, using the backend the cluster provides, or Vault/OpenBao if none. The app reads only env vars and mounted files. Secrets never appear in the UI or logs, and rotation is documented.
 - **Cluster hardening:** namespace NetworkPolicies and the restricted Pod Security profile.

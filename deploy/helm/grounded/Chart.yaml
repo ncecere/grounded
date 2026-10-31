@@ -1,0 +1,6 @@
+apiVersion: v2
+name: grounded
+description: Generated from canonical Grounded Kustomize manifests; one install per namespace.
+type: application
+version: 0.0.0-dev
+appVersion: unreleased

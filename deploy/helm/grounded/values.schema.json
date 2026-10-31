@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "appImage",
+    "ocrImage",
+    "runtimeSecret",
+    "s3Secret",
+    "smtpSecret",
+    "appURL",
+    "s3Endpoint",
+    "s3Bucket",
+    "postgres",
+    "valkey",
+    "apiReplicas",
+    "workerReplicas",
+    "ocrReplicas",
+    "ocr",
+    "ingress",
+    "ingressHost",
+    "ingressClass",
+    "ingressNamespace",
+    "tlsSecret",
+    "tracing",
+    "tracingEndpoint",
+    "tracingNamespace",
+    "tracingSample",
+    "monitoring",
+    "monitoringNamespace"
+  ],
+  "properties": {
+    "appImage": {
+      "type": "string",
+      "pattern": "^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$"
+    },
+    "ocrImage": {
+      "type": "string",
+      "pattern": "^$|^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$"
+    },
+    "runtimeSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "s3Secret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "smtpSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "appURL": {
+      "type": "string",
+      "pattern": "^https://[a-zA-Z0-9.-]+(:[0-9]+)?$"
+    },
+    "s3Endpoint": {
+      "type": "string",
+      "pattern": "^https://[a-zA-Z0-9.-]+(:[0-9]+)?$"
+    },
+    "s3Bucket": {
+      "type": "string"
+    },
+    "postgres": {
+      "type": "string",
+      "enum": [
+        "external",
+        "bundled"
+      ]
+    },
+    "valkey": {
+      "type": "string",
+      "enum": [
+        "external",
+        "bundled"
+      ]
+    },
+    "apiReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "workerReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "ocrReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "ocr": {
+      "type": "boolean"
+    },
+    "ingress": {
+      "type": "boolean"
+    },
+    "ingressHost": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "ingressClass": {
+      "type": "string"
+    },
+    "ingressNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tlsSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tracing": {
+      "type": "boolean"
+    },
+    "tracingEndpoint": {
+      "type": "string",
+      "pattern": "^https?://[a-zA-Z0-9.-]+:4318$"
+    },
+    "tracingNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tracingSample": {
+      "type": "string",
+      "pattern": "^(0(\\.[0-9]+)?|1(\\.0+)?)$"
+    },
+    "monitoring": {
+      "type": "boolean"
+    },
+    "monitoringNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    }
+  }
+}

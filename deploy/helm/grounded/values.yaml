@@ -1,0 +1,26 @@
+# Required per install; no credentials or usable image defaults are shipped.
+appImage: ""
+ocrImage: ""
+runtimeSecret: ""
+s3Secret: ""
+smtpSecret: grounded-smtp
+appURL: https://grounded.example.org
+s3Endpoint: https://s3.example.org
+s3Bucket: grounded
+postgres: external
+valkey: external
+apiReplicas: 2
+workerReplicas: 2
+ocrReplicas: 1
+ocr: false
+ingress: false
+ingressHost: grounded.example.org
+ingressClass: ""
+ingressNamespace: ingress-controller
+tlsSecret: ""
+tracing: false
+tracingEndpoint: http://tempo.monitoring.svc:4318
+tracingNamespace: monitoring
+tracingSample: "0.2"
+monitoring: false
+monitoringNamespace: monitoring
