@@ -5,6 +5,7 @@ import "github.com/ncecere/grounded/internal/httpapi"
 // withHTTPServices adds domain services to the transport's existing infrastructure.
 // Keeping this mapping separate lets Run own lifecycle rather than field wiring.
 func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
+	d.AuditExports = s.AuditExports
 	d.Teams, d.Platform, d.Catalog = s.Teams, s.Platform, s.Catalog
 	d.Sources, d.WebSources, d.KBs = s.Sources, s.Web, s.KBs
 	d.APIKeys, d.Limits, d.Costs = s.APIKeys, s.Limits, s.Costs

@@ -25,7 +25,7 @@ func TestHTTPServicesPreserveInfrastructureAndDomainIdentity(t *testing.T) {
 	}
 	want := base
 	pairs := [][2]string{
-		{"Teams", "Teams"}, {"Platform", "Platform"}, {"Catalog", "Catalog"},
+		{"AuditExports", "AuditExports"}, {"Teams", "Teams"}, {"Platform", "Platform"}, {"Catalog", "Catalog"},
 		{"Sources", "Sources"}, {"Web", "WebSources"}, {"KBs", "KBs"},
 		{"APIKeys", "APIKeys"}, {"Limits", "Limits"}, {"Costs", "Costs"},
 		{"Agents", "Agents"}, {"Notify", "Notify"}, {"Moderation", "Moderation"},

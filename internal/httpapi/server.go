@@ -16,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
+	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/breakglass"
 	"github.com/ncecere/grounded/internal/captcha"
@@ -54,16 +55,17 @@ import (
 
 // Deps are the dependencies shared by handlers.
 type Deps struct {
-	Config   config.Config
-	Pool     *pgxpool.Pool
-	KV       *kv.Store
-	Auth     *auth.Service
-	Teams    *teams.Service
-	Platform *platform.Service
-	Catalog  *catalog.Service
-	Sources  *sources.Service
-	KBs      *kbs.Service
-	APIKeys  *apikeys.Service
+	AuditExports *auditexport.Service
+	Config       config.Config
+	Pool         *pgxpool.Pool
+	KV           *kv.Store
+	Auth         *auth.Service
+	Teams        *teams.Service
+	Platform     *platform.Service
+	Catalog      *catalog.Service
+	Sources      *sources.Service
+	KBs          *kbs.Service
+	APIKeys      *apikeys.Service
 	// WebSources runs web sources: allowlist, domain requests, map.
 	WebSources *web.Service
 	// Limits reads and changes team limits.
@@ -169,7 +171,7 @@ func apiRoutes(d Deps) []route {
 	for _, group := range [][]route{
 		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.agentTemplateRoutes(), a.teamRequestRoutes(), a.webhookRoutes(), a.shareRoutes(), a.chatRoutes(),
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
-		a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
+		a.auditExportRoutes(), a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),

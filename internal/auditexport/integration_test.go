@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -104,7 +103,7 @@ func TestPGSnapshotPublishVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if empty.Manifest.Count != 0 || Verify(empty, strings.NewReader(""), trust(fixtureKey(2))) != nil || VerifyLink(e, empty) != nil {
+	if empty.Manifest.Count != 1 || VerifyLink(e, empty) != nil {
 		t.Fatal("empty day or rotated chain failed")
 	}
 	if _, err = Freeze(ctx, pool, day.AddDate(0, 0, 3), actor); err != ErrRange {

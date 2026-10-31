@@ -29,27 +29,91 @@ func (q *Queries) AuditExportSnapshot(ctx context.Context) (AuditExportSnapshotR
 	return i, err
 }
 
+const countAuditExportCandidates = `-- name: CountAuditExportCandidates :one
+SELECT count(*)::bigint FROM (
+ SELECT a.id FROM audit_log a
+ WHERE a.id <= $1 AND a.occurred_at >= $2 AND a.occurred_at < $3
+ AND NOT EXISTS (SELECT 1 FROM audit_export_facts f WHERE f.source_id=a.id)
+ LIMIT 100001
+) candidates
+`
+
+type CountAuditExportCandidatesParams struct {
+	Watermark     int64
+	CoverageStart time.Time
+	DayEnd        time.Time
+}
+
+func (q *Queries) CountAuditExportCandidates(ctx context.Context, arg CountAuditExportCandidatesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditExportCandidates, arg.Watermark, arg.CoverageStart, arg.DayEnd)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createAuditExport = `-- name: CreateAuditExport :exec
-INSERT INTO audit_exports (id, day, snapshot_at, watermark, previous_hash)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO audit_exports (id, day, coverage_start, snapshot_at, watermark, previous_hash)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateAuditExportParams struct {
-	ID           uuid.UUID
-	Day          pgtype.Date
-	SnapshotAt   time.Time
-	Watermark    int64
-	PreviousHash string
+	ID            uuid.UUID
+	Day           pgtype.Date
+	CoverageStart pgtype.Date
+	SnapshotAt    time.Time
+	Watermark     int64
+	PreviousHash  string
 }
 
 func (q *Queries) CreateAuditExport(ctx context.Context, arg CreateAuditExportParams) error {
 	_, err := q.db.Exec(ctx, createAuditExport,
 		arg.ID,
 		arg.Day,
+		arg.CoverageStart,
 		arg.SnapshotAt,
 		arg.Watermark,
 		arg.PreviousHash,
 	)
+	return err
+}
+
+const expiredAuditExportUploads = `-- name: ExpiredAuditExportUploads :many
+WITH candidates AS MATERIALIZED (
+ SELECT u.object_key FROM audit_export_uploads u
+ WHERE u.expires_at < clock_timestamp()
+ AND NOT EXISTS (SELECT 1 FROM audit_exports e WHERE e.object_key=u.object_key)
+ ORDER BY u.expires_at LIMIT 10 FOR UPDATE SKIP LOCKED
+)
+UPDATE audit_export_uploads SET deleting=true
+WHERE object_key IN (SELECT object_key FROM candidates) RETURNING object_key
+`
+
+func (q *Queries) ExpiredAuditExportUploads(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, expiredAuditExportUploads)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var object_key string
+		if err := rows.Scan(&object_key); err != nil {
+			return nil, err
+		}
+		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const forgetAuditExportUpload = `-- name: ForgetAuditExportUpload :exec
+DELETE FROM audit_export_uploads WHERE object_key = $1
+`
+
+func (q *Queries) ForgetAuditExportUpload(ctx context.Context, objectKey string) error {
+	_, err := q.db.Exec(ctx, forgetAuditExportUpload, objectKey)
 	return err
 }
 
@@ -61,16 +125,17 @@ SELECT $1, a.id, a.occurred_at, a.actor_kind, a.actor_user_id, a.team_id,
        CASE WHEN a.target_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN lower(a.target_id) ELSE '' END
 FROM audit_log a
 WHERE a.id > $2 AND a.id <= $3 AND a.occurred_at >= $4 AND a.occurred_at < $5
+AND NOT EXISTS (SELECT 1 FROM audit_export_facts f WHERE f.source_id = a.id)
 ORDER BY a.id LIMIT 256
 RETURNING source_id
 `
 
 type FreezeAuditExportPageParams struct {
-	ExportID  uuid.UUID
-	AfterID   int64
-	Watermark int64
-	DayStart  time.Time
-	DayEnd    time.Time
+	ExportID      uuid.UUID
+	AfterID       int64
+	Watermark     int64
+	CoverageStart time.Time
+	DayEnd        time.Time
 }
 
 func (q *Queries) FreezeAuditExportPage(ctx context.Context, arg FreezeAuditExportPageParams) ([]int64, error) {
@@ -78,7 +143,7 @@ func (q *Queries) FreezeAuditExportPage(ctx context.Context, arg FreezeAuditExpo
 		arg.ExportID,
 		arg.AfterID,
 		arg.Watermark,
-		arg.DayStart,
+		arg.CoverageStart,
 		arg.DayEnd,
 	)
 	if err != nil {
@@ -100,7 +165,7 @@ func (q *Queries) FreezeAuditExportPage(ctx context.Context, arg FreezeAuditExpo
 }
 
 const getAuditExport = `-- name: GetAuditExport :one
-SELECT id, day, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE id = $1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE id = $1
 `
 
 func (q *Queries) GetAuditExport(ctx context.Context, id uuid.UUID) (AuditExport, error) {
@@ -109,6 +174,7 @@ func (q *Queries) GetAuditExport(ctx context.Context, id uuid.UUID) (AuditExport
 	err := row.Scan(
 		&i.ID,
 		&i.Day,
+		&i.CoverageStart,
 		&i.SnapshotAt,
 		&i.Watermark,
 		&i.PreviousHash,
@@ -121,7 +187,7 @@ func (q *Queries) GetAuditExport(ctx context.Context, id uuid.UUID) (AuditExport
 }
 
 const getAuditExportByDay = `-- name: GetAuditExportByDay :one
-SELECT id, day, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE day = $1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE day = $1
 `
 
 func (q *Queries) GetAuditExportByDay(ctx context.Context, day pgtype.Date) (AuditExport, error) {
@@ -130,6 +196,7 @@ func (q *Queries) GetAuditExportByDay(ctx context.Context, day pgtype.Date) (Aud
 	err := row.Scan(
 		&i.ID,
 		&i.Day,
+		&i.CoverageStart,
 		&i.SnapshotAt,
 		&i.Watermark,
 		&i.PreviousHash,
@@ -141,8 +208,17 @@ func (q *Queries) GetAuditExportByDay(ctx context.Context, day pgtype.Date) (Aud
 	return i, err
 }
 
+const journalAuditExportUpload = `-- name: JournalAuditExportUpload :exec
+INSERT INTO audit_export_uploads(object_key) VALUES ($1)
+`
+
+func (q *Queries) JournalAuditExportUpload(ctx context.Context, objectKey string) error {
+	_, err := q.db.Exec(ctx, journalAuditExportUpload, objectKey)
+	return err
+}
+
 const latestAuditExport = `-- name: LatestAuditExport :one
-SELECT id, day, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports ORDER BY day DESC LIMIT 1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports ORDER BY day DESC LIMIT 1
 `
 
 func (q *Queries) LatestAuditExport(ctx context.Context) (AuditExport, error) {
@@ -151,6 +227,7 @@ func (q *Queries) LatestAuditExport(ctx context.Context) (AuditExport, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Day,
+		&i.CoverageStart,
 		&i.SnapshotAt,
 		&i.Watermark,
 		&i.PreviousHash,
@@ -172,9 +249,14 @@ func (q *Queries) LockAuditExports(ctx context.Context) error {
 }
 
 const publishAuditExport = `-- name: PublishAuditExport :execrows
+WITH ready AS MATERIALIZED (
+ SELECT object_key FROM audit_export_uploads
+ WHERE object_key = $1 AND NOT deleting AND expires_at > clock_timestamp() FOR UPDATE
+)
 UPDATE audit_exports SET state = 'completed', object_key = $1,
     envelope = $2, envelope_hash = $3
 WHERE id = $4 AND state = 'pending'
+AND EXISTS (SELECT 1 FROM ready)
 `
 
 type PublishAuditExportParams struct {

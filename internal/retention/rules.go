@@ -154,7 +154,9 @@ SELECT count(*) FROM del`, candidates), now, batch, rolledUntil).Scan(&n)
 // The audit log, except legal hold entries, which are kept for good. A hold
 // on the acting user, the team or the target keeps an entry.
 const auditLogDue = `SELECT a.id AS key, a.team_id, NULL::int AS rank, ''::text AS audience, 'retention'::text AS reason,
-       legal_hold_covers(ARRAY[a.team_id, a.actor_user_id, t.id], a.occurred_at, a.occurred_at) AS held
+       (legal_hold_covers(ARRAY[a.team_id, a.actor_user_id, t.id], a.occurred_at, a.occurred_at) OR
+        EXISTS (SELECT 1 FROM audit_export_settings s WHERE (s.enabled OR EXISTS (SELECT 1 FROM audit_export_requests))
+          AND a.occurred_at >= s.coverage_start AND NOT EXISTS (SELECT 1 FROM audit_export_facts f WHERE f.source_id=a.id))) AS held
 FROM audit_log a
 CROSS JOIN LATERAL (
     SELECT CASE WHEN a.target_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN a.target_id::uuid END AS id

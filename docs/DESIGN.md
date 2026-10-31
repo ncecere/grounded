@@ -428,6 +428,7 @@ The React app has two portals.
 - **Only the user who had the conversation can read its transcript.** This applies to team members too. Team admins and platform admins cannot read transcripts; the one exception is a platform admin under an active, audited break-glass session with the conversations scope on the agent's team (§3.6, ADR-0024).
 - **Delete.** Users can delete their own conversations. The transcript disappears from their view immediately and is removed for good according to retention, unless a legal hold applies.
 - **Export.** Users can export a conversation as Markdown or JSON, including citations.
+- **Signed audit exports (Proposed ADR-0034).** Admin Audit offers explicitly approved daily projected facts in built-in private storage, with Ed25519 verification metadata, bounded River work, late-fact carry-forward from a declared coverage start, failed/retry status and safe downloads. See [the protocol and operational limits](signed-daily-audit-export.md). This does not prove source completeness; external destination approval and SIEM streaming remain unimplemented.
 
 ### What teams see: aggregates and metadata only
 Each message event records the following, **without message content**:

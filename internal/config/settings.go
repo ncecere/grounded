@@ -110,6 +110,7 @@ func list(dst func(*Config) *[]string, lower bool) func(*Config, string) error {
 }
 
 var settings = append([]setting{
+	{key: "AUDIT_EXPORT_SIGNING_KEY_FILE", apply: str(func(c *Config) *string { return &c.AuditExportSigningKeyFile })},
 	{key: "APP_URL", apply: str(func(c *Config) *string { return &c.AppURL })},
 	{key: "HTTP_ADDR", apply: str(func(c *Config) *string { return &c.HTTPAddr })},
 	{key: "WORKER_HTTP_ADDR", apply: str(func(c *Config) *string { return &c.WorkerHTTPAddr })},

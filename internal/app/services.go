@@ -14,6 +14,7 @@ import (
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
+	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/blob"
 	"github.com/ncecere/grounded/internal/breakglass"
 	"github.com/ncecere/grounded/internal/captcha"
@@ -56,16 +57,17 @@ import (
 
 // Services are the domain services shared by the API and worker.
 type Services struct {
-	Teams    *teams.Service
-	Platform *platform.Service
-	Catalog  *catalog.Service
-	Sources  *sources.Service
-	Web      *web.Service
-	KBs      *kbs.Service
-	APIKeys  *apikeys.Service
-	Limits   *limits.Service
-	Agents   *agents.Service
-	Notify   *notify.Service
+	AuditExports *auditexport.Service
+	Teams        *teams.Service
+	Platform     *platform.Service
+	Catalog      *catalog.Service
+	Sources      *sources.Service
+	Web          *web.Service
+	KBs          *kbs.Service
+	APIKeys      *apikeys.Service
+	Limits       *limits.Service
+	Agents       *agents.Service
+	Notify       *notify.Service
 	// Mail sends notification email (nil: SMTP_HOST unset).
 	Mail notify.Sender
 	// Moderation stores the moderation policies and runs checks (ADR-0019).
@@ -180,6 +182,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		return nil, fmt.Errorf("object storage: %w", err)
 	}
 	s := &Services{
+		AuditExports: auditexport.New(pool, store, jobsClient, cfg.AuditExportSigningKeyFile),
 		Teams:        teams.NewService(pool),
 		Platform:     platform.NewService(pool),
 		Catalog:      catalog.NewService(pool, box),
@@ -323,6 +326,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &breakglass.SweepWorker{S: s.BreakGlass})
 			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
 			profilemig.Register(w, s.ProfileMigrations, proc)
+			auditexport.Register(w, s.AuditExports)
 			retention.Register(w, &retention.Runner{
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
@@ -339,6 +343,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			evals.Queue:  {MaxWorkers: 2},
 			// One report at a time per process, on a queue of its own: a report never waits behind ingestion, or the other way round.
 			contenthealth.Queue: {MaxWorkers: 1},
+			auditexport.Queue:   {MaxWorkers: 1},
 		},
 		Periodic: append([]*river.PeriodicJob{
 			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
@@ -358,6 +363,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			webhooks.PrunePeriodic(),
 			breakglass.Periodic(),
 			retention.Periodic(),
+			auditexport.Periodic(),
 			costs.RollupPeriodic(),
 			evals.Periodic(),
 			gaps.Periodic(),

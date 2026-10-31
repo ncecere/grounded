@@ -180,15 +180,16 @@ type AnswerCacheSetting struct {
 }
 
 type AuditExport struct {
-	ID           uuid.UUID
-	Day          pgtype.Date
-	SnapshotAt   time.Time
-	Watermark    int64
-	PreviousHash string
-	State        string
-	ObjectKey    *string
-	Envelope     []byte
-	EnvelopeHash *string
+	ID            uuid.UUID
+	Day           pgtype.Date
+	CoverageStart pgtype.Date
+	SnapshotAt    time.Time
+	Watermark     int64
+	PreviousHash  string
+	State         string
+	ObjectKey     *string
+	Envelope      []byte
+	EnvelopeHash  *string
 }
 
 type AuditExportFact struct {
@@ -201,6 +202,31 @@ type AuditExportFact struct {
 	Action      string
 	TargetType  string
 	TargetID    string
+}
+
+type AuditExportRequest struct {
+	ID          uuid.UUID
+	Day         pgtype.Date
+	State       string
+	Revision    int64
+	FailureCode string
+	CreatedAt   time.Time
+	Lease       uuid.NullUUID
+	LeaseUntil  *time.Time
+	ExportID    uuid.NullUUID
+}
+
+type AuditExportSetting struct {
+	Singleton     bool
+	Enabled       bool
+	CoverageStart pgtype.Date
+	Revision      int64
+}
+
+type AuditExportUpload struct {
+	ObjectKey string
+	Deleting  bool
+	ExpiresAt time.Time
 }
 
 type AuditLog struct {

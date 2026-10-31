@@ -793,6 +793,99 @@ export interface paths {
         patch: operations["adminUpdateClassification"];
         trace?: never;
     };
+    "/v1/admin/audit-export-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signed export approval and operator key readiness */
+        get: operations["adminGetAuditExportSettings"];
+        /** Approve built-in private exports (platform admins only) */
+        put: operations["adminPutAuditExportSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest 100 daily export requests; no work is started */
+        get: operations["adminListAuditExports"];
+        put?: never;
+        /** Request next closed UTC day with settings revision (platform admins only) */
+        post: operations["adminRequestAuditExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-exports/{exportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        /** Export status and signed verification metadata */
+        get: operations["adminGetAuditExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-exports/{exportId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Explicit retry of failed export with export revision (platform admins only) */
+        post: operations["adminRetryAuditExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-exports/{exportId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        /** Bounded private payload by export ID; independently pin verification keys */
+        get: operations["adminDownloadAuditExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -7008,6 +7101,47 @@ export interface components {
             platformRole?: components["schemas"]["PlatformRole"];
             status?: components["schemas"]["UserStatus"];
         };
+        AuditExportSettingsInput: {
+            enabled: boolean;
+            /**
+             * Format: date
+             * @description Immutable first covered UTC day once requests exist
+             */
+            coverageStart: string;
+            /**
+             * @description External destinations are unsupported and fail closed
+             * @enum {string}
+             */
+            destination: "builtin";
+        };
+        AuditExportSettings: components["schemas"]["AuditExportSettingsInput"] & {
+            /** Format: int64 */
+            revision: number;
+            keyReady: boolean;
+            /** @description SHA-256 of operator Ed25519 public key, never private material */
+            keyId: string;
+        };
+        AuditExportRequest: {
+            /** Format: date */
+            day: string;
+        };
+        AuditExportStatus: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            day: string;
+            /** @enum {string} */
+            state: "pending" | "completed" | "failed";
+            /** Format: int64 */
+            revision: number;
+            /** @description Redacted fixed operational code, never underlying error values */
+            failureCode: string;
+            /** @description Signed manifest and public verification information; not a trust root */
+            envelope?: {
+                [key: string]: unknown;
+            };
+        };
+        AuditExportList: components["schemas"]["AuditExportStatus"][];
         AuditEntry: {
             /** Format: int64 */
             id: number;
@@ -14742,6 +14876,237 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetAuditExportSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutAuditExportSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditExportSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminListAuditExports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportList"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminRequestAuditExport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportStatus"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetAuditExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportStatus"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminRetryAuditExport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditExportStatus"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminDownloadAuditExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": string;
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

@@ -26,9 +26,7 @@ the design; this ADR does not assert a completed product feature.
 
 ## Consequences
 
-Frozen facts consume additional database space. Bounded paging controls memory,
-not total disk usage or total transaction duration. The snapshot authenticates
-only visible projected facts, not every original field nor late commits. Operators
+Frozen facts consume additional database space. Hard record, byte and duration limits fail closed. The snapshot authenticates
+only visible projected facts, not every original field nor pre-approval retention losses. Late commits are carried forward within the declared coverage range. Operators
 must retain exports and trusted public-key fingerprints outside this system to
-detect rollback or deletion of the newest exports. Automatic scheduling must not
-be wired until settings approval, authorization, UI and integration tests exist.
+detect rollback or deletion of the newest exports. Scheduling is gated by explicit revised settings approval; API, UI and job integration require independent owner acceptance.

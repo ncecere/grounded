@@ -73,7 +73,7 @@ func TestSigningFailsClosed(t *testing.T) {
 func TestEmptyRotationAndLink(t *testing.T) {
 	previous, _ := fixture(t)
 	b, _ := json.Marshal(previous)
-	m := Manifest{Version: Version, Day: "2026-10-02", Snapshot: "2026-10-03T00:00:00Z", Watermark: 12, PayloadHash: digest(nil), PreviousExport: digest(b)}
+	m := Manifest{CoverageStart: previous.Manifest.CoverageStart, Version: Version, Day: "2026-10-02", Snapshot: "2026-10-03T00:00:00Z", Watermark: 12, PayloadHash: digest(nil), PreviousExport: digest(b)}
 	next, err := sign(m, fixtureKey(2))
 	if err != nil {
 		t.Fatal(err)

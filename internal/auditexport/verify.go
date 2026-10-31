@@ -30,13 +30,18 @@ func Verify(e Envelope, payload io.Reader, trusted map[string]ed25519.PublicKey)
 	if err != nil || snapshot.Before(day.AddDate(0, 0, 1)) {
 		return ErrInvalid
 	}
+	coverage, err := time.Parse("2006-01-02", m.CoverageStart)
+	if err != nil || coverage.After(day) || m.Count > MaxRecords {
+		return ErrInvalid
+	}
 	return verifyLines(m, day, payload)
 }
 
 func verifyLines(m Manifest, day time.Time, payload io.Reader) error {
 	r := bufio.NewReaderSize(payload, 16*1024)
 	h := sha256.New()
-	var count, first, last int64
+	coverage, _ := time.Parse("2006-01-02", m.CoverageStart)
+	var count, first, last, total int64
 	previous := ""
 	for {
 		raw, err := r.ReadSlice('\n')
@@ -44,6 +49,10 @@ func verifyLines(m Manifest, day time.Time, payload io.Reader) error {
 			break
 		}
 		if err != nil {
+			return ErrInvalid
+		}
+		total += int64(len(raw))
+		if total > MaxPayloadBytes {
 			return ErrInvalid
 		}
 		var l line
@@ -56,7 +65,7 @@ func verifyLines(m Manifest, day time.Time, payload io.Reader) error {
 			return ErrInvalid
 		}
 		at, err := time.Parse(time.RFC3339Nano, l.Fact.At)
-		if err != nil || l.Fact.At != utc(at) || at.Before(day) || !at.Before(day.AddDate(0, 0, 1)) {
+		if err != nil || l.Fact.At != utc(at) || at.Before(coverage) || !at.Before(day.AddDate(0, 0, 1)) {
 			return ErrInvalid
 		}
 		count++
@@ -80,7 +89,7 @@ func verifyLines(m Manifest, day time.Time, payload io.Reader) error {
 func VerifyLink(previous, next Envelope) error {
 	b, _ := json.Marshal(previous)
 	day, err := time.Parse("2006-01-02", previous.Manifest.Day)
-	if err != nil || next.Manifest.PreviousExport != digest(b) || next.Manifest.Day != day.AddDate(0, 0, 1).Format("2006-01-02") {
+	if err != nil || next.Manifest.CoverageStart != previous.Manifest.CoverageStart || next.Manifest.PreviousExport != digest(b) || next.Manifest.Day != day.AddDate(0, 0, 1).Format("2006-01-02") {
 		return ErrInvalid
 	}
 	return nil
