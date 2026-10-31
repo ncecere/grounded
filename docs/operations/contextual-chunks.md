@@ -10,7 +10,7 @@
 - Cache isolation and bounded lifecycle across documents, sources and active profile plans. No generated context in original passages, citation/viewer text, full-text search or parent hashes.
 - Fake-model unit, Postgres, HTTP authorization, preview/apply/rollback and shared-source tests; final current-head CI and disposable cluster acceptance. The private backend now has direct-Postgres race evidence for atomic admission and bounded/idempotent usage/cache persistence, plus full lint; the broader HTTP/UI/preview/lifecycle and final source-bound acceptance gate is still pending.
 
-There are deliberately no enable/run commands here yet: the implementation and acceptance harness are unfinished, so inventing executable instructions would be misleading.
+The guarded test-only entry and private outer receipt protocol are documented in [issue21-live-entry.md](issue21-live-entry.md). They do not enable the product or grant spending authority.
 
 ## Rollout compatibility to verify before enablement
 
