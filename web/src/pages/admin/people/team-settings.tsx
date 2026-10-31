@@ -5,6 +5,9 @@ import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/compo
 import { useRevisionForm } from "@/components/templates/revision-form";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
+import { DescriptionList } from "@/components/ui/description-list/description-list";
+import { Alert } from "@/components/ui/alert/alert";
+import { Stack } from "@/components/ui/layout/layout";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { useClassificationLevels } from "../../team/common";
 import type { useTeamUpdate } from "./team";
@@ -15,7 +18,32 @@ const labels = { name: "Name", description: "Description", maxClassification: "A
 
 type Props = { team: Schemas["Team"]; isAdmin: boolean; onArchive: () => void; status: ReturnType<typeof useTeamUpdate> };
 
-export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
+export function TeamSettingsTab(props: Props) {
+  return props.isAdmin ? <TeamSettingsEditor {...props} /> : <TeamSettingsFacts team={props.team} />;
+}
+
+/** E16: saved metadata, using the workspace General facts pattern, not an editor. */
+function TeamSettingsFacts({ team }: Pick<Props, "team">) {
+  const levels = useClassificationLevels();
+  const classification = levels.data?.find((level) => level.key === team.maxClassification)?.name ?? team.maxClassification;
+  return (
+    <Stack gap={6}>
+      <Alert tone="info">{adminOnly}</Alert>
+      <SettingsSection title="General" description="The team's name, description and approved classification.">
+        <DescriptionList
+          dividers
+          items={[
+            { label: "Name", value: team.name },
+            { label: "Description", value: team.description || "No description" },
+            { label: "Approved classification", value: classification },
+          ]}
+        />
+      </SettingsSection>
+    </Stack>
+  );
+}
+
+function TeamSettingsEditor({ team, isAdmin, onArchive, status }: Props) {
   const levels = useClassificationLevels();
   const saved = formOf(team);
   // Edits survive a change made elsewhere (another tab or admin): SettingsPage asks whose to keep (AD-01).
