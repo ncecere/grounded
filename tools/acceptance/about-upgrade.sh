@@ -16,11 +16,32 @@ cleanup() {
  exit "$status"
 }
 trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 git -C "$ROOT" archive "$BASE" | tar -x -C "$WORK"
 # API compatibility, not an old UI audit. Supply current built embedded assets.
 mkdir -p "$WORK/web/dist"
 cp -a "$ROOT/web/dist/." "$WORK/web/dist/"
+# Exercise the actual old codec with a new authored field. Its save payload
+# must discard the unknown note, never carry it into a later publication.
+cat > "$WORK/internal/agents/about_legacy_test.go" <<'GO'
+package agents
+import ("encoding/json"; "testing")
+func TestLegacyOwnershipNoteIsNotRepublished(t *testing.T) {
+ raw := DefaultConfig().JSON()
+ var c map[string]any
+ if err := json.Unmarshal(raw, &c); err != nil { t.Fatal(err) }
+ c["ownershipNote"] = "PRIVATE NEW FIELD"
+ raw, _ = json.Marshal(c)
+ parsed, err := ParseConfig(raw)
+ if err != nil { t.Fatal(err) }
+ var saved map[string]any
+ if err := json.Unmarshal(parsed.JSON(), &saved); err != nil { t.Fatal(err) }
+ if _, exists := saved["ownershipNote"]; exists { t.Fatal("legacy save retained a new authored field") }
+}
+GO
 export GOMAXPROCS=4 GOFLAGS=-p=2
+(cd "$WORK" && go test -count=1 ./internal/agents -run '^TestLegacyOwnershipNoteIsNotRepublished$')
 (cd "$WORK" && CGO_ENABLED=0 go build -trimpath -o "$WORK/old" ./cmd/grounded)
 (cd "$ROOT" && CGO_ENABLED=0 go build -trimpath -o "$WORK/new" ./cmd/grounded)
 # The existing harness expects the image entrypoint to be /grounded.
