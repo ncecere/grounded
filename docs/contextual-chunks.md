@@ -122,7 +122,7 @@ The migration's stored estimate and the preview response gain a `contextual` blo
 
 ## 7. Bounds, unit planning, cache and versioning
 
-**Bounds** (constants of prompt version 1; changing one is a new version and a new key):
+**Bounds** (constants of private prompt version 2; changing construction or a bound is a new version and a new key):
 
 | What | Bound |
 |---|---|
@@ -135,6 +135,8 @@ The migration's stored estimate and the preview response gain a `contextual` blo
 | Context added to an embedding input | only as much as fits in the embedding model's input limit without cutting any original text; below 16 tokens of room it is left out for that passage and counted |
 
 **Units.** The document's passages in order; consecutive passages with the same heading path form a unit until adding one would pass the unit bounds. Every passage in a unit gets the same context; a document with no headings is cut by size.
+
+**Derived input fitting.** Before cache keys or plans are retained, complete escaped messages and 16 local chat-framing tokens are counted against the metadata ceiling. An overflowing prompt deterministically halves its longest derived field, on a rune boundary and with a visible cut mark, until it fits; already-fitting fields stay unchanged. Only derived generation inputs are shortened, never source/citation/viewer text. The same configured margin is applied to planning and admission. These are local reservation quantities, not provider-tokenizer or invoice guarantees. Private version 2 invalidates version-1 snapshots/artifacts; recreate unsupported private snapshots. See [the construction proof and limitations](contextual-prompt-estimate-bound.md).
 
 **Embedded text.** `<document prefix>` + title and heading path + `Context: <context>` + the passage. With no context the string is the existing `chunk.EmbedText` output byte for byte.
 
@@ -152,7 +154,7 @@ The prompt tells the model that the text between `<untrusted_document>` and `</u
 
 - Logs, traces and audit entries carry ids, counts, codes and token numbers. **Never** a prompt, a reply, a document excerpt or a title. Error messages stored on documents and sets are fixed strings or gateway status text (`clip`ped), never the reply.
 - `source.contextual_update`, `kb.profile_migration_start` (adds `contextual` counts) and the switch and discard events record settings and counts only.
-- The cache, the call log and the marks are deleted with the document (the source), when the source is deleted, and the call log keeps no text. The cache is removed when the source turns contextual off and when the last set that used it is cleaned up. Generated text is therefore kept no longer than the document is.
+- Generated cache text, plans and marks follow document/source deletion. Opt-out removes cache plans and artifacts; snapshot cleanup prunes unreferenced artifacts. Generated text is kept no longer than its document. Financial attempt rows instead retain historical source/profile UUIDs, quantities and outcomes without source text or names, including after opt-out, index discard or source deletion; their document reference becomes null when the document is deleted. This preserves paid/unknown accounting and daily admission headroom. No new accounting-row retention schedule is implied.
 
 ## 10. Failure behaviour
 

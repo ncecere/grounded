@@ -7190,7 +7190,7 @@ type ContextualKBEstimate struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of the model's input tokens
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
 	InputTokensMax int64              `json:"inputTokensMax"`
 	KbId           openapi_types.UUID `json:"kbId"`
 
@@ -7338,7 +7338,7 @@ type ContextualSourceEstimate struct {
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 	Enabled              bool  `json:"enabled"`
 
-	// InputTokensMax A ceiling of the model's input tokens
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
 	InputTokensMax int64               `json:"inputTokensMax"`
 	MaxCalls       int32               `json:"maxCalls"`
 	MaxCallsPerDay int32               `json:"maxCallsPerDay"`
@@ -7355,7 +7355,7 @@ type ContextualSourceEstimate struct {
 	// Units Sections (one model call each)
 	Units int64 `json:"units"`
 
-	// UnknownCallTokensIn The most input tokens one attempt of unknown usage (a timeout) may have cost
+	// UnknownCallTokensIn Local input-reservation headroom for one attempt of unknown usage; not measured usage or a provider-billing guarantee
 	UnknownCallTokensIn  int32 `json:"unknownCallTokensIn"`
 	UnknownCallTokensOut int32 `json:"unknownCallTokensOut"`
 }
@@ -7372,7 +7372,7 @@ type ContextualTotals struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of the model's input tokens
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
 	InputTokensMax int64 `json:"inputTokensMax"`
 
 	// OutputTokensMax A ceiling of the model's output tokens

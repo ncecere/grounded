@@ -12352,7 +12352,7 @@ components:
         calls: { type: integer, format: int64, description: Model calls, a ceiling (cached contexts are not subtracted) }
         documentsOver: { type: integer, format: int64, description: Documents with more sections than the limit; they are embedded without context and make no call }
         passagesOver: { type: integer, format: int64 }
-        inputTokensMax: { type: integer, format: int64, description: A ceiling of the model's input tokens, with the share added for tokenizer differences }
+        inputTokensMax: { type: integer, format: int64, description: A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee }
         outputTokensMax: { type: integer, format: int64, description: A ceiling of the model's output tokens }
         embeddingTokensAdded: { type: integer, format: int64, description: A ceiling of the tokens the contexts add to the embedding inputs }
     ContextualIssue:
@@ -12380,7 +12380,7 @@ components:
               allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
               nullable: true
               description: Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created
-            unknownCallTokensIn: { type: integer, format: int32, description: The most input tokens one attempt of unknown usage (a timeout) may have cost }
+            unknownCallTokensIn: { type: integer, format: int32, description: Local input-reservation headroom for one attempt of unknown usage; not measured usage or a provider-billing guarantee }
             unknownCallTokensOut: { type: integer, format: int32 }
             cost: { $ref: "#/components/schemas/ContextualCost" }
             blockers:
