@@ -40,6 +40,12 @@ func (sp *splitter) isCaption(b *block) bool {
 // joinCaption returns the table with its caption paragraph above it, as one block.
 func joinCaption(caption, table *block) *block {
 	joined := *table
+	// Only v4 records section identities. A removed list can leave its bold
+	// label immediately above this table; joining that label as a caption
+	// must not erase its boundary. Preserve versions 1–3 byte for byte.
+	if caption.section != 0 {
+		joined.brk = joined.brk || caption.brk
+	}
 	off := len(caption.text) + len("\n\n")
 	joined.text = caption.text + "\n\n" + table.text
 	joined.headerEnd = table.headerEnd + off

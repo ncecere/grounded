@@ -1,12 +1,13 @@
 package chunk
 
 import (
-	"github.com/ncecere/grounded/internal/htmlmd"
 	"math/rand"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ncecere/grounded/internal/htmlmd"
 )
 
 func TestV4StructuralBoundaries(t *testing.T) {
@@ -161,9 +162,9 @@ func TestV4GeneratedStructureProperties(t *testing.T) {
 			t.Fatalf("seed %d nondeterministic", seed)
 		}
 		parents := Parents(got, 512)
-		for i, r := range parents {
+		for _, r := range parents {
 			for j := r.First; j <= r.Last; j++ {
-				if got[i].section != got[j].section {
+				if got[r.First].section != got[j].section {
 					t.Fatalf("seed %d crossed section", seed)
 				}
 			}
