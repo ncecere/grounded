@@ -79,7 +79,7 @@ func toAPIAgent(v agents.View) apitypes.Agent {
 func toAPICard(c agents.Card) apitypes.AgentCard {
 	ag := c.Agent
 	return apitypes.AgentCard{
-		Id: ag.ID, TeamSlug: c.TeamSlug, TeamName: c.TeamName, Slug: ag.Slug, Name: ag.Name, Description: ag.Description,
+		About: viaJSON[*apitypes.AssistantAbout](c.About), Id: ag.ID, TeamSlug: c.TeamSlug, TeamName: c.TeamName, Slug: ag.Slug, Name: ag.Name, Description: ag.Description,
 		AccentColor: ag.AccentColor, WelcomeMessage: ag.WelcomeMessage, StarterQuestions: nonNilStrings(ag.StarterQuestions),
 		CitationMode: apitypes.CitationMode(c.CitationMode), Status: apitypes.AgentStatus(ag.Status),
 		Audience: apitypes.Audience(c.Audience), ShortName: c.ShortName, Group: (*apitypes.AgentCardGroup)(nonEmpty(c.Group)), Routable: truePtr(c.Routable), Router: truePtr(c.Router),

@@ -23,6 +23,7 @@ export const buildSections = ["instructions", "model", "routing", "knowledge", "
 export type BuildSection = (typeof buildSections)[number];
 
 const sectionOfField: Record<string, BuildSection> = {
+  ownershipNote: "instructions",
   instructions: "instructions",
   chatModelId: "model",
   router: "routing",

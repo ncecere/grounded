@@ -384,7 +384,7 @@ const appTree = appRoute.addChildren([
 const OAuthConsentPage = lazy(pages.oauth, "OAuthConsentPage");
 const oauthConsentRoute = createRoute({ getParentRoute: () => rootRoute, path: "oauth/consent", component: () => <SessionGate><OAuthConsentPage /></SessionGate> });
 const sharedRoute = createRoute({ getParentRoute: () => rootRoute, path: "shared/$token", component: lazy(pages.sharedConversation, "SharedPage") }); // outside the session gate: the page handles it
-export const routeTree = rootRoute.addChildren([appTree, embedRoute, sharedRoute, oauthConsentRoute]);
+export const routeTree = rootRoute.addChildren([createRoute({ getParentRoute: () => rootRoute, path: "accessibility", component: lazyRouteComponent(() => import("./pages/accessibility"), "AccessibilityPage") }), appTree, embedRoute, sharedRoute, oauthConsentRoute]);
 
 export const router = createRouter({
   routeTree,

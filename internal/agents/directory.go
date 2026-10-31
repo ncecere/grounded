@@ -19,6 +19,7 @@ import (
 
 // Card is an agent's public profile.
 type Card struct {
+	About    *About
 	Agent    dbgen.Agent
 	TeamSlug string
 	TeamName string
@@ -223,7 +224,7 @@ func (s *Service) resolve(ctx context.Context, a authz.Actor, teamRef, agentRef 
 
 // card is the profile of a resolved agent.
 func (s *Service) card(ctx context.Context, r resolved) Card {
-	c := Card{Agent: r.agent, TeamSlug: r.team.Slug, TeamName: r.team.Name, CitationMode: r.config.CitationMode, Audience: r.grant}
+	c := Card{About: s.about(ctx, r), Agent: r.agent, TeamSlug: r.team.Slug, TeamName: r.team.Name, CitationMode: r.config.CitationMode, Audience: r.grant}
 	if sn, err := s.q.GetShortName(ctx, r.agent.ID); err == nil {
 		c.ShortName = &sn.ShortName
 	}

@@ -130,6 +130,7 @@ export const defaultConfig: AgentConfigInput = {
 /** A draft config ready to send: the server rejects unknown fields; optional values are cleared with null / "". */
 export function configInput(c: AgentConfig): AgentConfigInput {
   return {
+    ownershipNote: c.ownershipNote ?? "",
     instructions: c.instructions,
     chatModelId: c.chatModelId ?? null,
     temperature: c.temperature ?? null,
