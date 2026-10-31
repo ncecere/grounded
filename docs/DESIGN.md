@@ -853,3 +853,10 @@ Item numbers are stable because ADRs refer to them. Questions that only one inst
 | **4 Publishing** | Done ([`phase4-publishing.md`](phase4-publishing.md)) | `authenticated` + `public` audiences, pluggable moderation and judgment providers (ADR-0019), short names, iframe widget + publishable keys, public guardrails, analytics dashboards, notifications (in-app + SMTP) | A public agent embedded on a test page with rate limits and moderation enforced |
 | **5 Deploy + harden** | Planned | Kubernetes (Kustomize base + overlays, HA topology), break-glass, retention + legal hold jobs, profile migration tooling, maintenance mode, SLO dashboards and alerts, restore rehearsal, load tests at 2× estimates, security review package | Meets the 99.9% target and load targets; runbooks written |
 | **Later** | — | OCR, PII scanning, more source types and file types, authenticated crawling, other judgments (grounding and citation checks, injection detection; ADR-0019), restricted audiences (groups/affiliation), document ACLs, model-chosen filters, webhooks, in-app team requests, more retrieval evaluation sets | — |
+
+### E8 disclosure proposal
+
+The [About and accessibility design](about-accessibility.md) and Proposed
+[ADR-0030](adr/0030-assistant-disclosures.md) define a settings-derived published
+assistant projection, versioned ownership notes and an honest accessibility
+statement. This does not expand source access or assert WCAG conformance.

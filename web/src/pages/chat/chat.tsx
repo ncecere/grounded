@@ -1,3 +1,4 @@
+import { AssistantAbout } from "../../components/assistant-about";
 /*
  * The chat page (/a/$team/$agent and /a/id/$agentId), full width and full
  * height: the user's conversations with the agent in a panel on the left (a
@@ -201,6 +202,7 @@ function AgentChat({ card }: { card: Card }) {
               {currentSummary?.title && <span className={a.subtitleConv} title={currentSummary.title}> · {currentSummary.title}</span>}
             </p>
           </div>
+          <AssistantAbout about={card.about} />
           {currentSummary && <ConversationMenu conversation={currentSummary} onDeleted={newChat} label="Conversation actions" />}
         </header>
         <ChatPanel

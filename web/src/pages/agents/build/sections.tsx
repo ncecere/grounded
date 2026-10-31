@@ -126,7 +126,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
 
 function InstructionsSection({ c, set, errorFor }: SectionProps) {
   const tooLong = c.instructions.length > maxInstructions;
-  return (
+  return (<>
     <Field
       label="Instructions"
       hideLabel
@@ -143,5 +143,9 @@ function InstructionsSection({ c, set, errorFor }: SectionProps) {
         onChange={(e) => set({ instructions: e.target.value })}
       />
     </Field>
-  );
+    <Field label="Ownership and contact note" description="Optional plain text, no links or HTML, at most 500 characters. Private draft until you explicitly publish." error={errorFor("ownershipNote")}>
+      <Textarea id="agent-field-ownershipNote" rows={2} value={c.ownershipNote ?? ""} onChange={(e) => set({ ownershipNote: e.target.value })} />
+    </Field>
+    </>);
+
 }

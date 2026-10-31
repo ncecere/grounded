@@ -9469,6 +9469,41 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/accessibility:
+    get:
+      operationId: getAccessibilitySettings
+      summary: Public reporting contact and optional institutional accessibility statement
+      responses:
+        "200": { $ref: "#/components/responses/AccessibilitySettingsReply" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+  /v1/admin/settings/accessibility:
+    get:
+      operationId: adminGetAccessibilitySettings
+      summary: Accessibility statement settings (platform admins and auditors)
+      responses:
+        "200": { $ref: "#/components/responses/AccessibilitySettingsReply" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+    put:
+      operationId: adminPutAccessibilitySettings
+      summary: Edit public statement links (platform admins only, audited, If-Match required)
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AccessibilitySettingsInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AccessibilitySettingsReply" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+
 components:
   headers:
     ETag:
@@ -9741,6 +9776,15 @@ components:
       required: true
       schema: { type: string, format: uuid }
   responses:
+    AccessibilitySettingsReply:
+      description: Current safe public statement links
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: { $ref: "#/components/schemas/AccessibilitySettings" }
     CrawlReply:
       description: A crawl run
       content:
@@ -12277,8 +12321,8 @@ components:
           description: >-
             fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready
             until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
-        maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls (attempts, including failed ones) one build of a set may make }
-        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most attempts admitted in a UTC day across all profiles, including build and live calls }
+        maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: "The most model calls (attempts, including failed ones) one build of a set may make" }
+        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: "The most attempts admitted in a UTC day across all profiles, including build and live calls" }
         admission:
           allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
           nullable: true
@@ -12341,7 +12385,7 @@ components:
         currency: { type: string, description: The install's display currency code }
         inputPerMillion: { type: string, nullable: true, description: Decimal string }
         outputPerMillion: { type: string, nullable: true, description: Decimal string }
-        maxAmount: { type: string, nullable: true, description: A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown }
+        maxAmount: { type: string, nullable: true, description: "A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown" }
     ContextualTotals:
       type: object
       required: [documents, passages, units, calls, documentsOver, passagesOver, inputTokensMax, outputTokensMax, embeddingTokensAdded]
@@ -12349,10 +12393,10 @@ components:
         documents: { type: integer, format: int64 }
         passages: { type: integer, format: int64 }
         units: { type: integer, format: int64, description: Sections (one model call each) }
-        calls: { type: integer, format: int64, description: Model calls, a ceiling (cached contexts are not subtracted) }
+        calls: { type: integer, format: int64, description: "Model calls, a ceiling (cached contexts are not subtracted)" }
         documentsOver: { type: integer, format: int64, description: Documents with more sections than the limit; they are embedded without context and make no call }
         passagesOver: { type: integer, format: int64 }
-        inputTokensMax: { type: integer, format: int64, description: A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee }
+        inputTokensMax: { type: integer, format: int64, description: "A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee" }
         outputTokensMax: { type: integer, format: int64, description: A ceiling of the model's output tokens }
         embeddingTokensAdded: { type: integer, format: int64, description: A ceiling of the tokens the contexts add to the embedding inputs }
     ContextualIssue:
@@ -13615,6 +13659,7 @@ components:
       description: An agent's configuration (the draft, or a published version), with defaults applied.
       required: [instructions, chatModelId, kbs, retrievalMode, maxTurns, contextTokenBudget, minSimilarity, strictlyGrounded, refusalMessage, citationMode, queryRewrite, moderation, audience]
       properties:
+        ownershipNote: { type: string, maxLength: 500, description: "Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty." }
         instructions: { type: string, maxLength: 20000 }
         chatModelId: { type: string, format: uuid, nullable: true }
         temperature: { type: number, format: double, minimum: 0, maximum: 2 }
@@ -13657,6 +13702,7 @@ components:
         fields are rejected. Type errors name the JSON field and expected kind
         (for example, maxOutputTokens must be a whole number), never Go types.
       properties:
+        ownershipNote: { type: string, maxLength: 500, description: "Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty." }
         instructions: { type: string, maxLength: 20000 }
         chatModelId: { type: string, format: uuid, nullable: true }
         temperature: { type: number, format: double, minimum: 0, maximum: 2, nullable: true }
@@ -14167,6 +14213,7 @@ components:
       description: A published agent's public profile
       required: [id, teamSlug, teamName, slug, name, description, accentColor, welcomeMessage, starterQuestions, citationMode, status, audience, shortName]
       properties:
+        about: { $ref: "#/components/schemas/AssistantAbout" }
         id: { type: string, format: uuid }
         teamSlug: { type: string }
         teamName: { type: string }
@@ -14193,6 +14240,7 @@ components:
       description: A public agent's profile for anonymous visitors
       required: [id, name, teamName, description, accentColor, welcomeMessage, starterQuestions, citationMode, status, shortName, captcha, maxMessageChars]
       properties:
+        about: { $ref: "#/components/schemas/AssistantAbout" }
         id: { type: string, format: uuid }
         name: { type: string }
         teamName: { type: string }
@@ -16714,3 +16762,38 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ContentHealthFinding" }
         nextCursor: { type: string, nullable: true }
+
+    AssistantAbout:
+      type: object
+      description: "Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee."
+      required: [modelLabel, audience, strictlyGrounded, ownershipNote, sourceCount, sourcesLimited, passageJudging, claimChecks, moderation, retention]
+      properties:
+        router: { type: boolean, description: "Routes to another permitted assistant; no answer model of its own. Destination checks may differ." }
+        modelLabel: { type: string, maxLength: 100 }
+        audience: { $ref: "#/components/schemas/Audience" }
+        strictlyGrounded: { type: boolean }
+        ownershipNote: { type: string, maxLength: 500 }
+        sourceCount: { type: integer, minimum: 0, maximum: 500 }
+        sourcesLimited: { type: boolean, description: "True means more than 500 sources; count is a lower bound and update observation omitted." }
+        lastProcessedAt: { type: string, format: date-time, description: "Last known successful processing observation; absent when unknown or bounded out. Not author-edit freshness." }
+        passageJudging: { $ref: "#/components/schemas/ConfiguredCheck" }
+        claimChecks: { $ref: "#/components/schemas/ConfiguredCheck" }
+        moderation: { $ref: "#/components/schemas/ConfiguredCheck" }
+        retention: { type: string, maxLength: 500, description: "Effective classification retention summary; holds can extend it. Does not disclose whether a hold exists." }
+    ConfiguredCheck:
+      type: string
+      enum: [enabled, disabled, unknown]
+
+    AccessibilitySettingsInput:
+      type: object
+      required: [contactUrl, institutionUrl]
+      properties:
+        contactUrl: { type: string, maxLength: 2048, description: "HTTPS or simple mailto; empty uses instance support contact. No credentials, HTML or control characters." }
+        institutionUrl: { type: string, maxLength: 2048, description: "Optional HTTPS URL of the institution's statement; empty removes it." }
+    AccessibilitySettings:
+      allOf:
+        - { $ref: "#/components/schemas/AccessibilitySettingsInput" }
+        - type: object
+          required: [revision]
+          properties:
+            revision: { type: integer, format: int64 }

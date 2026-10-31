@@ -1057,6 +1057,27 @@ func (e ClassificationUpdateAllowedSourceTypes) Valid() bool {
 	}
 }
 
+// Defines values for ConfiguredCheck.
+const (
+	ConfiguredCheckDisabled ConfiguredCheck = "disabled"
+	ConfiguredCheckEnabled  ConfiguredCheck = "enabled"
+	ConfiguredCheckUnknown  ConfiguredCheck = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ConfiguredCheck enum.
+func (e ConfiguredCheck) Valid() bool {
+	switch e {
+	case ConfiguredCheckDisabled:
+		return true
+	case ConfiguredCheckEnabled:
+		return true
+	case ConfiguredCheckUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConnectionTestResultProbe.
 const (
 	ConnectionTestResultProbeModels    ConnectionTestResultProbe = "models"
@@ -4920,6 +4941,25 @@ type AccessLogPage struct {
 	NextCursor *string          `json:"nextCursor,omitempty"`
 }
 
+// AccessibilitySettings defines model for AccessibilitySettings.
+type AccessibilitySettings struct {
+	// ContactUrl HTTPS or simple mailto; empty uses instance support contact. No credentials, HTML or control characters.
+	ContactUrl string `json:"contactUrl"`
+
+	// InstitutionUrl Optional HTTPS URL of the institution's statement; empty removes it.
+	InstitutionUrl string `json:"institutionUrl"`
+	Revision       int64  `json:"revision"`
+}
+
+// AccessibilitySettingsInput defines model for AccessibilitySettingsInput.
+type AccessibilitySettingsInput struct {
+	// ContactUrl HTTPS or simple mailto; empty uses instance support contact. No credentials, HTML or control characters.
+	ContactUrl string `json:"contactUrl"`
+
+	// InstitutionUrl Optional HTTPS URL of the institution's statement; empty removes it.
+	InstitutionUrl string `json:"institutionUrl"`
+}
+
 // AdminAgent defines model for AdminAgent.
 type AdminAgent struct {
 	Audience      Audience `json:"audience"`
@@ -5373,8 +5413,10 @@ type AgentAnswerCacheUpdate struct {
 
 // AgentCard A published agent's public profile
 type AgentCard struct {
-	AccentColor string   `json:"accentColor"`
-	Audience    Audience `json:"audience"`
+	// About Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee.
+	About       *AssistantAbout `json:"about,omitempty"`
+	AccentColor string          `json:"accentColor"`
+	Audience    Audience        `json:"audience"`
 
 	// CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 	CitationMode CitationMode `json:"citationMode"`
@@ -5433,6 +5475,9 @@ type AgentConfig struct {
 
 	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
 	Moderation AgentModeration `json:"moderation"`
+
+	// OwnershipNote Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty.
+	OwnershipNote *string `json:"ownershipNote,omitempty"`
 
 	// QueryRewrite With history, rewrite the question as a query that stands on its own before retrieval
 	QueryRewrite bool `json:"queryRewrite"`
@@ -5499,7 +5544,10 @@ type AgentConfigInput struct {
 	MinSimilarity       *float64   `json:"minSimilarity,omitempty"`
 
 	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
-	Moderation      *AgentModeration                 `json:"moderation,omitempty"`
+	Moderation *AgentModeration `json:"moderation,omitempty"`
+
+	// OwnershipNote Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty.
+	OwnershipNote   *string                          `json:"ownershipNote,omitempty"`
 	QueryRewrite    *bool                            `json:"queryRewrite,omitempty"`
 	ReasoningEffort *AgentConfigInputReasoningEffort `json:"reasoningEffort,omitempty"`
 	RefusalMessage  *string                          `json:"refusalMessage,omitempty"`
@@ -5815,6 +5863,30 @@ type AnswerCacheTotals struct {
 
 	// TokensSaved Model tokens the original answers spent, not spent again
 	TokensSaved int64 `json:"tokensSaved"`
+}
+
+// AssistantAbout Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee.
+type AssistantAbout struct {
+	Audience    Audience        `json:"audience"`
+	ClaimChecks ConfiguredCheck `json:"claimChecks"`
+
+	// LastProcessedAt Last known successful processing observation; absent when unknown or bounded out. Not author-edit freshness.
+	LastProcessedAt *time.Time      `json:"lastProcessedAt,omitempty"`
+	ModelLabel      string          `json:"modelLabel"`
+	Moderation      ConfiguredCheck `json:"moderation"`
+	OwnershipNote   string          `json:"ownershipNote"`
+	PassageJudging  ConfiguredCheck `json:"passageJudging"`
+
+	// Retention Effective classification retention summary; holds can extend it. Does not disclose whether a hold exists.
+	Retention string `json:"retention"`
+
+	// Router Routes to another permitted assistant; no answer model of its own. Destination checks may differ.
+	Router      *bool `json:"router,omitempty"`
+	SourceCount int   `json:"sourceCount"`
+
+	// SourcesLimited True means more than 500 sources; count is a lower bound and update observation omitted.
+	SourcesLimited   bool `json:"sourcesLimited"`
+	StrictlyGrounded bool `json:"strictlyGrounded"`
 }
 
 // Audience defines model for Audience.
@@ -6738,6 +6810,9 @@ type ClassificationUpdate struct {
 // ClassificationUpdateAllowedSourceTypes defines model for ClassificationUpdate.AllowedSourceTypes.
 type ClassificationUpdateAllowedSourceTypes string
 
+// ConfiguredCheck defines model for ConfiguredCheck.
+type ConfiguredCheck string
+
 // Connection defines model for Connection.
 type Connection struct {
 	// ApiKeyHint Last 4 characters of the key, or empty
@@ -7159,7 +7234,7 @@ type ContextualCost struct {
 	// InputPerMillion Decimal string
 	InputPerMillion *string `json:"inputPerMillion"`
 
-	// MaxAmount A conservative configured-price estimate (decimal string)
+	// MaxAmount A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown
 	MaxAmount *string `json:"maxAmount"`
 
 	// OutputPerMillion Decimal string
@@ -7179,7 +7254,7 @@ type ContextualIssue struct {
 type ContextualKBEstimate struct {
 	Blockers []ContextualIssue `json:"blockers"`
 
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls     int64          `json:"calls"`
 	Cost      ContextualCost `json:"cost"`
 	Documents int64          `json:"documents"`
@@ -7190,7 +7265,7 @@ type ContextualKBEstimate struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64              `json:"inputTokensMax"`
 	KbId           openapi_types.UUID `json:"kbId"`
 
@@ -7305,10 +7380,10 @@ type ContextualSettingsInput struct {
 	// FailurePolicy fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
 	FailurePolicy ContextualSettingsInputFailurePolicy `json:"failurePolicy"`
 
-	// MaxCalls The most model calls (attempts
+	// MaxCalls The most model calls (attempts, including failed ones) one build of a set may make
 	MaxCalls int32 `json:"maxCalls"`
 
-	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles
+	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles, including build and live calls
 	MaxCallsPerDay int32 `json:"maxCallsPerDay"`
 
 	// ModelId The chat model that writes the context; required when enabled. It must be cleared for the source's classification.
@@ -7325,7 +7400,7 @@ type ContextualSourceEstimate struct {
 	Blockers       []ContextualIssue    `json:"blockers"`
 	CachedContexts int64                `json:"cachedContexts"`
 
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls          int64          `json:"calls"`
 	Classification string         `json:"classification"`
 	Cost           ContextualCost `json:"cost"`
@@ -7338,7 +7413,7 @@ type ContextualSourceEstimate struct {
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 	Enabled              bool  `json:"enabled"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64               `json:"inputTokensMax"`
 	MaxCalls       int32               `json:"maxCalls"`
 	MaxCallsPerDay int32               `json:"maxCallsPerDay"`
@@ -7362,7 +7437,7 @@ type ContextualSourceEstimate struct {
 
 // ContextualTotals defines model for ContextualTotals.
 type ContextualTotals struct {
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls     int64 `json:"calls"`
 	Documents int64 `json:"documents"`
 
@@ -7372,7 +7447,7 @@ type ContextualTotals struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64 `json:"inputTokensMax"`
 
 	// OutputTokensMax A ceiling of the model's output tokens
@@ -11196,8 +11271,10 @@ type PublicAccessUpdate struct {
 
 // PublicAgent A public agent's profile for anonymous visitors
 type PublicAgent struct {
-	AccentColor string      `json:"accentColor"`
-	Captcha     CaptchaInfo `json:"captcha"`
+	// About Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee.
+	About       *AssistantAbout `json:"about,omitempty"`
+	AccentColor string          `json:"accentColor"`
+	Captcha     CaptchaInfo     `json:"captcha"`
 
 	// CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 	CitationMode CitationMode       `json:"citationMode"`
@@ -12849,6 +12926,11 @@ type WebhookDeliveryIdParam = openapi_types.UUID
 // WebhookIdParam defines model for WebhookIdParam.
 type WebhookIdParam = openapi_types.UUID
 
+// AccessibilitySettingsReply defines model for AccessibilitySettingsReply.
+type AccessibilitySettingsReply struct {
+	Data AccessibilitySettings `json:"data"`
+}
+
 // AgentConfigErrorReply defines model for AgentConfigErrorReply.
 type AgentConfigErrorReply = AgentConfigErrorResponse
 
@@ -13269,6 +13351,11 @@ type AdminPutRetentionParams struct {
 // AdminListRetentionRunsParams defines parameters for AdminListRetentionRuns.
 type AdminListRetentionRunsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminPutAccessibilitySettingsParams defines parameters for AdminPutAccessibilitySettings.
+type AdminPutAccessibilitySettingsParams struct {
+	IfMatch string `json:"If-Match"`
 }
 
 // AdminPutAnswerCacheSettingsParams defines parameters for AdminPutAnswerCacheSettings.
@@ -13943,6 +14030,9 @@ type AdminPutRetentionJSONRequestBody = RetentionUpdate
 
 // AdminStartRetentionRunJSONRequestBody defines body for AdminStartRetentionRun for application/json ContentType.
 type AdminStartRetentionRunJSONRequestBody = RetentionRunRequest
+
+// AdminPutAccessibilitySettingsJSONRequestBody defines body for AdminPutAccessibilitySettings for application/json ContentType.
+type AdminPutAccessibilitySettingsJSONRequestBody = AccessibilitySettingsInput
 
 // AdminPutAnswerCacheSettingsJSONRequestBody defines body for AdminPutAnswerCacheSettings for application/json ContentType.
 type AdminPutAnswerCacheSettingsJSONRequestBody = AnswerCacheSettingsUpdate

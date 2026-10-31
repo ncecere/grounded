@@ -169,7 +169,7 @@ func apiRoutes(d Deps) []route {
 	for _, group := range [][]route{
 		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.agentTemplateRoutes(), a.teamRequestRoutes(), a.webhookRoutes(), a.shareRoutes(), a.chatRoutes(),
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
-		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
+		a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),

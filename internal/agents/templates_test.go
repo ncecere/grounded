@@ -15,7 +15,7 @@ import (
 )
 
 // What a template deliberately does not carry from an agent's configuration (templates.go: TemplateConfig). Every other field is carried.
-var templateLeavesOut = []string{"KBs", "Filters", "Audience", "Tools", "Routable"}
+var templateLeavesOut = []string{"OwnershipNote", "KBs", "Filters", "Audience", "Tools", "Routable"}
 
 // mutate changes v to a value that differs from its current one, so a field that is copied can be told from one that is reset.
 func mutate(v reflect.Value) {
