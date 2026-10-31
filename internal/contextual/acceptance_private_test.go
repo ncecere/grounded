@@ -90,10 +90,19 @@ func acceptanceWritePrivate(path string, data []byte) error {
 		return err
 	}
 	defer f.Close()
-	if _, err = f.Write(data); err != nil {
+	return acceptancePersistPrivate(f, path, data)
+}
+
+// Persist through the already claimed descriptor; never reopen a report path
+// after spending. Grant and accounting files use the same durable writer.
+func acceptancePersistPrivate(f *os.File, path string, data []byte) error {
+	if len(data) > 1<<20 {
+		return errors.New("artifact_size")
+	}
+	if _, err := f.Write(data); err != nil {
 		return errors.New("artifact_write")
 	}
-	if err = f.Sync(); err != nil {
+	if err := f.Sync(); err != nil {
 		return errors.New("artifact_sync")
 	}
 	p, _, err := acceptanceParent(path)

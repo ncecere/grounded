@@ -20,6 +20,7 @@ type acceptanceEntryDeps struct {
 }
 
 type acceptancePrivateReport struct {
+	GrantID             string           `json:"grantID"`
 	SourceSHA           string           `json:"sourceSHA"`
 	FailureCode         string           `json:"failureCode"`
 	OuterCleanup        string           `json:"outerCleanup"`
@@ -55,7 +56,18 @@ func executeAcceptanceEntry(t *testing.T, path string, deps acceptanceEntryDeps)
 	if err = claimAcceptance(deps.root, g); err != nil {
 		return err
 	}
-	evidence := acceptancePrivateReport{SourceSHA: g.SourceSHA, OuterCleanup: "pending_outer_receipt", EnvelopeReservation: g.Config.Limits.Amount,
+	// Claim the exclusive report before reading a credential or dispatching.
+	// A permanent grant reservation alone must not allow spending without an
+	// attributable durable output when two grants mistakenly name one file.
+	reportFile, err := acceptanceOpenPrivate(g.ReportFile, true)
+	if err != nil {
+		return errors.New("report_claim")
+	}
+	defer reportFile.Close()
+	if err := acceptancePersistPrivate(reportFile, g.ReportFile, nil); err != nil {
+		return errors.New("report_claim")
+	}
+	evidence := acceptancePrivateReport{GrantID: g.ID, SourceSHA: g.SourceSHA, OuterCleanup: "pending_outer_receipt", EnvelopeReservation: g.Config.Limits.Amount,
 		Report: acceptanceReport{Mode: "real", CorpusSHA256: g.CorpusSHA256, Status: "failed", FailedStage: "entry", ExplicitLimits: g.Config.Limits, Currency: g.Config.Currency, Dimensions: g.Config.Dimensions}}
 	if deps.testLoopback {
 		evidence.Report.Mode = "fake"
@@ -70,7 +82,7 @@ func executeAcceptanceEntry(t *testing.T, path string, deps acceptanceEntryDeps)
 				encoded, _ := json.Marshal(secret)
 				data = []byte(strings.ReplaceAll(string(data), string(encoded[1:len(encoded)-1]), "[REDACTED]"))
 			}
-			e = acceptanceWritePrivate(g.ReportFile, data)
+			e = acceptancePersistPrivate(reportFile, g.ReportFile, data)
 		}
 		if e != nil {
 			t.Error("private_report_write")

@@ -33,23 +33,29 @@ schema in acceptance_authority_test.go requires:
 The nonsecret grant is nevertheless private because it contains local paths.
 Never publish it or put credentials in arguments. After approval the parent runs:
 
-    cd /home/user/grounded
-    python3 tools/issue21/outer.py --grant /absolute/private/grant.json       --artifacts /absolute/private/artifacts
+    cd /path/to/grounded
+    python3 tools/issue21/outer.py --grant /absolute/private/grant.json --artifacts /absolute/private/artifacts
 
-This invokes /home/user/test-with-deps.sh with a unique RUN_ID, Go1.26.10
-(go.mod), GOMAXPROCS=4, GOFLAGS=-p=2, race, count=1 and the canonical 25m test
-timeout. No live environment flag is needed. Without -issue21-grant the live
-test skips; explicit invalid authority fails, never falls back to fake.
-A direct diagnostic command (NO independent outer receipt) is:
+This invokes the source-versioned `tools/issue21/deps.sh` with a unique RUN_ID,
+Go1.26.10 (go.mod), GOMAXPROCS=4, GOFLAGS=-p=2, race and count=1. Go's original
+10-minute default test timeout is not increased. The outer 660-second bound
+terminates the entire owned test process group on timeout/interruption; failed
+or unknown cleanup still fails the receipt. No live environment flag is needed.
+Without -issue21-grant the live test skips; explicit invalid authority fails,
+never falls back to fake. A direct diagnostic command (NO independent outer
+receipt) is:
 
-    GOMAXPROCS=4 GOFLAGS=-p=2 RUN_ID=UNIQUE /home/user/test-with-deps.sh       go test -race -count=1 -timeout 25m ./internal/contextual       -run '^TestIssue21LiveAcceptance$' -args -issue21-grant /absolute/private/grant.json
+    RUN_ID="issue21-$(python3 -c 'import uuid; print(uuid.uuid4())')" GOMAXPROCS=4 GOFLAGS=-p=2 tools/issue21/deps.sh go test -race -count=1 ./internal/contextual -run '^TestIssue21LiveAcceptance$' -args -issue21-grant /absolute/private/grant.json
 
 Do not treat a harness pass without a successful outer receipt as an overall pass.
 
 ## State and security boundary
 
-Real entry always uses /home/user/.local/state/grounded-issue21, never the working
-directory, grant path or an environment override. Tests alone inject roots.
+Real entry uses `<OS-account-home>/.local/state/grounded-issue21`, resolving the
+executing UID's account database entry, not HOME/XDG, the working directory,
+grant path or an environment override. Tests alone inject roots. Execute every
+real attempt on the same coordinator host and retain this ledger; separate
+coding workers/snapshots are not independent spending authorities.
 Nonblocking flock serializes admission; O_EXCL grant-ID files permanently reserve
 the entire approved run amount before credential bytes are read. Every prior
 claim counts across IDs; totals >=5 USD fail. Corrupt/partial/nonprivate claims
@@ -79,7 +85,10 @@ margins and configured prices cannot guarantee external provider charges.
 
 ## Reports and cleanup
 
-Private evidence records fake/real mode, source/corpus digests, rates/limits,
+The report is exclusively created and synced before credentials or dispatch,
+so a conflicting output cannot cause unreported paid work. Its nonsecret grant
+UUID links evidence to the permanent claim. Private evidence records fake/real
+mode, source/corpus digests, rates/limits,
 preflight and dispatch reservations, PG known/unknown attempts, embedding usage,
 stage timing, actual plain/contextual ranks (including equal/worse), limitations
 and fixed local failure codes. Invalid authority produces no output or claim.

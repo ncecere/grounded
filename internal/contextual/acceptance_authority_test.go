@@ -10,15 +10,29 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-const acceptanceStateRoot = "/home/user/.local/state/grounded-issue21"
+// Resolve the OS principal, not HOME/XDG or the checkout/worker directory.
+// The coordinator must keep this same-host ledger across every real attempt.
+var acceptanceStateRoot = acceptanceCanonicalStateRoot()
+
 const acceptancePurpose = "issue21-synthetic-acceptance"
+
+func acceptanceCanonicalStateRoot() string {
+	account, err := user.LookupId(strconv.Itoa(os.Getuid()))
+	if err != nil || !filepath.IsAbs(account.HomeDir) {
+		return "" // claimAcceptance fails closed before credentials or network.
+	}
+	return filepath.Join(account.HomeDir, ".local", "state", "grounded-issue21")
+}
 
 type acceptanceGrant struct {
 	ID              string
