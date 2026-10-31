@@ -150,7 +150,8 @@ const contextualCallStats = `-- name: ContextualCallStats :one
 SELECT count(*)::bigint AS attempts,
        count(*) FILTER (WHERE outcome = 'ok')::bigint AS ok,
        count(*) FILTER (WHERE outcome IN ('refused', 'invalid'))::bigint AS unusable,
-       count(*) FILTER (WHERE outcome IN ('error', 'timeout', 'cancelled', 'started'))::bigint AS unknown,
+       count(*) FILTER (WHERE outcome IN ('error', 'timeout', 'cancelled', 'started')
+                              OR tokens_in IS NULL OR tokens_out IS NULL OR tokens_in <= 0 OR tokens_out < 0)::bigint AS unknown,
        coalesce(sum(tokens_in), 0)::bigint AS tokens_in,
        coalesce(sum(tokens_out), 0)::bigint AS tokens_out
 FROM contextual_calls

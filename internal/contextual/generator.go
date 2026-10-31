@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 
@@ -382,9 +383,13 @@ func userTag(team uuid.NullUUID) string {
 	return "grounded-contextual-" + team.UUID.String()
 }
 
-// reportedUsage reads what the provider counted; reported is false when it sent nothing.
+// reportedUsage accepts complete representable counts, not invented zeroes.
 func reportedUsage(u llm.Usage) (in, out int, reported bool) {
-	return u.Input, u.Output, u.Input > 0 || u.Output > 0
+	// The adapter's scalar counters cannot distinguish an omitted field from
+	// zero. A real prompt and a usable prefix both cost tokens: partial, zero,
+	// negative or unrepresentable counts must not release unknown headroom.
+	known := u.Input > 0 && u.Output > 0 && u.Input <= math.MaxInt32 && u.Output <= math.MaxInt32
+	return u.Input, u.Output, known
 }
 
 func reportedPtr(n int, reported bool) *int32 {
