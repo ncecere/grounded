@@ -253,7 +253,10 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, sourceID uuid.UUID, in
 			return err
 		}
 		if cur.Enabled && !in.Enabled {
-			// The off transition: what was generated for the source goes (it follows the document and the opt-in).
+			// The off transition removes references and generated text together.
+			if err := q.DeleteSourceContextualCachePlans(ctx, sourceID); err != nil {
+				return err
+			}
 			if _, err := q.DeleteSourceContextualCache(ctx, sourceID); err != nil {
 				return err
 			}

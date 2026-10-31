@@ -12,6 +12,10 @@
 
 There are deliberately no enable/run commands here yet: the implementation and acceptance harness are unfinished, so inventing executable instructions would be misleading.
 
+## Rollout compatibility to verify before enablement
+
+The platform and source opt-ins default off. Keep them off throughout an upgrade until **all API and worker processes** understand contextual profiles. A previous release ignores the new profile flag and cannot be trusted to maintain contextual vectors; an expand-only schema is not proof of mixed-version behavior after opting into a new feature. The upgrade rehearsal must verify old-version ordinary reads/writes while the feature stays off, followed by explicit sandbox opt-in only after old workers are gone. Before rolling binaries back to a release without this feature, switch affected knowledge bases back to a plain index using the supported rollback path; turning the kill switch off alone does not rewrite existing vectors. No production rollout is authorized by this planning guidance.
+
 ## Permission for a real-model run
 
 Before any request, agree the development gateway, allowed context-generation and embedding model IDs, synthetic corpus, maximum requests/input/output tokens, and maximum spend with the owner. Obtain a scoped development credential through the approved private secret mechanism; never paste it into chat, source, shell history, logs or artifacts. Do not mint a key or infer spending authority from general development permission. Use gateway-side model/request/credit restrictions where available as well as application limits.

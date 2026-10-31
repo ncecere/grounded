@@ -64,9 +64,40 @@ INSERT INTO contextual_cache (document_id, key, source_id, context, tokens_in, t
 VALUES (@document_id, @key, @source_id, @context, sqlc.narg(tokens_in), sqlc.narg(tokens_out))
 ON CONFLICT (document_id, key) DO NOTHING;
 
--- What a document no longer needs: every key but those its sections have now.
+-- Short metadata locks only: never held during a gateway call.
+-- name: LockContextualPlanDocument :one
+SELECT id, source_id, version FROM documents WHERE id = $1 FOR UPDATE;
+
+-- name: LockContextualPlanSet :one
+SELECT source_id, profile_id FROM set_contextual WHERE source_id = $1 AND profile_id = $2 FOR KEY SHARE;
+
+-- name: UpsertContextualCachePlan :exec
+INSERT INTO contextual_cache_plans (document_id, source_id, profile_id, version, keys)
+VALUES (@document_id, @source_id, @profile_id, @version, @keys::bytea[])
+ON CONFLICT (document_id, profile_id) DO UPDATE SET version = EXCLUDED.version, keys = EXCLUDED.keys;
+
+-- name: DeleteStaleContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE document_id = $1 AND version <> $2;
+
+-- name: LockContextualCachePlan :one
+SELECT * FROM contextual_cache_plans WHERE document_id = $1 AND profile_id = $2 FOR KEY SHARE;
+
+-- name: DeleteSourceContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE source_id = $1;
+
+-- Keep the union of current profile plans, including plans still generating.
 -- name: PruneContextualCache :execrows
-DELETE FROM contextual_cache WHERE document_id = @document_id AND NOT (key = ANY(@keep::bytea[]));
+DELETE FROM contextual_cache c WHERE c.document_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+);
+
+-- Used after a snapshot disappears; other profiles keep their references.
+-- name: PruneSourceContextualCache :execrows
+DELETE FROM contextual_cache c WHERE c.source_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+);
 
 -- name: DeleteSourceContextualCache :execrows
 DELETE FROM contextual_cache WHERE source_id = $1;

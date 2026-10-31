@@ -58,6 +58,7 @@ func (e *StopError) Unwrap() error { return e.Err }
 // Request is one document's passages to describe.
 type Request struct {
 	SourceID, ProfileID, DocumentID uuid.UUID
+	Version                         int32 // document version whose passages are being described
 	Team, User                      uuid.NullUUID
 	// Phase is PhaseBuild while the set is being built, PhaseLive after; Cap is the most attempts the scope may hold and Since starts a live
 	// scope's day.
@@ -160,6 +161,9 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 		return res, err
 	}
 	if len(units) > MaxUnitsPerDocument {
+		if err := g.Store.RetainCachePlan(ctx, requestCachePlan(req, nil)); err != nil {
+			return res, err
+		}
 		res.State = StateTooLarge
 		return res, nil
 	}
@@ -174,6 +178,10 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	for i, u := range units {
 		inputs[i] = BuildInput(req.Title, u.Path, opening, UnitText(req.Chunks, u, g.Counter), g.Counter)
 		keys[i] = Key(model, inputs[i])
+	}
+	plan := requestCachePlan(req, keys)
+	if err := g.Store.RetainCachePlan(ctx, plan); err != nil {
+		return res, err
 	}
 	known, err := g.Store.CacheFor(ctx, req.DocumentID, keys)
 	if err != nil {
@@ -198,7 +206,7 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	if _, err := g.currentTarget(ctx, req, model); err != nil {
 		return res, err
 	}
-	if err := g.Store.PruneCache(ctx, req.DocumentID, keys); err != nil {
+	if err := g.Store.RetainCachePlan(ctx, plan); err != nil {
 		return res, err
 	}
 	if _, err := g.currentTarget(ctx, req, model); err != nil {
@@ -350,7 +358,7 @@ func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget,
 		_ = settle(Settlement{Outcome: OutcomeOK, TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported), Usage: usage})
 		return zero, &StopError{Reason: "cancelled", Err: err}
 	}
-	entry := &CacheEntry{DocumentID: req.DocumentID, SourceID: req.SourceID, Key: key, Text: text,
+	entry := &CacheEntry{DocumentID: req.DocumentID, SourceID: req.SourceID, ProfileID: req.ProfileID, Version: req.Version, Key: key, Text: text,
 		TokensIn: reportedPtr(tokensIn, reported), TokensOut: reportedPtr(tokensOut, reported)}
 	if err := settle(Settlement{Outcome: OutcomeOK, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Usage: usage, Cache: entry}); err != nil {
 		return zero, err

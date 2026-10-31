@@ -22,8 +22,9 @@ type Store interface {
 	CacheFor(ctx context.Context, documentID uuid.UUID, keys [][32]byte) (map[[32]byte]string, error)
 	// PutCache is a setup primitive; generated contexts must be published by Settle, with their usage.
 	PutCache(ctx context.Context, e CacheEntry) error
-	// PruneCache deletes the document's cached contexts but the keys it keeps.
-	PruneCache(ctx context.Context, documentID uuid.UUID, keep [][32]byte) error
+	// RetainCachePlan installs a bounded current document/profile plan before
+	// generation, preserving the union of current plans when pruning artifacts.
+	RetainCachePlan(ctx context.Context, plan CachePlan) error
 	// Reserve records an attempt before it is sent, unless the cap is reached (ErrCapReached).
 	Reserve(ctx context.Context, r Reservation) (int64, error)
 	// Settle records a terminal outcome and its usage once. Replays and missing attempts are no-ops.
@@ -37,10 +38,11 @@ var ErrCapReached = errors.New("the model-call cap is reached")
 
 // CacheEntry is one generated context.
 type CacheEntry struct {
-	DocumentID, SourceID uuid.UUID
-	Key                  [32]byte
-	Text                 string
-	TokensIn, TokensOut  *int32
+	DocumentID, SourceID, ProfileID uuid.UUID
+	Version                         int32
+	Key                             [32]byte
+	Text                            string
+	TokensIn, TokensOut             *int32
 }
 
 // Reservation is an attempt about to be made. Cap is how many attempts the scope may hold; Since starts the day of a live scope.
@@ -114,11 +116,6 @@ func insertCache(ctx context.Context, q *dbgen.Queries, e CacheEntry) error {
 		DocumentID: e.DocumentID, Key: e.Key[:], SourceID: e.SourceID, Context: e.Text, TokensIn: e.TokensIn, TokensOut: e.TokensOut})
 }
 
-func (s *PGStore) PruneCache(ctx context.Context, documentID uuid.UUID, keep [][32]byte) error {
-	_, err := dbgen.New(s.Pool).PruneContextualCache(ctx, dbgen.PruneContextualCacheParams{DocumentID: documentID, Keep: byteKeys(keep)})
-	return err
-}
-
 // Reserve admits call/token/configured-price headroom in both source windows atomically.
 func (s *PGStore) Reserve(ctx context.Context, r Reservation) (int64, error) {
 	return s.reserveAdmission(ctx, r)
@@ -133,7 +130,7 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 		return err
 	}
 	var recorded []dbgen.InsertUsageParams
-	stopped := false
+	stopReason := ""
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		params, cacheAllowed, err := settlementAdmission(ctx, q, st)
 		if err != nil || params == nil {
@@ -154,8 +151,16 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 		}
 		if st.Cache != nil {
 			if !cacheAllowed {
-				stopped = true
+				stopReason = "the source is switched off"
 				return nil // usage was real; an off source must not regain cached text
+			}
+			allowed, err := cachePlanAllows(ctx, q, *st.Cache)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				stopReason = "the contextual cache plan is no longer current"
+				return nil // paid usage survives a discarded/replaced plan
 			}
 			return insertCache(ctx, q, *st.Cache)
 		}
@@ -164,8 +169,8 @@ func (s *PGStore) Settle(ctx context.Context, st Settlement) error {
 	if err == nil && len(recorded) > 0 && s.Recorded != nil && st.Usage != nil && st.Usage.Team.Valid {
 		s.Recorded(st.Usage.Team.UUID, recorded)
 	}
-	if err == nil && stopped {
-		return &StopError{Reason: "the source is switched off"}
+	if err == nil && stopReason != "" {
+		return &StopError{Reason: stopReason}
 	}
 	return err
 }
@@ -176,6 +181,9 @@ func validateSettlement(st Settlement) error {
 	}
 	if e := st.Cache; e != nil && (st.Outcome != OutcomeOK || st.Usage == nil || e.SourceID != st.Usage.Source || e.DocumentID != st.Usage.Document) {
 		return errors.New("contextual cache requires a successful settlement with matching document and source usage")
+	}
+	if e := st.Cache; e != nil && (e.ProfileID == uuid.Nil || e.Version <= 0) {
+		return errors.New("contextual cache requires current profile and document version")
 	}
 	return nil
 }

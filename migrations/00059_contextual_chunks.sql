@@ -52,6 +52,19 @@ CREATE TABLE set_contextual (
 );
 CREATE INDEX set_contextual_profile_idx ON set_contextual (profile_id);
 
+-- References are installed before generation: another active profile must not
+-- prune an in-flight plan. Artifact identity stays shared across identical plans.
+CREATE TABLE contextual_cache_plans (
+    document_id uuid NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+    source_id uuid NOT NULL,
+    profile_id uuid NOT NULL,
+    version integer NOT NULL CHECK (version > 0),
+    keys bytea[] NOT NULL CHECK (cardinality(keys) BETWEEN 0 AND 40),
+    PRIMARY KEY (document_id, profile_id),
+    FOREIGN KEY (source_id, profile_id) REFERENCES set_contextual (source_id, profile_id) ON DELETE CASCADE
+);
+CREATE INDEX contextual_cache_plans_set_idx ON contextual_cache_plans (source_id, profile_id);
+
 CREATE TABLE contextual_cache (
     document_id uuid        NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
     key         bytea       NOT NULL CHECK (octet_length(key) = 32),
@@ -118,6 +131,7 @@ CREATE INDEX document_contextual_set_idx ON document_contextual (source_id, prof
 DROP TABLE document_contextual;
 DROP TABLE contextual_calls;
 DROP TABLE contextual_cache;
+DROP TABLE contextual_cache_plans;
 DROP TABLE set_contextual;
 DROP TABLE source_contextual;
 ALTER TABLE embedding_profiles DROP COLUMN contextual;

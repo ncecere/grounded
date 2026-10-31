@@ -8,7 +8,7 @@ func TestPGCacheFailureRollsBackUsageAndSettlement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{3}}
+	entry := f.cacheEntry(t, 3, "")
 	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 	// Empty cache text violates the real database constraint, after usage was inserted.
 	if err := f.store.Settle(t.Context(), st); err == nil {
@@ -42,7 +42,7 @@ func TestCacheRequiresSuccessfulMatchingUsage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{4}, Text: "An otherwise valid context about registration."}
+			entry := f.cacheEntry(t, 4, "An otherwise valid context about registration.")
 			st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 			switch name {
 			case "no usage":

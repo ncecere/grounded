@@ -43,12 +43,23 @@ func newSettlementFixture(t *testing.T) settlementFixture {
 	exec(`INSERT INTO source_contextual (source_id, enabled, model_id, max_calls, max_calls_per_day,
 		max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency)
 		VALUES ($1, true, $2, 100, 100, 1000000, 1000000, 10, 10, 'USD')`, source, chat)
+	exec(`INSERT INTO set_contextual (source_id, profile_id, model_id, failure_policy, prompt_version) VALUES ($1, $2, $3, 'fail', $4)`, source, profile, chat, PromptVersion)
 	exec(`INSERT INTO model_prices (model_id, unit, price, effective_from) VALUES
 		($1, 'chat_tokens_in', 1, CURRENT_DATE - 2), ($1, 'chat_tokens_out', 1, CURRENT_DATE - 2)`, chat)
 	return settlementFixture{pool: pool, store: &PGStore{Pool: pool},
 		res: Reservation{SourceID: source, ProfileID: profile, DocumentID: doc, ModelID: chat, Phase: PhaseBuild, Cap: 10, InputTokens: 7, OutputTokens: 3},
 		usage: Usage{Team: uuid.NullUUID{UUID: team, Valid: true}, Source: source, Document: doc, Model: chat,
 			Phase: PhaseBuild, TokensIn: 7, TokensOut: 3, Reported: true}}
+}
+
+func (f settlementFixture) cacheEntry(t *testing.T, key byte, text string) CacheEntry {
+	t.Helper()
+	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, ProfileID: f.res.ProfileID, Version: 1, Key: [32]byte{key}, Text: text}
+	if err := f.store.RetainCachePlan(t.Context(), CachePlan{DocumentID: entry.DocumentID, SourceID: entry.SourceID,
+		ProfileID: entry.ProfileID, Version: entry.Version, Keys: [][32]byte{entry.Key}}); err != nil {
+		t.Fatal(err)
+	}
+	return entry
 }
 
 func (f settlementFixture) ledger(t *testing.T) (rows, tokens int64) {
@@ -75,7 +86,7 @@ func TestPGSettlementIsIdempotentAcrossConcurrentRetries(t *testing.T) {
 	if err := f.store.Settle(t.Context(), Settlement{ID: id, Outcome: OutcomeStarted, Usage: &f.usage}); err == nil {
 		t.Error("nonterminal outcome was accepted as a settlement")
 	}
-	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{1}, Text: "Context about registration in the student handbook."}
+	entry := f.cacheEntry(t, 1, "Context about registration in the student handbook.")
 	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 	var wg sync.WaitGroup
 	for range 12 {
@@ -143,7 +154,7 @@ func TestPGSettlementLedgerFailureRollsBackTerminalState(t *testing.T) {
 	if _, err := f.pool.Exec(ctx, `ALTER TABLE usage_events ADD CONSTRAINT test_contextual_usage CHECK (quantity < 7)`); err != nil {
 		t.Fatal(err)
 	}
-	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{2}, Text: "A bounded description of the registration section."}
+	entry := f.cacheEntry(t, 2, "A bounded description of the registration section.")
 	st := Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry}
 	if err := f.store.Settle(ctx, st); err == nil {
 		t.Fatal("forced ledger failure unexpectedly succeeded")

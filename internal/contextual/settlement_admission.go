@@ -47,6 +47,9 @@ func settlementAdmission(ctx context.Context, q *dbgen.Queries, st Settlement) (
 // reconcileAdmission changes headroom only for complete reported usage of the
 // admitted model/source/document. Unknown or partial reports keep reservations.
 func reconcileAdmission(call dbgen.ContextualCall, st Settlement, p *dbgen.SettleContextualCallParams) error {
+	if st.Cache != nil && st.Cache.ProfileID != call.ProfileID {
+		return errors.New("contextual cache profile does not match its admitted attempt")
+	}
 	u := st.Usage
 	if u == nil {
 		return nil

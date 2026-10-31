@@ -43,7 +43,7 @@ func newGen(t *testing.T) *genEnv {
 }
 
 func (e *genEnv) req(chunks []chunk.Chunk) Request {
-	return Request{SourceID: uuid.New(), ProfileID: uuid.New(), DocumentID: uuid.New(), Phase: PhaseBuild, Cap: 100, Model: e.model,
+	return Request{SourceID: uuid.New(), ProfileID: uuid.New(), DocumentID: uuid.New(), Version: 1, Phase: PhaseBuild, Cap: 100, Model: e.model,
 		Policy: PolicyFail, Title: "Student Handbook", Chunks: chunks}
 }
 

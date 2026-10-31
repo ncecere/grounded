@@ -168,10 +168,10 @@ func TestPGOffTransitionDoesNotRepopulateCacheButRecordsRealUsage(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	entry := f.cacheEntry(t, 5, "A valid context that arrived after the source was switched off.")
 	if _, err := f.pool.Exec(t.Context(), `UPDATE source_contextual SET enabled = false WHERE source_id = $1`, f.res.SourceID); err != nil {
 		t.Fatal(err)
 	}
-	entry := CacheEntry{DocumentID: f.res.DocumentID, SourceID: f.res.SourceID, Key: [32]byte{5}, Text: "A valid context that arrived after the source was switched off."}
 	err = f.store.Settle(t.Context(), Settlement{ID: id, Outcome: OutcomeOK, Usage: &f.usage, Cache: &entry})
 	var stopped *StopError
 	if !errors.As(err, &stopped) {

@@ -83,7 +83,7 @@ func (p *Processor) contextualTexts(ctx context.Context, sc ctxScope, version in
 		mark.state = contextual.StateOff
 		return base, mark, nil
 	}
-	req := contextual.Request{SourceID: sc.src.ID, ProfileID: t.Profile.ID, DocumentID: sc.docID, Team: sc.team, User: sc.user, Phase: phase,
+	req := contextual.Request{SourceID: sc.src.ID, ProfileID: t.Profile.ID, DocumentID: sc.docID, Version: version, Team: sc.team, User: sc.user, Phase: phase,
 		Model: snap.ModelID, Policy: snap.FailurePolicy, Title: sc.title, Chunks: chunks, Checkpoint: p.checkpoint(sc, t, snap.ModelID)}
 	if phase == contextual.PhaseBuild {
 		req.Cap = int(settings.MaxCalls)

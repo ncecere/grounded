@@ -335,6 +335,29 @@ func (q *Queries) DeleteSourceContextualCache(ctx context.Context, sourceID uuid
 	return result.RowsAffected(), nil
 }
 
+const deleteSourceContextualCachePlans = `-- name: DeleteSourceContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE source_id = $1
+`
+
+func (q *Queries) DeleteSourceContextualCachePlans(ctx context.Context, sourceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSourceContextualCachePlans, sourceID)
+	return err
+}
+
+const deleteStaleContextualCachePlans = `-- name: DeleteStaleContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE document_id = $1 AND version <> $2
+`
+
+type DeleteStaleContextualCachePlansParams struct {
+	DocumentID uuid.UUID
+	Version    int32
+}
+
+func (q *Queries) DeleteStaleContextualCachePlans(ctx context.Context, arg DeleteStaleContextualCachePlansParams) error {
+	_, err := q.db.Exec(ctx, deleteStaleContextualCachePlans, arg.DocumentID, arg.Version)
+	return err
+}
+
 const ensureSourceContextual = `-- name: EnsureSourceContextual :exec
 INSERT INTO source_contextual (source_id) VALUES ($1) ON CONFLICT (source_id) DO NOTHING
 `
@@ -653,6 +676,28 @@ func (q *Queries) ListSetContextualFor(ctx context.Context, sourceID uuid.UUID) 
 	return items, nil
 }
 
+const lockContextualCachePlan = `-- name: LockContextualCachePlan :one
+SELECT document_id, source_id, profile_id, version, keys FROM contextual_cache_plans WHERE document_id = $1 AND profile_id = $2 FOR KEY SHARE
+`
+
+type LockContextualCachePlanParams struct {
+	DocumentID uuid.UUID
+	ProfileID  uuid.UUID
+}
+
+func (q *Queries) LockContextualCachePlan(ctx context.Context, arg LockContextualCachePlanParams) (ContextualCachePlan, error) {
+	row := q.db.QueryRow(ctx, lockContextualCachePlan, arg.DocumentID, arg.ProfileID)
+	var i ContextualCachePlan
+	err := row.Scan(
+		&i.DocumentID,
+		&i.SourceID,
+		&i.ProfileID,
+		&i.Version,
+		&i.Keys,
+	)
+	return i, err
+}
+
 const lockContextualCall = `-- name: LockContextualCall :one
 SELECT id, source_id, profile_id, document_id, model_id, phase, outcome, tokens_in, tokens_out, admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at, finished_at FROM contextual_calls WHERE id = $1 FOR UPDATE
 `
@@ -696,6 +741,45 @@ func (q *Queries) LockContextualCalls(ctx context.Context, sourceID string) erro
 	return err
 }
 
+const lockContextualPlanDocument = `-- name: LockContextualPlanDocument :one
+SELECT id, source_id, version FROM documents WHERE id = $1 FOR UPDATE
+`
+
+type LockContextualPlanDocumentRow struct {
+	ID       uuid.UUID
+	SourceID uuid.UUID
+	Version  int32
+}
+
+// Short metadata locks only: never held during a gateway call.
+func (q *Queries) LockContextualPlanDocument(ctx context.Context, id uuid.UUID) (LockContextualPlanDocumentRow, error) {
+	row := q.db.QueryRow(ctx, lockContextualPlanDocument, id)
+	var i LockContextualPlanDocumentRow
+	err := row.Scan(&i.ID, &i.SourceID, &i.Version)
+	return i, err
+}
+
+const lockContextualPlanSet = `-- name: LockContextualPlanSet :one
+SELECT source_id, profile_id FROM set_contextual WHERE source_id = $1 AND profile_id = $2 FOR KEY SHARE
+`
+
+type LockContextualPlanSetParams struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+}
+
+type LockContextualPlanSetRow struct {
+	SourceID  uuid.UUID
+	ProfileID uuid.UUID
+}
+
+func (q *Queries) LockContextualPlanSet(ctx context.Context, arg LockContextualPlanSetParams) (LockContextualPlanSetRow, error) {
+	row := q.db.QueryRow(ctx, lockContextualPlanSet, arg.SourceID, arg.ProfileID)
+	var i LockContextualPlanSetRow
+	err := row.Scan(&i.SourceID, &i.ProfileID)
+	return i, err
+}
+
 const lockSourceContextual = `-- name: LockSourceContextual :one
 SELECT source_id, enabled, model_id, failure_policy, max_calls, max_calls_per_day, max_tokens, max_tokens_per_day, max_amount, max_amount_per_day, currency, revision, updated_by, updated_at FROM source_contextual WHERE source_id = $1 FOR UPDATE
 `
@@ -723,17 +807,31 @@ func (q *Queries) LockSourceContextual(ctx context.Context, sourceID uuid.UUID) 
 }
 
 const pruneContextualCache = `-- name: PruneContextualCache :execrows
-DELETE FROM contextual_cache WHERE document_id = $1 AND NOT (key = ANY($2::bytea[]))
+DELETE FROM contextual_cache c WHERE c.document_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+)
 `
 
-type PruneContextualCacheParams struct {
-	DocumentID uuid.UUID
-	Keep       [][]byte
+// Keep the union of current profile plans, including plans still generating.
+func (q *Queries) PruneContextualCache(ctx context.Context, documentID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneContextualCache, documentID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-// What a document no longer needs: every key but those its sections have now.
-func (q *Queries) PruneContextualCache(ctx context.Context, arg PruneContextualCacheParams) (int64, error) {
-	result, err := q.db.Exec(ctx, pruneContextualCache, arg.DocumentID, arg.Keep)
+const pruneSourceContextualCache = `-- name: PruneSourceContextualCache :execrows
+DELETE FROM contextual_cache c WHERE c.source_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+)
+`
+
+// Used after a snapshot disappears; other profiles keep their references.
+func (q *Queries) PruneSourceContextualCache(ctx context.Context, sourceID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneSourceContextualCache, sourceID)
 	if err != nil {
 		return 0, err
 	}
@@ -860,6 +958,31 @@ func (q *Queries) UpdateSourceContextual(ctx context.Context, arg UpdateSourceCo
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const upsertContextualCachePlan = `-- name: UpsertContextualCachePlan :exec
+INSERT INTO contextual_cache_plans (document_id, source_id, profile_id, version, keys)
+VALUES ($1, $2, $3, $4, $5::bytea[])
+ON CONFLICT (document_id, profile_id) DO UPDATE SET version = EXCLUDED.version, keys = EXCLUDED.keys
+`
+
+type UpsertContextualCachePlanParams struct {
+	DocumentID uuid.UUID
+	SourceID   uuid.UUID
+	ProfileID  uuid.UUID
+	Version    int32
+	Keys       [][]byte
+}
+
+func (q *Queries) UpsertContextualCachePlan(ctx context.Context, arg UpsertContextualCachePlanParams) error {
+	_, err := q.db.Exec(ctx, upsertContextualCachePlan,
+		arg.DocumentID,
+		arg.SourceID,
+		arg.ProfileID,
+		arg.Version,
+		arg.Keys,
+	)
+	return err
 }
 
 const upsertDocumentContextual = `-- name: UpsertDocumentContextual :exec

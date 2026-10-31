@@ -183,8 +183,8 @@ func (s *Service) deleteSet(ctx context.Context, set dbgen.UnneededEmbeddingSets
 	})
 }
 
-// deleteSetContextual removes what contextual chunks kept for a deleted set: its snapshot and marks, and, when no set of the source uses
-// context any more, the generated text (it follows the sets that needed it; docs/contextual-chunks.md section 9).
+// deleteSetContextual removes the snapshot/marks and its cascading plan
+// references, then prunes only artifacts no current profile plan still needs.
 func deleteSetContextual(ctx context.Context, q *dbgen.Queries, sourceID, profileID uuid.UUID) error {
 	if err := q.DeleteSetContextual(ctx, dbgen.DeleteSetContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
 		return err
@@ -192,10 +192,7 @@ func deleteSetContextual(ctx context.Context, q *dbgen.Queries, sourceID, profil
 	if err := q.DeleteSetDocumentContextual(ctx, dbgen.DeleteSetDocumentContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
 		return err
 	}
-	if has, err := q.SourceHasContextualSets(ctx, sourceID); err != nil || has {
-		return err
-	}
-	_, err := q.DeleteSourceContextualCache(ctx, sourceID)
+	_, err := q.PruneSourceContextualCache(ctx, sourceID)
 	return err
 }
 

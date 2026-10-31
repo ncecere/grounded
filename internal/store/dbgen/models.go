@@ -348,6 +348,14 @@ type ContextualCache struct {
 	CreatedAt  time.Time
 }
 
+type ContextualCachePlan struct {
+	DocumentID uuid.UUID
+	SourceID   uuid.UUID
+	ProfileID  uuid.UUID
+	Version    int32
+	Keys       [][]byte
+}
+
 type ContextualCall struct {
 	ID             int64
 	SourceID       uuid.UUID

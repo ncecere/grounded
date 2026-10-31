@@ -11,6 +11,8 @@ import (
 type memStore struct {
 	mu       sync.Mutex
 	cache    map[memCacheKey]string
+	plans    map[memPlanKey]CachePlan
+	versions map[uuid.UUID]int32
 	attempts []*memAttempt
 	usage    []Usage
 	next     int64
@@ -29,7 +31,9 @@ type memAttempt struct {
 	released bool
 }
 
-func newMemStore() *memStore { return &memStore{cache: map[memCacheKey]string{}} }
+func newMemStore() *memStore {
+	return &memStore{cache: map[memCacheKey]string{}, plans: map[memPlanKey]CachePlan{}, versions: map[uuid.UUID]int32{}}
+}
 
 func (m *memStore) CacheFor(_ context.Context, document uuid.UUID, keys [][32]byte) (map[[32]byte]string, error) {
 	m.mu.Lock()
@@ -55,21 +59,6 @@ func (m *memStore) putCacheLocked(e CacheEntry) {
 	if _, ok := m.cache[k]; !ok {
 		m.cache[k] = e.Text
 	}
-}
-
-func (m *memStore) PruneCache(_ context.Context, document uuid.UUID, keep [][32]byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	k := map[[32]byte]bool{}
-	for _, x := range keep {
-		k[x] = true
-	}
-	for key := range m.cache {
-		if key.document == document && !k[key.key] {
-			delete(m.cache, key)
-		}
-	}
-	return nil
 }
 
 func (m *memStore) Reserve(_ context.Context, r Reservation) (int64, error) {
@@ -102,6 +91,9 @@ func (m *memStore) Settle(_ context.Context, s Settlement) error {
 				m.usage = append(m.usage, *s.Usage)
 			}
 			if s.Cache != nil {
+				if !m.cachePlanAllowsLocked(*s.Cache) {
+					return cachePlanStopped()
+				}
 				m.putCacheLocked(*s.Cache)
 			}
 			return nil
