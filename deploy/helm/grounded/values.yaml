@@ -24,3 +24,6 @@ tracingNamespace: monitoring
 tracingSample: "0.2"
 monitoring: false
 monitoringNamespace: monitoring
+# External mode requires an explicit bounded destination; bundled requires {}.
+postgresDestination: {}
+valkeyDestination: {}

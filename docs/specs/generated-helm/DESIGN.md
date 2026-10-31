@@ -61,8 +61,16 @@ bundled choices additionally require POSTGRES_PASSWORD/VALKEY_PASSWORD and URLs
 pointing at canonical services. Never print these values. Template validation can
 validate reference syntax/required names, not prove external Secret contents exist.
 Modes are a single bundled/external enum per service; external never creates a
-bundled alternative. External routing remains constrained by canonical policies;
-noncanonical destinations/ports need Kustomize, not broad Helm egress grants.
+bundled alternative. External routing replaces the two canonical datastore peers/ports with explicit
+namespace-AND-pod-label selectors or a managed IPv4 /32 and port. No fallback
+canonical peer remains for an external mode. Modes and destination shapes are
+mutually exclusive in schema; broad existing web/object-storage ports cannot be
+selected. The independent oracle patches canonical Kustomize policy leaves with
+identical destination semantics (not normalization). Explicit live preflight reads
+only named runtime/S3/optional SMTP Secrets with bounded deadlines, without logging data; it
+checks URL destination/authentication and verified TLS for external services.
+Ordinary rendering never contacts a cluster. Preflight is not live reachability;
+doctor/readiness and enforcing-CNI controls remain deployment gates.
 DEV_AUTH remains false and cannot be overridden through chart values. No model
 configuration, demo seed or OCR admin enable. Canonical resource limits preserved;
 replicas bounded 1..32. Required digest values are empty by default: unconfigured
@@ -93,3 +101,35 @@ packages/id-token write only for publishing/signing. Package version derives fro
 future immutable semver tag, app/OCR values from signed build digests. Refuse an
 existing OCI version rather than overwrite it; sign chart digest and attach source
 provenance. No mutable aliases. Local worker never invokes publication code.
+
+## Local follow-up evidence (not parent acceptance)
+
+Follow-up #31 exercised a uniquely owned local kind v0.33.0 / pinned Kubernetes
+1.37 node, with an isolated kubeconfig. A locally built source application image
+(base `13d206057b43fe858aad019a707d015859b6ceab`) gained only a local fixture CA;
+its manifest digest was loaded/pinned locally, never pushed. No models were used.
+The first placeholder-S3 attempt was cancelled, retained as failed evidence,
+and replaced with local TLS S3/OIDC fixtures (not a readiness bypass). Fixture-only
+/32 egress covered their real post-DNAT ports; chart policies stayed unchanged.
+
+Bundled install, public-origin/replica values upgrade (1 to 2 API and workers),
+manifest rollback, Postgres restart, uninstall/PVC retention and reinstall passed.
+A SQL marker remained, and the PVC UID stayed unchanged. API/worker health and
+readiness returned 200; doctor passed on both, including S3 write/read/delete.
+Migration init completion preceded application startup. This was a **same-source
+values upgrade**, not a previous-release SQL upgrade or full app/upgrade suite.
+Helm rollback demonstrably left SQL data in place; no down migrations were tested.
+
+A separate fresh external release reached authenticated TLS Postgres/Valkey on
+custom ports, with /32 destinations and no bundled StatefulSets. Wrong-port and
+wrong-address policy mutations each made a fresh doctor connection fail; exact
+restoration returned doctor to passing. This establishes datastore policy controls
+on the installed local CNI only, not generic kindnet support. The existing
+OCR acceptance helper subsequently passed all baseline/standalone/composed-base
+positive/negative controls and its additive-DNS mutation/restoration, on this
+same owned cluster. Its five unit controls also passed. Cross-namespace pod-label routing has independent render coverage, not a
+live cross-namespace datastore lifecycle proof. IPv4 /32 only is intentional.
+Exact commands, exits, logs, source identity and cleanup proof are handed to Pi
+outside the repository in `grounded-jobs/issue31-lifecycle-2/artifacts`. Proposed
+ADR-0031 remains Proposed; protected CI, release compatibility, OCI publication
+and parent review are still gates. No publication/signing was executed.
