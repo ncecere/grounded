@@ -50,9 +50,10 @@ type Config struct {
 	APIKeyPepperPrevious string
 
 	// Object storage for uploaded originals and parsed Markdown.
-	BlobBackend string // "fs" (default, single node) or "s3"
-	BlobDir     string
-	S3          S3
+	BlobBackend               string // "fs" (default, single node) or "s3"
+	BlobDir                   string
+	AuditExportSigningKeyFile string // operator file reference only, never signing bytes
+	S3                        S3
 
 	// Ingestion.
 	MaxUploadBytes        int64

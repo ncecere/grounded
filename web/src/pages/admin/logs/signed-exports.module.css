@@ -1,0 +1,10 @@
+.panel {
+ padding: var(--space-4);
+ display: grid;
+ gap: var(--space-3);
+ min-width: 0;
+ overflow-wrap: anywhere;
+}
+.controls { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; }
+.list { padding-inline-start: var(--space-5); }
+.metadata { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }

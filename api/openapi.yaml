@@ -1399,6 +1399,192 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-export-settings:
+    get:
+      tags: [admin]
+      operationId: adminGetAuditExportSettings
+      summary: Signed export approval and operator key readiness
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutAuditExportSettings
+      summary: Approve built-in private exports (platform admins only)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditExportSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-exports:
+    get:
+      tags: [admin]
+      operationId: adminListAuditExports
+      summary: Latest 100 daily export requests; no work is started
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportList" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [admin]
+      operationId: adminRequestAuditExport
+      summary: Request next closed UTC day with settings revision (platform admins only)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditExportRequest" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportStatus" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-exports/{exportId}:
+    parameters:
+      - name: exportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin]
+      operationId: adminGetAuditExport
+      summary: Export status and signed verification metadata
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportStatus" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-exports/{exportId}/retry:
+    parameters:
+      - name: exportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [admin]
+      operationId: adminRetryAuditExport
+      summary: Explicit retry of failed export with export revision (platform admins only)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditExportStatus" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-exports/{exportId}/download:
+    parameters:
+      - name: exportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin]
+      operationId: adminDownloadAuditExport
+      summary: Bounded private payload by export ID; independently pin verification keys
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Export result
+          content:
+            application/x-ndjson:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/audit:
     get:
       tags: [admin]
@@ -11261,6 +11447,44 @@ components:
       properties:
         platformRole: { $ref: "#/components/schemas/PlatformRole" }
         status: { $ref: "#/components/schemas/UserStatus" }
+
+    AuditExportSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [enabled, coverageStart, destination]
+      properties:
+        enabled: { type: boolean }
+        coverageStart: { type: string, format: date, description: Immutable first covered UTC day once requests exist }
+        destination: { type: string, enum: [builtin], description: External destinations are unsupported and fail closed }
+    AuditExportSettings:
+      allOf:
+        - $ref: "#/components/schemas/AuditExportSettingsInput"
+        - type: object
+          required: [revision, keyReady, keyId]
+          properties:
+            revision: { type: integer, format: int64 }
+            keyReady: { type: boolean }
+            keyId: { type: string, description: "SHA-256 of operator Ed25519 public key, never private material" }
+    AuditExportRequest:
+      type: object
+      additionalProperties: false
+      required: [day]
+      properties:
+        day: { type: string, format: date }
+    AuditExportStatus:
+      type: object
+      required: [id, day, state, revision, failureCode]
+      properties:
+        id: { type: string, format: uuid }
+        day: { type: string, format: date }
+        state: { type: string, enum: [pending, completed, failed] }
+        revision: { type: integer, format: int64 }
+        failureCode: { type: string, description: "Redacted fixed operational code, never underlying error values" }
+        envelope: { type: object, additionalProperties: true, description: Signed manifest and public verification information; not a trust root }
+    AuditExportList:
+      type: array
+      maxItems: 100
+      items: { $ref: "#/components/schemas/AuditExportStatus" }
     AuditEntry:
       type: object
       required: [id, occurredAt, actorKind, actor, action, targetType, targetId, targetLabel, targetExists, metadata, requestId]

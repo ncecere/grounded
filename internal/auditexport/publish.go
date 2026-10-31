@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,8 @@ import (
 // overwrites and offers no conditional create. Only the database CAS publishes.
 // Key is supplied by the future secure operator-secret integration; never logged.
 func Publish(ctx context.Context, pool *pgxpool.Pool, store blob.Store, id uuid.UUID, key ed25519.PrivateKey) (Envelope, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	q := dbgen.New(pool)
 	export, err := q.GetAuditExport(ctx, id)
 	if err != nil {
@@ -35,11 +38,16 @@ func Publish(ctx context.Context, pool *pgxpool.Pool, store blob.Store, id uuid.
 	if _, err := sign(Manifest{}, key); err != nil {
 		return Envelope{}, err
 	}
+	if err := takeSpool(ctx); err != nil {
+		return Envelope{}, err
+	}
+	defer releaseSpool()
 	f, err := os.CreateTemp("", "grounded-audit-export-*")
 	if err != nil {
 		return Envelope{}, ErrStorage
 	}
-	defer func() { _ = f.Close(); _ = os.Remove(f.Name()) }()
+	_ = os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
 	m, err := spool(ctx, q, export, f)
 	if err != nil {
 		return Envelope{}, err
@@ -56,6 +64,9 @@ func Publish(ctx context.Context, pool *pgxpool.Pool, store blob.Store, id uuid.
 		return Envelope{}, ErrStorage
 	}
 	objectKey := "audit-exports/" + id.String() + "/" + uuid.NewString() + "/payload.jsonl"
+	if err := q.JournalAuditExportUpload(ctx, objectKey); err != nil {
+		return Envelope{}, err
+	}
 	if store == nil || store.Put(ctx, objectKey, f, size, "application/x-ndjson") != nil {
 		return Envelope{}, ErrStorage
 	}
@@ -66,6 +77,9 @@ func Publish(ctx context.Context, pool *pgxpool.Pool, store blob.Store, id uuid.
 			ID: id, ObjectKey: &objectKey, Envelope: encoded, EnvelopeHash: ptr(digest(encoded)),
 		})
 		if err != nil || n == 0 {
+			return err
+		}
+		if err := tq.ForgetAuditExportUpload(ctx, objectKey); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tq, audit.Entry{ActorKind: audit.ActorSystem, Action: "audit_export.publish", TargetType: "platform_settings", TargetID: "audit_exports", Metadata: map[string]any{"exportId": id.String(), "count": m.Count}})
@@ -92,9 +106,10 @@ func decodeEnvelope(b []byte) (Envelope, error) {
 }
 
 func spool(ctx context.Context, q *dbgen.Queries, e dbgen.AuditExport, w io.Writer) (Manifest, error) {
-	m := Manifest{Version: Version, Day: e.Day.Time.Format("2006-01-02"), Snapshot: utc(e.SnapshotAt), Watermark: e.Watermark, PreviousExport: e.PreviousHash}
+	m := Manifest{CoverageStart: e.CoverageStart.Time.Format("2006-01-02"), Version: Version, Day: e.Day.Time.Format("2006-01-02"), Snapshot: utc(e.SnapshotAt), Watermark: e.Watermark, PreviousExport: e.PreviousHash}
 	h := sha256.New()
 	out := io.MultiWriter(w, h)
+	var total int64
 	for {
 		rows, err := q.ReadAuditExportPage(ctx, dbgen.ReadAuditExportPageParams{ExportID: e.ID, AfterID: m.LastID})
 		if err != nil {
@@ -111,9 +126,19 @@ func spool(ctx context.Context, q *dbgen.Queries, e dbgen.AuditExport, w io.Writ
 			if r.TeamID.Valid {
 				fact.TeamID = r.TeamID.UUID.String()
 			}
+			if ctx.Err() != nil {
+				return m, ctx.Err()
+			}
 			m.Count++
+			if m.Count > MaxRecords {
+				return m, ErrLimit
+			}
 			b, _ := json.Marshal(line{Ordinal: m.Count, Fact: fact, Previous: m.FinalHash})
 			b = append(b, '\n')
+			total += int64(len(b))
+			if total > MaxPayloadBytes {
+				return m, ErrLimit
+			}
 			if _, err = out.Write(b); err != nil {
 				return m, ErrStorage
 			}

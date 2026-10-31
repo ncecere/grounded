@@ -12,10 +12,14 @@ import (
 	"time"
 )
 
+const MaxRecords int64 = 100000
+const MaxPayloadBytes int64 = 64 << 20
+
 const Version = "grounded.audit.v1"
 const domain = "grounded.audit.manifest.v1\n"
 
 var (
+	ErrLimit   = errors.New("audit export: hard size limit exceeded")
 	ErrInvalid = errors.New("audit export: invalid artifact")
 	ErrSigning = errors.New("audit export: signing configuration unavailable")
 	ErrRange   = errors.New("audit export: invalid closed UTC day or previous export not completed")
@@ -40,6 +44,7 @@ type line struct {
 }
 
 type Manifest struct {
+	CoverageStart  string `json:"coverageStart"`
 	Version        string `json:"version"`
 	Day            string `json:"day"`
 	Snapshot       string `json:"snapshot"`
@@ -75,6 +80,9 @@ func sign(m Manifest, key ed25519.PrivateKey) (Envelope, error) {
 	derived := ed25519.NewKeyFromSeed(key.Seed())
 	if !derived.Equal(key) {
 		return Envelope{}, ErrSigning
+	}
+	if m.CoverageStart == "" {
+		m.CoverageStart = m.Day
 	}
 	public := key.Public().(ed25519.PublicKey)
 	m.Algorithm, m.KeyID = "Ed25519", digest(public)

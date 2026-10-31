@@ -123,6 +123,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	deps.ContentHealth = svc.ContentHealth
 	deps.AnswerCache = svc.AnswerCache
 	deps.TeamConfig = svc.TeamConfig
+	deps.AuditExports = svc.AuditExports
 	svc.Limits.OnBackendError = metrics.RateLimitErrors.Inc
 	svc.Public.Guard.OnBackendError = metrics.RateLimitErrors.Inc
 	deps.Auth = auth.NewService(cfg, pool, kvs, metrics, log)
