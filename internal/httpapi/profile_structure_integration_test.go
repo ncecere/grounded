@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 )
 
 // Synthetic mechanics only: fake embeddings do not establish retrieval quality.
@@ -52,13 +50,12 @@ func TestChunkerV4PreviewApplyParents(t *testing.T) {
 	if got := env.shape(t, direct.Id, m2.ToProfile.Id); strings.Join(got, "\n") != strings.Join(preview, "\n") {
 		t.Fatalf("matching-profile migration lost boundaries: %q", got)
 	}
-	env.action(t, m, "switch", 200, "")
+	switched := env.action(t, m, "switch", 200, "")
 	if env.getKB(t, kb.Id).EmbeddingProfileId != candidate.Id {
 		t.Fatal("explicit switch failed")
 	}
-	// The retained old profile remains available for an explicit rollback migration.
-	rollback := env.start(t, kb.Id, env.from.Id, nil)
-	env.waitStatus(t, rollback.Id, apitypes.ProfileMigrationStatusSwitched)
+	// During the retained-index grace period, use the existing explicit switch-back.
+	env.action(t, switched, "switch-back", 200, "")
 	if env.getKB(t, kb.Id).EmbeddingProfileId != env.from.Id {
 		t.Fatal("rollback failed")
 	}
