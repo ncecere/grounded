@@ -179,6 +179,30 @@ type AnswerCacheSetting struct {
 	UpdatedAt time.Time
 }
 
+type AuditExport struct {
+	ID           uuid.UUID
+	Day          pgtype.Date
+	SnapshotAt   time.Time
+	Watermark    int64
+	PreviousHash string
+	State        string
+	ObjectKey    *string
+	Envelope     []byte
+	EnvelopeHash *string
+}
+
+type AuditExportFact struct {
+	ExportID    uuid.UUID
+	SourceID    int64
+	OccurredAt  time.Time
+	ActorKind   string
+	ActorUserID uuid.NullUUID
+	TeamID      uuid.NullUUID
+	Action      string
+	TargetType  string
+	TargetID    string
+}
+
 type AuditLog struct {
 	ID          int64
 	OccurredAt  time.Time
