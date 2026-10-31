@@ -8,6 +8,9 @@ permissions:
 # Every action is pinned by commit SHA; the comment gives the version
 # (docs/security/controls.md, "Supply chain").
 jobs:
+  helm-check:
+    uses: ./.github/workflows/helm-check.yml
+
   test:
     runs-on: ubuntu-latest
     services:
@@ -242,7 +245,7 @@ jobs:
   # authorization matrix, end-to-end tests, the OCR sidecar's tests,
   # manifests and the smoke test pass.
   image:
-    needs: [test, authz, e2e, ocr, k8s, k8s-smoke]
+    needs: [test, authz, e2e, ocr, k8s, k8s-smoke, helm-check]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read
@@ -300,3 +303,16 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
           OCR_DIGEST: ${{ needs.image.outputs.ocr-digest }}
         run: deploy/release/github-release.sh
+
+  # Future semver releases only; existing image/release gates are unchanged.
+  helm-publish:
+    needs: [image, release, helm-check]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/helm-publish.yml
+    with:
+      digest: ${{ needs.image.outputs.digest }}
+      ocr-digest: ${{ needs.image.outputs.ocr-digest }}
