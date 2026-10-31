@@ -110,6 +110,16 @@ def project(obj):
             rule = spec['egress'][0]['to'][0] if 'egress' in spec else spec['ingress'][0]['from'][0]
             value(rule['namespaceSelector']['matchLabels'], 'kubernetes.io/metadata.name',
                   'tracingNamespace' if 'tracing' in name else 'monitoringNamespace')
+    if kind == 'NetworkPolicy' and name == 'grounded-app-egress-datastores':
+        # Project only destination and port, preserving canonical app selectors.
+        for i, role in enumerate(('postgres', 'valkey')):
+            rule = obj['spec']['egress'][i]
+            token = 'HELMDEST' + role
+            rule['to'] = token
+            tokens[token] = '{{ include "grounded.destination" (list . "' + role + '") | trim }}'
+            token = 'HELMPORT' + role
+            rule['ports'][0]['port'] = token
+            tokens[token] = '{{ if eq .Values.' + role + ' "bundled" }}' + str(5432 if role == 'postgres' else 6379) + '{{ else }}{{ .Values.' + role + 'Destination.port }}{{ end }}'
     text = yaml.safe_dump(obj, sort_keys=True, width=1000)
     for old, new in tokens.items():
         text = text.replace(old, new)
@@ -133,7 +143,8 @@ def generate():
             text = project(obj)
             target = configs if obj['kind'] == 'ConfigMap' else groups
             target.setdefault(text, set()).add(bits)
-    files = {'templates/validate.yaml': HEADER + (ROOT / 'deploy/helm/inputs/validate.tpl').read_text()}
+    files = {'templates/validate.yaml': HEADER + (ROOT / 'deploy/helm/inputs/validate.tpl').read_text(),
+             'templates/_destination.tpl': HEADER + (ROOT / 'deploy/helm/inputs/destination.tpl').read_text()}
     config = ''
     for text, bits in sorted(configs.items()):
         data = text[text.index('data:\n') + 6:text.index('kind: ConfigMap')]

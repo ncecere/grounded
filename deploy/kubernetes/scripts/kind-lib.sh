@@ -53,8 +53,8 @@ kind_build() {
   docker build -q --build-arg VERSION=load --build-arg COMMIT="$(git -C "$kind_repo" rev-parse --short HEAD)" -t "$image" "$kind_repo" >/dev/null
 }
 
-# kind_create creates the cluster (one node; kind's default CNI enforces
-# NetworkPolicies) and loads the image.
+# kind_create creates the cluster (one node; verify the installed CNI's
+# NetworkPolicy support with positive/negative controls) and loads the image.
 kind_create() {
   if "$KIND" get clusters 2>/dev/null | grep -qx "$cluster"; then
     echo "a kind cluster named ${cluster} already exists; delete it or set CLUSTER" >&2

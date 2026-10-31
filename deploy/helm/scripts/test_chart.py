@@ -31,6 +31,9 @@ def values():
     v = yaml.safe_load((CHART / 'values.yaml').read_text())
     v.update(appImage='ghcr.io/ncecere/grounded@sha256:' + '1' * 64,
              runtimeSecret='install-runtime', s3Secret='install-s3')
+    for role, port in [('postgres', 5432), ('valkey', 6379)]:
+        v[role + 'Destination'] = dict(host='grounded-' + role, port=port, namespace=NS,
+            podLabels={'app.kubernetes.io/name': 'grounded', 'app.kubernetes.io/component': role})
     return v
 
 
@@ -74,6 +77,15 @@ def oracle(v):
         if 'metrics' in name and not v['monitoring']: continue
         patches.append({'target': {'kind': 'NetworkPolicy', 'name': name},
                         'patch': yaml.safe_dump([{'op': 'replace', 'path': path, 'value': v[field]}])})
+    for i, role in enumerate(('postgres', 'valkey')):
+        if v[role] != 'external': continue
+        d = v[role + 'Destination']
+        peer = {'ipBlock': {'cidr': d['cidr']}} if 'cidr' in d else {
+            'namespaceSelector': {'matchLabels': {'kubernetes.io/metadata.name': d['namespace']}},
+            'podSelector': {'matchLabels': d['podLabels']}}
+        patches.append({'target': {'kind': 'NetworkPolicy', 'name': 'grounded-app-egress-datastores'},
+                        'patch': yaml.safe_dump([{'op': 'replace', 'path': f'/spec/egress/{i}',
+                            'value': {'to': [peer], 'ports': [{'protocol': 'TCP', 'port': d['port']}]}}])})
     # Secret name changes are strategic patches on canonical references, not text templates.
     for role in ('api', 'worker'):
         def envfrom(smtp=False):
@@ -140,6 +152,8 @@ class ChartTest(unittest.TestCase):
                      s3Endpoint='https://objects.example.edu', s3Bucket='install-blobs',
                      tracingEndpoint='http://collector.telemetry.svc:4318', tracingNamespace='telemetry',
                      tracingSample='0.75', monitoringNamespace='metrics')
+            for role in ('postgres', 'valkey'):
+                if v[role] == 'bundled': v[role + 'Destination'] = {}
             with self.subTest(bits=bits):
                 actual, expected = semantic(helm(v).stdout), semantic(oracle(v))
                 self.assertEqual(actual, expected, '\n'.join(difflib.unified_diff(expected.splitlines(), actual.splitlines())))
@@ -171,7 +185,7 @@ class ChartTest(unittest.TestCase):
                     self.assertEqual(pod['initContainers'][0]['args'], ['migrate'])
                     self.assertEqual(pod['initContainers'][0]['image'], pod['containers'][0]['image'])
                     self.assertFalse(pod['automountServiceAccountToken'])
-        bundled = values(); bundled.update(postgres='bundled', valkey='bundled')
+        bundled = values(); bundled.update(postgres='bundled', valkey='bundled', postgresDestination={}, valkeyDestination={})
         pg = next(o for o in yaml.safe_load_all(helm(bundled).stdout)
                   if o and o['kind'] == 'StatefulSet' and o['metadata']['name'] == 'grounded-postgres')
         self.assertEqual(pg['spec']['volumeClaimTemplates'][0]['spec']['resources']['requests']['storage'], '20Gi')
@@ -188,6 +202,49 @@ class ChartTest(unittest.TestCase):
                 v = values(); v.update(changes)
                 self.assertNotEqual(helm(v, success=False).returncode, 0)
         print(f'{len(cases)} schema/template negatives rejected')
+
+    def test_secret_preflight_contract(self):
+        from preflight import check
+        v = values()
+        runtime = dict(DATABASE_URL='postgres://u:p@grounded-postgres:5432/db?sslmode=verify-full',
+                       VALKEY_URL='rediss://:p@grounded-valkey:6379/0', ENCRYPTION_KEY='fixture', API_KEY_PEPPER='fixture')
+        s3 = dict(access_key='fixture', secret_key='fixture')
+        check(v, runtime, s3, {'SMTP_HOST': 'mail.example.org'})
+        with self.assertRaises(ValueError): check(v, runtime, s3, {'DATABASE_URL': 'override'})
+        with self.assertRaises(ValueError): check(v, dict(runtime, LOG_LEVEL='debug'), s3, owned_keys={'LOG_LEVEL'})
+        for change in ({'DATABASE_URL': runtime['DATABASE_URL'].replace('verify-full', 'disable')},
+                       {'VALKEY_URL': runtime['VALKEY_URL'].replace('rediss', 'redis')},
+                       {'VALKEY_URL': runtime['VALKEY_URL'] + '?skip_verify=true'},
+                       {'DATABASE_URL': runtime['DATABASE_URL'].replace('5432', '5433')},
+                       {'DEV_AUTH': 'true'}, {'API_KEY_PEPPER': ''}):
+            with self.assertRaises(ValueError): check(v, dict(runtime, **change), s3)
+
+    def test_external_destinations(self):
+        for managed in (False, True):
+            v = values()
+            for role, port in [('postgres', 25432), ('valkey', 26379)]:
+                v[role + 'Destination'] = dict(host=role + '.db.example.org', port=port,
+                    **({'cidr': '10.24.8.19/32'} if managed else
+                       {'namespace': 'databases', 'podLabels': {'service': role}}))
+            raw = helm(v).stdout
+            self.assertEqual(semantic(raw), semantic(oracle(v)))
+            objects = list(yaml.safe_load_all(raw))
+            self.assertFalse(any(o and o['kind'] == 'StatefulSet' for o in objects))
+            self.assertNotEqual(semantic(raw), semantic(raw.replace('25432', '5432')))
+            self.assertNotEqual(semantic(raw), semantic(raw.replace('10.24.8.19/32', '10.24.8.20/32')
+                if managed else raw.replace('"service":"postgres"', '"service":"wrong"')))
+            r = subprocess.run([os.getenv('KUBECONFORM', 'kubeconform'), '-strict', '-summary',
+                '-kubernetes-version', '1.34.0'], input=raw, text=True, capture_output=True, timeout=90)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        base = dict(host='db.example.org', port=25432, cidr='10.24.8.19/32')
+        for dest in ({}, dict(base, cidr='0.0.0.0/0'), dict(base, cidr='999.1.1.1/32'), dict(base, cidr='224.0.0.1/32'),
+                     dict(base, port=443), dict(base, port=9000), dict(base, namespace='db'),
+                     dict(host='db', port=5432, namespace='db', podLabels={}),
+                     dict(host='db', port=5432, namespace='db', podLabels={'.bad/key': 'value'})):
+            v = values(); v['postgresDestination'] = dest
+            self.assertNotEqual(helm(v, success=False).returncode, 0)
+        v = values(); v['postgres'] = 'bundled'
+        self.assertNotEqual(helm(v, success=False).returncode, 0)
 
     def test_comparator_mutation(self):
         raw = helm(values()).stdout

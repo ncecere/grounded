@@ -1262,21 +1262,13 @@ metadata:
 spec:
   egress:
   - ports:
-    - port: 5432
+    - port: {{ if eq .Values.postgres "bundled" }}5432{{ else }}{{ .Values.postgresDestination.port }}{{ end }}
       protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/component: postgres
-          app.kubernetes.io/name: grounded
+    to: {{ include "grounded.destination" (list . "postgres") | trim }}
   - ports:
-    - port: 6379
+    - port: {{ if eq .Values.valkey "bundled" }}6379{{ else }}{{ .Values.valkeyDestination.port }}{{ end }}
       protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/component: valkey
-          app.kubernetes.io/name: grounded
+    to: {{ include "grounded.destination" (list . "valkey") | trim }}
   podSelector:
     matchExpressions:
     - key: app.kubernetes.io/name

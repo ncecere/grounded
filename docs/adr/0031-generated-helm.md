@@ -16,6 +16,8 @@ Kustomize. Keep existing installations untouched. Check deterministic generation
 and independently compare Helm objects with fresh Kustomize overlays in CI.
 Limit values to common typed choices; unusual customizations remain Kustomize.
 Require external Secret references and immutable application image digests.
+Expose bounded datastore destination patches and an explicit, read-only Secret
+contract preflight; offline rendering never performs live Secret lookup.
 Publish future semver-tagged OCI charts only behind existing release/image gates,
 with digest signing and provenance. Never overwrite a chart version.
 

@@ -1,0 +1,11 @@
+{{ define "grounded.destination" }}
+{{ $root := index . 0 }}{{ $role := index . 1 }}
+{{ if eq (index $root.Values $role) "bundled" }}
+{{ list (dict "podSelector" (dict "matchLabels" (dict "app.kubernetes.io/name" "grounded" "app.kubernetes.io/component" $role))) | toJson }}
+{{ else }}
+{{ $d := index $root.Values (printf "%sDestination" $role) }}
+{{ if hasKey $d "cidr" }}
+{{ list (dict "ipBlock" (dict "cidr" $d.cidr)) | toJson }}
+{{ else }}
+{{ list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $d.namespace)) "podSelector" (dict "matchLabels" $d.podLabels)) | toJson }}
+{{ end }}{{ end }}{{ end }}

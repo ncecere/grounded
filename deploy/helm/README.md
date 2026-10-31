@@ -79,10 +79,51 @@ Unknown values are errors. No arbitrary env/pod/policy patches, model configurat
 demo seeds, or DEV_AUTH switch. OCR's deny-all egress is preserved, including DNS
 exclusion; network policy enforcement needs a compatible CNI. SSE controller tuning,
 private image pulls, backups, CNPG, unusual ports/routing, resource customization
-and HA topology remain Kustomize-only. **External datastores currently must be in
-the same namespace with canonical Grounded datastore labels and ports**; arbitrary
-managed services need explicit Kustomize egress. This is a known first-chart scope
-limitation, not a claim of general external-service support.
+and HA topology remain Kustomize-only. External datastores require explicit
+`postgresDestination` / `valkeyDestination`; bundled modes require `{}`. Each is
+exactly one destination with `host` and a TCP `port` (1024..65535, except 9000):
+
+```yaml
+postgresDestination:
+  host: postgres.databases.svc.cluster.local
+  port: 5432
+  namespace: databases
+  podLabels: {app: postgres}
+valkeyDestination:
+  host: cache.example.org
+  port: 16379
+  cidr: 10.24.8.19/32
+```
+
+Namespace plus nonempty pod labels are an AND peer, not two OR peers.
+The URL port and actual datastore listener port must agree; differing Service
+port/targetPort mappings are outside this bounded interface. Managed
+IPv4 destinations are single-address `/32` CIDRs only; IPv6, address pools and
+more elaborate routing stay Kustomize-only. DNS changes require reviewing the
+pinned address and repeating deployment checks. The canonical datastore rule is
+**replaced**, not supplemented: external mode leaves no same-namespace fallback.
+Existing canonical web (80/443) and object-storage (9000) policies are unchanged;
+external datastore ports cannot reuse these broad grants. No new internet grant
+is added. These are bounded patches of canonical policy leaves, like an overlay.
+
+Before deployment, run offline checks then the explicit live Secret preflight:
+
+```sh
+python3 deploy/helm/scripts/preflight.py --kubeconfig /approved/install-kubeconfig \
+  --context install-context --namespace install-namespace --values install-values.yaml
+```
+
+This read-only check fetches only the named runtime/S3/optional SMTP Secrets, with 10s
+request deadlines; it never prints contents and is never called by `helm template`.
+It checks required keys, rejects all rendered ConfigMap keys in runtime and non-SMTP
+keys in the optional SMTP Secret, matches datastore
+URL host/port, and requires external Postgres `sslmode=verify-full` and authenticated
+Valkey `rediss` without query overrides. Provision trusted server certificates using
+the application's normal trust store; no skip-verify/plaintext fallback is provided.
+It does not resolve DNS, inspect peer labels, establish TLS or test reachability.
+Run readiness and `grounded doctor` in both API and worker after install; verify
+actual routing and positive/negative policy controls on an enforcing CNI. Helm
+cannot validate Secret content offline. Secret rotation requires repeating preflight.
 
 ## Persistence, migrations and rollback
 
@@ -116,3 +157,15 @@ and attaches source/hash/image provenance. No mutable alias is moved. Failures d
 not bypass existing signing/scanning/checksum gates. Parent must review workflow
 permissions, registry identity/cosign compatibility and protected-CI/publication
 acceptance before enabling a release. This worker never runs publish.sh.
+
+## Isolated lifecycle evidence
+
+The follow-up exercised a real owned local kind install, same-source values
+upgrade, rollback, SQL/PVC retention, reinstall and a separate managed TLS release.
+See the [design evidence and limits](../../docs/specs/generated-helm/DESIGN.md#local-follow-up-evidence-not-parent-acceptance).
+This is not previous-release upgrade certification or parent acceptance.
+For Linux amd64 local lifecycle tools, `bash deploy/helm/scripts/install-lifecycle-tools.sh`
+uses the repo's kind pin and checksummed kubectl matching the pinned test node.
+
+Registry HEAD preflight plus push is not atomic registry-enforced no-overwrite;
+workflow concurrency cannot exclude other registry writers. Parent gating remains.
