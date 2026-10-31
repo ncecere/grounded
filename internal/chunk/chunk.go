@@ -43,12 +43,13 @@ type Options struct {
 
 	// Version is the chunker version (an embedding profile's chunker_version):
 	// 0 or 1, the original; 2, which merges short neighbouring sections and
-	// drops chunks with no body (v2.go); 3, which also keeps tables structured (tables.go). Any other value is an error.
+	// drops chunks with no body (v2.go); 3, which also keeps tables structured (tables.go). 4 preserves structural boundaries (v4.go). Any other value is an error.
 	Version int32
 }
 
 // Chunk is one retrieval unit.
 type Chunk struct {
+	section     int      // v4 structural identity, used only while building parent ranges
 	Ordinal     int      // 0-based position in the document
 	Content     string   // Markdown text of the chunk (no page markers; heading lines of the section it starts in are NOT repeated here unless they are part of the chunk's own text)
 	HeadingPath []string // headings in effect at the chunk's start, outermost first, e.g. ["Admissions", "Deadlines"]
@@ -83,10 +84,13 @@ func Split(markdown string, opts Options) ([]Chunk, error) {
 	s := newSplitter(opts)
 	s.tables = opts.Version >= Version3
 	blocks, paginated := parseBlocksFor(doc, s.tables)
+	if opts.Version == Version4 {
+		structuralBoundaries(blocks)
+	}
 	if opts.DropBlock != nil {
 		blocks = dropBlocks(blocks, opts.DropBlock)
 	}
-	if opts.Version >= Version2 {
+	if opts.Version >= Version2 && opts.Version < Version4 {
 		s.floor = max(opts.MaxTokens/4, 1)
 	}
 	if s.tables {

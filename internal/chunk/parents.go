@@ -7,8 +7,7 @@ import (
 )
 
 // Parents, for parent/child retrieval (docs/parent-child-retrieval.md, ADR-0026). A parent is a run of consecutive chunks (children) of one
-// document, so it is a function of the chunks the chunker produced and nothing else: no splitter state, no chunker version. That keeps it
-// independent of the version-specific rules in v2.go and later.
+// document, so it is a function of the chunks the chunker produced and nothing else: v4 additionally records structural identity while building these ranges so repeated labels cannot reunite distinct sections.
 
 // Limits of a parent. MaxParentTokens bounds the parent size a profile may ask for; MaxParentChildren bounds the rows one parent reads.
 const (
@@ -47,7 +46,7 @@ func Parents(chunks []Chunk, maxTokens int) []Range {
 	for i, c := range chunks {
 		if i > start {
 			prev := chunks[i-1]
-			if c.Ordinal != prev.Ordinal+1 || !samePath(c.HeadingPath, prev.HeadingPath) || tokens+c.Tokens > maxTokens || i-start >= MaxParentChildren {
+			if c.section != prev.section || c.Ordinal != prev.Ordinal+1 || !samePath(c.HeadingPath, prev.HeadingPath) || tokens+c.Tokens > maxTokens || i-start >= MaxParentChildren {
 				closeAt(i)
 				start, tokens = i, 0
 			}

@@ -246,7 +246,7 @@ func checkProfileInput(in *ProfileInput) (int32, error) {
 		in.ChunkerVersion = chunk.Version1
 	}
 	if !chunk.ValidVersion(in.ChunkerVersion) {
-		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original), 2 (merges short neighbouring sections) or 3 (also keeps tables structured)")
+		return 0, apperr.Invalid("invalid_chunker_version", "The chunker version must be 1 (the original), 2 (merges short neighbouring sections) 3 (also keeps tables structured), or 4 (preserves structural boundaries)")
 	}
 	if err := checkParentTokens(in.ParentTokens, in.ChunkSize); err != nil {
 		return 0, err
