@@ -58,6 +58,15 @@ test("published disclosures on public, signed-in and widget surfaces", async ({ 
     await page.reload();
     await expect(page.getByRole("button", { name: "About this assistant" })).toHaveCount(0);
     await a11y(page);
+    const privateAgent = await publishedAgent(owner, team, {
+      name: "Private about", config: { ownershipNote: "Private team owner" },
+    });
+    const refused = await page.request.get(`/v1/public/agents/${privateAgent.agent.id}`);
+    expect(refused.status()).toBe(404);
+    await signed.goto(`/a/${team}/private-about`);
+    await signed.getByRole("button", { name: "About this assistant" }).click();
+    await expect(signed.getByRole("dialog")).toContainText("Private team owner");
+    await a11y(signed);
   } finally { await owner.dispose(); }
 });
 

@@ -180,6 +180,19 @@ func TestAssistantAboutCurrentSourceAndTeam(t *testing.T) {
 	if a := read(); a == nil || a.SourceCount != 1 {
 		t.Fatal("missing positive control", a)
 	}
+	// Raising a current source classification revokes public disclosure immediately.
+	if _, err := env.app.Pool.Exec(context.Background(), "UPDATE data_sources SET classification='sensitive' WHERE id=$1", env.upload.Id); err != nil {
+		t.Fatal(err)
+	}
+	if a := read(); a != nil {
+		t.Fatal("policy-revoked source disclosed", a)
+	}
+	if _, err := env.app.Pool.Exec(context.Background(), "UPDATE data_sources SET classification='open' WHERE id=$1", env.upload.Id); err != nil {
+		t.Fatal(err)
+	}
+	if a := read(); a == nil || a.SourceCount != 1 {
+		t.Fatal("restored source missing", a)
+	}
 	if _, err := env.app.Pool.Exec(context.Background(), "DELETE FROM kb_sources WHERE kb_id=$1 AND source_id=$2", env.kb.Id, env.upload.Id); err != nil {
 		t.Fatal(err)
 	}
