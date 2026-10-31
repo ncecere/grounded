@@ -23,7 +23,8 @@ func escapedCapacityRequest(t *testing.T, e *genEnv) (Request, int32) {
 	if required <= MinContextWindow() {
 		t.Fatalf("escaped fixture did not exceed static floor: required=%d floor=%d", required, MinContextWindow())
 	}
-	return req, int32(required)
+	in = fitInput(in, CallInputMax(c, chunks[0].Tokens, chunks[0].Tokens), c)
+	return req, int32(WithMargin(promptTokens(in, c)) + RequestMaxTokens)
 }
 
 func TestEscapedContextPromptMustFitBeforeAdmission(t *testing.T) {
@@ -31,7 +32,7 @@ func TestEscapedContextPromptMustFitBeforeAdmission(t *testing.T) {
 	req, required := escapedCapacityRequest(t, e)
 	target := e.g.Catalog.(fixedResolver).target
 	below := required - 1
-	target.Model.ContextWindow = &below // Still above the static activation floor.
+	target.Model.ContextWindow = &below // One below the exact planned prompt requirement.
 	e.g.Catalog = fixedResolver{target}
 	result, err := e.g.Contextualize(t.Context(), req)
 	var failure *Failure

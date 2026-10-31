@@ -174,10 +174,15 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	}
 	model := generationModel(target)
 	opening := Opening(req.Chunks, g.Counter)
+	docTokens := 0
+	for _, ch := range req.Chunks {
+		docTokens += ch.Tokens
+	}
 	inputs := make([]Input, len(units))
 	keys := make([][32]byte, len(units))
 	for i, u := range units {
 		inputs[i] = BuildInput(req.Title, u.Path, opening, UnitText(req.Chunks, u, g.Counter), g.Counter)
+		inputs[i] = fitInput(inputs[i], CallInputMax(g.Counter, docTokens, u.Tokens), g.Counter)
 		keys[i] = Key(model, inputs[i])
 	}
 	plan := requestCachePlan(req, keys)
