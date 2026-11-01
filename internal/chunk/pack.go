@@ -321,7 +321,7 @@ func (sp *splitter) appendChunk(out []Chunk, units []unit, content string, token
 	if strings.TrimSpace(content) == "" {
 		return out
 	}
-	c := Chunk{Content: content, HeadingPath: headingPath(units), Tokens: tokens}
+	c := Chunk{section: units[len(units)-1].b.section, Content: content, HeadingPath: headingPath(units), Tokens: tokens}
 	if paginated {
 		c.PageStart, c.PageEnd = pageRange(units)
 	}
@@ -359,6 +359,7 @@ func (sp *splitter) repair(out []Chunk, units []unit, paginated bool) []Chunk {
 	}
 	for _, pc := range sp.hardSplit(content, span{0, len(content)}, sp.max, nil) {
 		out = append(out, Chunk{
+			section:     units[len(units)-1].b.section,
 			Content:     content[pc.start:pc.end],
 			HeadingPath: append(make([]string, 0, len(path)), path...),
 			PageStart:   ps,

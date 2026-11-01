@@ -26,10 +26,14 @@ const (
 	Version1 = 1
 	Version2 = 2
 	Version3 = 3
+	// Version4 preserves explicit structural boundaries (ADR-0029).
+	Version4 = 4
 )
 
 // ValidVersion reports whether v is a chunker version Split knows (0 means version 1).
-func ValidVersion(v int32) bool { return v == 0 || v == Version1 || v == Version2 || v == Version3 }
+func ValidVersion(v int32) bool {
+	return v == 0 || v == Version1 || v == Version2 || v == Version3 || v == Version4
+}
 
 func checkVersion(v int32) error {
 	if !ValidVersion(v) {
