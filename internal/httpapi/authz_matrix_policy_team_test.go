@@ -30,6 +30,7 @@ func init() {
 }
 
 var teamPolicies = map[string]policy{
+	"exportTeamConfiguration": {own: editors, also: []string{"409 configuration_unsupported"}, build: func(c *mctx) request { return get(c.team("/configuration")) }},
 	// Teams, members, invites, audit, limits.
 	"getTeam":     {own: members, foreign: platform, build: func(c *mctx) request { return get(c.team("")) }},
 	"listMembers": {own: members, foreign: platform, build: func(c *mctx) request { return get(c.team("/members")) }},

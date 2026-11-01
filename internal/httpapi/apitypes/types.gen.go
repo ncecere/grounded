@@ -51,15 +51,18 @@ func (e APIKeyCreateKind) Valid() bool {
 
 // Defines values for APIKeyScope.
 const (
-	APIKeyScopeIngest APIKeyScope = "ingest"
-	APIKeyScopeManage APIKeyScope = "manage"
-	APIKeyScopeMcp    APIKeyScope = "mcp"
-	APIKeyScopeQuery  APIKeyScope = "query"
+	APIKeyScopeConfigurationExport APIKeyScope = "configuration:export"
+	APIKeyScopeIngest              APIKeyScope = "ingest"
+	APIKeyScopeManage              APIKeyScope = "manage"
+	APIKeyScopeMcp                 APIKeyScope = "mcp"
+	APIKeyScopeQuery               APIKeyScope = "query"
 )
 
 // Valid indicates whether the value is a known member of the APIKeyScope enum.
 func (e APIKeyScope) Valid() bool {
 	switch e {
+	case APIKeyScopeConfigurationExport:
+		return true
 	case APIKeyScopeIngest:
 		return true
 	case APIKeyScopeManage:
@@ -4888,7 +4891,7 @@ type APIKeyCreated struct {
 	Secret string `json:"secret"`
 }
 
-// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
+// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
 type APIKeyScope string
 
 // AccessLogEntry defines model for AccessLogEntry.
@@ -7159,7 +7162,7 @@ type ContextualCost struct {
 	// InputPerMillion Decimal string
 	InputPerMillion *string `json:"inputPerMillion"`
 
-	// MaxAmount A conservative configured-price estimate (decimal string)
+	// MaxAmount A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown
 	MaxAmount *string `json:"maxAmount"`
 
 	// OutputPerMillion Decimal string
@@ -7179,7 +7182,7 @@ type ContextualIssue struct {
 type ContextualKBEstimate struct {
 	Blockers []ContextualIssue `json:"blockers"`
 
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls     int64          `json:"calls"`
 	Cost      ContextualCost `json:"cost"`
 	Documents int64          `json:"documents"`
@@ -7190,7 +7193,7 @@ type ContextualKBEstimate struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64              `json:"inputTokensMax"`
 	KbId           openapi_types.UUID `json:"kbId"`
 
@@ -7305,10 +7308,10 @@ type ContextualSettingsInput struct {
 	// FailurePolicy fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
 	FailurePolicy ContextualSettingsInputFailurePolicy `json:"failurePolicy"`
 
-	// MaxCalls The most model calls (attempts
+	// MaxCalls The most model calls (attempts, including failed ones) one build of a set may make
 	MaxCalls int32 `json:"maxCalls"`
 
-	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles
+	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles, including build and live calls
 	MaxCallsPerDay int32 `json:"maxCallsPerDay"`
 
 	// ModelId The chat model that writes the context; required when enabled. It must be cleared for the source's classification.
@@ -7325,7 +7328,7 @@ type ContextualSourceEstimate struct {
 	Blockers       []ContextualIssue    `json:"blockers"`
 	CachedContexts int64                `json:"cachedContexts"`
 
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls          int64          `json:"calls"`
 	Classification string         `json:"classification"`
 	Cost           ContextualCost `json:"cost"`
@@ -7338,7 +7341,7 @@ type ContextualSourceEstimate struct {
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 	Enabled              bool  `json:"enabled"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64               `json:"inputTokensMax"`
 	MaxCalls       int32               `json:"maxCalls"`
 	MaxCallsPerDay int32               `json:"maxCallsPerDay"`
@@ -7362,7 +7365,7 @@ type ContextualSourceEstimate struct {
 
 // ContextualTotals defines model for ContextualTotals.
 type ContextualTotals struct {
-	// Calls Model calls
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
 	Calls     int64 `json:"calls"`
 	Documents int64 `json:"documents"`
 
@@ -7372,7 +7375,7 @@ type ContextualTotals struct {
 	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
 	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
 
-	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
 	InputTokensMax int64 `json:"inputTokensMax"`
 
 	// OutputTokensMax A ceiling of the model's output tokens

@@ -1,9 +1,7 @@
-// Package teamconfig contains the bounded syntax boundary for the proposed D4
-// team configuration format (docs/configuration-as-code.md).
-//
-// DecodeEnvelope is NOT a configuration validator: resource fields, references,
-// secrets, authorization and revision preconditions still require a strict typed
-// schema and domain validation. No product endpoint uses this checkpoint.
+// Package teamconfig validates bounded, strict portable team configuration and
+// exports authorized snapshots without content, secrets or side effects.
+// DecodeEnvelope remains a syntax-only boundary; use DecodeDocument for domain
+// validation. Export always runs the full document validator before download.
 package teamconfig
 
 import (

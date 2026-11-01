@@ -88,10 +88,11 @@ func (k *KeyGrant) Personal() bool { return k.Kind == "personal" }
 // /mcp, docs/mcp.md): searching and asking there, as the query scope does
 // on the REST API; it grants nothing on the REST API itself.
 const (
-	ScopeQuery  = "query"
-	ScopeIngest = "ingest"
-	ScopeManage = "manage"
-	ScopeMCP    = "mcp"
+	ScopeQuery               = "query"
+	ScopeIngest              = "ingest"
+	ScopeManage              = "manage"
+	ScopeMCP                 = "mcp"
+	ScopeConfigurationExport = "configuration:export"
 )
 
 // HasScope reports whether the key has scope.
@@ -172,9 +173,9 @@ func KeyTeamRole(k *KeyGrant, ownerRole string) string {
 func MaxScopesForRole(role string) []string {
 	switch {
 	case RoleAtLeast(role, RoleAdmin):
-		return []string{ScopeQuery, ScopeIngest, ScopeManage, ScopeMCP}
+		return []string{ScopeQuery, ScopeIngest, ScopeManage, ScopeMCP, ScopeConfigurationExport}
 	case role == RoleEditor:
-		return []string{ScopeQuery, ScopeIngest, ScopeMCP}
+		return []string{ScopeQuery, ScopeIngest, ScopeMCP, ScopeConfigurationExport}
 	case role == RoleMember:
 		return []string{ScopeQuery, ScopeMCP}
 	}

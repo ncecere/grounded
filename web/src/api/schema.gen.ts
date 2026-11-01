@@ -311,6 +311,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download bounded portable team configuration (read only)
+         * @description Requires actual editor/admin/owner membership, or an unrestricted team key
+         *     with configuration:export scope (not manage). Personal keys also require
+         *     current editor membership. No content or secret values. Unsupported
+         *     references/settings refuse the whole export with configuration_unsupported.
+         *     Webhooks currently refuse export because signing secrets have no named
+         *     target-install reference. No import, dry run or apply is implemented.
+         */
+        get: operations["exportTeamConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}": {
         parameters: {
             query?: never;
@@ -8297,12 +8322,12 @@ export interface components {
             failurePolicy: "fail" | "plain";
             /**
              * Format: int32
-             * @description The most model calls (attempts
+             * @description The most model calls (attempts, including failed ones) one build of a set may make
              */
             maxCalls: number;
             /**
              * Format: int32
-             * @description The most attempts admitted in a UTC day across all profiles
+             * @description The most attempts admitted in a UTC day across all profiles, including build and live calls
              */
             maxCallsPerDay: number;
             /** @description Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call. */
@@ -8406,7 +8431,7 @@ export interface components {
             inputPerMillion: string | null;
             /** @description Decimal string */
             outputPerMillion: string | null;
-            /** @description A conservative configured-price estimate (decimal string) */
+            /** @description A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown */
             maxAmount: string | null;
         };
         ContextualTotals: {
@@ -8421,7 +8446,7 @@ export interface components {
             units: number;
             /**
              * Format: int64
-             * @description Model calls
+             * @description Model calls, a ceiling (cached contexts are not subtracted)
              */
             calls: number;
             /**
@@ -8433,7 +8458,7 @@ export interface components {
             passagesOver: number;
             /**
              * Format: int64
-             * @description A ceiling of locally counted request input reserved for planning and admission
+             * @description A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
              */
             inputTokensMax: number;
             /**
@@ -9219,10 +9244,10 @@ export interface components {
             latencyMs: number;
         };
         /**
-         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
+         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
          * @enum {string}
          */
-        APIKeyScope: "query" | "ingest" | "manage" | "mcp";
+        APIKeyScope: "query" | "ingest" | "manage" | "mcp" | "configuration:export";
         APIKey: {
             /** Format: uuid */
             id: string;
@@ -13641,6 +13666,43 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    exportTeamConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deterministic JSON-compatible YAML; at most 1 MiB, 500 resources */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            /** @description Unsupported or protected configuration; no partial download */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             default: components["responses"]["DefaultErrorReply"];
         };
     };

@@ -464,6 +464,38 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/MyTeam" }
         "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/configuration:
+    get:
+      operationId: exportTeamConfiguration
+      summary: Download bounded portable team configuration (read only)
+      description: |
+        Requires actual editor/admin/owner membership, or an unrestricted team key
+        with configuration:export scope (not manage). Personal keys also require
+        current editor membership. No content or secret values. Unsupported
+        references/settings refuse the whole export with configuration_unsupported.
+        Webhooks currently refuse export because signing secrets have no named
+        target-install reference. No import, dry run or apply is implemented.
+      parameters:
+        - $ref: "#/components/parameters/TeamParam"
+      responses:
+        "200":
+          description: Deterministic JSON-compatible YAML; at most 1 MiB, 500 resources
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/yaml:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409":
+          description: Unsupported or protected configuration; no partial download
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+
   /v1/teams/{team}:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -12277,8 +12309,8 @@ components:
           description: >-
             fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready
             until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
-        maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most model calls (attempts, including failed ones) one build of a set may make }
-        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: The most attempts admitted in a UTC day across all profiles, including build and live calls }
+        maxCalls: { type: integer, format: int32, minimum: 1, maximum: 100000, description: "The most model calls (attempts, including failed ones) one build of a set may make" }
+        maxCallsPerDay: { type: integer, format: int32, minimum: 1, maximum: 100000, description: "The most attempts admitted in a UTC day across all profiles, including build and live calls" }
         admission:
           allOf: [{ $ref: "#/components/schemas/ContextualAdmission" }]
           nullable: true
@@ -12341,7 +12373,7 @@ components:
         currency: { type: string, description: The install's display currency code }
         inputPerMillion: { type: string, nullable: true, description: Decimal string }
         outputPerMillion: { type: string, nullable: true, description: Decimal string }
-        maxAmount: { type: string, nullable: true, description: A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown }
+        maxAmount: { type: string, nullable: true, description: "A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown" }
     ContextualTotals:
       type: object
       required: [documents, passages, units, calls, documentsOver, passagesOver, inputTokensMax, outputTokensMax, embeddingTokensAdded]
@@ -12349,10 +12381,10 @@ components:
         documents: { type: integer, format: int64 }
         passages: { type: integer, format: int64 }
         units: { type: integer, format: int64, description: Sections (one model call each) }
-        calls: { type: integer, format: int64, description: Model calls, a ceiling (cached contexts are not subtracted) }
+        calls: { type: integer, format: int64, description: "Model calls, a ceiling (cached contexts are not subtracted)" }
         documentsOver: { type: integer, format: int64, description: Documents with more sections than the limit; they are embedded without context and make no call }
         passagesOver: { type: integer, format: int64 }
-        inputTokensMax: { type: integer, format: int64, description: A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee }
+        inputTokensMax: { type: integer, format: int64, description: "A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee" }
         outputTokensMax: { type: integer, format: int64, description: A ceiling of the model's output tokens }
         embeddingTokensAdded: { type: integer, format: int64, description: A ceiling of the tokens the contexts add to the embedding inputs }
     ContextualIssue:
@@ -13022,8 +13054,10 @@ components:
         query searches knowledge bases and asks agents over the REST API; ingest
         uploads and manages documents; manage changes sources and knowledge
         bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md)
-        and grants nothing on the REST API
-      enum: [query, ingest, manage, mcp]
+        and grants nothing on the REST API. configuration:export downloads only
+        supported team configuration; no general REST or write grant, no evaluation
+        question access, and no restricted KB/agent grants.
+      enum: [query, ingest, manage, mcp, "configuration:export"]
     APIKey:
       type: object
       required: [id, name, kind, prefix, scopes, createdAt]

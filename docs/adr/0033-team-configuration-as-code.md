@@ -29,11 +29,14 @@ policy/atomicity work are in [configuration-as-code](../configuration-as-code.md
 
 ## Consequences
 
-The initial checkpoint is only an internal hostile-YAML ingress implementation
-with tests. There is no export/import endpoint or UI and no claim of D4 completion.
-The schema and authorization extension must be reviewed before they become public.
-No migration is needed for this checkpoint; any later lane migration is 00061+.
-Parent integration must extend/verify optional #34 card settings independently.
+The retained follow-up implements strict domain validation and a usable read-only
+Settings/API download for supported configurations. Explicit whole-export refusals
+cover unnamed webhook signing credentials, nonportable references and unsupported
+meaningful settings; these are documented rather than silently omitted. API keys
+need configuration:export, not manage; evaluation-question access remains denied
+to keys. Migration 00061 expands only the existing scope constraint (00060 is
+reserved for #34). Import/dry run/apply remain separate and #32 remains open.
+The complete owner workflow and this proposed ADR still need parent review.
 
 ## Alternatives considered
 
