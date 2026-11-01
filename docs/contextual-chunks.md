@@ -158,7 +158,7 @@ The prompt tells the model that the text between `<untrusted_document>` and `</u
 
 | Situation | `fail` (default) | `plain` (explicit) |
 |---|---|---|
-| Model unavailable, 5xx, network error | the document is not embedded for this set; retried (sets: three transient attempts then it waits for an admin's retry, as for embedding; live: River retries, then the document fails `context_unavailable`) | same, until retries are used up; then the document is embedded without context and marked `fallback` |
+| Model unavailable, 5xx, network error | the document is not embedded for this set; retried (sets: three transient attempts then it waits for an admin's retry, as for embedding; live: River retries, then the document fails `context_unavailable`) | same: transient failures do not silently become plain input; exhaustion leaves the document failed/not ready, awaiting an explicit retry |
 | Remote 429 or 503 with Retry-After | the job waits; unknown usage retains the attempt and reserved headroom (not a document failure) | same |
 | Proven-unsent local limiter refusal | the job waits; reservation released and zero sent calls | same |
 | Reply refused, empty or unusable | the document is not embedded for this set (`context_invalid`); permanent until retried | embedded without context and marked `fallback` |

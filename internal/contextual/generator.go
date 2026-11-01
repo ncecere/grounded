@@ -324,10 +324,8 @@ func nextDay(since time.Time) time.Time {
 }
 
 // send makes the request and settles the attempt, whatever happens: the settlement outlives a cancelled context.
-func (g *Generator) send(ctx context.Context, req Request, t catalog.ChatTarget, m Model, in Input, key [32]byte, id int64) (flightResult, error) {
+func (g *Generator) send(ctx, callCtx context.Context, req Request, t catalog.ChatTarget, m Model, in Input, key [32]byte, id int64) (flightResult, error) {
 	zero := flightResult{made: true}
-	callCtx, cancel := context.WithTimeout(gateway.Background(ctx), g.timeout())
-	defer cancel()
 	provider := g.provider(t.Client)
 	user := userTag(req.Team)
 	msg, err := llm.Complete(callCtx, provider, llm.ModelFromRow(t.Model),

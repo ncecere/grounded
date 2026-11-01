@@ -99,7 +99,7 @@ func (r acceptanceResolver) ChatTarget(ctx context.Context, id uuid.UUID) (catal
 	if !m.Enabled || m.Kind != catalog.KindChat || !conn.Enabled || conn.BaseURL != r.client.BaseURL {
 		return catalog.ChatTarget{}, catalog.ErrChatModelUnusable
 	}
-	return catalog.ChatTarget{Model: m, Client: r.client}, nil
+	return catalog.ChatTarget{Model: m, Client: r.client, ConnectionRevision: conn.Revision}, nil
 }
 
 func acceptanceClient(config acceptanceConfig, key string, guard *acceptanceTransport) *gateway.Client {
