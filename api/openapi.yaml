@@ -464,6 +464,38 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/MyTeam" }
         "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/configuration:
+    get:
+      operationId: exportTeamConfiguration
+      summary: Download bounded portable team configuration (read only)
+      description: |
+        Requires actual editor/admin/owner membership, or an unrestricted team key
+        with configuration:export scope (not manage). Personal keys also require
+        current editor membership. No content or secret values. Unsupported
+        references/settings refuse the whole export with configuration_unsupported.
+        Webhooks currently refuse export because signing secrets have no named
+        target-install reference. No import, dry run or apply is implemented.
+      parameters:
+        - $ref: "#/components/parameters/TeamParam"
+      responses:
+        "200":
+          description: Deterministic JSON-compatible YAML; at most 1 MiB, 500 resources
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/yaml:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409":
+          description: Unsupported or protected configuration; no partial download
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+
   /v1/teams/{team}:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -13066,8 +13098,10 @@ components:
         query searches knowledge bases and asks agents over the REST API; ingest
         uploads and manages documents; manage changes sources and knowledge
         bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md)
-        and grants nothing on the REST API
-      enum: [query, ingest, manage, mcp]
+        and grants nothing on the REST API. configuration:export downloads only
+        supported team configuration; no general REST or write grant, no evaluation
+        question access, and no restricted KB/agent grants.
+      enum: [query, ingest, manage, mcp, "configuration:export"]
     APIKey:
       type: object
       required: [id, name, kind, prefix, scopes, createdAt]

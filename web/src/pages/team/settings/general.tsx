@@ -30,6 +30,8 @@ import { Time } from "@/components/ui/time/time";
 import { toast } from "@/components/ui/toast/toast";
 import { type Team, teamQuery, useLevelName, useTeam } from "../common";
 
+import { ConfigurationExport } from "./configuration";
+
 type Form = { name: string; description: string };
 const formOf = (t: Team): Form => ({ name: t.name, description: t.description });
 const nameError = (name: string) => (name.trim().length < 1 ? "Enter a name." : name.trim().length > 100 ? "Use at most 100 characters." : undefined);
@@ -69,6 +71,7 @@ export function GeneralTab() {
       message={invalid ? "Not saved: fix the highlighted field" : undefined}
       saveDisabled={Boolean(invalid)}
     >
+      {(role === "editor" || role === "admin" || role === "owner") && <ConfigurationExport team={slug} />}
       <SettingsSection
         title="General"
         description={isPlatformAdmin ? "The team's name and description, shown to its members and in the team switcher." : "Platform admins rename teams. Ask one if something here needs to change."}

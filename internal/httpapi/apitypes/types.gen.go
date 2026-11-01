@@ -51,15 +51,18 @@ func (e APIKeyCreateKind) Valid() bool {
 
 // Defines values for APIKeyScope.
 const (
-	APIKeyScopeIngest APIKeyScope = "ingest"
-	APIKeyScopeManage APIKeyScope = "manage"
-	APIKeyScopeMcp    APIKeyScope = "mcp"
-	APIKeyScopeQuery  APIKeyScope = "query"
+	APIKeyScopeConfigurationExport APIKeyScope = "configuration:export"
+	APIKeyScopeIngest              APIKeyScope = "ingest"
+	APIKeyScopeManage              APIKeyScope = "manage"
+	APIKeyScopeMcp                 APIKeyScope = "mcp"
+	APIKeyScopeQuery               APIKeyScope = "query"
 )
 
 // Valid indicates whether the value is a known member of the APIKeyScope enum.
 func (e APIKeyScope) Valid() bool {
 	switch e {
+	case APIKeyScopeConfigurationExport:
+		return true
 	case APIKeyScopeIngest:
 		return true
 	case APIKeyScopeManage:
@@ -4909,7 +4912,7 @@ type APIKeyCreated struct {
 	Secret string `json:"secret"`
 }
 
-// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
+// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
 type APIKeyScope string
 
 // AccessLogEntry defines model for AccessLogEntry.

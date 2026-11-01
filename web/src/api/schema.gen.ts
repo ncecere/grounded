@@ -311,6 +311,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download bounded portable team configuration (read only)
+         * @description Requires actual editor/admin/owner membership, or an unrestricted team key
+         *     with configuration:export scope (not manage). Personal keys also require
+         *     current editor membership. No content or secret values. Unsupported
+         *     references/settings refuse the whole export with configuration_unsupported.
+         *     Webhooks currently refuse export because signing secrets have no named
+         *     target-install reference. No import, dry run or apply is implemented.
+         */
+        get: operations["exportTeamConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}": {
         parameters: {
             query?: never;
@@ -9254,10 +9279,10 @@ export interface components {
             latencyMs: number;
         };
         /**
-         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
+         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
          * @enum {string}
          */
-        APIKeyScope: "query" | "ingest" | "manage" | "mcp";
+        APIKeyScope: "query" | "ingest" | "manage" | "mcp" | "configuration:export";
         APIKey: {
             /** Format: uuid */
             id: string;
@@ -13727,6 +13752,43 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    exportTeamConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deterministic JSON-compatible YAML; at most 1 MiB, 500 resources */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            /** @description Unsupported or protected configuration; no partial download */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             default: components["responses"]["DefaultErrorReply"];
         };
     };

@@ -6,8 +6,9 @@ export type Scope = Schemas["APIKeyScope"];
 export type APIKey = Schemas["APIKey"];
 export type Kind = APIKey["kind"];
 
-export const allScopes: Scope[] = ["query", "ingest", "manage", "mcp"];
+export const allScopes: Scope[] = ["query", "ingest", "manage", "mcp", "configuration:export"];
 export const scopeLabels: Record<Scope, string> = {
+  "configuration:export": "Export: read team configuration only (no protected evaluations)",
   query: "Query: search knowledge bases",
   ingest: "Ingest: upload and manage documents",
   manage: "Manage: change sources and knowledge bases",
@@ -29,7 +30,7 @@ export function allowedScopes(role: TeamRole | undefined, kind: Kind): Scope[] {
     case "admin":
       return allScopes;
     case "editor":
-      return ["query", "ingest", "mcp"];
+      return ["query", "ingest", "mcp", "configuration:export"];
     case "member":
       return ["query", "mcp"];
     default:

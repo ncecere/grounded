@@ -384,6 +384,16 @@ func (s *Service) Touch(ctx context.Context, id uuid.UUID) { _ = s.q.TouchAPIKey
 // without recording a use. Personal keys stop working when their owner
 // leaves the team or is suspended, even before revocation is recorded.
 func (s *Service) Verify(ctx context.Context, presented string) (authz.Actor, error) {
+	return s.verify(ctx, presented, true)
+}
+
+// VerifyReadOnly checks the same credentials/grants without pepper rotation
+// writes or audit entries. Configuration export must be side-effect free.
+func (s *Service) VerifyReadOnly(ctx context.Context, presented string) (authz.Actor, error) {
+	return s.verify(ctx, presented, false)
+}
+
+func (s *Service) verify(ctx context.Context, presented string, rotate bool) (authz.Actor, error) {
 	if len(presented) != len(keyPrefix)+idLen+1+secretLen || !strings.HasPrefix(presented, keyPrefix) {
 		return authz.Actor{}, ErrInvalidKey
 	}
@@ -408,8 +418,10 @@ func (s *Service) Verify(ctx context.Context, presented string) (authz.Actor, er
 			return authz.Actor{}, ErrInvalidKey
 		}
 	}
-	if err := s.markPepper(ctx, k, peppers, match, rehash); err != nil {
-		return authz.Actor{}, err
+	if rotate {
+		if err := s.markPepper(ctx, k, peppers, match, rehash); err != nil {
+			return authz.Actor{}, err
+		}
 	}
 	grant := &authz.KeyGrant{ID: k.ID, TeamID: k.TeamID, Scopes: k.Scopes, KBIDs: k.KBIDs, AgentIDs: k.AgentIDs, Kind: k.Kind}
 	if err := s.limitToAgentsKBs(ctx, grant); err != nil {

@@ -16,7 +16,7 @@ func validateScopes(scopes, allowed []string) error {
 	known := authz.MaxScopesForRole(authz.RoleOwner)
 	for _, sc := range scopes {
 		if !slices.Contains(known, sc) {
-			return apperr.Invalid("invalid_scopes", "Scopes must be query, ingest, manage or mcp (lower-case)")
+			return apperr.Invalid("invalid_scopes", "Scopes must be query, ingest, manage, mcp or configuration:export (lower-case)")
 		}
 	}
 	for _, sc := range scopes {

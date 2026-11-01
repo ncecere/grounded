@@ -215,6 +215,7 @@ func (a *api) teamRoutes() []route {
 	return []route{
 		{"GET", "/v1/teams", a.session(a.listMyTeams)},
 		{"GET", "/v1/teams/{team}", a.session(a.getTeam)},
+		{"GET", "/v1/teams/{team}/configuration", a.configurationRoute()},
 		{"GET", "/v1/teams/{team}/members", a.session(a.listMembers)},
 		{"POST", "/v1/teams/{team}/members", a.session(a.addMember)},
 		{"PATCH", "/v1/teams/{team}/members/{userId}", a.session(a.updateMember)},
