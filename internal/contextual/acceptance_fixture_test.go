@@ -2,6 +2,7 @@ package contextual
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -14,7 +15,19 @@ import (
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
+// Explicit test-fixture options, not arbitrary provider JSON or model presets.
+type acceptanceChatCompat struct {
+	MaxTokensField string `json:"maxTokensField,omitempty"`
+	ThinkingOff    string `json:"thinkingOff,omitempty"`
+}
+
+func (c acceptanceChatCompat) valid() bool {
+	return (c.MaxTokensField == "" || c.MaxTokensField == "max_tokens" || c.MaxTokensField == "max_completion_tokens") &&
+		(c.ThinkingOff == "" || c.ThinkingOff == "reasoning_effort_none")
+}
+
 type acceptanceConfig struct {
+	ChatCompat    acceptanceChatCompat
 	Endpoint      string
 	Currency      string
 	Dimensions    int
@@ -24,7 +37,7 @@ type acceptanceConfig struct {
 }
 
 func acceptancePreflight(config acceptanceConfig, g *Generator) (acceptanceUsage, error) {
-	if config.Dimensions < 1 || config.Dimensions > 4000 || config.Seconds < 1 || config.Seconds > 300 || config.ContextWindow < int32(MinContextWindow()) {
+	if config.Dimensions < 1 || config.Dimensions > 4000 || config.Seconds < 1 || config.Seconds > 300 || config.ContextWindow < int32(MinContextWindow()) || !config.ChatCompat.valid() {
 		return acceptanceUsage{}, errors.New("acceptance requires bounded time/dimensions and a sufficient known context window")
 	}
 	if len(config.Currency) != 3 {
@@ -86,7 +99,7 @@ func (r acceptanceResolver) ChatTarget(ctx context.Context, id uuid.UUID) (catal
 	if !m.Enabled || m.Kind != catalog.KindChat || !conn.Enabled || conn.BaseURL != r.client.BaseURL {
 		return catalog.ChatTarget{}, catalog.ErrChatModelUnusable
 	}
-	return catalog.ChatTarget{Model: m, Client: r.client}, nil
+	return catalog.ChatTarget{Model: m, Client: r.client, ConnectionRevision: conn.Revision}, nil
 }
 
 func acceptanceClient(config acceptanceConfig, key string, guard *acceptanceTransport) *gateway.Client {
@@ -98,7 +111,11 @@ func acceptanceClient(config acceptanceConfig, key string, guard *acceptanceTran
 
 func configureAcceptanceFixture(ctx context.Context, f settlementFixture, config acceptanceConfig, calls int64) error {
 	exec := func(sql string, args ...any) error { _, err := f.pool.Exec(ctx, sql, args...); return err }
-	if err := exec(`UPDATE models SET upstream_model = $2, context_window = $3, max_output_tokens = $4 WHERE id = $1`, f.res.ModelID, config.Limits.ContextModel, config.ContextWindow, RequestMaxTokens); err != nil {
+	compat, err := json.Marshal(config.ChatCompat)
+	if err != nil {
+		return err
+	}
+	if err := exec(`UPDATE models SET upstream_model = $2, context_window = $3, max_output_tokens = $4, compat = $5::jsonb WHERE id = $1`, f.res.ModelID, config.Limits.ContextModel, config.ContextWindow, RequestMaxTokens, compat); err != nil {
 		return err
 	}
 	if err := exec(`UPDATE model_connections SET base_url = $2 WHERE id = (SELECT connection_id FROM models WHERE id = $1)`, f.res.ModelID, config.Endpoint); err != nil {

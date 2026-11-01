@@ -8297,12 +8297,12 @@ export interface components {
             failurePolicy: "fail" | "plain";
             /**
              * Format: int32
-             * @description The most model calls (attempts
+             * @description The most model calls (attempts, including failed ones) one build of a set may make
              */
             maxCalls: number;
             /**
              * Format: int32
-             * @description The most attempts admitted in a UTC day across all profiles
+             * @description The most attempts admitted in a UTC day across all profiles, including build and live calls
              */
             maxCallsPerDay: number;
             /** @description Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call. */
@@ -8406,7 +8406,7 @@ export interface components {
             inputPerMillion: string | null;
             /** @description Decimal string */
             outputPerMillion: string | null;
-            /** @description A conservative configured-price estimate (decimal string) */
+            /** @description A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown */
             maxAmount: string | null;
         };
         ContextualTotals: {
@@ -8421,7 +8421,7 @@ export interface components {
             units: number;
             /**
              * Format: int64
-             * @description Model calls
+             * @description Model calls, a ceiling (cached contexts are not subtracted)
              */
             calls: number;
             /**
@@ -8433,7 +8433,7 @@ export interface components {
             passagesOver: number;
             /**
              * Format: int64
-             * @description A ceiling of locally counted request input reserved for planning and admission
+             * @description A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
              */
             inputTokensMax: number;
             /**
