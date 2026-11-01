@@ -136,7 +136,7 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
-### v0.7.0 preparation — 2026-11-01
+### v0.7.0 published verification — 2026-11-01
 
 No dependency changed since v0.6.3; the inventory above is current (`make
 deps-inventory` produced no change). `govulncheck` reports **no vulnerabilities**
@@ -147,9 +147,13 @@ reached through `@redocly/openapi-core` from `openapi-typescript`, the API type
 generator. It is a development tool that reads only repository files and is not
 in the image; the only offered fix is a semver-major change, left for the next
 dependency batch. Trivy reports **0 secrets** and the same **71 IaC findings**
-(43 LOW, 25 MEDIUM, 3 HIGH) as the reviewed v0.6.3 set. Image scans of the
-published v0.7.0 digests are recorded in the [v0.7.0 validation
-record](validation/v0.7.0.md) after the tag.
+(43 LOW, 25 MEDIUM, 3 HIGH) as the reviewed v0.6.3 set. The published v0.7.0
+images (verified signatures, provenance and SBOMs on amd64 and arm64) have **0 Go
+findings and 0 fixable HIGH/CRITICAL findings**. The app keeps the same 4 UNKNOWN
+certificate and timezone-data advisories as v0.6.3; the OCR image has 362 Debian
+findings with no published fix (157 LOW, 122 MEDIUM, 71 HIGH, 1 CRITICAL `libxml2`
+CVE-2026-6653, 11 UNKNOWN), up from 341 in v0.6.3, none with a published fix. Digests
+and details: [v0.7.0 validation record](validation/v0.7.0.md).
 
 ### v0.6.3 published verification — 2026-10-30
 
