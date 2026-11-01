@@ -56,8 +56,12 @@ type Config struct {
 
 	// Ingestion.
 	MaxUploadBytes        int64
-	IngestMaxInflight     int           // documents queued/processing platform-wide
-	IngestMaxInflightTeam int           // built-in default of the concurrent_ingest_jobs team limit (internal/limits)
+	IngestMaxInflight     int // documents queued/processing platform-wide
+	IngestMaxInflightTeam int // built-in default of the concurrent_ingest_jobs team limit (internal/limits)
+	// ContextualChunks is the platform switch of contextual chunks (false: no model call is ever made for them and no source can opt in);
+	// ContextualConcurrency bounds their model calls at once per process (docs/contextual-chunks.md section 5).
+	ContextualChunks      bool
+	ContextualConcurrency int
 	IngestConcurrency     int           // document jobs per worker process
 	EmbedBatchSize        int           // inputs per embedding request, shared across documents
 	EmbedBatchTokens      int           // counted tokens per embedding request (0 = no limit)
@@ -240,6 +244,8 @@ func Defaults() Config {
 		MaxUploadBytes:         100 << 20,
 		IngestMaxInflight:      32,
 		IngestMaxInflightTeam:  8,
+		ContextualChunks:       false,
+		ContextualConcurrency:  2,
 		IngestConcurrency:      4,
 		EmbedBatchSize:         64,
 		EmbedBatchTokens:       32768,

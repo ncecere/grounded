@@ -128,12 +128,17 @@ func (p *Processor) Reembed(ctx context.Context, src dbgen.DataSource, doc dbgen
 	if title == "" {
 		title = doc.Filename
 	}
-	vectors, usage, err := p.embed(ctx, target, p.embedTexts(target, title, chunks), doc.TeamID)
+	sc := ctxScope{src: src, docID: doc.ID, title: title, team: doc.TeamID, user: doc.UploadedBy, own: src.EmbeddingProfileID == target.Profile.ID}
+	texts, mark, err := p.contextualTexts(ctx, sc, doc.Version, target, chunks)
+	if err != nil {
+		return out, err
+	}
+	vectors, usage, err := p.embed(ctx, target, texts, doc.TeamID)
 	if err != nil {
 		return out, err
 	}
 	out = Reembedded{Chunks: len(chunks), Rechunk: rechunk, Tokens: usage.Counted, Requests: usage.Requests}
-	return out, p.commitSet(ctx, src, doc, target, rechunked{chunks: chunks, vectors: vectors, usage: usage})
+	return out, p.commitSet(ctx, src, doc, target, rechunked{chunks: chunks, vectors: vectors, usage: usage, mark: mark})
 }
 
 // setChunks are the document's chunks for target: copies of the chunks of
@@ -247,13 +252,10 @@ func (p *Processor) commitSet(ctx context.Context, src dbgen.DataSource, doc dbg
 		return err
 	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
-		var version int32
-		var status string
-		err := tx.QueryRow(ctx, "SELECT version, status FROM documents WHERE id = $1 FOR UPDATE", doc.ID).Scan(&version, &status)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (version != doc.Version || status != StatusReady)) {
-			return errSuperseded
-		} else if err != nil {
+		if current, err := lockDocumentVersion(ctx, tx, doc.ID, doc.Version, StatusReady); err != nil {
 			return err
+		} else if !current {
+			return errSuperseded
 		}
 		q := dbgen.New(tx)
 		if ok, err := setWritable(ctx, q, src.ID, prof.ID); err != nil {
@@ -273,6 +275,9 @@ func (p *Processor) commitSet(ctx context.Context, src dbgen.DataSource, doc dbg
 			return err
 		}
 		if err := setParents(ctx, tx, doc.ID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
+			return err
+		}
+		if err := writeMark(ctx, tx, src.ID, doc.ID, rc.mark); err != nil {
 			return err
 		}
 		if err := q.DeleteSetFailure(ctx, dbgen.DeleteSetFailureParams{DocumentID: doc.ID, ProfileID: prof.ID}); err != nil {

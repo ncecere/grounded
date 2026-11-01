@@ -1386,6 +1386,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/profile-migrations/contextual-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What contextual chunks would involve for a knowledge base's sources that opted in (platform admins and auditors; makes no model call, changes nothing)
+         * @description Calls and tokens are limits, not predictions: one model call per section of each document, at most as many tokens as the prompt and reply bounds allow, with the share added for tokenizer differences. The cost is a ceiling only when the context model has chat prices (priceKnown); otherwise it is unknown and no amount is given. Sources that did not opt in are counted in sourcesWithout and are embedded as they are. docs/contextual-chunks.md section 5.
+         */
+        post: operations["adminEstimateContextualKB"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/sources/{sourceId}/contextual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A source's contextual-chunks settings and what they have done (platform admins and auditors; any source) */
+        get: operations["adminGetSourceContextual"];
+        /**
+         * Replace a source's contextual-chunks settings (platform admins with a session; audited)
+         * @description Saving changes no vector, starts no job and makes no model call: the source takes part in an index preview that asks for contextual chunks (POST /v1/admin/profile-migrations/preview with changes.contextualChunks), which builds beside the live index and is switched explicitly. Turning a source off deletes the text generated for it and stops further calls at their next checkpoint. 400 invalid_failure_policy, invalid_cap, model_required or invalid_model; 409 model_classification (the model may not process the source's classification), model_unavailable, model_context_window (the context window must be declared and meet the activation floor; actual escaped input is rechecked before dispatch) or contextual_unavailable (CONTEXTUAL_CHUNKS is off).
+         */
+        put: operations["adminPutSourceContextual"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/sources/{sourceId}/contextual/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What contextual chunks would involve for one source, before it opts in (platform admins and auditors; makes no model call, changes nothing)
+         * @description Reads the sizes and heading paths of the source's indexed passages (no text). A model in the body is priced instead of the source's. blockers name what would refuse the opt-in or the build.
+         */
+        post: operations["adminEstimateSourceContextual"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/profile-migrations/{migrationId}": {
         parameters: {
             query?: never;
@@ -1879,6 +1944,30 @@ export interface paths {
          * @description Blocks (navigation, footers, cards) found in at least the source's threshold of documents, most documents first. Each keeps one copy, in the document with the shortest URL (ADR-0021).
          */
         get: operations["listBoilerplateBlocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/contextual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Whether a source has contextual chunks, and how its indexes were built (team members, session only; read-only)
+         * @description Counts and names only. The generated context is embedding input and is never returned by any API. Changing the setting is for platform admins.
+         */
+        get: operations["getSourceContextual"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7726,6 +7815,8 @@ export interface components {
             /** @enum {string} */
             status: "active" | "retired";
             isDefault: boolean;
+            /** @description Built with contextual chunks for the sources that opted in (ADR-0028); omitted when false */
+            contextual?: boolean;
             /**
              * Format: uuid
              * @description Set for an index preview's hidden copy: the profile it was copied from. A candidate is not in the list or the pickers; it is reachable by id.
@@ -7965,6 +8056,8 @@ export interface components {
                 parentTokens?: number;
                 /** @description Judge the knowledge base's sources with near-duplicate matching of repeated blocks on (a menu with a different item highlighted, a footer with a different date), whatever their setting is: the candidate's passages leave those variants out where a source's repeated-block removal is on. Switching the preview turns the setting on for those sources. Omitted: the sources' own settings decide, as now. */
                 boilerplateFuzzy?: boolean;
+                /** @description true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written context in front of each passage's embedding input; the passages themselves are unchanged); false builds it without, the way back from a contextual profile. It must be the only passage-affecting change when true: the passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages). Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a model may not process a source's classification. docs/contextual-chunks.md. */
+                contextualChunks?: boolean;
             };
         };
         /**
@@ -7973,7 +8066,7 @@ export interface components {
          */
         ProfileMigrationStatus: "running" | "ready" | "switched" | "completed" | "cancelled" | "switched_back";
         ProfileMigrationIssue: {
-            /** @description Blockers: same_profile, profile_retired, profile_unusable, model_classification, dimensions, migration_active. Warnings: rechunk, shared_sources, documents_in_progress, failed_documents, no_rate_limit, maintenance_suggested, no_sources. */
+            /** @description Blockers: same_profile, profile_retired, profile_unusable, model_classification, dimensions, migration_active. Warnings: rechunk, shared_sources, documents_in_progress, failed_documents, no_rate_limit, maintenance_suggested, no_sources. Contextual chunks blockers: contextual_unavailable, contextual_needs_same_passages, no_opted_in_sources, platform_off, model_required, invalid_model, model_unavailable, model_classification, model_context_window, calls_over_cap; warnings: contextual_price_unknown, contextual_sources_without. */
             code: string;
             message: string;
         };
@@ -8010,6 +8103,8 @@ export interface components {
             minutes: number | null;
             /** @description The target's chunk settings differ, so passages are cut again from the stored parsed text */
             rechunk: boolean;
+            /** @description The model work of a contextual-chunks build; omitted when the target has none */
+            contextual?: components["schemas"]["ContextualMigrationEstimate"];
         };
         ProfileMigrationPreflightSource: {
             /** Format: uuid */
@@ -8164,7 +8259,281 @@ export interface components {
             sources?: components["schemas"]["ProfileMigrationSource"][];
             /** @description Documents that failed, newest first (at most 50; one migration, running only) */
             failures?: components["schemas"]["ProfileMigrationFailure"][];
+            /** @description How contextual chunks went (one migration; omitted when the target has none) */
+            contextual?: components["schemas"]["ContextualMigrationProgress"];
             revision: components["schemas"]["Revision"];
+        };
+        /** @description Explicit per-source token and configured-price spend admission limits. Required to enable contextual chunks, including platform-owned sources and when ordinary cost tracking is off. Build limits apply to one profile's build; UTC-day limits include all build and live attempts across every profile of this source. Unknown usage retains reserved headroom. Amounts use configured price snapshots, not a provider invoice guarantee. */
+        ContextualAdmission: {
+            /**
+             * Format: int64
+             * @description Input plus output token admission headroom for one build
+             */
+            maxTokens: number;
+            /**
+             * Format: int64
+             * @description Input plus output token admission headroom for all attempts admitted in one UTC day
+             */
+            maxTokensPerDay: number;
+            /** @description Positive configured-price amount allowed for one build */
+            maxAmount: components["schemas"]["Money"];
+            /** @description Positive configured-price amount allowed across all profiles in one UTC admission day */
+            maxAmountPerDay: components["schemas"]["Money"];
+            /** @description Must match the installation's configured price currency; unlike currencies are never silently added */
+            currency: string;
+        };
+        ContextualSettingsInput: {
+            /** @description The source takes part in index previews with contextual chunks. Off by default. */
+            enabled: boolean;
+            /**
+             * Format: uuid
+             * @description The chat model that writes the context; required when enabled. It must be cleared for the source's classification.
+             */
+            modelId: string | null;
+            /**
+             * @description fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
+             * @enum {string}
+             */
+            failurePolicy: "fail" | "plain";
+            /**
+             * Format: int32
+             * @description The most model calls (attempts, including failed ones) one build of a set may make
+             */
+            maxCalls: number;
+            /**
+             * Format: int32
+             * @description The most attempts admitted in a UTC day across all profiles, including build and live calls
+             */
+            maxCallsPerDay: number;
+            /** @description Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call. */
+            admission?: components["schemas"]["ContextualAdmission"] | null;
+        };
+        ContextualCallStats: {
+            /** Format: int64 */
+            attempts: number;
+            /** Format: int64 */
+            ok: number;
+            /**
+             * Format: int64
+             * @description Replies that were refused or could not be used
+             */
+            unusable: number;
+            /**
+             * Format: int64
+             * @description Attempts whose usage is not known: errors, timeouts, cancellations (the provider may still have billed them)
+             */
+            unknown: number;
+            /**
+             * Format: int64
+             * @description Input tokens the gateway reported
+             */
+            tokensIn: number;
+            /**
+             * Format: int64
+             * @description Output tokens the gateway reported
+             */
+            tokensOut: number;
+        };
+        ContextualSet: {
+            /** Format: uuid */
+            profileId: string;
+            profileKey: string;
+            /** @description The source's own profile (what its knowledge bases search unless they are moving) */
+            live: boolean;
+            /** Format: int64 */
+            documentsWithContext: number;
+            /**
+             * Format: int64
+             * @description Embedded without context under the plain policy
+             */
+            documentsFallback: number;
+            /**
+             * Format: int64
+             * @description Embedded without context because they have more sections than the limit
+             */
+            documentsTooLarge: number;
+            /**
+             * Format: int64
+             * @description Embedded without context after the source (or the platform) was switched off
+             */
+            documentsOff: number;
+            /**
+             * Format: int64
+             * @description No passage had room in the embedding model's input
+             */
+            documentsNoRoom: number;
+            /** Format: int64 */
+            passages: number;
+            /** Format: int64 */
+            passagesWithContext: number;
+            calls: components["schemas"]["ContextualCallStats"];
+        };
+        ContextualChunks: {
+            /** Format: uuid */
+            sourceId: string;
+            sourceName: string;
+            classification: string;
+            /** @description The platform switch CONTEXTUAL_CHUNKS */
+            platformEnabled: boolean;
+            enabled: boolean;
+            /** Format: uuid */
+            modelId: string | null;
+            modelName: string;
+            /** @enum {string} */
+            failurePolicy: "fail" | "plain";
+            /** Format: int32 */
+            maxCalls: number;
+            /** Format: int32 */
+            maxCallsPerDay: number;
+            /** @description Null when explicit token/spend admission limits have not been configured */
+            admission: components["schemas"]["ContextualAdmission"] | null;
+            /**
+             * Format: int64
+             * @description Sections with a generated context kept for the source's documents
+             */
+            cachedContexts: number;
+            calls: components["schemas"]["ContextualCallStats"];
+            /** @description The profiles the source was snapshotted for, oldest first */
+            sets: components["schemas"]["ContextualSet"][];
+            revision: components["schemas"]["Revision"];
+        };
+        ContextualCost: {
+            /** @description The model has both a chat input and a chat output price. When false no amount is given. */
+            priceKnown: boolean;
+            /** @description The install's display currency code */
+            currency: string;
+            /** @description Decimal string */
+            inputPerMillion: string | null;
+            /** @description Decimal string */
+            outputPerMillion: string | null;
+            /** @description A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown */
+            maxAmount: string | null;
+        };
+        ContextualTotals: {
+            /** Format: int64 */
+            documents: number;
+            /** Format: int64 */
+            passages: number;
+            /**
+             * Format: int64
+             * @description Sections (one model call each)
+             */
+            units: number;
+            /**
+             * Format: int64
+             * @description Model calls, a ceiling (cached contexts are not subtracted)
+             */
+            calls: number;
+            /**
+             * Format: int64
+             * @description Documents with more sections than the limit; they are embedded without context and make no call
+             */
+            documentsOver: number;
+            /** Format: int64 */
+            passagesOver: number;
+            /**
+             * Format: int64
+             * @description A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
+             */
+            inputTokensMax: number;
+            /**
+             * Format: int64
+             * @description A ceiling of the model's output tokens
+             */
+            outputTokensMax: number;
+            /**
+             * Format: int64
+             * @description A ceiling of the tokens the contexts add to the embedding inputs
+             */
+            embeddingTokensAdded: number;
+        };
+        ContextualIssue: {
+            code: string;
+            message: string;
+        };
+        ContextualSourceEstimate: components["schemas"]["ContextualTotals"] & {
+            /** Format: uuid */
+            sourceId: string;
+            name: string;
+            classification: string;
+            enabled: boolean;
+            /** Format: uuid */
+            modelId: string | null;
+            modelName: string;
+            /** Format: int64 */
+            cachedContexts: number;
+            /** Format: int32 */
+            maxCalls: number;
+            /** Format: int32 */
+            maxCallsPerDay: number;
+            /** @description Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created */
+            admission: components["schemas"]["ContextualAdmission"] | null;
+            /**
+             * Format: int32
+             * @description Local input-reservation headroom for one attempt of unknown usage; not measured usage or a provider-billing guarantee
+             */
+            unknownCallTokensIn: number;
+            /** Format: int32 */
+            unknownCallTokensOut: number;
+            cost: components["schemas"]["ContextualCost"];
+            blockers: components["schemas"]["ContextualIssue"][];
+        };
+        ContextualKBEstimate: components["schemas"]["ContextualTotals"] & {
+            /** Format: uuid */
+            kbId: string;
+            sources: components["schemas"]["ContextualSourceEstimate"][];
+            /**
+             * Format: int32
+             * @description Sources that did not opt in (embedded as they are)
+             */
+            sourcesWithout: number;
+            cost: components["schemas"]["ContextualCost"];
+            blockers: components["schemas"]["ContextualIssue"][];
+        };
+        ContextualMigrationEstimate: {
+            /** Format: int32 */
+            sources: number;
+            /** Format: int32 */
+            sourcesWithout: number;
+            /** Format: int64 */
+            documents: number;
+            /** Format: int64 */
+            passages: number;
+            /** Format: int64 */
+            units: number;
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            documentsOver: number;
+            /** Format: int64 */
+            inputTokensMax: number;
+            /** Format: int64 */
+            outputTokensMax: number;
+            /** Format: int64 */
+            embeddingTokensAdded: number;
+            priceKnown: boolean;
+            currency?: string;
+            /** @description A ceiling (decimal string); omitted when the price is unknown */
+            costMax?: string;
+        };
+        ContextualMigrationSource: components["schemas"]["ContextualSet"] & {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            failurePolicy: "fail" | "plain";
+            /** Format: int32 */
+            maxCalls: number;
+            /** @description The build's call limit is used up; the set waits until it is raised */
+            capReached: boolean;
+        };
+        ContextualMigrationProgress: {
+            sources: components["schemas"]["ContextualMigrationSource"][];
+            /**
+             * Format: int32
+             * @description Sources embedded as they are (they did not opt in)
+             */
+            sourcesWithout: number;
         };
         ChatModelOption: {
             /** Format: uuid */
@@ -15566,6 +15935,141 @@ export interface operations {
             default: components["responses"]["DefaultErrorReply"];
         };
     };
+    adminEstimateContextualKB: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    kbId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextualKBEstimate"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetSourceContextual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings (off, with default limits and revision 1, until saved) */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextualChunks"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutSourceContextual: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContextualSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextualChunks"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminEstimateSourceContextual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    modelId?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextualSourceEstimate"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
     adminGetProfileMigration: {
         parameters: {
             query?: never;
@@ -16398,6 +16902,35 @@ export interface operations {
         responses: {
             200: components["responses"]["BoilerplateBlockListReply"];
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    getSourceContextual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextualChunks"];
+                    };
+                };
+            };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];

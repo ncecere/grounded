@@ -78,6 +78,69 @@ const routes = (extra: Record<string, (b: unknown) => unknown> = {}) => ({
 });
 
 describe("Preview new settings", () => {
+  it("requires an explicit read-only contextual estimate before building, preserves live indexes and passes axe", async () => {
+    const calls = mockApi(routes({
+      "POST /v1/admin/profile-migrations/contextual-estimate": () => ({ calls: 4, inputTokensMax: 1000, outputTokensMax: 1536,
+        cost: { priceKnown: true, currency: "USD", maxAmount: "0.002536" }, blockers: [] }),
+      "POST /v1/admin/profile-migrations/preview": () => building,
+      "GET /v1/admin/profile-migrations/m9": () => building,
+    }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const contextual = within(dialog).getByRole("combobox", { name: "Contextual embedding inputs" });
+    await waitFor(() => expect(contextual).toBeEnabled());
+    await userEvent.selectOptions(contextual, "on");
+    const submit = within(dialog).getByRole("button", { name: "Build the new index" });
+    expect(submit).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Estimate contextual work before building" }));
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(calls.some((c) => c.url.endsWith("/preview") && c.method === "POST")).toBe(false);
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(submit);
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/preview"))).toBe(true));
+    expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/preview"))?.body).toEqual({ kbId: "k1", changes: { contextualChunks: true } });
+    expect(calls.some((c) => c.url.endsWith("/switch"))).toBe(false);
+  });
+
+  it("keeps unknown-price contextual work blocked but supports an explicit plain rollback", async () => {
+    const calls = mockApi(routes({
+      "GET /v1/admin/embedding-profiles": () => [profile("p1", "Nomic 768", { contextual: true })],
+      "POST /v1/admin/profile-migrations/contextual-estimate": () => ({ calls: 4, inputTokensMax: 1000, outputTokensMax: 1536,
+        cost: { priceKnown: false, currency: "USD", maxAmount: null }, blockers: [{ code: "contextual_price_unknown", message: "Both token prices are required." }] }),
+      "POST /v1/admin/profile-migrations/preview": () => building,
+      "GET /v1/admin/profile-migrations/m9": () => building,
+    }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const submit = within(dialog).getByRole("button", { name: "Build the new index" });
+    await userEvent.click(await within(dialog).findByRole("button", { name: "Estimate contextual work before building" }));
+    expect(await within(dialog).findByRole("list", { name: "Contextual build blockers" })).toHaveTextContent("Both token prices are required");
+    expect(submit).toBeDisabled();
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Contextual embedding inputs" }), "off");
+    expect(submit).toBeEnabled();
+    await userEvent.click(submit);
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/preview"))).toBe(true));
+    expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/preview"))?.body).toEqual({ kbId: "k1", changes: { contextualChunks: false } });
+  });
+
+  it("cannot use the previous knowledge base's contextual estimate for a different base", async () => {
+    mockApi(routes({
+      "GET /v1/admin/knowledge-bases": () => [...kbs, { ...kbs[0], id: "k2", name: "Other handbook" }],
+      "POST /v1/admin/profile-migrations/contextual-estimate": () => ({ calls: 4, inputTokensMax: 1000, outputTokensMax: 1536,
+        cost: { priceKnown: true, currency: "USD", maxAmount: "0.002536" }, blockers: [] }),
+    }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const contextual = within(dialog).getByRole("combobox", { name: "Contextual embedding inputs" });
+    await waitFor(() => expect(contextual).toBeEnabled());
+    await userEvent.selectOptions(contextual, "on");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Estimate contextual work before building" }));
+    const submit = within(dialog).getByRole("button", { name: "Build the new index" });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Knowledge base" }), "k2");
+    expect(submit).toBeDisabled();
+  });
+
   it("builds a new index with only the settings that were filled in, then opens the preview", async () => {
     const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
     const { container } = renderApp("/admin/embedding-profiles?tab=migrations");

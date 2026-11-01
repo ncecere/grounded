@@ -17,6 +17,7 @@ import { ParentSizeField } from "../models/parents";
 import { parentProblem, parentSummary } from "../models/parent-size";
 import { CHUNKER_HELP, CHUNKERS, chunkerNow } from "../models/chunkers";
 import { adminKBsQuery, type Migration, migrationsKey } from "./common";
+import { useContextualPreviewEstimate } from "./contextual-preview";
 import p from "./profile-migrations.module.css";
 
 type Props = { initialKB?: string; onClose: () => void; onStarted: (m: Migration) => void };
@@ -41,9 +42,13 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
   const [chunker, setChunker] = useState(""); // "" keeps the current profile's
   const [parent, setParent] = useState(""); // "" keeps the current profile's, 0 turns parent sections off
   const [fuzzy, setFuzzy] = useState(""); // "" keeps the sources' own settings; "on" judges with near-duplicate matching (#23)
+  const [contextual, setContextual] = useState(""); // keep / explicit opt-in / plain rollback
   const [grace, setGrace] = useState("");
   const kb = kbs.data?.find((k) => k.id === kbId);
   const live = profiles.data?.find((x) => x.id === kb?.profile.id);
+  const loadingContext = kbs.isPending || profiles.isPending;
+  const needsContextEstimate = contextual === "on" || (contextual === "" && Boolean(live?.contextual));
+  const contextEstimate = useContextualPreviewEstimate(kbId, needsContextEstimate);
   const embeddingModels = (models.data ?? []).filter((m) => m.kind === "embedding" && m.enabled);
   const parentInvalid = parentProblem(parent, whole(size) ?? live?.chunkSize ?? 0);
   const changes = {
@@ -56,6 +61,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
     ...(chunker !== "" ? { chunkerVersion: Number(chunker) } : {}),
     ...(parent.trim() !== "" && parentInvalid === undefined ? { parentTokens: Number(parent) } : {}),
     ...(fuzzy === "on" ? { boilerplateFuzzy: true } : {}),
+    ...(contextual !== "" ? { contextualChunks: contextual === "on" } : {}),
   };
   const graceDays = whole(grace);
   const graceInvalid = grace.trim() !== "" && (graceDays === undefined || graceDays < 0 || graceDays > 90);
@@ -77,10 +83,10 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
       description="Builds a new index of a knowledge base with changed settings beside the current one, runs its evaluation sets on both, and waits. The knowledge base keeps searching its current index until you switch."
       size="lg"
       onClose={onClose}
-      onSubmit={() => kbId && !graceInvalid && parentInvalid === undefined && start.mutate()}
+      onSubmit={() => kbId && !loadingContext && !graceInvalid && parentInvalid === undefined && contextEstimate.ready && start.mutate()}
       submitLabel="Build the new index"
       busy={start.isPending}
-      submitDisabled={!kbId || graceInvalid || parentInvalid !== undefined}
+      submitDisabled={!kbId || loadingContext || graceInvalid || parentInvalid !== undefined || !contextEstimate.ready}
     >
       <ErrorAlert error={kbs.error ?? profiles.error ?? models.error ?? start.error} />
       <Field label="Knowledge base">
@@ -136,6 +142,13 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
             <option value="on">Treat near-duplicate blocks as one</option>
           </NativeSelect>
         </Field>
+        <Field label="Contextual embedding inputs" description="Model-generated context is embedding input only, never source text. A plain candidate is the rollback path.">
+          <NativeSelect value={contextual} onChange={(e) => setContextual(e.target.value)} disabled={!kb}>
+            <option value="">Keep {live?.contextual ? "contextual inputs" : "plain inputs"}</option>
+            <option value="on">Build contextual inputs for opted-in sources</option>
+            <option value="off">Build plain inputs (contextual rollback)</option>
+          </NativeSelect>
+        </Field>
         <ParentSizeField value={parent} onChange={setParent} error={parentInvalid} preview={{ current: live?.parentTokens ?? 0 }} disabled={!kb} />
         <Field label="Name" description="Shown while it is a preview. Default: the profile's name and (new settings).">
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
@@ -147,6 +160,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
           <Input value={queryPrefix} onChange={(e) => setQueryPrefix(e.target.value)} maxLength={200} placeholder={live?.queryPrefix || undefined} />
         </Field>
       </div>
+      {contextEstimate.element}
       <Field
         label="Keep old vectors for"
         labelHint="days"

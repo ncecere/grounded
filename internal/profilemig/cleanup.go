@@ -11,6 +11,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -175,8 +176,24 @@ func (s *Service) deleteSet(ctx context.Context, set dbgen.UnneededEmbeddingSets
 		if err := q.DeleteSetFailuresFor(ctx, dbgen.DeleteSetFailuresForParams(set)); err != nil {
 			return err
 		}
+		if err := deleteSetContextual(ctx, q, set.SourceID, set.ProfileID); err != nil {
+			return err
+		}
 		return q.DeleteEmbeddingSet(ctx, dbgen.DeleteEmbeddingSetParams(set))
 	})
+}
+
+// deleteSetContextual removes the snapshot/marks and its cascading plan
+// references, then prunes only artifacts no current profile plan still needs.
+func deleteSetContextual(ctx context.Context, q *dbgen.Queries, sourceID, profileID uuid.UUID) error {
+	if err := q.DeleteSetContextual(ctx, dbgen.DeleteSetContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
+		return err
+	}
+	if err := q.DeleteSetDocumentContextual(ctx, dbgen.DeleteSetDocumentContextualParams{SourceID: sourceID, ProfileID: profileID}); err != nil {
+		return err
+	}
+	_, err := q.PruneSourceContextualCache(ctx, sourceID)
+	return err
 }
 
 // SweepArgs enqueues embedding for every set and advances running

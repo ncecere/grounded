@@ -94,19 +94,9 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 		"valkey":   kvs.Ping,
 		"storage":  svc.Blob.Ping,
 	})
-	deps := httpapi.Deps{
+	deps := svc.withHTTPServices(httpapi.Deps{
 		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Health: health, Log: log,
-		Teams: svc.Teams, Platform: svc.Platform, Catalog: svc.Catalog,
-		Sources: svc.Sources, WebSources: svc.Web, KBs: svc.KBs, APIKeys: svc.APIKeys, Limits: svc.Limits, Costs: svc.Costs,
-		Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne, OCR: svc.OCR, Public: svc.Public,
-		Rerank:     svc.Rerank,
-		Retention:  svc.Retention,
-		BreakGlass: svc.BreakGlass,
-	}
-	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
-	deps.TeamRequests, deps.Webhooks = svc.TeamRequests, svc.Webhooks
-	deps.Gaps, deps.ContentHealth = svc.Gaps, svc.ContentHealth
-	deps.AnswerCache = svc.AnswerCache
+	})
 
 	worker, err := startWorker(ctx, mode, cfg, pool, svc, log)
 	if err != nil {

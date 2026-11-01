@@ -26,6 +26,8 @@ type CandidateChanges struct {
 	// BoilerplateFuzzy builds the candidate with near-duplicate boilerplate matching on, whatever the sources' settings are (#23). It is not a
 	// setting of a profile in use: a switch turns it on for the sources instead.
 	BoilerplateFuzzy *bool
+	// Contextual builds the candidate with contextual chunks for opted-in sources; nil keeps the live profile's value.
+	Contextual *bool
 }
 
 // CreateCandidate copies the live profile with the changes applied, hidden (candidate_of is set, so it is in no list or picker, is never
@@ -54,6 +56,7 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 		ChunkOverlap:   pick(ch.ChunkOverlap, live.ChunkOverlap),
 		ChunkerVersion: pick(ch.ChunkerVersion, live.ChunkerVersion),
 		ParentTokens:   pick(ch.ParentTokens, live.ParentTokens),
+		Contextual:     pick(ch.Contextual, live.Contextual),
 		// A new model has its own dimensions: only a model that is kept keeps the live profile's truncation.
 		OutputDimensions: nil,
 	}

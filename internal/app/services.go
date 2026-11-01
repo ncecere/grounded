@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/contenthealth"
+	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/evals"
@@ -89,6 +90,8 @@ type Services struct {
 
 	// ProfileMigrations moves KBs between embedding profiles (P2).
 	ProfileMigrations *profilemig.Service
+	// Contextual holds each source's contextual-chunks settings and estimates their cost (A4, ADR-0028).
+	Contextual *contextual.Service
 
 	// Evaluations runs evaluation sets (docs/evaluations.md).
 	Evaluations *evals.Service
@@ -253,6 +256,9 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Sources.OCR = s.OCR
 	s.jobs, s.pool, s.log = jobsClient, pool, log
 	wireKnowledgeWorkflows(s, cfg)
+	if err := wireContextual(s, cfg); err != nil {
+		return nil, err
+	}
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
 	s.AnswerCache = answercache.New(pool, log)
@@ -290,7 +296,11 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 	proc := &ingest.Processor{
 		Pool: pool, Blob: s.Blob, Parser: s.Parser, Counter: counter, Catalog: s.Catalog,
 		Vectors: s.Vectors, EmbedBatch: cfg.EmbedBatchSize, MaxBytes: cfg.MaxUploadBytes, Log: log,
-		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR,
+		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR, ContextualOff: !cfg.ContextualChunks,
+		Contextual: &contextual.Generator{
+			Store: &contextual.PGStore{Pool: pool, Recorded: s.Limits.Recorded}, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider,
+			Counter: counter, Gate: contextGate(s.Costs, s.Limits), Concurrency: cfg.ContextualConcurrency, Log: log,
+		},
 		Batcher: &ingest.Batcher{
 			MaxInputs: cfg.EmbedBatchSize, MaxTokens: cfg.EmbedBatchTokens, Linger: cfg.EmbedBatchWait,
 			Counter: counter, Log: log,

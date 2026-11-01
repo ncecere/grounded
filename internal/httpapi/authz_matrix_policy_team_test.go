@@ -104,7 +104,9 @@ var teamPolicies = map[string]policy{
 	}},
 	"syncSource":            {own: editors.and(ingestKeys), also: []string{"409"}, build: func(c *mctx) request { return post(c.web("/sync"), nil) }},
 	"listBoilerplateBlocks": {own: members.and(readKeys), build: func(c *mctx) request { return get(c.web("/boilerplate")) }},
-	"listCrawls":            {own: members.and(readKeys), build: func(c *mctx) request { return get(c.web("/crawls")) }},
+	// Contextual chunks' state for the team's own members, in a session: counts and names, never generated text.
+	"getSourceContextual": {own: members, build: func(c *mctx) request { return get(c.src("/contextual")) }},
+	"listCrawls":          {own: members.and(readKeys), build: func(c *mctx) request { return get(c.web("/crawls")) }},
 	"cancelCrawl": {own: editors.and(ingestKeys), also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.web("/crawls/"+c.tf.crawl+"/cancel"), nil)
 	}},

@@ -523,6 +523,9 @@ func (s *Service) TestModel(ctx context.Context, a authz.Actor, id uuid.UUID) (M
 type ChatTarget struct {
 	Model  dbgen.Model
 	Client *gateway.Client
+	// ConnectionRevision binds an acquired pacing slot to the current settings.
+	// It is not an artifact identity: credential-only rotation may reuse cache.
+	ConnectionRevision int64
 }
 
 // ErrChatModelUnusable is returned when a chat model or its connection is
@@ -550,7 +553,7 @@ func (s *Service) ChatTarget(ctx context.Context, modelID uuid.UUID) (ChatTarget
 	if err != nil {
 		return ChatTarget{}, err
 	}
-	return ChatTarget{Model: m, Client: cl}, nil
+	return ChatTarget{Model: m, Client: cl, ConnectionRevision: conn.Revision}, nil
 }
 
 // ListUsableChatModels returns the chat models teams may choose for agents:

@@ -108,7 +108,7 @@ func withThinkingOffCheck(m dbgen.Model, out apitypes.Model) apitypes.Model {
 }
 
 func toAPIProfile(p catalog.Profile) apitypes.EmbeddingProfile {
-	return apitypes.EmbeddingProfile{
+	out := apitypes.EmbeddingProfile{
 		Id: p.ID, Key: p.Key, Name: p.Name, Description: p.Description,
 		Model: apitypes.ModelRef{
 			Id: p.Model.ID, Key: p.Model.Key, DisplayName: p.Model.DisplayName,
@@ -123,6 +123,10 @@ func toAPIProfile(p catalog.Profile) apitypes.EmbeddingProfile {
 		OutputDimensions:     p.OutputDimensions,
 		DefaultFusionWeights: toAPIFusionWeights(p.DefaultVectorWeight, p.DefaultKeywordWeight),
 	}
+	if p.Contextual { // omitted when false: every other profile's response is what it was
+		out.Contextual = &p.Contextual
+	}
+	return out
 }
 
 func toAPIProxyError(e *catalog.ProbeError) *apitypes.ProxyError {

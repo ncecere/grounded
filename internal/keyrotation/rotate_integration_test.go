@@ -343,6 +343,8 @@ func TestEveryEncryptedColumnIsRegistered(t *testing.T) {
 		"conversation_shares.token_hash": true,
 		// MinHash sketches of a document's blocks (near-duplicate boilerplate matching, #23): a one-way digest of block text, not a credential.
 		"document_blocks.sketches": true,
+		// Contextual artifact identity is SHA-256 of bounded prompt/model inputs, not secrets.Box ciphertext (#21).
+		"contextual_cache.key": true,
 	}
 	for _, c := range keyrotation.Columns {
 		known[c.Name()] = true

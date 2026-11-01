@@ -22,6 +22,7 @@ import { UploadDialog } from "../team/documents/upload";
 import { PageSkeleton } from "../team/layout";
 import { type SourceActions, useSourceActions } from "./actions";
 import { BoilerplateCard } from "./boilerplate";
+import { ContextualCard } from "./contextual";
 import { CrawlHistory, SyncButton, isActiveCrawl, syncBlockedReason, useCrawlFinished } from "./crawls";
 import { SourceStatusBadge } from "./list";
 import { SourceOverview, useSourceFacts } from "./overview";
@@ -107,7 +108,7 @@ function SourcePage({ source: src }: { source: DataSource }) {
             label: "Overview",
             icon: <LayoutDashboard aria-hidden />,
             content: (
-              <SourceOverview source={src} onUpload={canUpload ? () => setUploading(true) : undefined} extra={<BoilerplateCard source={src} />} />
+              <SourceOverview source={src} onUpload={canUpload ? () => setUploading(true) : undefined} extra={<><BoilerplateCard source={src} /><ContextualCard sourceId={src.id} /></>} />
             ),
           },
           {

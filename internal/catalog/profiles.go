@@ -52,6 +52,9 @@ type ProfileInput struct {
 	// at least twice ChunkSize and at most chunk.MaxParentTokens. Immutable afterwards, like the sizes (ADR-0007).
 	ParentTokens int32
 	IsDefault    bool
+	// Contextual marks a profile whose sets are built with contextual chunks for the sources that opted in (ADR-0028). Only an index
+	// preview's candidate is made with it; immutable afterwards.
+	Contextual bool
 	// OutputDimensions stores fewer dimensions than the model's
 	// (Matryoshka truncation, DESIGN.md §10); nil = the model's.
 	OutputDimensions *int32
@@ -92,12 +95,16 @@ func (w *FusionWeights) columns() (*float64, *float64) {
 }
 
 func profileSnapshot(p dbgen.EmbeddingProfile) map[string]any {
-	return map[string]any{
+	m := map[string]any{
 		"key": p.Key, "name": p.Name, "modelId": p.ModelID, "dimensions": p.Dimensions, "storageType": p.StorageType,
 		"documentPrefix": p.DocumentPrefix, "queryPrefix": p.QueryPrefix, "chunkSize": p.ChunkSize,
 		"chunkOverlap": p.ChunkOverlap, "chunkerVersion": p.ChunkerVersion, "parentTokens": p.ParentTokens, "status": p.Status, "isDefault": p.IsDefault,
 		"outputDimensions": p.OutputDimensions, "defaultVectorWeight": p.DefaultVectorWeight, "defaultKeywordWeight": p.DefaultKeywordWeight,
 	}
+	if p.Contextual { // only when set, so the audit of every other profile is what it was
+		m["contextual"] = true
+	}
+	return m
 }
 
 func (s *Service) ListProfiles(ctx context.Context, a authz.Actor) ([]Profile, error) {
@@ -159,6 +166,9 @@ func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileIn
 			return err
 		}
 		isDefault := !candidateOf.Valid && (in.IsDefault || n == 0) // the first profile becomes the default
+		if in.Contextual && !candidateOf.Valid {
+			return apperr.Invalid("contextual_needs_preview", "Contextual chunks are switched on by an index preview, not when a profile is created")
+		}
 		p, err := q.InsertEmbeddingProfile(ctx, dbgen.InsertEmbeddingProfileParams{
 			Key: in.Key, Name: in.Name, Description: in.Description, ModelID: m.ID, Dimensions: dims,
 			StorageType: in.StorageType, DocumentPrefix: in.DocumentPrefix, QueryPrefix: in.QueryPrefix,
@@ -170,6 +180,12 @@ func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileIn
 			return apperr.Conflict("key_taken", "An embedding profile with that key already exists")
 		} else if err != nil {
 			return err
+		}
+		if in.Contextual {
+			if err := q.SetProfileContextual(ctx, dbgen.SetProfileContextualParams{ID: p.ID, Contextual: true}); err != nil {
+				return err
+			}
+			p.Contextual = true
 		}
 		if isDefault {
 			if err := q.ClearDefaultEmbeddingProfile(ctx, p.ID); err != nil {

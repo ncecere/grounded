@@ -299,6 +299,21 @@ var adminPolicies = map[string]policy{
 		return post("/v1/admin/profile-migrations/preview", map[string]any{"kbId": c.pickP(c.e.migrationKB, c.e.freshMigrationKB),
 			"changes": map[string]any{"chunkSize": 128, "chunkOverlap": 16}})
 	}},
+	// Contextual chunks (A4): a source's setting is for platform admins, auditors read, and an estimate is a read sent as POST. Nothing
+	// here returns generated text; the team's own read is members only.
+	"adminGetSourceContextual": {own: platform, build: func(c *mctx) request {
+		return get("/v1/admin/sources/" + c.e.b.source + "/contextual")
+	}},
+	"adminPutSourceContextual": {own: padmin, build: func(c *mctx) request {
+		p := "/v1/admin/sources/" + c.e.b.source + "/contextual"
+		return put(p, map[string]any{"enabled": false, "modelId": nil, "failurePolicy": "fail", "maxCalls": 200, "maxCallsPerDay": 200}).h(c.rev(p))
+	}},
+	"adminEstimateSourceContextual": {own: platform, build: func(c *mctx) request {
+		return post("/v1/admin/sources/"+c.e.b.source+"/contextual/estimate", map[string]any{})
+	}},
+	"adminEstimateContextualKB": {own: platform, build: func(c *mctx) request {
+		return post("/v1/admin/profile-migrations/contextual-estimate", map[string]any{"kbId": c.e.b.kb})
+	}},
 	// Actions depend on the migration's state: 409 when it has none to act on.
 	"adminCancelProfileMigration":     migrationAction("cancel"),
 	"adminSwitchProfileMigration":     migrationAction("switch"),

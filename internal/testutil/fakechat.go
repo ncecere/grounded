@@ -332,6 +332,9 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	if p.visionChat(w, &in, raw) {
 		return
 	}
+	if p.contextChat(w, r, &in, raw) {
+		return
+	}
 	p.mu.Lock()
 	if st := p.chatFail; st != 0 {
 		p.mu.Unlock()

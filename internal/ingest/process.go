@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/boilerplate"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/ocr"
@@ -57,7 +58,11 @@ type Processor struct {
 	// OCR reads pages without text and images when it is on (nil: off;
 	// docs/ocr.md).
 	OCR *ocr.Service
-	Log *slog.Logger
+	// Contextual writes the context of contextual chunks (nil: not wired; every source embeds as before). ContextualOff is the platform
+	// switch CONTEXTUAL_CHUNKS=false (docs/contextual-chunks.md).
+	Contextual    *contextual.Generator
+	ContextualOff bool
+	Log           *slog.Logger
 
 	ensured sync.Map // profile ID -> struct{}: vector table exists
 }
@@ -86,6 +91,9 @@ type outcome struct {
 }
 
 func classify(err error) outcome {
+	if o, ok := classifyContext(err); ok {
+		return o
+	}
 	var ge *gateway.Error
 	switch {
 	case errors.Is(err, parse.ErrNeedsOCR):
@@ -196,6 +204,12 @@ func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *ri
 		observeDocument(IngestWaiting, 0)
 		return p.waitForOCR(ctx, doc, w)
 	}
+	// A contextual-chunks cap, budget or daily quota is a wait too (docs/contextual-chunks.md section 5).
+	if l, ok := asContextLimit(err); ok && ctx.Err() == nil {
+		p.Log.InfoContext(ctx, "document waits for a contextual chunks limit", "document", doc.ID)
+		observeDocument(IngestWaiting, 0)
+		return p.waitForContext(ctx, doc, l)
+	}
 	// Backpressure (the gateway's 429, 503 with Retry-After, or the
 	// connection's own request limit) is not a failure: the job is snoozed,
 	// which uses none of its attempts, and the document waits in the queue.
@@ -257,6 +271,7 @@ type result struct {
 	vectors [][]float32
 	target  catalog.EmbedTarget
 	usage   EmbedUsage
+	mark    *ctxMark // how contextual chunks applied (nil: not at all)
 }
 
 func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, error) {
@@ -298,7 +313,13 @@ func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, er
 	if title == "" {
 		title = doc.Title
 	}
-	res.vectors, res.usage, err = p.embed(ctx, res.target, p.embedTexts(res.target, title, res.chunks), doc.TeamID)
+	sc := ctxScope{src: src, docID: doc.ID, title: title, team: doc.TeamID, user: doc.UploadedBy, own: true}
+	texts, mark, err := p.contextualTexts(ctx, sc, doc.Version, res.target, res.chunks)
+	if err != nil {
+		return res, err
+	}
+	res.mark = mark
+	res.vectors, res.usage, err = p.embed(ctx, res.target, texts, doc.TeamID)
 	return res, err
 }
 

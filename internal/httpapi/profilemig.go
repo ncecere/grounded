@@ -104,6 +104,7 @@ func (a *api) adminPreviewProfileMigration(w http.ResponseWriter, r *http.Reques
 		Name: in.Changes.Name, ModelID: in.Changes.ModelId, DocumentPrefix: in.Changes.DocumentPrefix, QueryPrefix: in.Changes.QueryPrefix,
 		ChunkSize: in.Changes.ChunkSize, ChunkOverlap: in.Changes.ChunkOverlap, ChunkerVersion: in.Changes.ChunkerVersion,
 		ParentTokens: in.Changes.ParentTokens, BoilerplateFuzzy: in.Changes.BoilerplateFuzzy,
+		Contextual: in.Changes.ContextualChunks,
 	}
 	if in.Changes.StorageType != nil {
 		st := string(*in.Changes.StorageType)
@@ -178,8 +179,33 @@ func toAPIAdminKB(r dbgen.AdminKBListRow) apitypes.AdminKnowledgeBase {
 }
 
 func toAPIEstimate(e profilemig.Estimate) apitypes.ProfileMigrationEstimate {
-	return apitypes.ProfileMigrationEstimate{Documents: e.Documents, Passages: e.Passages, Tokens: e.Tokens,
+	out := apitypes.ProfileMigrationEstimate{Documents: e.Documents, Passages: e.Passages, Tokens: e.Tokens,
 		EmbeddingCalls: e.EmbeddingCalls, RequestsPerMinute: e.RequestsPerMinute, Minutes: e.Minutes, Rechunk: e.Rechunk}
+	if c := e.Contextual; c != nil {
+		out.Contextual = &apitypes.ContextualMigrationEstimate{Sources: int32(c.Sources), SourcesWithout: int32(c.SourcesWithout), Documents: c.Documents,
+			Passages: c.Passages, Units: c.Units, Calls: c.Calls, DocumentsOver: c.DocumentsOver, InputTokensMax: c.InputTokensMax,
+			OutputTokensMax: c.OutputTokensMax, EmbeddingTokensAdded: c.EmbeddingTokensAdded, PriceKnown: c.PriceKnown}
+		if c.PriceKnown {
+			out.Contextual.Currency, out.Contextual.CostMax = &c.Currency, &c.CostMax
+		}
+	}
+	return out
+}
+
+func toAPIContextualProgress(p *profilemig.ContextualProgress) *apitypes.ContextualMigrationProgress {
+	if p == nil {
+		return nil
+	}
+	out := &apitypes.ContextualMigrationProgress{SourcesWithout: int32(p.SourcesWithout), Sources: make([]apitypes.ContextualMigrationSource, len(p.Sources))}
+	for i, s := range p.Sources {
+		set := toAPIContextualSet(s.SetState)
+		out.Sources[i] = apitypes.ContextualMigrationSource{Id: s.ID, Name: s.Name, FailurePolicy: apitypes.ContextualMigrationSourceFailurePolicy(s.FailurePolicy),
+			MaxCalls: int32(s.MaxCalls), CapReached: s.CapReached, ProfileId: set.ProfileId, ProfileKey: set.ProfileKey, Live: set.Live,
+			DocumentsWithContext: set.DocumentsWithContext, DocumentsFallback: set.DocumentsFallback, DocumentsTooLarge: set.DocumentsTooLarge,
+			DocumentsOff: set.DocumentsOff, DocumentsNoRoom: set.DocumentsNoRoom, Passages: set.Passages, PassagesWithContext: set.PassagesWithContext,
+			Calls: set.Calls}
+	}
+	return out
 }
 
 func toAPIIssues(list []profilemig.Issue) []apitypes.ProfileMigrationIssue {
@@ -222,6 +248,7 @@ func toAPIProfileMigration(m profilemig.Migration) apitypes.ProfileMigration {
 		SwitchedAt: pm.SwitchedAt, OldVectorsUntil: pm.OldVectorsUntil, FinishedAt: pm.FinishedAt,
 		CanSwitchBack: m.CanSwitchBack(), CanSwitch: m.CanSwitch(), Hold: pm.Hold, Revision: pm.Revision,
 	}
+	out.Contextual = toAPIContextualProgress(m.Contextual)
 	p := m.Progress
 	out.Progress.Sources, out.Progress.SourcesComplete, out.Progress.Documents = p.Sources, p.SourcesComplete, p.Documents
 	out.Progress.Done, out.Progress.Failed, out.Progress.Waiting = p.Done, p.Failed, p.Waiting

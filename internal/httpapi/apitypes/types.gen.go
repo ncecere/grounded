@@ -1219,6 +1219,60 @@ func (e ContentHealthSourceCoverageLinkState) Valid() bool {
 	}
 }
 
+// Defines values for ContextualChunksFailurePolicy.
+const (
+	ContextualChunksFailurePolicyFail  ContextualChunksFailurePolicy = "fail"
+	ContextualChunksFailurePolicyPlain ContextualChunksFailurePolicy = "plain"
+)
+
+// Valid indicates whether the value is a known member of the ContextualChunksFailurePolicy enum.
+func (e ContextualChunksFailurePolicy) Valid() bool {
+	switch e {
+	case ContextualChunksFailurePolicyFail:
+		return true
+	case ContextualChunksFailurePolicyPlain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContextualMigrationSourceFailurePolicy.
+const (
+	ContextualMigrationSourceFailurePolicyFail  ContextualMigrationSourceFailurePolicy = "fail"
+	ContextualMigrationSourceFailurePolicyPlain ContextualMigrationSourceFailurePolicy = "plain"
+)
+
+// Valid indicates whether the value is a known member of the ContextualMigrationSourceFailurePolicy enum.
+func (e ContextualMigrationSourceFailurePolicy) Valid() bool {
+	switch e {
+	case ContextualMigrationSourceFailurePolicyFail:
+		return true
+	case ContextualMigrationSourceFailurePolicyPlain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContextualSettingsInputFailurePolicy.
+const (
+	ContextualSettingsInputFailurePolicyFail  ContextualSettingsInputFailurePolicy = "fail"
+	ContextualSettingsInputFailurePolicyPlain ContextualSettingsInputFailurePolicy = "plain"
+)
+
+// Valid indicates whether the value is a known member of the ContextualSettingsInputFailurePolicy enum.
+func (e ContextualSettingsInputFailurePolicy) Valid() bool {
+	switch e {
+	case ContextualSettingsInputFailurePolicyFail:
+		return true
+	case ContextualSettingsInputFailurePolicyPlain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConversationMessageRole.
 const (
 	ConversationMessageRoleAssistant ConversationMessageRole = "assistant"
@@ -7030,6 +7084,306 @@ type ContextPassage struct {
 	PageStart int32 `json:"pageStart"`
 }
 
+// ContextualAdmission Explicit per-source token and configured-price spend admission limits. Required to enable contextual chunks, including platform-owned sources and when ordinary cost tracking is off. Build limits apply to one profile's build; UTC-day limits include all build and live attempts across every profile of this source. Unknown usage retains reserved headroom. Amounts use configured price snapshots, not a provider invoice guarantee.
+type ContextualAdmission struct {
+	// Currency Must match the installation's configured price currency; unlike currencies are never silently added
+	Currency string `json:"currency"`
+
+	// MaxAmount Positive configured-price amount allowed for one build
+	MaxAmount Money `json:"maxAmount"`
+
+	// MaxAmountPerDay Positive configured-price amount allowed across all profiles in one UTC admission day
+	MaxAmountPerDay Money `json:"maxAmountPerDay"`
+
+	// MaxTokens Input plus output token admission headroom for one build
+	MaxTokens int64 `json:"maxTokens"`
+
+	// MaxTokensPerDay Input plus output token admission headroom for all attempts admitted in one UTC day
+	MaxTokensPerDay int64 `json:"maxTokensPerDay"`
+}
+
+// ContextualCallStats defines model for ContextualCallStats.
+type ContextualCallStats struct {
+	Attempts int64 `json:"attempts"`
+	Ok       int64 `json:"ok"`
+
+	// TokensIn Input tokens the gateway reported
+	TokensIn int64 `json:"tokensIn"`
+
+	// TokensOut Output tokens the gateway reported
+	TokensOut int64 `json:"tokensOut"`
+
+	// Unknown Attempts whose usage is not known: errors, timeouts, cancellations (the provider may still have billed them)
+	Unknown int64 `json:"unknown"`
+
+	// Unusable Replies that were refused or could not be used
+	Unusable int64 `json:"unusable"`
+}
+
+// ContextualChunks defines model for ContextualChunks.
+type ContextualChunks struct {
+	// Admission Null when explicit token/spend admission limits have not been configured
+	Admission *ContextualAdmission `json:"admission"`
+
+	// CachedContexts Sections with a generated context kept for the source's documents
+	CachedContexts int64                         `json:"cachedContexts"`
+	Calls          ContextualCallStats           `json:"calls"`
+	Classification string                        `json:"classification"`
+	Enabled        bool                          `json:"enabled"`
+	FailurePolicy  ContextualChunksFailurePolicy `json:"failurePolicy"`
+	MaxCalls       int32                         `json:"maxCalls"`
+	MaxCallsPerDay int32                         `json:"maxCallsPerDay"`
+	ModelId        *openapi_types.UUID           `json:"modelId"`
+	ModelName      string                        `json:"modelName"`
+
+	// PlatformEnabled The platform switch CONTEXTUAL_CHUNKS
+	PlatformEnabled bool `json:"platformEnabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision Revision `json:"revision"`
+
+	// Sets The profiles the source was snapshotted for, oldest first
+	Sets       []ContextualSet    `json:"sets"`
+	SourceId   openapi_types.UUID `json:"sourceId"`
+	SourceName string             `json:"sourceName"`
+}
+
+// ContextualChunksFailurePolicy defines model for ContextualChunks.FailurePolicy.
+type ContextualChunksFailurePolicy string
+
+// ContextualCost defines model for ContextualCost.
+type ContextualCost struct {
+	// Currency The install's display currency code
+	Currency string `json:"currency"`
+
+	// InputPerMillion Decimal string
+	InputPerMillion *string `json:"inputPerMillion"`
+
+	// MaxAmount A conservative configured-price estimate (decimal string), not a provider invoice guarantee; null when the price is unknown
+	MaxAmount *string `json:"maxAmount"`
+
+	// OutputPerMillion Decimal string
+	OutputPerMillion *string `json:"outputPerMillion"`
+
+	// PriceKnown The model has both a chat input and a chat output price. When false no amount is given.
+	PriceKnown bool `json:"priceKnown"`
+}
+
+// ContextualIssue defines model for ContextualIssue.
+type ContextualIssue struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// ContextualKBEstimate defines model for ContextualKBEstimate.
+type ContextualKBEstimate struct {
+	Blockers []ContextualIssue `json:"blockers"`
+
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
+	Calls     int64          `json:"calls"`
+	Cost      ContextualCost `json:"cost"`
+	Documents int64          `json:"documents"`
+
+	// DocumentsOver Documents with more sections than the limit; they are embedded without context and make no call
+	DocumentsOver int64 `json:"documentsOver"`
+
+	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
+	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
+
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
+	InputTokensMax int64              `json:"inputTokensMax"`
+	KbId           openapi_types.UUID `json:"kbId"`
+
+	// OutputTokensMax A ceiling of the model's output tokens
+	OutputTokensMax int64                      `json:"outputTokensMax"`
+	Passages        int64                      `json:"passages"`
+	PassagesOver    int64                      `json:"passagesOver"`
+	Sources         []ContextualSourceEstimate `json:"sources"`
+
+	// SourcesWithout Sources that did not opt in (embedded as they are)
+	SourcesWithout int32 `json:"sourcesWithout"`
+
+	// Units Sections (one model call each)
+	Units int64 `json:"units"`
+}
+
+// ContextualMigrationEstimate defines model for ContextualMigrationEstimate.
+type ContextualMigrationEstimate struct {
+	Calls int64 `json:"calls"`
+
+	// CostMax A ceiling (decimal string); omitted when the price is unknown
+	CostMax              *string `json:"costMax,omitempty"`
+	Currency             *string `json:"currency,omitempty"`
+	Documents            int64   `json:"documents"`
+	DocumentsOver        int64   `json:"documentsOver"`
+	EmbeddingTokensAdded int64   `json:"embeddingTokensAdded"`
+	InputTokensMax       int64   `json:"inputTokensMax"`
+	OutputTokensMax      int64   `json:"outputTokensMax"`
+	Passages             int64   `json:"passages"`
+	PriceKnown           bool    `json:"priceKnown"`
+	Sources              int32   `json:"sources"`
+	SourcesWithout       int32   `json:"sourcesWithout"`
+	Units                int64   `json:"units"`
+}
+
+// ContextualMigrationProgress defines model for ContextualMigrationProgress.
+type ContextualMigrationProgress struct {
+	Sources []ContextualMigrationSource `json:"sources"`
+
+	// SourcesWithout Sources embedded as they are (they did not opt in)
+	SourcesWithout int32 `json:"sourcesWithout"`
+}
+
+// ContextualMigrationSource defines model for ContextualMigrationSource.
+type ContextualMigrationSource struct {
+	Calls ContextualCallStats `json:"calls"`
+
+	// CapReached The build's call limit is used up; the set waits until it is raised
+	CapReached bool `json:"capReached"`
+
+	// DocumentsFallback Embedded without context under the plain policy
+	DocumentsFallback int64 `json:"documentsFallback"`
+
+	// DocumentsNoRoom No passage had room in the embedding model's input
+	DocumentsNoRoom int64 `json:"documentsNoRoom"`
+
+	// DocumentsOff Embedded without context after the source (or the platform) was switched off
+	DocumentsOff int64 `json:"documentsOff"`
+
+	// DocumentsTooLarge Embedded without context because they have more sections than the limit
+	DocumentsTooLarge    int64                                  `json:"documentsTooLarge"`
+	DocumentsWithContext int64                                  `json:"documentsWithContext"`
+	FailurePolicy        ContextualMigrationSourceFailurePolicy `json:"failurePolicy"`
+	Id                   openapi_types.UUID                     `json:"id"`
+
+	// Live The source's own profile (what its knowledge bases search unless they are moving)
+	Live                bool               `json:"live"`
+	MaxCalls            int32              `json:"maxCalls"`
+	Name                string             `json:"name"`
+	Passages            int64              `json:"passages"`
+	PassagesWithContext int64              `json:"passagesWithContext"`
+	ProfileId           openapi_types.UUID `json:"profileId"`
+	ProfileKey          string             `json:"profileKey"`
+}
+
+// ContextualMigrationSourceFailurePolicy defines model for ContextualMigrationSource.FailurePolicy.
+type ContextualMigrationSourceFailurePolicy string
+
+// ContextualSet defines model for ContextualSet.
+type ContextualSet struct {
+	Calls ContextualCallStats `json:"calls"`
+
+	// DocumentsFallback Embedded without context under the plain policy
+	DocumentsFallback int64 `json:"documentsFallback"`
+
+	// DocumentsNoRoom No passage had room in the embedding model's input
+	DocumentsNoRoom int64 `json:"documentsNoRoom"`
+
+	// DocumentsOff Embedded without context after the source (or the platform) was switched off
+	DocumentsOff int64 `json:"documentsOff"`
+
+	// DocumentsTooLarge Embedded without context because they have more sections than the limit
+	DocumentsTooLarge    int64 `json:"documentsTooLarge"`
+	DocumentsWithContext int64 `json:"documentsWithContext"`
+
+	// Live The source's own profile (what its knowledge bases search unless they are moving)
+	Live                bool               `json:"live"`
+	Passages            int64              `json:"passages"`
+	PassagesWithContext int64              `json:"passagesWithContext"`
+	ProfileId           openapi_types.UUID `json:"profileId"`
+	ProfileKey          string             `json:"profileKey"`
+}
+
+// ContextualSettingsInput defines model for ContextualSettingsInput.
+type ContextualSettingsInput struct {
+	// Admission Required when enabled; absent or null leaves admission unconfigured while disabled. Saving settings starts no model call.
+	Admission *ContextualAdmission `json:"admission,omitempty"`
+
+	// Enabled The source takes part in index previews with contextual chunks. Off by default.
+	Enabled bool `json:"enabled"`
+
+	// FailurePolicy fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
+	FailurePolicy ContextualSettingsInputFailurePolicy `json:"failurePolicy"`
+
+	// MaxCalls The most model calls (attempts, including failed ones) one build of a set may make
+	MaxCalls int32 `json:"maxCalls"`
+
+	// MaxCallsPerDay The most attempts admitted in a UTC day across all profiles, including build and live calls
+	MaxCallsPerDay int32 `json:"maxCallsPerDay"`
+
+	// ModelId The chat model that writes the context; required when enabled. It must be cleared for the source's classification.
+	ModelId *openapi_types.UUID `json:"modelId"`
+}
+
+// ContextualSettingsInputFailurePolicy fail: a document whose context cannot be written is not embedded for the set (it is retried, and the set is not ready until it is). plain: such a document is embedded as it is and marked. An unreachable model is retried under both.
+type ContextualSettingsInputFailurePolicy string
+
+// ContextualSourceEstimate defines model for ContextualSourceEstimate.
+type ContextualSourceEstimate struct {
+	// Admission Configured source limits; unknown prices and impossible build admission appear as blockers before a preview is created
+	Admission      *ContextualAdmission `json:"admission"`
+	Blockers       []ContextualIssue    `json:"blockers"`
+	CachedContexts int64                `json:"cachedContexts"`
+
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
+	Calls          int64          `json:"calls"`
+	Classification string         `json:"classification"`
+	Cost           ContextualCost `json:"cost"`
+	Documents      int64          `json:"documents"`
+
+	// DocumentsOver Documents with more sections than the limit; they are embedded without context and make no call
+	DocumentsOver int64 `json:"documentsOver"`
+
+	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
+	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
+	Enabled              bool  `json:"enabled"`
+
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
+	InputTokensMax int64               `json:"inputTokensMax"`
+	MaxCalls       int32               `json:"maxCalls"`
+	MaxCallsPerDay int32               `json:"maxCallsPerDay"`
+	ModelId        *openapi_types.UUID `json:"modelId"`
+	ModelName      string              `json:"modelName"`
+	Name           string              `json:"name"`
+
+	// OutputTokensMax A ceiling of the model's output tokens
+	OutputTokensMax int64              `json:"outputTokensMax"`
+	Passages        int64              `json:"passages"`
+	PassagesOver    int64              `json:"passagesOver"`
+	SourceId        openapi_types.UUID `json:"sourceId"`
+
+	// Units Sections (one model call each)
+	Units int64 `json:"units"`
+
+	// UnknownCallTokensIn Local input-reservation headroom for one attempt of unknown usage; not measured usage or a provider-billing guarantee
+	UnknownCallTokensIn  int32 `json:"unknownCallTokensIn"`
+	UnknownCallTokensOut int32 `json:"unknownCallTokensOut"`
+}
+
+// ContextualTotals defines model for ContextualTotals.
+type ContextualTotals struct {
+	// Calls Model calls, a ceiling (cached contexts are not subtracted)
+	Calls     int64 `json:"calls"`
+	Documents int64 `json:"documents"`
+
+	// DocumentsOver Documents with more sections than the limit; they are embedded without context and make no call
+	DocumentsOver int64 `json:"documentsOver"`
+
+	// EmbeddingTokensAdded A ceiling of the tokens the contexts add to the embedding inputs
+	EmbeddingTokensAdded int64 `json:"embeddingTokensAdded"`
+
+	// InputTokensMax A ceiling of locally counted request input reserved for planning and admission, including fixed chat framing and the configured margin; not a provider-tokenizer or invoice guarantee
+	InputTokensMax int64 `json:"inputTokensMax"`
+
+	// OutputTokensMax A ceiling of the model's output tokens
+	OutputTokensMax int64 `json:"outputTokensMax"`
+	Passages        int64 `json:"passages"`
+	PassagesOver    int64 `json:"passagesOver"`
+
+	// Units Sections (one model call each)
+	Units int64 `json:"units"`
+}
+
 // Conversation defines model for Conversation.
 type Conversation struct {
 	// AgentDeleted The agent was deleted; the conversation is read-only
@@ -7732,7 +8086,10 @@ type EmbeddingProfile struct {
 	ChunkOverlap   int32               `json:"chunkOverlap"`
 	ChunkSize      int32               `json:"chunkSize"`
 	ChunkerVersion int32               `json:"chunkerVersion"`
-	CreatedAt      time.Time           `json:"createdAt"`
+
+	// Contextual Built with contextual chunks for the sources that opted in (ADR-0028); omitted when false
+	Contextual *bool     `json:"contextual,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
 
 	// DefaultFusionWeights Fusion weights of knowledge bases on this profile that don't set their own; null means the platform default
 	DefaultFusionWeights *FusionWeights `json:"defaultFusionWeights,omitempty"`
@@ -10544,9 +10901,12 @@ type PriceUnit string
 // ProfileMigration defines model for ProfileMigration.
 type ProfileMigration struct {
 	// CanSwitch A held migration is ready for an admin to switch (the switch still checks that every document has vectors)
-	CanSwitch     bool                     `json:"canSwitch"`
-	CanSwitchBack bool                     `json:"canSwitchBack"`
-	Estimate      ProfileMigrationEstimate `json:"estimate"`
+	CanSwitch     bool `json:"canSwitch"`
+	CanSwitchBack bool `json:"canSwitchBack"`
+
+	// Contextual How contextual chunks went (one migration; omitted when the target has none)
+	Contextual *ContextualMigrationProgress `json:"contextual,omitempty"`
+	Estimate   ProfileMigrationEstimate     `json:"estimate"`
 
 	// Failures Documents that failed, newest first (at most 50; one migration, running only)
 	Failures    *[]ProfileMigrationFailure `json:"failures,omitempty"`
@@ -10605,6 +10965,9 @@ type ProfileMigrationComparison struct {
 
 // ProfileMigrationEstimate defines model for ProfileMigrationEstimate.
 type ProfileMigrationEstimate struct {
+	// Contextual The model work of a contextual-chunks build; omitted when the target has none
+	Contextual *ContextualMigrationEstimate `json:"contextual,omitempty"`
+
 	// Documents Ready documents to embed
 	Documents int64 `json:"documents"`
 
@@ -10647,7 +11010,7 @@ type ProfileMigrationFailure struct {
 
 // ProfileMigrationIssue defines model for ProfileMigrationIssue.
 type ProfileMigrationIssue struct {
-	// Code Blockers: same_profile, profile_retired, profile_unusable, model_classification, dimensions, migration_active. Warnings: rechunk, shared_sources, documents_in_progress, failed_documents, no_rate_limit, maintenance_suggested, no_sources.
+	// Code Blockers: same_profile, profile_retired, profile_unusable, model_classification, dimensions, migration_active. Warnings: rechunk, shared_sources, documents_in_progress, failed_documents, no_rate_limit, maintenance_suggested, no_sources. Contextual chunks blockers: contextual_unavailable, contextual_needs_same_passages, no_opted_in_sources, platform_off, model_required, invalid_model, model_unavailable, model_classification, model_context_window, calls_over_cap; warnings: contextual_price_unknown, contextual_sources_without.
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
@@ -10718,9 +11081,12 @@ type ProfileMigrationPreview struct {
 		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
 		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
-		ChunkerVersion *int32              `json:"chunkerVersion,omitempty"`
-		DocumentPrefix *string             `json:"documentPrefix,omitempty"`
-		ModelId        *openapi_types.UUID `json:"modelId,omitempty"`
+		ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
+
+		// ContextualChunks true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written context in front of each passage's embedding input; the passages themselves are unchanged); false builds it without, the way back from a contextual profile. It must be the only passage-affecting change when true: the passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages). Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a model may not process a source's classification. docs/contextual-chunks.md.
+		ContextualChunks *bool               `json:"contextualChunks,omitempty"`
+		DocumentPrefix   *string             `json:"documentPrefix,omitempty"`
+		ModelId          *openapi_types.UUID `json:"modelId,omitempty"`
 
 		// Name The candidate's name (default the profile's name plus "(new settings)")
 		Name *string `json:"name,omitempty"`
@@ -12853,6 +13219,11 @@ type AdminListProfileMigrationsParams struct {
 	KbId *openapi_types.UUID `form:"kbId,omitempty" json:"kbId,omitempty"`
 }
 
+// AdminEstimateContextualKBJSONBody defines parameters for AdminEstimateContextualKB.
+type AdminEstimateContextualKBJSONBody struct {
+	KbId openapi_types.UUID `json:"kbId"`
+}
+
 // AdminCancelProfileMigrationParams defines parameters for AdminCancelProfileMigration.
 type AdminCancelProfileMigrationParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -13013,6 +13384,17 @@ type AdminUploadSharedDocumentsMultipartBody struct {
 // AdminListSharedDocumentPassagesParams defines parameters for AdminListSharedDocumentPassages.
 type AdminListSharedDocumentPassagesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminPutSourceContextualParams defines parameters for AdminPutSourceContextual.
+type AdminPutSourceContextualParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminEstimateSourceContextualJSONBody defines parameters for AdminEstimateSourceContextual.
+type AdminEstimateSourceContextualJSONBody struct {
+	ModelId *openapi_types.UUID `json:"modelId,omitempty"`
 }
 
 // AdminPutSystemOneParams defines parameters for AdminPutSystemOne.
@@ -13544,6 +13926,9 @@ type AdminTestParsingJSONRequestBody = ParsingTestInput
 // AdminStartProfileMigrationJSONRequestBody defines body for AdminStartProfileMigration for application/json ContentType.
 type AdminStartProfileMigrationJSONRequestBody = ProfileMigrationStart
 
+// AdminEstimateContextualKBJSONRequestBody defines body for AdminEstimateContextualKB for application/json ContentType.
+type AdminEstimateContextualKBJSONRequestBody AdminEstimateContextualKBJSONBody
+
 // AdminPreflightProfileMigrationJSONRequestBody defines body for AdminPreflightProfileMigration for application/json ContentType.
 type AdminPreflightProfileMigrationJSONRequestBody = ProfileMigrationTarget
 
@@ -13600,6 +13985,12 @@ type AdminRetrySharedDocumentsJSONRequestBody = DocumentRetryInput
 
 // AdminUpdateSharedDocumentJSONRequestBody defines body for AdminUpdateSharedDocument for application/json ContentType.
 type AdminUpdateSharedDocumentJSONRequestBody = DocumentUpdate
+
+// AdminPutSourceContextualJSONRequestBody defines body for AdminPutSourceContextual for application/json ContentType.
+type AdminPutSourceContextualJSONRequestBody = ContextualSettingsInput
+
+// AdminEstimateSourceContextualJSONRequestBody defines body for AdminEstimateSourceContextual for application/json ContentType.
+type AdminEstimateSourceContextualJSONRequestBody AdminEstimateSourceContextualJSONBody
 
 // AdminPutSystemOneJSONRequestBody defines body for AdminPutSystemOne for application/json ContentType.
 type AdminPutSystemOneJSONRequestBody = SystemOneSettingsInput

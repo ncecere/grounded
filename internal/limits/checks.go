@@ -193,6 +193,15 @@ func (s *Service) chatTokensToday(ctx context.Context, teamID uuid.UUID) (int64,
 // quota_exceeded, from the usage ledger), then the query limits
 // (CheckQuery: chat counts as a query).
 func (s *Service) CheckChat(ctx context.Context, teamID uuid.UUID, a authz.Actor) error {
+	if err := s.CheckChatQuota(ctx, teamID); err != nil {
+		return err
+	}
+	return s.CheckQuery(ctx, teamID, a)
+}
+
+// CheckChatQuota is the daily chat token quota alone: 429 quota_exceeded when the team has used it up today. Background model work
+// (contextual chunks) asks it before spending tokens that count in it.
+func (s *Service) CheckChatQuota(ctx context.Context, teamID uuid.UUID) error {
 	set, err := s.Effective(ctx, nil, teamID)
 	if err != nil {
 		return err
@@ -211,7 +220,7 @@ func (s *Service) CheckChat(ctx context.Context, teamID uuid.UUID, a authz.Actor
 			return quotaExceeded(d, *max, used, NextDay(now).Sub(now))
 		}
 	}
-	return s.CheckQuery(ctx, teamID, a)
+	return nil
 }
 
 // ChatSlot is a held concurrent-chat slot; Release it when the answer ends.

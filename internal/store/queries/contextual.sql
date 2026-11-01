@@ -1,0 +1,224 @@
+-- Contextual chunks (docs/contextual-chunks.md, ADR-0028, internal/contextual). Nothing here reads or writes chunks.
+
+-- ---- settings -------------------------------------------------------------------
+
+-- name: GetSourceContextual :one
+SELECT * FROM source_contextual WHERE source_id = $1;
+
+-- A source's row exists from its first save: lock it for the revision check.
+-- name: EnsureSourceContextual :exec
+INSERT INTO source_contextual (source_id) VALUES ($1) ON CONFLICT (source_id) DO NOTHING;
+
+-- name: LockSourceContextual :one
+SELECT * FROM source_contextual WHERE source_id = $1 FOR UPDATE;
+
+-- name: UpdateSourceContextual :one
+UPDATE source_contextual
+SET enabled = @enabled, model_id = sqlc.narg(model_id), failure_policy = @failure_policy,
+    max_calls = @max_calls, max_calls_per_day = @max_calls_per_day,
+    max_tokens = sqlc.narg(max_tokens), max_tokens_per_day = sqlc.narg(max_tokens_per_day),
+    max_amount = sqlc.narg(max_amount)::text::numeric, max_amount_per_day = sqlc.narg(max_amount_per_day)::text::numeric,
+    currency = sqlc.narg(currency),
+    revision = revision + 1, updated_by = sqlc.narg(updated_by), updated_at = now()
+WHERE source_id = @source_id
+RETURNING *;
+
+-- The sources of a knowledge base that opted in, with their settings, for a set that is about to start.
+-- name: KBContextualSources :many
+SELECT s.id AS source_id, s.name, s.classification, s.team_id, s.embedding_profile_id,
+       sc.model_id, sc.failure_policy
+FROM kb_sources ks
+JOIN data_sources s ON s.id = ks.source_id
+JOIN source_contextual sc ON sc.source_id = s.id AND sc.enabled AND sc.model_id IS NOT NULL
+WHERE ks.kb_id = $1
+ORDER BY lower(s.name), s.id;
+
+-- name: InsertSetContextual :exec
+INSERT INTO set_contextual (source_id, profile_id, model_id, failure_policy, prompt_version)
+VALUES (@source_id, @profile_id, @model_id, @failure_policy, @prompt_version)
+ON CONFLICT (source_id, profile_id) DO NOTHING;
+
+-- name: GetSetContextual :one
+SELECT * FROM set_contextual WHERE source_id = @source_id AND profile_id = @profile_id;
+
+-- name: DeleteSetContextual :exec
+DELETE FROM set_contextual WHERE source_id = @source_id AND profile_id = @profile_id;
+
+-- name: DeleteSetDocumentContextual :exec
+DELETE FROM document_contextual WHERE source_id = @source_id AND profile_id = @profile_id;
+
+-- name: SetProfileContextual :exec
+UPDATE embedding_profiles SET contextual = @contextual WHERE id = @id;
+
+-- Whether any set of the source still uses context (a snapshot of a profile some KB or migration needs).
+-- name: SourceHasContextualSets :one
+SELECT EXISTS (SELECT 1 FROM set_contextual WHERE source_id = $1);
+
+-- ---- the cache ------------------------------------------------------------------
+
+-- name: ContextualCacheFor :many
+SELECT key, context FROM contextual_cache WHERE document_id = @document_id AND key = ANY(@keys::bytea[]);
+
+-- name: InsertContextualCache :exec
+INSERT INTO contextual_cache (document_id, key, source_id, context, tokens_in, tokens_out)
+VALUES (@document_id, @key, @source_id, @context, sqlc.narg(tokens_in), sqlc.narg(tokens_out))
+ON CONFLICT (document_id, key) DO NOTHING;
+
+-- Short metadata locks only: never held during a gateway call.
+-- name: LockContextualPlanDocument :one
+SELECT id, source_id, version FROM documents WHERE id = $1 FOR UPDATE;
+
+-- name: LockContextualPlanSet :one
+SELECT source_id, profile_id FROM set_contextual WHERE source_id = $1 AND profile_id = $2 FOR KEY SHARE;
+
+-- name: UpsertContextualCachePlan :exec
+INSERT INTO contextual_cache_plans (document_id, source_id, profile_id, version, keys)
+VALUES (@document_id, @source_id, @profile_id, @version, @keys::bytea[])
+ON CONFLICT (document_id, profile_id) DO UPDATE SET version = EXCLUDED.version, keys = EXCLUDED.keys;
+
+-- name: DeleteStaleContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE document_id = $1 AND version <> $2;
+
+-- name: LockContextualCachePlan :one
+SELECT * FROM contextual_cache_plans WHERE document_id = $1 AND profile_id = $2 FOR KEY SHARE;
+
+-- name: DeleteSourceContextualCachePlans :exec
+DELETE FROM contextual_cache_plans WHERE source_id = $1;
+
+-- Keep the union of current profile plans, including plans still generating.
+-- name: PruneContextualCache :execrows
+DELETE FROM contextual_cache c WHERE c.document_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+);
+
+-- Used after a snapshot disappears; other profiles keep their references.
+-- name: PruneSourceContextualCache :execrows
+DELETE FROM contextual_cache c WHERE c.source_id = $1 AND NOT EXISTS (
+    SELECT 1 FROM contextual_cache_plans p JOIN documents d ON d.id = p.document_id AND d.version = p.version
+    WHERE p.document_id = c.document_id AND c.key = ANY(p.keys)
+);
+
+-- name: DeleteSourceContextualCache :execrows
+DELETE FROM contextual_cache WHERE source_id = $1;
+
+-- name: CountSourceContextualCache :one
+SELECT count(*)::bigint FROM contextual_cache WHERE source_id = $1;
+
+-- ---- attempts (the ledger of calls) -----------------------------------------------
+
+-- Serialises the cap check and the reservation of one source's calls (short transactions).
+-- name: LockContextualCalls :exec
+SELECT pg_advisory_xact_lock(hashtextextended('grounded.contextual_calls:' || @source_id::text, 0));
+
+-- Attempts that count against a cap: a build's (this set) or today's live ones (this source).
+-- name: CountContextualAttempts :one
+SELECT count(*)::bigint FROM contextual_calls
+WHERE source_id = @source_id
+  AND ((@phase::text = 'build' AND phase = 'build' AND profile_id = @profile_id)
+    OR (@phase::text = 'live' AND phase = 'live' AND created_at >= @since::timestamptz));
+
+-- name: ContextualAdmissionClock :one
+SELECT clock_timestamp()::timestamptz AS admitted_at;
+
+-- Uses the installation's price day, not the UTC admission bucket. A missing rate is unknown.
+-- name: ContextualAdmissionPrices :one
+WITH args AS (SELECT @model_id::uuid AS model_id, @admitted_at::timestamptz AS admitted_at),
+price_day AS (
+    SELECT s.currency, args.model_id, (args.admitted_at AT TIME ZONE s.time_zone)::date AS day
+    FROM cost_settings s CROSS JOIN args WHERE s.singleton
+)
+SELECT d.currency,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_in'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS input_price,
+       coalesce((SELECT p.price::text FROM model_prices p WHERE p.model_id = d.model_id AND p.unit = 'chat_tokens_out'
+           AND p.effective_from <= d.day ORDER BY p.effective_from DESC LIMIT 1), '')::text AS output_price
+FROM price_day d;
+
+-- Both windows, all phases/profiles in the day. Currency mismatches cannot create a fresh allowance.
+-- name: ContextualAdmissionUsage :one
+SELECT count(*) FILTER (WHERE phase = 'build' AND profile_id = @profile_id)::bigint AS build_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE phase = 'build' AND profile_id = @profile_id), 0)::bigint AS build_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE phase = 'build' AND profile_id = @profile_id), 0)::text AS build_amount,
+       count(*) FILTER (WHERE admission_day = @admission_day)::bigint AS day_calls,
+       coalesce(sum(charged_tokens) FILTER (WHERE admission_day = @admission_day), 0)::bigint AS day_tokens,
+       coalesce(sum(charged_amount) FILTER (WHERE admission_day = @admission_day), 0)::text AS day_amount,
+       count(*) FILTER (WHERE currency <> @currency AND
+           (admission_day = @admission_day OR (phase = 'build' AND profile_id = @profile_id AND @is_build::boolean)))::bigint AS other_currency
+FROM contextual_calls WHERE source_id = @source_id
+    AND (admission_day = @admission_day OR (phase = 'build' AND profile_id = @profile_id AND @is_build::boolean));
+
+-- name: InsertContextualCall :one
+INSERT INTO contextual_calls (source_id, profile_id, document_id, model_id, phase,
+    admission_day, reserved_tokens, reserved_amount, charged_tokens, charged_amount, currency, input_price, output_price, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::numeric, $7, $8::text::numeric,
+    $9, $10::text::numeric, $11::text::numeric, $12)
+RETURNING id;
+
+-- name: GetContextualCall :one
+SELECT * FROM contextual_calls WHERE id = $1;
+
+-- name: LockContextualCall :one
+SELECT * FROM contextual_calls WHERE id = $1 FOR UPDATE;
+
+-- Only the winner of the started -> terminal transition may append usage.
+-- Retrying a settlement must not change its outcome, timestamp or ledger.
+-- name: SettleContextualCall :execrows
+UPDATE contextual_calls
+SET outcome = @outcome, tokens_in = sqlc.narg(tokens_in), tokens_out = sqlc.narg(tokens_out), finished_at = now(),
+    charged_tokens = coalesce(sqlc.narg(charged_tokens)::bigint, charged_tokens),
+    charged_amount = coalesce(sqlc.narg(charged_amount)::text::numeric, charged_amount)
+WHERE id = @id AND outcome = 'started' AND finished_at IS NULL;
+
+-- Only a proven-unsent local reservation may be released; remote backpressure retains unknown admission.
+-- name: DeleteContextualCall :exec
+DELETE FROM contextual_calls WHERE id = $1 AND outcome = 'started';
+
+-- A set's attempts, for the migration page and the source's state.
+-- name: ContextualCallStats :one
+SELECT count(*)::bigint AS attempts,
+       count(*) FILTER (WHERE outcome = 'ok')::bigint AS ok,
+       count(*) FILTER (WHERE outcome IN ('refused', 'invalid'))::bigint AS unusable,
+       count(*) FILTER (WHERE outcome IN ('error', 'timeout', 'cancelled', 'started')
+                              OR tokens_in IS NULL OR tokens_out IS NULL OR tokens_in <= 0 OR tokens_out < 0)::bigint AS unknown,
+       coalesce(sum(tokens_in), 0)::bigint AS tokens_in,
+       coalesce(sum(tokens_out), 0)::bigint AS tokens_out
+FROM contextual_calls
+WHERE source_id = @source_id AND (sqlc.narg(profile_id)::uuid IS NULL OR profile_id = sqlc.narg(profile_id)::uuid);
+
+-- ---- marks ------------------------------------------------------------------------
+
+-- name: UpsertDocumentContextual :exec
+INSERT INTO document_contextual (document_id, profile_id, source_id, version, state, code, passages, contextual)
+VALUES (@document_id, @profile_id, @source_id, @version, @state, @code, @passages, @contextual)
+ON CONFLICT (document_id, profile_id) DO UPDATE
+SET version = EXCLUDED.version, state = EXCLUDED.state, code = EXCLUDED.code, passages = EXCLUDED.passages,
+    contextual = EXCLUDED.contextual, updated_at = now();
+
+-- name: DeleteDocumentContextualMark :exec
+DELETE FROM document_contextual WHERE document_id = @document_id AND profile_id = @profile_id;
+
+-- How a set's documents were embedded.
+-- name: ContextualMarkCounts :many
+SELECT dc.state, count(*)::bigint AS documents, coalesce(sum(dc.passages), 0)::bigint AS passages,
+       coalesce(sum(dc.contextual), 0)::bigint AS contextual
+FROM document_contextual dc
+JOIN documents d ON d.id = dc.document_id AND d.version = dc.version
+WHERE dc.source_id = @source_id AND dc.profile_id = @profile_id
+GROUP BY dc.state;
+
+-- The profiles a source was snapshotted for, oldest first.
+-- name: ListSetContextualFor :many
+SELECT sc.profile_id, p.key AS profile_key
+FROM set_contextual sc JOIN embedding_profiles p ON p.id = sc.profile_id
+WHERE sc.source_id = $1
+ORDER BY sc.created_at, sc.profile_id;
+
+-- The sources of a knowledge base that have context in the sets of a profile.
+-- name: KBSetContextual :many
+SELECT sc.source_id, s.name, sc.model_id, sc.failure_policy
+FROM set_contextual sc
+JOIN kb_sources ks ON ks.source_id = sc.source_id AND ks.kb_id = @kb_id
+JOIN data_sources s ON s.id = sc.source_id
+WHERE sc.profile_id = @profile_id
+ORDER BY lower(s.name), s.id;

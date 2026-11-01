@@ -59,18 +59,33 @@ func (p *Processor) rechunk(ctx context.Context, src dbgen.DataSource, d dbgen.S
 		return err
 	}
 	reuse, fresh := matchChunks(chunks, existing)
+	// A passage's context depends on its section: with contextual chunks every passage is embedded again (the contexts are cached).
+	ctxual, err := p.contextualRechunk(ctx, q, src.ID, target)
+	if err != nil {
+		return err
+	}
+	if ctxual {
+		reuse, fresh = make([]uuid.UUID, len(chunks)), allIndexes(len(chunks))
+	}
 	fc := make([]chunk.Chunk, len(fresh))
 	for i, k := range fresh {
 		fc[i] = chunks[k]
 	}
 	var vectors [][]float32
 	var usage EmbedUsage
+	var mark *ctxMark
 	if len(fc) > 0 {
-		if vectors, usage, err = p.embed(ctx, target, p.embedTexts(target, d.Title, fc), d.TeamID); err != nil {
+		// The contexts are made from the document's passages; the passages that are embedded are the fresh ones (all, with context).
+		sc := ctxScope{src: src, docID: d.DocumentID, title: d.Title, team: d.TeamID, user: d.UploadedBy, own: true}
+		var texts []string
+		if texts, mark, err = p.contextualTexts(ctx, sc, d.Version, target, fc); err != nil {
+			return err
+		}
+		if vectors, usage, err = p.embed(ctx, target, texts, d.TeamID); err != nil {
 			return err
 		}
 	}
-	return p.commitRechunk(ctx, src, d, target, plan, rechunked{chunks: chunks, reuse: reuse, fresh: fresh, vectors: vectors, usage: usage})
+	return p.commitRechunk(ctx, src, d, target, plan, rechunked{chunks: chunks, reuse: reuse, fresh: fresh, vectors: vectors, usage: usage, mark: mark})
 }
 
 // chunkKey identifies a chunk's embedded input (the title is unchanged).
@@ -107,6 +122,16 @@ type rechunked struct {
 	fresh   []int       // indexes of new chunks, in vectors order
 	vectors [][]float32
 	usage   EmbedUsage
+	mark    *ctxMark // how contextual chunks applied to the document (nil: not at all)
+}
+
+// allIndexes is 0 to n-1.
+func allIndexes(n int) []int {
+	out := make([]int, n)
+	for i := range out {
+		out[i] = i
+	}
+	return out
 }
 
 // commitRechunk replaces the document's chunk list in one transaction,
@@ -126,13 +151,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 		}
 	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
-		var version int32
-		var status string
-		err := tx.QueryRow(ctx, "SELECT version, status FROM documents WHERE id = $1 FOR UPDATE", d.DocumentID).Scan(&version, &status)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (version != d.Version || status != StatusReady)) {
-			return nil
-		} else if err != nil {
+		if current, err := lockDocumentVersion(ctx, tx, d.DocumentID, d.Version, StatusReady); err != nil {
 			return err
+		} else if !current {
+			return nil
 		}
 		if ok, err := setWritable(ctx, dbgen.New(tx), src.ID, prof.ID); err != nil {
 			return err
@@ -154,8 +176,11 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 		if err := insertFresh(ctx, tx, p, src.ID, d.DocumentID, prof, rc); err != nil {
 			return err
 		}
-		// Kept rows moved, so every passage's parent range is written again (their old ranges were cleared by reorderChunks).
+		// Kept rows moved, so parent ranges are rebuilt from original passage text.
 		if err := setParents(ctx, tx, d.DocumentID, prof.ID, t.Profile.ParentTokens, rc.chunks); err != nil {
+			return err
+		}
+		if err := writeMark(ctx, tx, src.ID, d.DocumentID, rc.mark); err != nil {
 			return err
 		}
 		q := dbgen.New(tx)
