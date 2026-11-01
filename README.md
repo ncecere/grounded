@@ -196,6 +196,10 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.6.0** (2026-10-16): service desk building blocks: webhooks, agent templates, a router agent, conversation sharing and in-app team requests.
 - [x] **v0.6.1** (2026-10-17): fixes from a QA pass of v0.6.0: API keys reach only what they were given, members see published versions, shared links end with their owner's standing, and more.
 
+- [x] **v0.6.2** (2026-10-29): a dependency security patch (Go 1.26.10 and package updates).
+- [x] **v0.6.3** (2026-10-30): QA fixes for the API, chat, editors and team requests, and deny-all network egress for the OCR sidecar.
+- [x] **v0.7.0** (2026-11-01): six opt-in retrieval changes, judged with the index preview: near-duplicate repeated blocks, tables kept structured, structural boundaries, parent/child retrieval, the content health report and contextual chunks.
+
 **Next:** v0.8.0, "adoption by other installs" ([`docs/roadmap.md`](docs/roadmap.md)): a Helm chart, configuration as code, the docs site and registry, and an accessibility statement with model cards.
 
 **Later**

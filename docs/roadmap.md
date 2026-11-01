@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-17. **v0.6.1 is released** (2026-10-17, fixes from a QA pass of v0.6.0), after **v0.6.0** (2026-10-16: webhooks, agent templates, a router agent, conversation sharing and in-app team requests) and **v0.5.0** (2026-10-15: the index preview and an opt-in chunker), **v0.4.4** (2026-10-14, beta fixes), **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15), v0.6.0 (2026-10-16); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** the beta, and the rest of "better knowledge in" (§ L): parent/child retrieval, contextual chunks, tables, fuzzy boilerplate and the content health report, now that the index preview can judge them; and measuring chunker v2 on a real knowledge base. No v0.4.5 is planned.
+Status: refreshed 2026-11-01. **v0.7.0 is released** (2026-11-01, six opt-in retrieval changes: fuzzy boilerplate, structured tables, structural boundaries, parent/child retrieval, the content health report and contextual chunks), after **v0.6.3** (2026-10-30, QA fixes and OCR egress isolation), **v0.6.2** (2026-10-29, a dependency security patch), **v0.6.1** (2026-10-17, fixes from a QA pass of v0.6.0), **v0.6.0** (2026-10-16: webhooks, agent templates, a router agent, conversation sharing and in-app team requests) and **v0.5.0** (2026-10-15: the index preview and an opt-in chunker), **v0.4.4** (2026-10-14, beta fixes), **v0.4.3** (2026-10-11, a security patch) and **v0.4.2** (2026-10-04), and ready for a wider beta. Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15), v0.6.0 (2026-10-16), v0.6.1 (2026-10-17), v0.6.2 (2026-10-29), v0.6.3 (2026-10-30), v0.7.0 (2026-11-01); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** measuring the opt-in retrieval changes on a real knowledge base (#25, and #19's mixed-procedure pages), then v0.8.0, "adoption by other installs" (§ L).
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -188,6 +188,21 @@ The first release of "better knowledge in" ([`releases/v0.5.0.md`](releases/v0.5
 | C5 | **Router agent** ([#28](https://github.com/ncecere/grounded/issues/28)): a front door that sends each question to the best agent the person could chat with themselves, and says which answered. | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §4 |
 | C12 | **Conversation sharing** ([#29](https://github.com/ncecere/grounded/issues/29)): a read-only, revocable snapshot of your own conversation ([ADR-0010](adr/0010-conversation-privacy-and-retention.md) amended). | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §3 |
 | E3 | **In-app team requests** ([#30](https://github.com/ncecere/grounded/issues/30)), optional. | [`specs/v0.6.0/DESIGN.md`](specs/v0.6.0/DESIGN.md) §2 |
+
+## Done in v0.7.0 (released 2026-11-01)
+
+"Better knowledge in", continued ([`releases/v0.7.0.md`](releases/v0.7.0.md)). Four additive migrations (schema 59). **Everything is opt-in and off by default**; none of it has been measured on a real knowledge base with a real embedding model, so try each with the index preview.
+
+| ID | What shipped | Docs |
+|---|---|---|
+| A11 | **Near-duplicate repeated blocks** ([#23](https://github.com/ncecere/grounded/issues/23)): bounded MinHash matching of menus and footers that differ slightly from page to page. | [`DESIGN.md`](DESIGN.md) §5.5, [`benchmarks/boilerplate.md`](benchmarks/boilerplate.md) |
+| A10 (part) | **Tables kept structured, chunker v3** ([#24](https://github.com/ncecere/grounded/issues/24)): whole when they fit, cut by rows with caption and header repeated; merged cells keep their columns. | [`operations/profile-migration.md`](operations/profile-migration.md#the-tables-chunker-version-3) |
+| A9/C15 (part) | **Structural boundaries, chunker v4** ([#19](https://github.com/ncecere/grounded/issues/19)): headings of every level and bold labels above lists start passages; formatting only, not meaning. | [ADR-0029](adr/0029-structural-procedure-boundaries.md), [`operations/profile-migration.md`](operations/profile-migration.md#the-structural-chunker-version-4) |
+| A5 | **Parent/child retrieval** ([#20](https://github.com/ncecere/grounded/issues/20)): rank small passages, give the model the section around each match. | [`parent-child-retrieval.md`](parent-child-retrieval.md), [ADR-0026](adr/0026-parent-child-retrieval.md) |
+| B8 | **Content health report** ([#22](https://github.com/ncecere/grounded/issues/22)): bounded, read-only, opt-in report of neglected or broken knowledge. | [`content-health.md`](content-health.md), [ADR-0027](adr/0027-content-health-report.md) |
+| A4 | **Contextual chunks** ([#21](https://github.com/ncecere/grounded/issues/21)): a model-written context prefix for embedding input only, with explicit spend limits and a held preview. | [`contextual-chunks.md`](contextual-chunks.md), [ADR-0028](adr/0028-contextual-chunks.md) |
+
+**Open follow-ups:** reranking on/off and per-step latency on the reference install ([#25](https://github.com/ncecere/grounded/issues/25)); chunker v4 on real mixed-procedure pages ([#19](https://github.com/ncecere/grounded/issues/19)); whether contextual chunks improve retrieval on a representative corpus.
 
 ## L. Release plan (owner, 2026-10-04)
 
