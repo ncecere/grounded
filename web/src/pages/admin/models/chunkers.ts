@@ -1,6 +1,6 @@
 /**
  * The chunkers an embedding profile can use (internal/chunk, `chunker_version`), in one place so the profile form, the profile page and the index
- * preview say the same thing. Each version keeps what the one before it does. None of them has been measured on a real knowledge base with a real
+ * preview say the same thing. Versions 2–3 extend their predecessor; version 4 instead preserves explicit boundaries. None of them has been measured on a real knowledge base with a real
  * embedding model: the index preview is how to compare them.
  */
 export const CHUNKERS = [
@@ -27,6 +27,14 @@ export const CHUNKERS = [
     previewLabel: "Keep tables whole",
     current: "chunker: keep tables whole",
     help: "Does what Merge short sections does, and keeps a table that fits in one passage. A longer table is cut by rows, and every piece repeats the table's caption and header row. No row is lost or repeated, and a row longer than a passage is cut into rows that keep their cells in their own columns.",
+  },
+  {
+    version: 4,
+    label: "Structural boundaries: keep labelled sections separate",
+    short: "Structural boundaries",
+    previewLabel: "Structural boundaries",
+    current: "chunker: structural boundaries",
+    help: "Keeps table rules, but never merges across headings (levels 1 to 6) or standalone bold labels before top-level lists. Ordinary adjacent prose stays together. Formatting cannot identify procedure changes in unlabelled prose.",
   },
 ] as const;
 

@@ -14,6 +14,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/store"
@@ -128,7 +129,7 @@ func (s *Service) figures(ctx context.Context, pf *Preflight) error {
 		return err
 	}
 	est := &pf.Estimate
-	est.Rechunk = chunkingOf(pf.From) != c
+	est.Rechunk = chunkingOf(pf.From) != c || c.Version == chunk.Version4
 	var cut int64
 	for _, r := range rows {
 		src := PreflightSource{ID: r.ID, Name: r.Name, Shared: r.Shared, OtherKBs: r.OtherKbs, Documents: r.ReadyDocuments,
@@ -238,7 +239,7 @@ func (s *Service) warnings(pf *Preflight) {
 	}
 	if pf.Estimate.Rechunk {
 		c := chunkingOf(pf.Target)
-		add("rechunk", fmt.Sprintf("The target cuts passages differently (up to %d tokens, %d overlapping), so they're cut again from the stored parsed text. Nothing is fetched again.", c.MaxTokens, c.Overlap))
+		add("rechunk", fmt.Sprintf("The target requires rebuilding passages (up to %d tokens, %d overlapping), so they're cut again from the stored parsed text. Nothing is fetched again.", c.MaxTokens, c.Overlap))
 	}
 	switch {
 	case shared == 1:

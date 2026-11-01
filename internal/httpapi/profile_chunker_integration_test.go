@@ -56,7 +56,7 @@ func TestProfileChunkerVersion(t *testing.T) {
 	if p := env.newProfile(t, "v-zero", zero, 201, ""); p.ChunkerVersion != 1 {
 		t.Errorf("chunkerVersion 0 made version %d, want 1", p.ChunkerVersion)
 	}
-	for _, bad := range []int{4, 99, -1} {
+	for _, bad := range []int{5, 99, -1} {
 		b := base()
 		b["chunkerVersion"] = bad
 		env.newProfile(t, fmt.Sprintf("v-bad%d", bad), b, 400, "invalid_chunker_version")

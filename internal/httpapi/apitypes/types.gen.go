@@ -8131,7 +8131,7 @@ type EmbeddingProfileCreate struct {
 	ChunkOverlap *int32 `json:"chunkOverlap,omitempty"`
 	ChunkSize    *int32 `json:"chunkSize,omitempty"`
 
-	// ChunkerVersion The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Fixed once created. Anything else is refused (400 invalid_chunker_version).
+	// ChunkerVersion The chunker (internal/chunk): 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece); 4 keeps table rules but separates all headings and standalone bold labels before top-level lists, without merging short sections. Fixed once created. Anything else is refused (400 invalid_chunker_version).
 	ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 	// DefaultFusionWeights Omit to use the platform default
@@ -11080,7 +11080,7 @@ type ProfileMigrationPreview struct {
 		ChunkOverlap     *int32 `json:"chunkOverlap,omitempty"`
 		ChunkSize        *int32 `json:"chunkSize,omitempty"`
 
-		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece). Anything else is refused (400 invalid_chunker_version).
+		// ChunkerVersion The chunker: 1, the original; 2, which merges short neighbouring sections and drops chunks with no body; or 3, which does what 2 does and keeps tables structured (a table that fits stays whole, a longer one is cut by rows with its caption and header row in every piece); 4 keeps table rules but separates all headings and standalone bold labels before top-level lists, without merging short sections. Anything else is refused (400 invalid_chunker_version).
 		ChunkerVersion *int32 `json:"chunkerVersion,omitempty"`
 
 		// ContextualChunks true builds the candidate with contextual chunks for the knowledge base's sources that opted in (a model-written context in front of each passage's embedding input; the passages themselves are unchanged); false builds it without, the way back from a contextual profile. It must be the only passage-affecting change when true: the passages are cut as the live index cuts them (409 migration_blocked, contextual_needs_same_passages). Refused with 409 migration_blocked when no source opted in, a source's estimated calls exceed its limit, or a model may not process a source's classification. docs/contextual-chunks.md.

@@ -179,6 +179,7 @@ describe("embedding profile output dimensions and fusion defaults", () => {
       "Standard: a new passage at every heading",
       "Merge short sections: joins short neighbouring sections",
       "Keep tables whole: merges short sections and keeps each table together",
+      "Structural boundaries: keep labelled sections separate",
     ]);
     await userEvent.selectOptions(chunker, "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create profile" }));

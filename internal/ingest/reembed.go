@@ -154,8 +154,10 @@ func (p *Processor) setChunks(ctx context.Context, src dbgen.DataSource, doc dbg
 		if err != nil {
 			return nil, false, err
 		}
+		// V4 structural identities are transient; re-cut even matching settings
+		// so rebuilding parent ranges cannot join identical sibling labels.
 		// A preview that judges with near-duplicate matching drops other blocks than the live index: its passages are cut again.
-		if !target.Profile.BoilerplateFuzzy && ChunkingOf(row.EmbeddingProfile, maxInput(row.Model)) == ChunkingOf(target.Profile, target.MaxInputTokens) {
+		if target.Profile.ChunkerVersion != chunk.Version4 && !target.Profile.BoilerplateFuzzy && ChunkingOf(row.EmbeddingProfile, maxInput(row.Model)) == ChunkingOf(target.Profile, target.MaxInputTokens) {
 			rows, err := q.ProfileDocumentChunks(ctx, dbgen.ProfileDocumentChunksParams{DocumentID: doc.ID, ProfileID: own})
 			if err != nil {
 				return nil, false, err

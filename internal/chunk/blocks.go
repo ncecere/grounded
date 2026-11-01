@@ -22,12 +22,13 @@ type pageMark struct{ off, page int }
 // block is one structural element of the document. Its text never contains
 // page markers and has no leading newlines or trailing whitespace.
 type block struct {
-	kind  kind
-	text  string
-	level int      // heading level (1-6)
-	brk   bool     // heading of level 1-3: a chunk boundary
-	path  []string // heading path in effect for this block (including itself for headings)
-	marks []pageMark
+	section int // v4 structural identity
+	kind    kind
+	text    string
+	level   int      // heading level (1-6)
+	brk     bool     // heading of level 1-3: a chunk boundary
+	path    []string // heading path in effect for this block (including itself for headings)
+	marks   []pageMark
 
 	tokens int
 

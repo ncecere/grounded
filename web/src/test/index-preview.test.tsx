@@ -164,6 +164,21 @@ describe("Preview new settings", () => {
     expect(await screen.findByText("The new index is still being built")).toBeInTheDocument();
   });
 
+  it("can explicitly preview structural boundaries without changing the default", async () => {
+    const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
+    renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
+    const dialog = await screen.findByRole("dialog", { name: "Preview new settings" }, { timeout: scaled(4000) });
+    const chunker = within(dialog).getByRole("combobox", { name: "Chunker" });
+    expect(chunker).toHaveValue("");
+    await waitFor(() => expect(chunker).toBeEnabled());
+    await userEvent.selectOptions(chunker, "4");
+    expect(chunker).toHaveValue("4");
+    expect(chunker).toHaveAccessibleDescription(/cannot identify procedure changes in unlabelled prose/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/profile-migrations/preview")).toBe(true));
+    expect(calls.find((c) => c.url === "/v1/admin/profile-migrations/preview")!.body).toEqual({ kbId: "k1", changes: { chunkerVersion: 4 } });
+  });
+
   it("sends the chunker only when one is chosen, and says which one the knowledge base has now (#19)", async () => {
     const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/preview": () => building, "GET /v1/admin/profile-migrations/m9": () => building }));
     renderApp("/admin/embedding-profiles?tab=migrations&preview=k1");
@@ -176,6 +191,7 @@ describe("Preview new settings", () => {
       "Standard: a new passage at every heading",
       "Merge short sections",
       "Keep tables whole",
+      "Structural boundaries",
     ]);
     await userEvent.selectOptions(chunker, "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Build the new index" }));

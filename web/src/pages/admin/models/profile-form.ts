@@ -13,7 +13,7 @@ export const initialProfileForm = {
   queryPrefix: "",
   chunkSize: 512,
   chunkOverlap: 64,
-  /** The chunker (chunkers.ts): 1 is the original; 2 also merges short neighbouring sections; 3 also keeps tables structured. */
+  /** The chunker (chunkers.ts): 1 is the original; 2 also merges short neighbouring sections; 3 also keeps tables structured; 4 preserves structural boundaries instead of merging sections. */
   chunkerVersion: 1,
   /** Parent sections (parent-size.ts): the most tokens of the section around a passage an agent's model is given; empty is off. */
   parentTokens: "",

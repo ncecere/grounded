@@ -97,6 +97,15 @@ A profile's **parent size** (**Parent sections** in Add profile and in **Preview
 
 To see what it does to a knowledge base with tables, **Preview new settings**, change **only the chunker** to *Keep tables whole*, and look at the passages and the comparison before switching; the preview, a migration to a profile with version 3 and new documents on such a profile all cut the same passages. PDF text is never a table (the built-in parser reads lines of text, not table structure), so a table in a PDF is cut as paragraphs by every version. **It has not been measured on a real knowledge base with a real embedding model**: decide by the numbers.
 
+### The structural chunker (version 4)
+
+**Version 4** is for sections that mix several procedures ([#19](https://github.com/ncecere/grounded/issues/19); the design is in [`DESIGN.md`](../DESIGN.md), "Structural boundaries", and Proposed [ADR-0029](../adr/0029-structural-procedure-boundaries.md)). It keeps version 3's table, sentence and size rules but does **not** merge short neighbouring sections: every heading (levels 1 to 6) starts a new passage, and so does a standalone bold line directly above a top-level list, such as `**Renewing a permit:**` followed by numbered steps. That label stays in the passage's text and is added to its heading path. Ordinary paragraphs next to each other stay together. Choose it under **Add profile → Chunker → Structural boundaries**, or `chunkerVersion: 4`.
+
+- **It reads formatting, not meaning.** A change of procedure with no heading or bold label is not detected; nor are a plain `Label:` line, inline bold or a label inside a list. A bold line that is not really a new procedure still makes a new passage.
+- **Expect more, smaller passages.** That can change ranking and embedding cost either way. Preview it, change **only the chunker**, and read the passages and the comparison before switching. Estimates are approximate for version 4 (they count tokens, not labels); the preview's actual passage count is the number to trust.
+- **Not measured.** It has been tested with synthetic pages and the fake models only. Decide by the comparison on your own knowledge base.
+- **Upgrades and rollback.** Upgrade every API and worker before choosing version 4: older binaries cannot build it. To go back, **Switch back** within the grace period, or preview the previous chunker and switch.
+
 ### Reading a comparison
 
 - It measures **retrieval**: whether the page a question expects comes back, and where. It does not measure answer quality.
