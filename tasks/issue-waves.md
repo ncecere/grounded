@@ -90,9 +90,9 @@ Staged by ADR-0013 (follow-up of 2026-10-30; details and rationale in [`docs/ope
 
 Exit: designs before nontrivial implementation; migration/rollback/upgrade tests; measured comparisons (quality, latency, cost) without fake-model quality claims. This work was deferred from v0.5.0: do not relabel it as already delivered or reuse an existing release tag.
 
-## Wave 4 — adoption (v0.7.0)
+## Wave 4 — adoption (v0.8.0; planned as v0.7.0 until 2026-11-01)
 
-Follow `docs/v0.7.0.md` and produce detailed designs first.
+Follow `docs/v0.8.0.md` and produce detailed designs first.
 
 1. **#31:** Helm generated from Kustomize, parity tests, common values, OCI release artifact; existing installs unchanged.
 2. **#32:** configuration YAML export/dry-run/apply for sources/KBs/agents/evaluations/webhooks; named secret references, no content/secrets exported, tenant-scoped authorization, deterministic diff and safe conflict semantics.
@@ -101,9 +101,9 @@ Follow `docs/v0.7.0.md` and produce detailed designs first.
 
 Exit: clean-install/upgrade/parity checks, export/import round-trip and secret-leak tests, keyboard/axe/mobile QA, documentation and published artifacts verified.
 
-## Wave 5 — identity/compliance (v0.8.0)
+## Wave 5 — identity/compliance (v0.9.0; planned as v0.8.0 until 2026-11-01)
 
-Follow `docs/v0.8.0.md`; expand/contract migrations, detailed threat/design review before implementation.
+Follow `docs/v0.9.0.md`; expand/contract migrations, detailed threat/design review before implementation.
 
 1. **#39:** audience on usage events and aggregation, compatible historical unknown audience; shared basis for analytics and budgets.
 2. **#40:** auditor team settings as read-only facts (not disabled edit forms).
@@ -114,7 +114,7 @@ Follow `docs/v0.8.0.md`; expand/contract migrations, detailed threat/design revi
 
 Exit: authorization/revocation matrix, tamper/gap/export recovery checks, sensitive-data leakage tests, budget concurrency tests, migration compatibility and operations docs.
 
-## Wave 6 — private content (v0.9.0 tentative)
+## Wave 6 — private content (v0.10.0 tentative)
 
 1. **#41:** fail-closed document ACLs and identity mapping, enforced in retrieval, parent expansion, citations/viewer, caches, evaluation, export, sharing, router, API and MCP; permission revocation/invalidation tests. Must precede private connectors.
 2. **#42:** Microsoft Graph SharePoint/OneDrive with pagination, delta/deletion sync and permissions.

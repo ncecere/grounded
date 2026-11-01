@@ -1,10 +1,10 @@
 # Contextual chunks: bounded synthetic acceptance
 
-Recorded 2026-10-31 for #21 / Proposed ADR-0028. **Mechanics passed; retrieval improvement was not demonstrated.** This is not a representative corpus, answer-quality study, production benchmark or invoice verification. It does not complete #19's mixed-procedure acceptance or #25's reference-install measurement.
+Recorded 2026-10-31 for #21 / ADR-0028, with a second run added 2026-11-01. **Mechanics passed; retrieval improvement was not demonstrated.** This is not a representative corpus, answer-quality study, production benchmark or invoice verification. It does not complete #19's mixed-procedure acceptance or #25's reference-install measurement.
 
 ## Source and experiment
 
-The owner approved the synthetic run, the exact OpenAI models and a strictly-under-USD5 aggregate envelope including failed/uncertain attempts. The only generating run used source **`f9151fc1d794c13aef876a8c26830ef38d891ee0`**, prompt version 2, corpus SHA-256 **`254e1e78860c4e9fa748b6a0c006ef4d038ea4f47720629e0dbfb9043afc8cb7`**. Documents, questions and expected answers are bound together by `internal/contextual/acceptance_corpus_test.go`.
+The owner approved the synthetic run, the exact OpenAI models and a strictly-under-USD5 aggregate envelope including failed/uncertain attempts. The first generating run used source **`f9151fc1d794c13aef876a8c26830ef38d891ee0`**, prompt version 2, corpus SHA-256 **`254e1e78860c4e9fa748b6a0c006ef4d038ea4f47720629e0dbfb9043afc8cb7`**. Documents, questions and expected answers are bound together by `internal/contextual/acceptance_corpus_test.go`.
 
 - Six neutral synthetic documents/questions: parking renewal, tuition instalments, library renewal, course withdrawal, scholarship eligibility and hostile instructions embedded as document data.
 - Context model: `gpt-6-luna`, known 1,050,000-token window; explicit existing-adapter compatibility `max_completion_tokens` and reasoning `none`.
@@ -56,4 +56,20 @@ Source `d19fdd876fed53836d47fdcbdec750538483fa72` differs from the generating so
 
 The ordinary upgrade rehearsal from v0.6.3 source `a55dc5e50ab011092ddf6f480891aa3828bf462d` verified schema55→59, old/new API reads and writes while contextual processing stayed unused/off, plus old API health after stopping the new API. This used source-built local scratch derivatives and current UI assets, not production-image/old-UI acceptance. It does not prove safe old-worker coexistence after activation or rollback without first restoring plain indexes.
 
-Raw private reports, source fingerprints, original failed runs, command exits, cleanup receipts, captures and retained-worker exports remain in the coordinator's validation archive. Final pushed-head GitHub CI, disposable-cluster QA and architectural review remain separate merge gates. No release or production enablement is implied.
+## Second run on the final runtime source
+
+A final review found that a connection-pacing wait could outlast a revocation, so dispatch was changed to re-check eligibility after pacing (#204). Because that changed the code before each model call, the same check was repeated once, deliberately, on source **`75b9e69db109ef312fad0711450a4326b9d66e2c`** with the same corpus, models, limits and configured rates, a new single-use grant and a second permanent USD0.25 reservation (aggregate USD0.50, still under the owner's USD5). The merged head `50385a9f4d7f4adb046eab67728060ec5893dbc1` differs from it only in test files.
+
+| Check | Result |
+|---|---|
+| Successful context attempts / embedding batches / dispatches | 6 / 3 / 9 |
+| Additional requests on cache replay; unknown context attempts | 0; 0 |
+| Reported context input/output tokens | 2,030 / 229 |
+| Reported embedding input tokens | 782 (250 + 474 + 58) |
+| Harness elapsed; generation / replay / embeddings | 13.431 s; 11,691 / 151 / 1,586 ms |
+| Plain and contextual ranks | All six expected documents first for both |
+| Outer wrapper exit; owned dependencies | 0; independently confirmed absent |
+
+At the same published rates the reported totals come to **USD0.00033314**, an estimate, not an invoice. Again no improvement was shown: the baseline already ranks everything first.
+
+Raw private reports, source fingerprints, original failed runs, command exits, cleanup receipts, captures and retained-worker exports remain in the coordinator's validation archive. The merged head passed full GitHub CI and an exact-source disposable-cluster test/authorization/browser run. No production enablement is implied.

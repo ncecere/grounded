@@ -196,7 +196,7 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.6.0** (2026-10-16): service desk building blocks: webhooks, agent templates, a router agent, conversation sharing and in-app team requests.
 - [x] **v0.6.1** (2026-10-17): fixes from a QA pass of v0.6.0: API keys reach only what they were given, members see published versions, shared links end with their owner's standing, and more.
 
-**Next:** v0.7.0, "adoption by other installs" ([`docs/roadmap.md`](docs/roadmap.md)): a Helm chart, configuration as code, the docs site and registry, and an accessibility statement with model cards.
+**Next:** v0.8.0, "adoption by other installs" ([`docs/roadmap.md`](docs/roadmap.md)): a Helm chart, configuration as code, the docs site and registry, and an accessibility statement with model cards.
 
 **Later**
 
