@@ -7,13 +7,25 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
 func TestAcceptanceReviewLedgerUsesOSPrincipalHome(t *testing.T) {
-	account, err := user.Current()
-	if err != nil {
-		t.Fatal(err)
+	account, err := user.LookupId(strconv.Itoa(os.Getuid()))
+	if err != nil || !filepath.IsAbs(account.HomeDir) {
+		// A runner UID without an account entry (common in containers) has no
+		// canonical ledger: the entry must fail closed, and environment
+		// variables must not supply a substitute root.
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		if acceptanceStateRoot != "" || acceptanceCanonicalStateRoot() != "" {
+			t.Fatal("ledger root invented without an OS account entry")
+		}
+		if err := claimAcceptance(acceptanceStateRoot, acceptanceTestGrant(t)); err == nil || err.Error() != "ledger_directory" {
+			t.Fatalf("claim without a canonical ledger = %v, want ledger_directory", err)
+		}
+		return
 	}
 	want := filepath.Join(account.HomeDir, ".local", "state", "grounded-issue21")
 	if acceptanceStateRoot != want {

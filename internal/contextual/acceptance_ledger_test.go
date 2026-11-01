@@ -12,6 +12,9 @@ import (
 // Every claim is itself a permanent reservation. No mutable/refundable total:
 // an interrupted write poisons admission rather than recovering headroom.
 func claimAcceptance(root string, g acceptanceGrant) error {
+	if !filepath.IsAbs(root) {
+		return errors.New("ledger_directory") // no canonical OS-account ledger
+	}
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return errors.New("ledger_directory")
 	}
