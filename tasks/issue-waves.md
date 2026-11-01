@@ -2,7 +2,11 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-10-31
+## Current execution status — 2026-11-01
+
+- **v0.7.0 (retrieval) is being released** from `main`: #23, #24, #20, #22, #21 and the first part of #19 (opt-in chunker v4), all off by default. #21 closed with PR #204 (merge `f0b014b`) after a pacing-revocation review finding was fixed, a second bounded real-model check on the final runtime source and full exact-head CI/cluster acceptance. #19 merged with PR #205 but **stays open** for representative mixed-procedure pages; #25 stays open for the reference-install measurement. **12 of the original 29 issues are closed, 17 open.** The planned adoption release is renumbered v0.8.0, compliance v0.9.0, private content v0.10.0 (scope unchanged). After the release, work pauses: block 3 (adoption/compliance) remains parked on private branches and needs a new owner go-ahead; #19/#25 need the owner's reference install, examples and traces.
+
+### Earlier status (2026-10-31)
 
 - **v0.6.3 published and independently verified:** immutable source `a55dc5e50ab011092ddf6f480891aa3828bf462d`; final main run `41015579132`, tag run `41034183553`. Checksums, signed app/OCR SBOMs, amd64/arm64 provenance and scans, and actual amd64 versions pass. No Go or fixable HIGH/CRITICAL findings; residual app/OCR advisories are recorded in [`validation/v0.6.3.md`](../docs/security/validation/v0.6.3.md). No production rollout occurred.
 - **18 of the original 29 issues remain open; 11 are complete/closed**, independently re-inventoried after #22 closed: #77, #116, #119, #128, #132, #140, #146, #23, #24, #20 and #22. #146 reached 12/12 only after grounded-docs #15 merged following release verification. Added security/test/release-blocker issues #169, #172, #195 and #201 are also closed, but never count as extra progress against the original 29. #201/#202 (`e2ab063`) completed the fixture/deadline contract before retrieval acceptance; all 20 checks and exact-source cluster test/authz/e2e plus wrapper/fetch/cleanup gates passed.
@@ -90,9 +94,9 @@ Staged by ADR-0013 (follow-up of 2026-10-30; details and rationale in [`docs/ope
 
 Exit: designs before nontrivial implementation; migration/rollback/upgrade tests; measured comparisons (quality, latency, cost) without fake-model quality claims. This work was deferred from v0.5.0: do not relabel it as already delivered or reuse an existing release tag.
 
-## Wave 4 — adoption (v0.7.0)
+## Wave 4 — adoption (v0.8.0; planned as v0.7.0 until 2026-11-01)
 
-Follow `docs/v0.7.0.md` and produce detailed designs first.
+Follow `docs/v0.8.0.md` and produce detailed designs first.
 
 1. **#31:** Helm generated from Kustomize, parity tests, common values, OCI release artifact; existing installs unchanged.
 2. **#32:** configuration YAML export/dry-run/apply for sources/KBs/agents/evaluations/webhooks; named secret references, no content/secrets exported, tenant-scoped authorization, deterministic diff and safe conflict semantics.
@@ -101,9 +105,9 @@ Follow `docs/v0.7.0.md` and produce detailed designs first.
 
 Exit: clean-install/upgrade/parity checks, export/import round-trip and secret-leak tests, keyboard/axe/mobile QA, documentation and published artifacts verified.
 
-## Wave 5 — identity/compliance (v0.8.0)
+## Wave 5 — identity/compliance (v0.9.0; planned as v0.8.0 until 2026-11-01)
 
-Follow `docs/v0.8.0.md`; expand/contract migrations, detailed threat/design review before implementation.
+Follow `docs/v0.9.0.md`; expand/contract migrations, detailed threat/design review before implementation.
 
 1. **#39:** audience on usage events and aggregation, compatible historical unknown audience; shared basis for analytics and budgets.
 2. **#40:** auditor team settings as read-only facts (not disabled edit forms).
@@ -114,7 +118,7 @@ Follow `docs/v0.8.0.md`; expand/contract migrations, detailed threat/design revi
 
 Exit: authorization/revocation matrix, tamper/gap/export recovery checks, sensitive-data leakage tests, budget concurrency tests, migration compatibility and operations docs.
 
-## Wave 6 — private content (v0.9.0 tentative)
+## Wave 6 — private content (v0.10.0 tentative)
 
 1. **#41:** fail-closed document ACLs and identity mapping, enforced in retrieval, parent expansion, citations/viewer, caches, evaluation, export, sharing, router, API and MCP; permission revocation/invalidation tests. Must precede private connectors.
 2. **#42:** Microsoft Graph SharePoint/OneDrive with pagination, delta/deletion sync and permissions.

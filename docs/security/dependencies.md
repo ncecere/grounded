@@ -136,6 +136,21 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
+### v0.7.0 preparation — 2026-11-01
+
+No dependency changed since v0.6.3; the inventory above is current (`make
+deps-inventory` produced no change). `govulncheck` reports **no vulnerabilities**
+(Go 1.26.10) and the runtime npm audit **0**. The full npm audit reports **3
+moderate** entries for one advisory: `minimatch` < 11.0.1
+([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)),
+reached through `@redocly/openapi-core` from `openapi-typescript`, the API type
+generator. It is a development tool that reads only repository files and is not
+in the image; the only offered fix is a semver-major change, left for the next
+dependency batch. Trivy reports **0 secrets** and the same **71 IaC findings**
+(43 LOW, 25 MEDIUM, 3 HIGH) as the reviewed v0.6.3 set. Image scans of the
+published v0.7.0 digests are recorded in the [v0.7.0 validation
+record](validation/v0.7.0.md) after the tag.
+
 ### v0.6.3 published verification — 2026-10-30
 
 The dependency/licence inventory above is regenerated for the patch. Fresh

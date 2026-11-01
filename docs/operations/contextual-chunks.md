@@ -1,6 +1,6 @@
 # Contextual chunks: rollout and acceptance
 
-**Status: implemented, default off, awaiting final PR acceptance.** This is the runbook for [A4 / #21](../contextual-chunks.md) and Proposed [ADR-0028](../adr/0028-contextual-chunks.md). One explicitly owner-authorized real synthetic run passed; [results, exact source and limitations](../benchmarks/contextual-chunks.md). This does not enable an install, prove representative retrieval improvement, authorize future spending or permit production changes.
+**Status: shipped in v0.7.0, default off.** This is the runbook for [A4 / #21](../contextual-chunks.md) and [ADR-0028](../adr/0028-contextual-chunks.md). Two explicitly owner-authorized real synthetic runs passed; [results, exact source and limitations](../benchmarks/contextual-chunks.md). This does not enable an install, prove representative retrieval improvement, authorize future spending or permit production changes.
 
 ## Implemented controls to preserve
 
@@ -8,7 +8,7 @@
 - Unknown/in-flight/partial usage retains conservative reservations. First-terminal CAS settlement commits usage/cache at most once with bounded persistence grace. Remote429 is not proof of unsent/unbilled work; only proven-unsent refusal releases admission. Paid attempts survive content deletion without cache resurrection.
 - Current source/set/kill-switch/model/connection/classification checks around calls, waits, cache returns and publication. No DB lock held across network work. Bounded cancellation, unit planning, prompt fitting, output cleaning and response transport.
 - Current document/profile/version plans retain their bounded union; deletion/opt-out/snapshot cleanup prunes only permitted artifacts. Generated context never changes original passages, keyword text, citation/viewer text or parent hashes.
-- Regression evidence includes unit/PG races, HTTP/authz, full UI, desktop/phone fake browser consent/estimate/held-preview/switch/switch-back, the guarded real check and an ordinary feature-unused upgrade rehearsal. Earlier failed/incomplete wrappers and smaller-host timeouts remain failures. Final exact-pushed-head GitHub CI, disposable-cluster and architectural acceptance remain gates.
+- Regression evidence includes unit/PG races, HTTP/authz, full UI, desktop/phone fake browser consent/estimate/held-preview/switch/switch-back, the guarded real check and an ordinary feature-unused upgrade rehearsal. Earlier failed/incomplete wrappers and smaller-host timeouts remain failures. The merged head passed full GitHub CI and exact-source disposable-cluster acceptance.
 
 The guarded test-only entry and private outer receipt protocol are documented in [issue21-live-entry.md](issue21-live-entry.md). Without an explicit single-use source/corpus-bound grant, the live test skips. It never gets authority from the mere presence of a key or environment flag.
 

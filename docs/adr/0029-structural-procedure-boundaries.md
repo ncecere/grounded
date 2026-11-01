@@ -1,6 +1,6 @@
 # ADR-0029: Opt-in structural passage boundaries
 
-- Status: Proposed
+- Status: Accepted (2026-11-01, shipped opt-in in v0.7.0; the representative real-page acceptance in #19 remains open, as this ADR says)
 - Date: 2026-10-31
 
 ## Context

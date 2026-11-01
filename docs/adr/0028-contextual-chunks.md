@@ -1,6 +1,6 @@
 # ADR-0028: Contextual chunks
 
-- Status: Proposed
+- Status: Accepted (2026-11-01: merged in #204 after review findings were fixed and the owner-required bounded real-model acceptance passed)
 - Date: 2026-10-30
 
 ## Context
