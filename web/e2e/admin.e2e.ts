@@ -86,7 +86,7 @@ test("embedding profiles: the Migrations tab, and the old Profile migrations add
   await expect(page.getByRole("button", { name: "Add profile" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Migrate a knowledge base" })).toHaveCount(0);
   await a11y(page);
-  // The chunker is chosen per profile (#19, #24): the original is the default and the tables chunker is opt-in, with its copy.
+  // The chunker is chosen per profile (#19, #24): the original is the default; the tables and structural chunkers are opt-in, with their copy.
   await page.getByRole("button", { name: "Add profile" }).click();
   const dialog = page.getByRole("dialog");
   const chunker = dialog.getByRole("combobox", { name: "Chunker" });
@@ -95,8 +95,10 @@ test("embedding profiles: the Migrations tab, and the old Profile migrations add
     "Standard: a new passage at every heading",
     "Merge short sections: joins short neighbouring sections",
     "Keep tables whole: merges short sections and keeps each table together",
+    "Structural boundaries: keep labelled sections separate",
   ]);
   await expect(chunker).toHaveAccessibleDescription(/Keep tables whole: .*caption and header row/);
+  await expect(chunker).toHaveAccessibleDescription(/Structural boundaries: .*standalone bold labels before top-level lists/);
   await a11y(page, "add profile chunker choices");
   await dialog.getByRole("button", { name: "Cancel" }).click();
 });
