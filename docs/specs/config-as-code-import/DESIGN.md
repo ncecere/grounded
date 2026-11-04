@@ -1,6 +1,6 @@
 # Configuration as code: import, dry run and apply (#32)
 
-Status: **proposed for owner review** (2026-11-04). Builds on the export that is parked on
+Status: **accepted** (owner, 2026-11-04: all six decisions as recommended below; deleting objects missing from the file may come later behind an explicit opt-in).  Builds on the export that is parked on
 [`parked/32-config-as-code`](https://github.com/ncecere/grounded/tree/parked/32-config-as-code)
 ([design](https://github.com/ncecere/grounded/blob/parked/32-config-as-code/docs/configuration-as-code.md),
 ADR-0033 Proposed). That design left five decisions to "the parent". This document makes them, so import can be
