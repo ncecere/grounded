@@ -6908,6 +6908,9 @@ type ConfigurationPlanRow struct {
 	Key   string                   `json:"key"`
 	Kind  ConfigurationPlanRowKind `json:"kind"`
 	Notes []string                 `json:"notes"`
+
+	// Title A friendlier name when the key is not one (an agent's name)
+	Title *string `json:"title,omitempty"`
 }
 
 // ConfigurationPlanRowAction defines model for ConfigurationPlanRow.Action.

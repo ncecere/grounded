@@ -216,6 +216,7 @@ func (r *resolution) agentRows() []Row {
 	rows := []Row{}
 	for _, f := range r.file.Agents {
 		row := newRow(KindAgent, f.Slug)
+		row.Title = f.Name
 		_, exists := r.action(KindAgent, f.Slug, &row)
 		if m := f.Draft.Model; m != nil {
 			if model, ok := r.models[*m]; !ok || model.Kind != "chat" {
@@ -244,9 +245,15 @@ func (r *resolution) agentRows() []Row {
 		}
 		rows = append(rows, finish(row))
 	}
-	return append(rows, r.notInFile(KindAgent, func(k string) bool {
+	kept := r.notInFile(KindAgent, func(k string) bool {
 		return fileHas(r.file.Agents, func(a Agent) string { return a.Slug }, k)
-	})...)
+	})
+	for i := range kept {
+		if cur := find(r.current.Agents, func(a Agent) string { return a.Slug }, kept[i].Key); cur != nil {
+			kept[i].Title = cur.Name
+		}
+	}
+	return append(rows, kept...)
 }
 
 // agentFields flattens an agent for comparing: its profile, then its draft's model, knowledge bases and each setting,

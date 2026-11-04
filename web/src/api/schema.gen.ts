@@ -13085,6 +13085,8 @@ export interface components {
             kind: "source" | "knowledgeBase" | "agent" | "evaluationSet" | "webhook";
             /** @description Name, an agent's slug, or a webhook's URL */
             key: string;
+            /** @description A friendlier name when the key is not one (an agent's name) */
+            title?: string;
             /** @enum {string} */
             action: "create" | "update" | "no-op" | "not-in-file";
             changes: {

@@ -204,8 +204,11 @@ function RowsTable({ caption, rows }: { caption: string; rows: Row[] }) {
       {rows.map((r) => (
         <Tr key={r.kind + r.key}>
           <Td>
-            <span className={c.kind}>{kindLabels[r.kind]}</span>
-            <span className={c.key}>{r.key}</span>
+            <span className={c.kind}>
+              {kindLabels[r.kind]}
+              {r.title && r.title !== r.key ? ` · ${r.key}` : ""}
+            </span>
+            <span className={c.key}>{r.title || r.key}</span>
           </Td>
           <Td>
             <Badge tone={actionTone(r)} size="sm">

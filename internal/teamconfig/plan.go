@@ -61,8 +61,10 @@ type Counts struct {
 // Row is one object: its kind, its identity in the file (name, an agent's slug, a webhook's URL), what applying does,
 // the field changes, what stops it and what the editor should know.
 type Row struct {
-	Kind     string   `json:"kind"`
-	Key      string   `json:"key"`
+	Kind string `json:"kind"`
+	Key  string `json:"key"`
+	// Title is a friendlier name than the key, when the key is not a name (an agent's name for its slug).
+	Title    string   `json:"title,omitempty"`
 	Action   string   `json:"action"`
 	Changes  []Change `json:"changes"`
 	Blockers []string `json:"blockers"`

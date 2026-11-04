@@ -16930,6 +16930,7 @@ components:
       properties:
         kind: { type: string, enum: [source, knowledgeBase, agent, evaluationSet, webhook] }
         key: { type: string, description: "Name, an agent's slug, or a webhook's URL" }
+        title: { type: string, description: "A friendlier name when the key is not one (an agent's name)" }
         action: { type: string, enum: [create, update, no-op, not-in-file] }
         changes:
           type: array
