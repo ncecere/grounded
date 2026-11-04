@@ -202,4 +202,10 @@ describe("a draft's configuration as saved", () => {
     expect(configInput({ ...config, systemOne: { judging: "" } }).systemOne).toBeUndefined();
     expect(configInput(config).systemOne).toBeUndefined();
   });
+
+  it("sends an ownership note only when there is one, so an API before #34 still accepts the save (ADR-0030)", () => {
+    expect("ownershipNote" in JSON.parse(JSON.stringify(configInput({ ...config, ownershipNote: "" })))).toBe(false);
+    expect("ownershipNote" in JSON.parse(JSON.stringify(configInput(config)))).toBe(false);
+    expect(configInput({ ...config, ownershipNote: "Help team" }).ownershipNote).toBe("Help team");
+  });
 });

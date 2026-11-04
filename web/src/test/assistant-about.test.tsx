@@ -32,7 +32,7 @@ it("serves an honest statement outside the signed-in gate", async () => {
   const { container } = renderApp("/accessibility");
   expect(await screen.findByRole("heading", { name: "Accessibility statement" })).toBeInTheDocument();
   expect(screen.getByText(/not a certification/)).toBeInTheDocument();
-  expect(screen.getByText(/No screen-reader audit/)).toBeInTheDocument();
+  expect(screen.getByText(/not yet had an independent screen-reader audit/)).toBeInTheDocument();
   expect(await axe(container)).toHaveNoViolations();
 });
 

@@ -3,7 +3,7 @@
 # local history; no registry baseline, credentials or production resources.
 set -euo pipefail
 ROOT=$(git rev-parse --show-toplevel)
-BASE=a55dc5e50ab011092ddf6f480891aa3828bf462d
+BASE=b6f523ac628255387808c40c00c06b77ca87aef2 # v0.7.0, the previous release
 : "${RUN_ID:?unique disposable RUN_ID required}"
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9-]+$ ]] || exit 2
 WORK=$(mktemp -d)
@@ -22,26 +22,29 @@ git -C "$ROOT" archive "$BASE" | tar -x -C "$WORK"
 # API compatibility, not an old UI audit. Supply current built embedded assets.
 mkdir -p "$WORK/web/dist"
 cp -a "$ROOT/web/dist/." "$WORK/web/dist/"
-# Exercise the actual old codec with a new authored field. Its save payload
-# must discard the unknown note, never carry it into a later publication.
+# Exercise the actual old codec. A release before #34 decodes requests with
+# DisallowUnknownFields, so a save that carries a note is refused (never kept
+# and later published), while a stored configuration that has one is read and
+# re-serialized without it (an old binary neither fails nor shows it). Configs
+# without a note no longer carry the key (omitempty), so their saves are
+# unaffected; that half is TestConfigWithoutNoteIsUnchanged in the new tree.
 cat > "$WORK/internal/agents/about_legacy_test.go" <<'GO'
 package agents
-import ("encoding/json"; "testing")
-func TestLegacyOwnershipNoteIsNotRepublished(t *testing.T) {
- raw := DefaultConfig().JSON()
+import ("encoding/json"; "strings"; "testing")
+func TestLegacyOwnershipNote(t *testing.T) {
  var c map[string]any
- if err := json.Unmarshal(raw, &c); err != nil { t.Fatal(err) }
+ if err := json.Unmarshal(DefaultConfig().JSON(), &c); err != nil { t.Fatal(err) }
  c["ownershipNote"] = "PRIVATE NEW FIELD"
+ raw, _ := json.Marshal(c)
+ if _, err := ParseConfig(raw); err == nil { t.Fatal("a pre-#34 API accepted a save carrying ownershipNote") }
+ if out := DecodeConfig(raw).JSON(); strings.Contains(string(out), "PRIVATE NEW FIELD") { t.Fatal("a pre-#34 binary re-serialized a stored note") }
+ delete(c, "ownershipNote")
  raw, _ = json.Marshal(c)
- parsed, err := ParseConfig(raw)
- if err != nil { t.Fatal(err) }
- var saved map[string]any
- if err := json.Unmarshal(parsed.JSON(), &saved); err != nil { t.Fatal(err) }
- if _, exists := saved["ownershipNote"]; exists { t.Fatal("legacy save retained a new authored field") }
+ if _, err := ParseConfig(raw); err != nil { t.Fatalf("a save without a note was refused: %v", err) }
 }
 GO
 export GOMAXPROCS=4 GOFLAGS=-p=2
-(cd "$WORK" && go test -count=1 ./internal/agents -run '^TestLegacyOwnershipNoteIsNotRepublished$')
+(cd "$WORK" && go test -count=1 ./internal/agents -run '^TestLegacyOwnershipNote$')
 (cd "$WORK" && CGO_ENABLED=0 go build -trimpath -o "$WORK/old" ./cmd/grounded)
 (cd "$ROOT" && CGO_ENABLED=0 go build -trimpath -o "$WORK/new" ./cmd/grounded)
 # The existing harness expects the image entrypoint to be /grounded.

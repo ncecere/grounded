@@ -5,6 +5,8 @@ import { Dialog } from "./ui/dialog/dialog";
 import { IconButton } from "./ui/button/button";
 import c from "./assistant-about.module.css";
 
+const checkWords: Record<Schemas["ConfiguredCheck"], string> = { enabled: "on", disabled: "off", unknown: "unknown" };
+
 /** One disclosure UI for signed-in chat, public chat and the iframe. */
 export function AssistantAbout({ about }: { about?: Schemas["AssistantAbout"] }) {
   const title = useRef<HTMLSpanElement>(null);
@@ -16,9 +18,9 @@ export function AssistantAbout({ about }: { about?: Schemas["AssistantAbout"] })
         <dt>Audience</dt><dd>{about.audience === "all_authenticated" ? "Signed-in users" : about.audience === "team" ? "Team members" : "Public"}</dd>
         <dt>Sources</dt><dd>{about.sourcesLimited ? "More than 500" : about.sourceCount} configured sources. Names and locations are not disclosed here.</dd>
         <dt>Last known successful processing</dt><dd>{about.lastProcessedAt ? new Date(about.lastProcessedAt).toLocaleString() : "Unknown or beyond the observation limit"}. This is a processing observation, not when the author last edited the source.</dd>
-        <dt>Configured checks</dt><dd>Passage judging: {about.passageJudging}. Claim checks: {about.claimChecks}. Moderation: {about.moderation}.</dd>
+        <dt>Configured checks</dt><dd>Passage judging {checkWords[about.passageJudging]}, claim checks {checkWords[about.claimChecks]}, moderation {checkWords[about.moderation]}.</dd>
       </dl>
-      <p>Enabled means configured, not that every response passed. Checks can be skipped, unavailable or time out. These checks do not certify this assistant.</p>
+      <p>On means configured, not that every response passed. Checks can be skipped, unavailable or time out. These checks do not certify this assistant.</p>
       <h2>Data handling</h2>
       <p>{about.retention}</p>
       <p>Application transcript access is for the conversation owner, with an exception for audited, time-limited platform-admin break-glass access. Teams see aggregates and metadata. Failed questions may be grouped to improve answers; sharing an individual question with the team is an explicit opt-in. A signed-in owner may deliberately share a conversation by link.</p>

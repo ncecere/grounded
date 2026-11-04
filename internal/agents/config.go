@@ -61,7 +61,7 @@ func (r KBRef) EffectiveTopK(kbTopK int) int {
 // Config is an agent's configuration, as stored in the draft and in
 // immutable versions. Decode stored JSON with DecodeConfig so defaults apply.
 type Config struct {
-	OwnershipNote      string              `json:"ownershipNote"`
+	OwnershipNote      string              `json:"ownershipNote,omitempty"` // omitted when empty: configs without a note stay byte for byte as before #34 (ADR-0030)
 	Instructions       string              `json:"instructions"`
 	ChatModelID        *uuid.UUID          `json:"chatModelId"`
 	Temperature        *float64            `json:"temperature,omitempty"`

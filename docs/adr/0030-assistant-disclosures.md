@@ -23,9 +23,15 @@ Never serialize a catalog model or connection into these disclosures.
 ## Consequences
 
 Disclosure reads do not make chat, crawl, network, body or job calls. Old versions
-have no ownership note. Older binaries may discard the new optional draft field
-on save; this is safe (loss of a draft note, never accidental publication).
-No schema migration is needed for the versioned note.
+have no ownership note. The note is serialized only when set (`omitempty`), so a
+configuration without one is byte for byte what it was before. Releases before
+this one decode saves with unknown fields rejected: during a rolling upgrade a
+save that carries a note and reaches an older API fails with `400` (the editor
+keeps the edit; retry once the rollout finishes), and every other save works.
+Older binaries read a stored note without error and never show it; after a
+downgrade, re-saving a draft drops its unpublished note, while published versions
+keep theirs. Never a silent publication. `tools/acceptance/about-upgrade.sh`
+checks this against v0.7.0. No schema migration is needed for the versioned note.
 Statement links use a dedicated revisioned singleton (expand-only migration
 00060), admin-only audited writes and an explicit public safe projection.
 The statement must distinguish an accessibility target from tested conformance.

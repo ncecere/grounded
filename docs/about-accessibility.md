@@ -89,3 +89,22 @@ These are disclosure ceilings, not source-size or quality limits.
 Routers explicitly disclose delegation rather than claiming an answer model of
 their own. Their destination checks are unknown here; consult the destination
 assistant card, subject to the same existing permissions.
+
+## Review before merge (2026-11-04)
+
+- **"No network" claim: confirmed.** Building About runs, in one request: the
+  published version's policy evaluation (`KBPolicyRows`, classification and model
+  rank reads), `AssistantAboutSources` (the one bounded metadata aggregate),
+  `ClassificationByRank`, the stored SystemOne settings row (`systemone.Load`) and
+  the stored moderation policy (`moderation.Plan`, which loads policy and never
+  resolves a provider or calls a model). All are Postgres reads. Statement links
+  are validated with `net/url` and `net/mail` parsing only; nothing is fetched.
+  `TestAssistantAboutNoWork` enforces this with an outbound-dial trap, a blob-read
+  trap, a SQL trace (one document aggregate, no chunk or body reads, no job insert)
+  and positive controls for each trap.
+- **Rolling upgrade: corrected.** A release before this one rejects unknown fields
+  on save, so `ownershipNote` is now omitted when empty (Go `omitempty`, and the UI
+  sends it only when set). See ADR-0030 "Consequences" and
+  `tools/acceptance/about-upgrade.sh`, now against v0.7.0.
+- **Audit label added** for `platform.accessibility` and the
+  `accessibility_settings` target type.
