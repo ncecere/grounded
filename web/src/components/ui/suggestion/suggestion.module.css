@@ -27,7 +27,9 @@
 }
 
 .suggestion {
-  border-radius: var(--radius-pill);
+  /* A pill on one line (half its height is under 20px); a rounded rectangle when a long
+     suggestion wraps, never a stretched capsule. */
+  border-radius: 1.25rem;
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
 

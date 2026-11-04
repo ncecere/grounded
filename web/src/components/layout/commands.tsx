@@ -26,22 +26,22 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
   const pages: CommandGroup = {
     label: "Pages",
     items: [
-      { id: "home", label: "Home", icon: icon(Home), hint: "Page", onSelect: () => void navigate({ to: "/" }) },
-      { id: "agents", label: terms.discoverAgents, icon: icon(Compass), hint: "Page", keywords: ["agents", "chat", "assistant", "directory"], onSelect: () => void navigate({ to: "/agents" }) },
+      { id: "home", label: "Home", icon: icon(Home), onSelect: () => void navigate({ to: "/" }) },
+      { id: "agents", label: terms.discoverAgents, icon: icon(Compass), keywords: ["agents", "chat", "assistant", "directory"], onSelect: () => void navigate({ to: "/agents" }) },
       {
         id: "conversations",
         label: terms.conversations,
         icon: icon(MessagesSquare),
-        hint: "Page",
+       
         keywords: ["history", "chats", "search"],
         onSelect: () => void navigate({ to: "/conversations" }),
       },
-      { id: "notifications", label: "Notifications", icon: icon(Bell), hint: "Page", keywords: ["inbox", "alerts"], onSelect: () => void navigate({ to: "/notifications" }) },
+      { id: "notifications", label: "Notifications", icon: icon(Bell), keywords: ["inbox", "alerts"], onSelect: () => void navigate({ to: "/notifications" }) },
       {
         id: "notification-settings",
         label: "Notification settings",
         icon: icon(Bell),
-        hint: "Page",
+       
         keywords: ["email", "preferences", "unsubscribe"],
         onSelect: () => void navigate({ to: "/settings/notifications" }),
       },
@@ -49,7 +49,7 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         id: "profile",
         label: "Profile",
         icon: icon(User),
-        hint: "Page",
+       
         keywords: ["account", "me", "email", "name", "teams"],
         onSelect: () => void navigate({ to: "/settings/profile" }),
       },
@@ -57,7 +57,7 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         id: "my-api-keys",
         label: "Your API keys",
         icon: icon(KeyRound),
-        hint: "Page",
+       
         keywords: ["personal", "token", "account"],
         onSelect: () => void navigate({ to: "/settings/api-keys" }),
       },
@@ -65,7 +65,7 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         id: "connected-apps",
         label: "Connected apps",
         icon: icon(Plug),
-        hint: "Page",
+       
         keywords: ["oauth", "ai tools", "mcp", "disconnect", "apps", "account"],
         onSelect: () => void navigate({ to: "/settings/connected-apps" }),
       },

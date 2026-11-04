@@ -5,7 +5,7 @@
   width: max-content;
   max-width: min(22rem, calc(100vw - 2rem));
   padding: var(--space-4);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-popover);
 }
 
 .title {

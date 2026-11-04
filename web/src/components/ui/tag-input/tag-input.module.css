@@ -24,7 +24,7 @@
 
   &:focus-within {
     border-color: var(--color-focus-ring);
-    box-shadow: var(--shadow-focus);
+    box-shadow: var(--shadow-focus-field);
   }
 
   &:has([aria-invalid="true"], [data-invalid]) {

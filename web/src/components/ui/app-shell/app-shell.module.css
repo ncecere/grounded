@@ -171,7 +171,9 @@
   display: flex;
 }
 
-/* Active: tinted background + subtle left indicator. */
+/* Active: a filled neutral pill, full-strength text and an accent icon (shape,
+   contrast and aria-current; not colour alone). No edge bar: it sat at the
+   sidebar's edge, apart from the item it marked. */
 .item {
   position: relative;
   display: flex;
@@ -190,21 +192,8 @@
     background-color var(--motion-duration-fast) var(--motion-ease-out),
     color var(--motion-duration-fast) var(--motion-ease-out);
 
-  &::before {
-    content: "";
-    position: absolute;
-    left: -0.5rem;
-    top: 50%;
-    width: 3px;
-    height: 0;
-    border-radius: 0 3px 3px 0;
-    background-color: var(--color-primary);
-    translate: 0 -50%;
-    transition: height var(--motion-duration-normal) var(--motion-ease-out);
-  }
-
   &:hover {
-    background-color: var(--color-surface-active);
+    background-color: var(--color-surface-hover);
     color: var(--color-text);
   }
 
@@ -214,11 +203,11 @@
   }
 
   &[aria-current="page"] {
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary-subtle-text);
+    background-color: var(--color-surface-active);
+    color: var(--color-text);
 
-    &::before {
-      height: 1rem;
+    & .itemIcon {
+      color: var(--color-primary-subtle-text);
     }
   }
 }

@@ -8,7 +8,6 @@ import { Bot, FlaskConical, MessageSquare, Pencil, Plus, Share2 } from "lucide-r
 import { useState } from "react";
 import { useIntent } from "../../lib/intents";
 import { ListPage, RelativeTime } from "@/components/templates/list-page";
-import { Avatar } from "@/components/ui/avatar/avatar";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -22,6 +21,7 @@ import { useTeam } from "../team/common";
 import { type Agent, AgentStatusBadge, useAgents, useChatModels } from "./common";
 import a from "./agents.module.css";
 import { CreateAgentDialog } from "./create-agent-dialog";
+import { AgentAvatar } from "../chat/welcome";
 
 type Status = "live" | "draft" | "disabled";
 
@@ -55,7 +55,8 @@ export function AgentsPage() {
       rowHeader: true,
       cell: (ag) => (
         <span className={a.nameCell}>
-          <Avatar name={ag.name} size="sm" shape="square" decorative />
+          {/* The agent's own accent, as on its cards and chat page (one look per agent everywhere). */}
+          <AgentAvatar agent={ag} size="sm" />
           <CellText
             primary={
               canEdit ? (

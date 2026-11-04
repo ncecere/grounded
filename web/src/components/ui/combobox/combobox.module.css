@@ -30,7 +30,7 @@
   &:focus-within,
   &[data-popup-open] {
     border-color: var(--color-focus-ring);
-    box-shadow: var(--shadow-focus);
+    box-shadow: var(--shadow-focus-field);
   }
 
   &[data-invalid],

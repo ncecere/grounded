@@ -10,7 +10,7 @@
 
     border-radius: var(--radius-card);
     background-color: var(--color-surface);
-    box-shadow: var(--shadow-2);
+    box-shadow: var(--shadow-1);
   }
 }
 
@@ -118,6 +118,13 @@
   &:last-child {
     padding-inline-end: var(--space-5);
   }
+}
+
+/* On the page itself (no frame, card or dialog) the header is the page colour with
+   a hairline under it: a tinted band floating on the page read as a stray bar. */
+.frame:not([data-framed]) .th {
+  background-color: var(--table-background, var(--color-bg));
+  border-bottom-color: var(--color-border-emphasis);
 }
 
 .table[data-sticky] .th {

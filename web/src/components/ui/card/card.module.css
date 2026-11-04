@@ -7,14 +7,13 @@
   min-width: 0;
   border-radius: var(--radius-card);
   background-color: var(--color-surface);
-  box-shadow: var(--shadow-2);
-  transition:
-    box-shadow var(--motion-duration-normal) var(--motion-ease-out),
-    transform var(--motion-duration-normal) var(--motion-ease-out);
+  /* Flat at rest (a hairline ring and a 1px shadow); an interactive card deepens its
+     shadow on hover rather than moving, so a grid of cards never jitters. */
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--motion-duration-normal) var(--motion-ease-out);
 
   &[data-interactive]:hover {
-    box-shadow: var(--shadow-3);
-    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
   }
 }
 
@@ -61,6 +60,9 @@
   gap: var(--space-2);
   min-width: 0;
   max-width: 100%;
+  /* At the end edge in both layouts: wrapped under the heading, a ghost button's
+     own padding would otherwise indent it from the title above. */
+  margin-inline-start: auto;
 }
 
 .body {

@@ -46,7 +46,7 @@
   &[data-popup-open] {
     outline: none;
     border-color: var(--color-focus-ring);
-    box-shadow: var(--shadow-focus);
+    box-shadow: var(--shadow-focus-field);
   }
 
   &[data-disabled] {
