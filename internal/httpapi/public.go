@@ -92,7 +92,7 @@ func (a *api) writePublicAgent(w http.ResponseWriter, r *http.Request, ref strin
 	}
 	ag := t.Agent
 	out := apitypes.PublicAgent{
-		Id: ag.ID, Name: ag.Name, TeamName: t.TeamName, Description: ag.Description, AccentColor: ag.AccentColor,
+		About: viaJSON[*apitypes.AssistantAbout](t.About), Id: ag.ID, Name: ag.Name, TeamName: t.TeamName, Description: ag.Description, AccentColor: ag.AccentColor,
 		WelcomeMessage: ag.WelcomeMessage, StarterQuestions: nonNilStrings(ag.StarterQuestions),
 		CitationMode: apitypes.CitationMode(t.CitationMode), Status: apitypes.AgentStatus(ag.Status), ShortName: t.ShortName,
 		Captcha:         apitypes.CaptchaInfo{Provider: apitypes.CaptchaInfoProvider(a.Public.Captcha.Provider()), SiteKey: a.Public.Captcha.SiteKey()},

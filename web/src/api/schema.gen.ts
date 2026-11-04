@@ -5784,6 +5784,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/accessibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public reporting contact and optional institutional accessibility statement */
+        get: operations["getAccessibilitySettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/settings/accessibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accessibility statement settings (platform admins and auditors) */
+        get: operations["adminGetAccessibilitySettings"];
+        /** Edit public statement links (platform admins only, audited, If-Match required) */
+        put: operations["adminPutAccessibilitySettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9727,6 +9762,8 @@ export interface components {
         };
         /** @description An agent's configuration (the draft, or a published version), with defaults applied. */
         AgentConfig: {
+            /** @description Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty. */
+            ownershipNote?: string;
             instructions: string;
             /** Format: uuid */
             chatModelId: string | null;
@@ -9770,6 +9807,8 @@ export interface components {
         };
         /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. Type errors name the JSON field and expected kind (for example, maxOutputTokens must be a whole number), never Go types. */
         AgentConfigInput: {
+            /** @description Optional single-line plain ownership/contact note. No HTML or links. Draft-only until explicit publish; old versions default to empty. */
+            ownershipNote?: string;
             instructions?: string;
             /** Format: uuid */
             chatModelId?: string | null;
@@ -10291,6 +10330,7 @@ export interface components {
         };
         /** @description A published agent's public profile */
         AgentCard: {
+            about?: components["schemas"]["AssistantAbout"];
             /** Format: uuid */
             id: string;
             teamSlug: string;
@@ -10318,6 +10358,7 @@ export interface components {
         };
         /** @description A public agent's profile for anonymous visitors */
         PublicAgent: {
+            about?: components["schemas"]["AssistantAbout"];
             /** Format: uuid */
             id: string;
             name: string;
@@ -12915,8 +12956,53 @@ export interface components {
             items: components["schemas"]["ContentHealthFinding"][];
             nextCursor: string | null;
         };
+        /** @description Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee. */
+        AssistantAbout: {
+            /** @description Routes to another permitted assistant; no answer model of its own. Destination checks may differ. */
+            router?: boolean;
+            modelLabel: string;
+            audience: components["schemas"]["Audience"];
+            strictlyGrounded: boolean;
+            ownershipNote: string;
+            sourceCount: number;
+            /** @description True means more than 500 sources; count is a lower bound and update observation omitted. */
+            sourcesLimited: boolean;
+            /**
+             * Format: date-time
+             * @description Last known successful processing observation; absent when unknown or bounded out. Not author-edit freshness.
+             */
+            lastProcessedAt?: string;
+            passageJudging: components["schemas"]["ConfiguredCheck"];
+            claimChecks: components["schemas"]["ConfiguredCheck"];
+            moderation: components["schemas"]["ConfiguredCheck"];
+            /** @description Effective classification retention summary; holds can extend it. Does not disclose whether a hold exists. */
+            retention: string;
+        };
+        /** @enum {string} */
+        ConfiguredCheck: "enabled" | "disabled" | "unknown";
+        AccessibilitySettingsInput: {
+            /** @description HTTPS or simple mailto; empty uses instance support contact. No credentials, HTML or control characters. */
+            contactUrl: string;
+            /** @description Optional HTTPS URL of the institution's statement; empty removes it. */
+            institutionUrl: string;
+        };
+        AccessibilitySettings: components["schemas"]["AccessibilitySettingsInput"] & {
+            /** Format: int64 */
+            revision: number;
+        };
     };
     responses: {
+        /** @description Current safe public statement links */
+        AccessibilitySettingsReply: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    data: components["schemas"]["AccessibilitySettings"];
+                };
+            };
+        };
         /** @description A crawl run */
         CrawlReply: {
             headers: {
@@ -24024,6 +24110,55 @@ export interface operations {
                     };
                 };
             };
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    getAccessibilitySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["AccessibilitySettingsReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetAccessibilitySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["AccessibilitySettingsReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutAccessibilitySettings: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessibilitySettingsInput"];
+            };
+        };
+        responses: {
+            200: components["responses"]["AccessibilitySettingsReply"];
+            400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
