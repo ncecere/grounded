@@ -11,7 +11,10 @@ test("checks a configuration file by keyboard at 390px", async ({ as, admin, a11
   const page = await as("alex");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/teams/${team}/settings?tab=general`);
-  await page.getByRole("link", { name: "Import configuration…" }).click();
+  const link = page.getByRole("link", { name: "Import configuration…" });
+  await expect(link).toBeVisible();
+  await a11y(page, "team settings with the configuration links at 390px");
+  await link.click();
   await expect(page.getByRole("heading", { name: "Import configuration" })).toBeVisible();
   const box = page.getByRole("textbox", { name: "Configuration (YAML)" });
   await box.fill("apiVersion: grounded.team/v1\nsources: []\nknowledgeBases: []\nagents: []\nevaluationSets: []\nwebhooks: []\n");
