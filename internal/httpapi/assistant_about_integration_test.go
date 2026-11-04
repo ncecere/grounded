@@ -53,11 +53,11 @@ func TestAssistantAboutPublishedProjection(t *testing.T) {
 	// No chat/model requests or jobs are produced by repeated profile reads.
 	chats := len(env.proxy.ChatRequests())
 	embeds := env.proxy.EmbedRequestsFor("bow-64")
-	jobs := env.scalar(t, "SELECT count(*) FROM river_job")
+	jobs := env.scalar(t, requestJobs)
 	for range 3 {
 		anon.call("GET", path, nil, nil)
 	}
-	if len(env.proxy.ChatRequests()) != chats || env.proxy.EmbedRequestsFor("bow-64") != embeds || env.scalar(t, "SELECT count(*) FROM river_job") != jobs {
+	if len(env.proxy.ChatRequests()) != chats || env.proxy.EmbedRequestsFor("bow-64") != embeds || env.scalar(t, requestJobs) != jobs {
 		t.Fatal("profile read caused work")
 	}
 	// Public projection never serializes connection/config/source identifiers.

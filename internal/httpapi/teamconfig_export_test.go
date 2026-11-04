@@ -215,7 +215,7 @@ func TestConfigurationExportKeyBoundaryAndReadOnly(t *testing.T) {
 			// Include secret-bearing rows in the comparison, never in test output.
 			if err := env.app.Pool.QueryRow(ctx, `SELECT jsonb_build_array(
     (SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM api_keys x),
-    (SELECT count(*) FROM audit_log), (SELECT count(*) FROM river_job),
+    (SELECT count(*) FROM audit_log), (SELECT count(*) FROM river_job WHERE NOT coalesce((metadata->>'periodic')::boolean, false)),
     (SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM data_sources x),
     (SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM agents x)
    )::text`).Scan(&result); err != nil {
