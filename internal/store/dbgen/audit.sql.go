@@ -148,6 +148,7 @@ CROSS JOIN LATERAL (
         -- A content health report is never named: it holds no title, and platform staff read team audit logs.
         WHEN 'content_health_report' THEN (SELECT 'Content health report' FROM content_health_reports chr WHERE chr.id = ids.target_uuid)
         WHEN 'content_health_settings' THEN 'Content health reports'
+        WHEN 'accessibility_settings' THEN 'Accessibility statement'
         WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'answer_cache_settings' THEN 'Saved answers'
         WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)

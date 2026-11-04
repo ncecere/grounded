@@ -9,7 +9,7 @@
   gap: var(--space-1);
   width: 100%;
   padding: var(--space-2);
-  border-radius: 1.375rem;
+  border-radius: var(--radius-5);
   background-color: var(--color-surface-raised);
   box-shadow:
     0 0 0 1px var(--color-border-strong),
@@ -20,7 +20,7 @@
     box-shadow:
       0 0 0 1px var(--color-focus-ring),
       var(--shadow-2),
-      var(--shadow-focus);
+      var(--shadow-focus-field);
   }
 
   &[data-dragging] {

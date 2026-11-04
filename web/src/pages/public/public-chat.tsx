@@ -1,3 +1,4 @@
+import { AssistantAbout } from "../../components/assistant-about";
 /*
  * The anonymous chat with a public agent, shared by the public page (/a/…)
  * and the widget's embed page. The session starts with the first question
@@ -113,7 +114,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
 
   // The widget's loader already shows the agent's name and Close: the frame names it for screen readers only, and
   // has a slim row for New chat once there's a conversation (one header, US-16).
-  const slim = compact && chat.items.length === 0;
+  const slim = compact && chat.items.length === 0 && !agent.about;
   return (
     <section className={p.chat} aria-labelledby="public-chat-title">
       <header className={compact ? (slim ? "sr-only" : p.compactHead) : `${c.header} ${p.bar}`}>
@@ -135,6 +136,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
             <SquarePen aria-hidden /> <span className={p.barLabel}>New chat</span>
           </Button>
         )}
+        <AssistantAbout about={agent.about} />
         {actions}
       </header>
       {session.isLoading ? (
@@ -162,7 +164,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
       )}
       {needsCaptcha && <Turnstile siteKey={agent.captcha.siteKey} onToken={setCaptchaToken} />}
       <p className={p.privacy}>
-        Conversations here are anonymous and kept only briefly. Don't share personal information. Questions the assistant can't answer may be grouped,
+        Conversations here are anonymous. Retention follows platform policy and legal holds may extend it. Don't share personal information. Questions the assistant can't answer may be grouped,
         without your details, to improve it.
       </p>
     </section>

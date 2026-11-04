@@ -38,6 +38,7 @@ type testApp struct {
 	Client *http.Client
 	// stopWorker waits for the fixture's jobs to stop before tests run a job manually.
 	stopWorker func() error
+	queries    *aboutQueryTrace
 }
 
 // testWeb stands in for the built UI: index.html and widget.js.
@@ -54,8 +55,21 @@ func newTestApp(t *testing.T, mutate func(*config.Config)) *testApp {
 // processed end to end.
 func newTestAppWith(t *testing.T, mutate func(*config.Config), worker bool) *testApp {
 	t.Helper()
-	pool, _ := testutil.NewDB(t)
-	return newTestAppOn(t, pool, mutate, worker)
+	_, dbURL := testutil.NewDB(t)
+	cfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace := &aboutQueryTrace{}
+	cfg.ConnConfig.Tracer = trace
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	app := newTestAppOn(t, pool, mutate, worker)
+	app.queries = trace
+	return app
 }
 
 // newTestAppOn serves an app over an existing database (for example a

@@ -37,6 +37,7 @@ const actionLabels: Record<string, string> = {
   "webhook_destination.delete": "Removed a webhook destination",
   "platform.webhooks": "Turned webhooks on or off",
   "platform.content_health": "Turned content health reports on or off",
+  "platform.accessibility": "Changed the accessibility statement links",
   "content_health.generate": "Asked for a content health report",
   "content_health.cancel": "Cancelled a content health report",
   "content_health.delete": "Deleted a content health report",

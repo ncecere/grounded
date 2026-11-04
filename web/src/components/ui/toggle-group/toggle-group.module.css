@@ -23,13 +23,19 @@
 }
 
 /*
- * Joined: a segmented control. Items overlap by 1px so neighbouring inset
- * rings read as one shared border; the focused / pressed item is raised so
- * its ring is never covered.
+ * Joined: a segmented control, drawn as one sunken track whose selected item
+ * is raised (the same look as Tabs' pills variant). Items carry no borders of
+ * their own, so a row of filters reads as one quiet control rather than a
+ * strip of boxes. The selected item differs in three ways (raised surface with
+ * a ring, full-strength text, aria-pressed), never by colour alone.
  */
 .group[data-joined] {
   flex-wrap: nowrap;
-  gap: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 
   /* overflow="scroll", too wide for its container (a phone): scroll sideways, and
      fade the edge where more items are hidden so it's clear the control scrolls. */
@@ -71,47 +77,40 @@
 
   & > .item {
     flex-shrink: 0;
-    border-radius: 0;
-  }
+    /* The track's 2px inset keeps the outer height of a lone control. */
+    height: calc(var(--control-height-md) - 4px);
+    border-radius: var(--radius-control-inner);
+    --toggle-ring: transparent;
 
-  & > .item:is([data-pressed], :hover) {
-    z-index: 1;
+    &:not([data-pressed]) {
+      --toggle-bg: transparent;
+    }
+
+    @media (hover: hover) {
+      &:hover:not([data-disabled], [data-pressed]) {
+        --toggle-bg: var(--color-surface-hover);
+        --toggle-ring: transparent;
+      }
+    }
+
+    &[data-pressed] {
+      --toggle-bg: var(--color-surface-raised);
+      --toggle-fg: var(--color-text);
+      --toggle-ring: transparent;
+      box-shadow: var(--shadow-segment);
+    }
+
+    &[data-size="sm"] {
+      height: calc(var(--control-height-sm) - 4px);
+    }
   }
 
   & > .item:focus-visible {
     z-index: 2;
   }
 
-  &[data-orientation="horizontal"] {
-    & > .item:first-child {
-      border-start-start-radius: var(--radius-control);
-      border-end-start-radius: var(--radius-control);
-    }
-
-    & > .item:last-child {
-      border-start-end-radius: var(--radius-control);
-      border-end-end-radius: var(--radius-control);
-    }
-
-    & > .item + .item {
-      margin-inline-start: -1px;
-    }
-  }
-
   &[data-orientation="vertical"] {
-    & > .item:first-child {
-      border-start-start-radius: var(--radius-control);
-      border-start-end-radius: var(--radius-control);
-    }
-
-    & > .item:last-child {
-      border-end-start-radius: var(--radius-control);
-      border-end-end-radius: var(--radius-control);
-    }
-
-    & > .item + .item {
-      margin-block-start: -1px;
-    }
+    flex-direction: column;
   }
 }
 
@@ -123,10 +122,5 @@
 }
 
 .group[data-joined][data-wrapped][data-orientation] {
-  gap: var(--space-1);
-
-  & > .item {
-    margin: 0;
-    border-radius: var(--radius-control);
-  }
+  gap: 2px;
 }

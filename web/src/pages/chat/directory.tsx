@@ -1,7 +1,7 @@
 /* Discover agents (/agents): agents grouped by audience (your teams, signed-in users, public) with each tile's audience, search, a group toggle and a team filter in the URL; and the lists the home page reuses. */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Bot, MessagesSquare } from "lucide-react";
+import { ArrowRight, Bot, MessagesSquare, Search } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { agentDirectoryQuery, conversationsQuery } from "../../api/queries";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -24,10 +24,10 @@ import d from "./directory.module.css";
 
 type Card = Schemas["AgentCard"];
 
-/** One agent tile, linking to its chat page. */
-function AgentTile({ a }: { a: Card }) {
+/** One agent tile, linking to its chat page. Nested (inside a card): a flat panel, never a card in a card. */
+function AgentTile({ a, nested }: { a: Card; nested?: boolean }) {
   return (
-    <Link to="/a/$team/$agent" params={{ team: a.teamSlug, agent: a.slug }} className={d.agent}>
+    <Link to="/a/$team/$agent" params={{ team: a.teamSlug, agent: a.slug }} className={nested ? `${d.agent} ${d.nested}` : d.agent}>
       <AgentAvatar agent={a} size="md" />
       <span className={d.agentText}>
         <span className={d.agentName}>{a.name}</span>
@@ -54,12 +54,12 @@ function AgentTile({ a }: { a: Card }) {
   );
 }
 
-function TileGrid({ list }: { list: Card[] }) {
+function TileGrid({ list, nested }: { list: Card[]; nested?: boolean }) {
   return (
     <ul className={d.grid}>
       {list.map((a) => (
         <li key={a.id}>
-          <AgentTile a={a} />
+          <AgentTile a={a} nested={nested} />
         </li>
       ))}
     </ul>
@@ -88,7 +88,8 @@ export function AgentList({ limit }: { limit?: number }) {
         description="Agents your teams publish appear here. Editors create them under a team's Agents page."
       />
     );
-  return <TileGrid list={list} />;
+  // Home shows this list inside a card, so its tiles are flat panels.
+  return <TileGrid list={list} nested />;
 }
 
 type Group = NonNullable<Card["group"]>;
@@ -203,6 +204,7 @@ export function AgentDirectoryPage() {
             size="sm"
             aria-label="Search"
             placeholder="Name, description or team"
+            startIcon={<Search />}
             value={filters.query}
             onChange={(e) => filters.setQuery(e.target.value)}
             className={d.search}

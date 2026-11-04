@@ -43,6 +43,15 @@ type AccessLog struct {
 	At             time.Time
 }
 
+type AccessibilitySetting struct {
+	Singleton      bool
+	ContactUrl     string
+	InstitutionUrl string
+	Revision       int64
+	UpdatedBy      uuid.NullUUID
+	UpdatedAt      time.Time
+}
+
 type Agent struct {
 	ID                 uuid.UUID
 	TeamID             uuid.UUID

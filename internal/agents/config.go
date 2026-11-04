@@ -61,6 +61,7 @@ func (r KBRef) EffectiveTopK(kbTopK int) int {
 // Config is an agent's configuration, as stored in the draft and in
 // immutable versions. Decode stored JSON with DecodeConfig so defaults apply.
 type Config struct {
+	OwnershipNote      string              `json:"ownershipNote,omitempty"` // omitted when empty: configs without a note stay byte for byte as before #34 (ADR-0030)
 	Instructions       string              `json:"instructions"`
 	ChatModelID        *uuid.UUID          `json:"chatModelId"`
 	Temperature        *float64            `json:"temperature,omitempty"`
@@ -108,6 +109,7 @@ type Config struct {
 // configInput is Config with every field optional, so absent fields take
 // their defaults.
 type configInput struct {
+	OwnershipNote      *string              `json:"ownershipNote"`
 	Instructions       *string              `json:"instructions"`
 	ChatModelID        *uuid.UUID           `json:"chatModelId"`
 	Temperature        *float64             `json:"temperature"`
@@ -238,6 +240,10 @@ func normalize(in configInput) (Config, []Problem) {
 		QueryRewrite: true, Moderation: moderation.Override{}.Normalize(), KBs: []KBRef{},
 		Audience: authz.AudienceTeam, Tools: []uuid.UUID{}, Rerank: true, RerankTopN: rerank.DefaultTopN,
 		FollowUpSuggestions: true,
+	}
+	setIf(&c.OwnershipNote, in.OwnershipNote)
+	if !validOwnershipNote(c.OwnershipNote) {
+		p.bad("ownershipNote", "Ownership note must be at most 500 characters of single-line plain text without HTML or links")
 	}
 	c.normalizeModel(in, &p)
 	c.normalizeTools(in.Tools, &p)

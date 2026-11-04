@@ -130,6 +130,9 @@ export const defaultConfig: AgentConfigInput = {
 /** A draft config ready to send: the server rejects unknown fields; optional values are cleared with null / "". */
 export function configInput(c: AgentConfig): AgentConfigInput {
   return {
+    // Omitted when empty (absent clears it): a release before #34 rejects the unknown field, so a save through an
+    // older API during a rolling upgrade still works for every agent without a note (ADR-0030).
+    ownershipNote: c.ownershipNote ? c.ownershipNote : undefined,
     instructions: c.instructions,
     chatModelId: c.chatModelId ?? null,
     temperature: c.temperature ?? null,

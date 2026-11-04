@@ -69,4 +69,5 @@ Once an ADR is accepted, leave its substance alone. To reverse or replace a deci
 | [0027](0027-content-health-report.md) | Content health reports are bounded, opt-in, ID-only snapshots | Accepted | 2026-10-30 |
 | [0028](0028-contextual-chunks.md) | Contextual chunks | Accepted | 2026-10-30 |
 | [0029](0029-structural-procedure-boundaries.md) | Opt-in structural passage boundaries | Accepted | 2026-10-31 |
+| [0030](0030-assistant-disclosures.md) | Published assistant disclosures | Proposed | 2026-10-31 |
 | [0031](0031-generated-helm.md) | Generated Helm alongside canonical Kustomize | Proposed | 2026-10-31 |
