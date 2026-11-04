@@ -11599,6 +11599,20 @@ export interface components {
              */
             otherTokens: number;
         };
+        /** @description The usage ledger of one channel (E13): where queries and answers came from. ui is the signed-in app, public the public page, widget the embedded widget, api and openai the REST and OpenAI-compatible APIs, mcp the MCP server, test Try it and editors' knowledge base tests, evaluation evaluation runs; "" is indexing and other background work. Includes usage retention already rolled up by day. */
+        PlatformAnalyticsUsageChannel: {
+            channel: string;
+            /** Format: int64 */
+            queries: number;
+            /** Format: int64 */
+            chatInputTokens: number;
+            /** Format: int64 */
+            chatOutputTokens: number;
+            /** Format: int64 */
+            embeddingTokens: number;
+            /** Format: int64 */
+            otherTokens: number;
+        };
         PlatformAnalyticsAgent: {
             /** Format: uuid */
             agentId: string;
@@ -11662,6 +11676,8 @@ export interface components {
             }[];
             moderation: components["schemas"]["ModerationCount"][];
             models: components["schemas"]["PlatformAnalyticsModel"][];
+            /** @description The usage ledger by where it was used (E13); the team filter applies, the audience filter does not. */
+            usageChannels: components["schemas"]["PlatformAnalyticsUsageChannel"][];
             topAgents: components["schemas"]["PlatformAnalyticsAgent"][];
             topTeams: components["schemas"]["PlatformAnalyticsTeam"][];
             /** @description One row per UTC day of the range */

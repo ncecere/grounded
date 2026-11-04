@@ -15525,6 +15525,21 @@ components:
         chatOutputTokens: { type: integer, format: int64 }
         embeddingTokens: { type: integer, format: int64 }
         otherTokens: { type: integer, format: int64, description: "SystemOne, rerank and OCR (vision) tokens, as Costs counts them" }
+    PlatformAnalyticsUsageChannel:
+      type: object
+      description: >-
+        The usage ledger of one channel (E13): where queries and answers came from. ui is the signed-in app,
+        public the public page, widget the embedded widget, api and openai the REST and OpenAI-compatible APIs,
+        mcp the MCP server, test Try it and editors' knowledge base tests, evaluation evaluation runs; "" is
+        indexing and other background work. Includes usage retention already rolled up by day.
+      required: [channel, queries, chatInputTokens, chatOutputTokens, embeddingTokens, otherTokens]
+      properties:
+        channel: { type: string }
+        queries: { type: integer, format: int64 }
+        chatInputTokens: { type: integer, format: int64 }
+        chatOutputTokens: { type: integer, format: int64 }
+        embeddingTokens: { type: integer, format: int64 }
+        otherTokens: { type: integer, format: int64 }
     PlatformAnalyticsAgent:
       type: object
       required: [agentId, agentSlug, agentName, teamId, teamSlug, teamName, deleted, answers, noContextRate, satisfaction, citationSupportRate]
@@ -15551,7 +15566,7 @@ components:
         agents: { type: integer, format: int64, description: Agents with answers in the range }
     PlatformAnalytics:
       type: object
-      required: [from, to, totals, audiences, channels, moderation, models, topAgents, topTeams, daily]
+      required: [from, to, totals, audiences, channels, moderation, models, usageChannels, topAgents, topTeams, daily]
       properties:
         from: { type: string, format: date }
         to: { type: string, format: date }
@@ -15582,6 +15597,10 @@ components:
         models:
           type: array
           items: { $ref: "#/components/schemas/PlatformAnalyticsModel" }
+        usageChannels:
+          type: array
+          description: The usage ledger by where it was used (E13); the team filter applies, the audience filter does not.
+          items: { $ref: "#/components/schemas/PlatformAnalyticsUsageChannel" }
         topAgents:
           type: array
           maxItems: 10

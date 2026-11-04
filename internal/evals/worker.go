@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 
+	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -148,7 +149,7 @@ func (s *Service) executor(ctx context.Context, run dbgen.EvalRun, set dbgen.Eva
 	}
 	run.Config = raw
 	x := &executor{s: s, run: run, actor: systemActor, t: t,
-		meta: map[string]any{"source": "evaluation", "evaluationRunId": run.ID.String(), "evaluationSetId": set.ID.String()}}
+		meta: map[string]any{"source": "evaluation", "channel": agents.ChannelEvaluation, "evaluationRunId": run.ID.String(), "evaluationSetId": set.ID.String()}}
 	if run.StartedBy.Valid {
 		x.actor = authz.Actor{UserID: run.StartedBy.UUID}
 	}

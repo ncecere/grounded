@@ -55,6 +55,11 @@ const overview: Schemas["PlatformAnalytics"] = {
     { modelId: "m2", modelName: "Embed", kind: "embedding", chatInputTokens: 0, chatOutputTokens: 0, embeddingTokens: 90000, otherTokens: 0 },
     { modelId: "m3", modelName: "", kind: "", chatInputTokens: 10, chatOutputTokens: 5, embeddingTokens: 0, otherTokens: 0 },
   ],
+  usageChannels: [
+    { channel: "widget", queries: 50, chatInputTokens: 300000, chatOutputTokens: 40000, embeddingTokens: 2000, otherTokens: 0 },
+    { channel: "", queries: 0, chatInputTokens: 0, chatOutputTokens: 0, embeddingTokens: 88000, otherTokens: 0 },
+    { channel: "mcp", queries: 7, chatInputTokens: 0, chatOutputTokens: 0, embeddingTokens: 700, otherTokens: 0 },
+  ],
   topAgents: [
     { agentId: "a1", agentSlug: "help", agentName: "Registrar help", teamId: "t1", teamSlug: "registrar", teamName: "Registrar", deleted: false, answers: 120, noContextRate: 0.1, satisfaction: 0.8, citationSupportRate: 0.91 },
     { agentId: "a2", agentSlug: "", agentName: "", teamId: "t2", teamSlug: "", teamName: "", deleted: true, answers: 40, noContextRate: 0.2, satisfaction: null, citationSupportRate: null },
@@ -126,6 +131,10 @@ describe("admin analytics page", () => {
     expect(screen.getByRole("table", { name: "Blocked and flagged by category" })).toHaveTextContent(/Personal data\s*0\s*6\s*0\s*0/);
     await userEvent.click(screen.getByRole("tab", { name: "Models & tokens" }));
     expect(await screen.findByRole("table", { name: "Token use per model" })).toHaveTextContent(/Deleted model/);
+    const where = screen.getByRole("table", { name: "Usage by where it was used" });
+    expect(where).toHaveTextContent(/Widget\s*50\s*300,000/);
+    expect(where).toHaveTextContent(/Indexing and background work/);
+    expect(where).toHaveTextContent(/MCP\s*7/);
     await userEvent.click(screen.getByRole("tab", { name: "Top agents & teams" }));
     const agents = await screen.findByRole("table", { name: "Agents with the most answers" });
     expect(within(agents).getByRole("link", { name: "Registrar help" })).toHaveAttribute("href", "/admin/agents?record=a1");
@@ -159,7 +168,7 @@ describe("admin analytics page", () => {
     const empty: Schemas["PlatformAnalytics"] = {
       ...overview,
       totals: { ...overview.totals, answers: 0, conversations: 0, uniqueUsers: 0 },
-      audiences: [], channels: [], moderation: [], models: [], topAgents: [], topTeams: [],
+      audiences: [], channels: [], moderation: [], models: [], usageChannels: [], topAgents: [], topTeams: [],
       daily: overview.daily.map((d) => ({ ...d, answers: 0, conversations: 0 })),
     };
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/analytics": () => empty });

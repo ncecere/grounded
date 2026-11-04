@@ -113,6 +113,28 @@ func (s *Service) models(ctx context.Context, out *Overview, from, end time.Time
 	return err
 }
 
+// channelTokens fills the usage ledger by channel (E13): what each channel's queries and answers used, from the
+// events and, for events retention already deleted, their daily roll-ups (which keep the channel), so a range's
+// totals do not drop past the retention window. Background work (indexing, labelling) has no channel.
+func (s *Service) channelTokens(ctx context.Context, out *Overview, from, end time.Time, team uuid.NullUUID) (err error) {
+	out.UsageChannels, err = QueryInto(ctx, s.Pool, []ChannelTokens{}, func(r pgx.Rows, c *ChannelTokens) error {
+		return r.Scan(&c.Channel, &c.Queries, &c.ChatInput, &c.ChatOutput, &c.Embedding, &c.Other)
+	}, `SELECT u.channel,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'query'), 0)::bigint,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'chat_tokens_in'), 0)::bigint,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'chat_tokens_out'), 0)::bigint,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'embed_tokens'), 0)::bigint,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind IN ('systemone_tokens', 'rerank_tokens', 'vision_tokens_in', 'vision_tokens_out')), 0)::bigint
+		FROM (SELECT coalesce(metadata->>'channel', '') AS channel, kind, quantity, team_id FROM usage_events WHERE occurred_at >= $1 AND occurred_at < $2
+			UNION ALL
+			SELECT channel, kind, quantity, team_id FROM usage_daily
+			WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date AND day < $2::timestamptz AT TIME ZONE 'UTC') u
+		WHERE u.kind IN ('query', 'chat_tokens_in', 'chat_tokens_out', 'embed_tokens', 'systemone_tokens', 'rerank_tokens', 'vision_tokens_in', 'vision_tokens_out')
+			AND ($3::uuid IS NULL OR u.team_id = $3)
+		GROUP BY u.channel ORDER BY sum(u.quantity) FILTER (WHERE u.kind <> 'query') DESC NULLS LAST, u.channel`, from, end, team)
+	return err
+}
+
 // topAgents fills the agents with the most answers, with names resolved now.
 func (s *Service) topAgents(ctx context.Context, out *Overview, args []any) (err error) {
 	out.TopAgents, err = QueryInto(ctx, s.Pool, []TopAgent{}, func(r pgx.Rows, a *TopAgent) error {

@@ -1,4 +1,4 @@
-/* Admin analytics tables: tokens by model (from the usage ledger), and the top agents and teams by answers. */
+/* Admin analytics tables: tokens by model and by where they were used (from the usage ledger), and the top agents and teams by answers. */
 import { Link } from "@tanstack/react-router";
 import type { Schemas } from "@/api/client";
 import { num, pct } from "@/components/analytics/format";
@@ -37,6 +37,45 @@ export function ModelTokens({ models, audienceFiltered }: { models: Schemas["Pla
               <Td numeric>{num(m.chatOutputTokens)}</Td>
               <Td numeric>{num(m.embeddingTokens)}</Td>
               <Td numeric>{num(m.otherTokens)}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+/** Where usage came from (E13), in the words people use; "" is background work. */
+const channelLabels: Record<string, string> = {
+  ui: "Signed-in app",
+  public: "Public page",
+  widget: "Widget",
+  api: "REST API",
+  openai: "OpenAI-compatible API",
+  mcp: "MCP",
+  test: "Try it and editors' tests",
+  evaluation: "Evaluation runs",
+  "": "Indexing and background work",
+};
+
+export function UsageByChannel({ channels }: { channels: Schemas["PlatformAnalyticsUsageChannel"][] }) {
+  return (
+    <Card title="By where it was used" description="The same usage ledger split by where each search or answer came from. The team filter applies; the audience filter doesn't, because usage is recorded by channel." flush>
+      {channels.length === 0 ? (
+        <EmptyState size="compact" title="No usage in this range." />
+      ) : (
+        <Table
+          caption="Usage by where it was used"
+          columns={["Where", { label: "Searches", numeric: true }, { label: "Chat input", numeric: true }, { label: "Chat output", numeric: true }, { label: "Embedding", numeric: true }, { label: "Other", numeric: true }]}
+        >
+          {channels.map((c) => (
+            <Tr key={c.channel}>
+              <Td>{channelLabels[c.channel] ?? c.channel}</Td>
+              <Td numeric>{num(c.queries)}</Td>
+              <Td numeric>{num(c.chatInputTokens)}</Td>
+              <Td numeric>{num(c.chatOutputTokens)}</Td>
+              <Td numeric>{num(c.embeddingTokens)}</Td>
+              <Td numeric>{num(c.otherTokens)}</Td>
             </Tr>
           ))}
         </Table>

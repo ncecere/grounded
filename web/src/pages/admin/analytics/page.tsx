@@ -29,7 +29,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import s from "../../shared.module.css";
 import { AnalyticsFilters, type AnalyticsFilter, useAnalyticsFilter } from "./filters";
-import { ModelTokens, TopAgents, TopTeams } from "./lists";
+import { ModelTokens, UsageByChannel, TopAgents, TopTeams } from "./lists";
 import { FailedQuestions } from "./gaps";
 import { ModerationEvents } from "./moderation-events";
 
@@ -133,7 +133,13 @@ export function AdminAnalyticsPage() {
                 </Stack>
               ),
             },
-            { value: "models", label: "Models & tokens", icon: <Cpu aria-hidden />, content: <ModelTokens models={d.models} audienceFiltered={Boolean(f.audience)} /> },
+            { value: "models", label: "Models & tokens", icon: <Cpu aria-hidden />, content: (
+                <Stack gap={6}>
+                  <ModelTokens models={d.models} audienceFiltered={Boolean(f.audience)} />
+                  <UsageByChannel channels={d.usageChannels} />
+                </Stack>
+              ),
+            },
             {
               value: "top",
               label: "Top agents & teams",
