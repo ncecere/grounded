@@ -1,7 +1,10 @@
-# Signed daily audit export — proposed detailed design
+# Signed daily audit export — detailed design
 
-Written before implementation against private source
-`405da0a05c37f89989c314ce20dfd608e3fdf98d`. ADR0034 is Proposed.
+Written before implementation; built and reviewed on 2026-11-04 (#36, first part). ADR-0034 is Proposed until the
+release that ships it. The review produced a real export from a fresh install and verified it with OpenSSL and an
+independently generated key exactly as "Offline standard signature procedure" below describes (signature, payload hash,
+line chain, ordinals, coverage; a one-byte change to the manifest or payload is detected), and confirmed that metadata
+and non-UUID targets are not exported. SIEM streaming and external destinations remain open on #36.
 
 ## Working built-in path (Proposed; not owner acceptance)
 
