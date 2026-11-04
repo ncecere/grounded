@@ -144,8 +144,9 @@ npm audit reports the same **3 moderate** entries as v0.7.0 for one advisory, `m
 ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)), through `openapi-typescript`, the API
 type generator (development only, not in the image; the fix is a semver-major change). Trivy reports **0 secrets**
 and the same **71 IaC findings** (43 LOW, 25 MEDIUM, 3 HIGH: `Dockerfile.ci` as root and the kind S3 fixture, twice)
-as the reviewed v0.7.0 set, with the generated Helm chart included. Image scans of the published v0.8.0 digests are in
-the [v0.8.0 validation record](validation/v0.8.0.md).
+as the reviewed v0.7.0 set, with the generated Helm chart included. Published v0.8.0 digests (both platforms): 0 Go
+findings and 0 fixable HIGH/CRITICAL; the app keeps its 4 UNKNOWN Debian advisories and the OCR image has 375
+Debian findings without a published fix ([v0.8.0 validation record](validation/v0.8.0.md)).
 
 ### v0.7.0 published verification — 2026-11-01
 
