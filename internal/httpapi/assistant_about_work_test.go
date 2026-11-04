@@ -86,7 +86,7 @@ func TestAssistantAboutNoWork(t *testing.T) {
 		t.Fatal("network trap inactive")
 	}
 	anon := newVisitor(t, env.app.URL)
-	jobs := env.scalar(t, "SELECT count(*) FROM river_job")
+	jobs := env.scalar(t, requestJobs)
 	for _, path := range []string{"/v1/public/agents/" + pub.Id.String(), "/v1/agents/id/" + pub.Id.String()} {
 		env.app.queries.start()
 		var aboutPresent bool
@@ -126,7 +126,7 @@ func TestAssistantAboutNoWork(t *testing.T) {
 			t.Errorf("metadata query count %d", aggregate)
 		}
 	}
-	if trap.reads.Load() != 0 || outbound.Load() != 0 || jobs != env.scalar(t, "SELECT count(*) FROM river_job") {
+	if trap.reads.Load() != 0 || outbound.Load() != 0 || jobs != env.scalar(t, requestJobs) {
 		t.Fatalf("request work: blobs=%d outbound=%d", trap.reads.Load(), outbound.Load())
 	}
 }

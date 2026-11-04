@@ -107,7 +107,7 @@ func rowOf(p teamconfig.Plan, kind, key string) teamconfig.Row {
 func TestConfigurationRoundTripIsNoOp(t *testing.T) {
 	env := newCfgEnv(t)
 	body := file(t, env.export(t))
-	requests, jobs := len(env.proxy.Requests), env.scalar(t, "SELECT count(*) FROM river_job")
+	requests, jobs := len(env.proxy.Requests), env.scalar(t, requestJobs)
 	audits := env.scalar(t, "SELECT count(*) FROM audit_log")
 	p := env.plan(t, env.owner, body, nil)
 	if p.Counts.Create+p.Counts.Update+p.Counts.Blocked != 0 || p.Counts.NoOp != 3 || p.PlanDigest == "" {
@@ -120,7 +120,7 @@ func TestConfigurationRoundTripIsNoOp(t *testing.T) {
 	if code != 200 || out.Plan.PlanDigest != p.PlanDigest || len(out.WebhookSecrets) != 0 {
 		t.Fatalf("apply %d %s", code, raw)
 	}
-	if env.scalar(t, "SELECT count(*) FROM audit_log") != audits || env.scalar(t, "SELECT count(*) FROM river_job") != jobs || len(env.proxy.Requests) != requests {
+	if env.scalar(t, "SELECT count(*) FROM audit_log") != audits || env.scalar(t, requestJobs) != jobs || len(env.proxy.Requests) != requests {
 		t.Fatal("a plan or a no-op apply wrote, queued or called something")
 	}
 }

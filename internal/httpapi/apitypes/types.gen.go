@@ -499,6 +499,57 @@ func (e AuditEntryActorKind) Valid() bool {
 	}
 }
 
+// Defines values for AuditExportSettingsDestination.
+const (
+	AuditExportSettingsDestinationBuiltin AuditExportSettingsDestination = "builtin"
+)
+
+// Valid indicates whether the value is a known member of the AuditExportSettingsDestination enum.
+func (e AuditExportSettingsDestination) Valid() bool {
+	switch e {
+	case AuditExportSettingsDestinationBuiltin:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditExportSettingsInputDestination.
+const (
+	AuditExportSettingsInputDestinationBuiltin AuditExportSettingsInputDestination = "builtin"
+)
+
+// Valid indicates whether the value is a known member of the AuditExportSettingsInputDestination enum.
+func (e AuditExportSettingsInputDestination) Valid() bool {
+	switch e {
+	case AuditExportSettingsInputDestinationBuiltin:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditExportStatusState.
+const (
+	AuditExportStatusStateCompleted AuditExportStatusState = "completed"
+	AuditExportStatusStateFailed    AuditExportStatusState = "failed"
+	AuditExportStatusStatePending   AuditExportStatusState = "pending"
+)
+
+// Valid indicates whether the value is a known member of the AuditExportStatusState enum.
+func (e AuditExportStatusState) Valid() bool {
+	switch e {
+	case AuditExportStatusStateCompleted:
+		return true
+	case AuditExportStatusStateFailed:
+		return true
+	case AuditExportStatusStatePending:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditParentType.
 const (
 	AuditParentTypeAgent      AuditParentType = "agent"
@@ -6022,6 +6073,62 @@ type AuditEntry struct {
 
 // AuditEntryActorKind defines model for AuditEntry.ActorKind.
 type AuditEntryActorKind string
+
+// AuditExportList defines model for AuditExportList.
+type AuditExportList = []AuditExportStatus
+
+// AuditExportRequest defines model for AuditExportRequest.
+type AuditExportRequest struct {
+	Day openapi_types.Date `json:"day"`
+}
+
+// AuditExportSettings defines model for AuditExportSettings.
+type AuditExportSettings struct {
+	// CoverageStart Immutable first covered UTC day once requests exist
+	CoverageStart openapi_types.Date `json:"coverageStart"`
+
+	// Destination External destinations are unsupported and fail closed
+	Destination AuditExportSettingsDestination `json:"destination"`
+	Enabled     bool                           `json:"enabled"`
+
+	// KeyId SHA-256 of operator Ed25519 public key, never private material
+	KeyId    string `json:"keyId"`
+	KeyReady bool   `json:"keyReady"`
+	Revision int64  `json:"revision"`
+}
+
+// AuditExportSettingsDestination External destinations are unsupported and fail closed
+type AuditExportSettingsDestination string
+
+// AuditExportSettingsInput defines model for AuditExportSettingsInput.
+type AuditExportSettingsInput struct {
+	// CoverageStart Immutable first covered UTC day once requests exist
+	CoverageStart openapi_types.Date `json:"coverageStart"`
+
+	// Destination External destinations are unsupported and fail closed
+	Destination AuditExportSettingsInputDestination `json:"destination"`
+	Enabled     bool                                `json:"enabled"`
+}
+
+// AuditExportSettingsInputDestination External destinations are unsupported and fail closed
+type AuditExportSettingsInputDestination string
+
+// AuditExportStatus defines model for AuditExportStatus.
+type AuditExportStatus struct {
+	Day openapi_types.Date `json:"day"`
+
+	// Envelope Signed manifest and public verification information; not a trust root
+	Envelope *map[string]interface{} `json:"envelope,omitempty"`
+
+	// FailureCode Redacted fixed operational code, never underlying error values
+	FailureCode string                 `json:"failureCode"`
+	Id          openapi_types.UUID     `json:"id"`
+	Revision    int64                  `json:"revision"`
+	State       AuditExportStatusState `json:"state"`
+}
+
+// AuditExportStatusState defines model for AuditExportStatus.State.
+type AuditExportStatusState string
 
 // AuditPage defines model for AuditPage.
 type AuditPage struct {
@@ -13266,6 +13373,24 @@ type AdminListAuditParams struct {
 // AdminListAuditParamsActorKind defines parameters for AdminListAudit.
 type AdminListAuditParamsActorKind string
 
+// AdminPutAuditExportSettingsParams defines parameters for AdminPutAuditExportSettings.
+type AdminPutAuditExportSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminRequestAuditExportParams defines parameters for AdminRequestAuditExport.
+type AdminRequestAuditExportParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminRetryAuditExportParams defines parameters for AdminRetryAuditExport.
+type AdminRetryAuditExportParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListBreakGlassSessionsParams defines parameters for AdminListBreakGlassSessions.
 type AdminListBreakGlassSessionsParams struct {
 	// State open: pending and active; closed: every other status
@@ -14049,6 +14174,12 @@ type AdminSetAgentShortNameJSONRequestBody = ShortNameUpdate
 
 // AdminSetAgentStatusJSONRequestBody defines body for AdminSetAgentStatus for application/json ContentType.
 type AdminSetAgentStatusJSONRequestBody = AdminAgentStatusChange
+
+// AdminPutAuditExportSettingsJSONRequestBody defines body for AdminPutAuditExportSettings for application/json ContentType.
+type AdminPutAuditExportSettingsJSONRequestBody = AuditExportSettingsInput
+
+// AdminRequestAuditExportJSONRequestBody defines body for AdminRequestAuditExport for application/json ContentType.
+type AdminRequestAuditExportJSONRequestBody = AuditExportRequest
 
 // AdminStartBreakGlassSessionJSONRequestBody defines body for AdminStartBreakGlassSession for application/json ContentType.
 type AdminStartBreakGlassSessionJSONRequestBody = BreakGlassStart
