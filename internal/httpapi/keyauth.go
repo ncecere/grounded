@@ -49,6 +49,13 @@ func (a *api) keyOr(fallback, next http.Handler, fail errorWriter) http.Handler 
 // once it accepts the request (/mcp refuses a key without the mcp scope,
 // and a refused call isn't a use).
 func (a *api) keyAuth(fallback, next http.Handler, fail errorWriter, touch bool) http.Handler {
+	return a.keyAuthMode(fallback, next, fail, touch, false)
+}
+
+// readOnly suppresses authentication-maintenance writes as well as last-use
+// writes. Authorization remains identical; export checks its own narrow scope.
+func (a *api) keyAuthMode(fallback, next http.Handler, fail errorWriter, touch, readOnly bool) http.Handler {
+
 	limiter := &ratelimit.Limiter{KV: a.KV}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
@@ -61,7 +68,11 @@ func (a *api) keyAuth(fallback, next http.Handler, fail errorWriter, touch bool)
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "Send a valid API key as: Authorization: Bearer <key>")
 			return
 		}
-		actor, err := a.APIKeys.Verify(r.Context(), token)
+		verify := a.APIKeys.Verify
+		if readOnly {
+			verify = a.APIKeys.VerifyReadOnly
+		}
+		actor, err := verify(r.Context(), token)
 		if errors.Is(err, apikeys.ErrInvalidKey) {
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "The API key is invalid, expired or revoked")
 			return

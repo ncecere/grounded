@@ -33,7 +33,7 @@ func TestHTTPServicesPreserveInfrastructureAndDomainIdentity(t *testing.T) {
 		{"Retention", "Retention"}, {"BreakGlass", "BreakGlass"},
 		{"ProfileMigrations", "ProfileMigrations"}, {"Evaluations", "Evaluations"}, {"MCP", "MCP"}, {"OAuth", "OAuth"},
 		{"Contextual", "Contextual"}, {"TeamRequests", "TeamRequests"}, {"Webhooks", "Webhooks"},
-		{"Gaps", "Gaps"}, {"ContentHealth", "ContentHealth"}, {"AnswerCache", "AnswerCache"},
+		{"Gaps", "Gaps"}, {"ContentHealth", "ContentHealth"}, {"AnswerCache", "AnswerCache"}, {"TeamConfig", "TeamConfig"},
 	}
 	for _, pair := range pairs {
 		field := reflect.ValueOf(s).Elem().FieldByName(pair[0])

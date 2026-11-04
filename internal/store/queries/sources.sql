@@ -233,3 +233,8 @@ WHERE a.deleted_at IS NULL
        OR (CASE coalesce(g.principal_type, 'team') WHEN 'team' THEN 0 WHEN 'all_authenticated' THEN 1 ELSE 2 END) >
           (CASE nl.max_audience WHEN 'team' THEN 0 WHEN 'all_authenticated' THEN 1 ELSE 2 END))
 ORDER BY t.slug, lower(a.name);
+
+-- A source made from a configuration file starts paused: an import never starts a crawl
+-- (docs/specs/config-as-code-import §4).
+-- name: PauseImportedSource :one
+UPDATE data_sources SET status = 'paused' WHERE id = $1 RETURNING *;

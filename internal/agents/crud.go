@@ -328,51 +328,56 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		return View{}, err
 	}
 	var out dbgen.Agent
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := s.loadAgent(ctx, q, acc.Team.ID, id, true)
-		if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		pf, err := applyProfile(profileOf(cur), in.Profile)
-		if err != nil {
-			return err
-		}
-		if err := checkLiveProfile(ctx, q, acc.Role, cur, pf); err != nil {
-			return err
-		}
-		draft, changed := cur.Draft, false
-		if in.Config != nil {
-			cfg, err := ParseConfig(in.Config)
-			if err != nil {
-				return err
-			}
-			draft = cfg.JSON()
-			changed = !bytes.Equal(DecodeConfig(cur.Draft).JSON(), draft)
-		}
-		out, err = q.UpdateAgentProfile(ctx, dbgen.UpdateAgentProfileParams{
-			ID: id, Slug: pf.slug, Name: pf.name, Description: pf.description, AccentColor: pf.accent,
-			WelcomeMessage: pf.welcome, StarterQuestions: pf.starters, Draft: draft, DraftChanged: changed,
-		})
-		if apperr.IsUniqueViolation(err, "agents_team_slug_key") {
-			return slugTaken()
-		} else if err != nil {
-			return err
-		}
-		before, after := agentSnapshot(cur), agentSnapshot(out)
-		if !jsonEqual(before, after) {
-			e := a.Audit("agent.update", "agent", id.String())
-			e.TeamID, e.Before, e.After = acc.Team.ID, before, after
-			return audit.Record(ctx, q, e)
-		}
-		return nil
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.update(ctx, q, tx, a, acc, id, in, expectedRevision, &out)
 	})
 	if err != nil {
 		return View{}, err
 	}
 	return s.view(ctx, out, acc.Team, true)
+}
+
+// update is Update's transaction: the profile (with the live-profile rule), the draft and the audit entry.
+func (s *Service) update(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, id uuid.UUID, in UpdateInput, expectedRevision int64, out *dbgen.Agent) error {
+	cur, err := s.loadAgent(ctx, q, acc.Team.ID, id, true)
+	if err != nil {
+		return err
+	}
+	if cur.Revision != expectedRevision {
+		return apperr.Stale()
+	}
+	pf, err := applyProfile(profileOf(cur), in.Profile)
+	if err != nil {
+		return err
+	}
+	if err := checkLiveProfile(ctx, q, acc.Role, cur, pf); err != nil {
+		return err
+	}
+	draft, changed := cur.Draft, false
+	if in.Config != nil {
+		cfg, err := ParseConfig(in.Config)
+		if err != nil {
+			return err
+		}
+		draft = cfg.JSON()
+		changed = !bytes.Equal(DecodeConfig(cur.Draft).JSON(), draft)
+	}
+	*out, err = q.UpdateAgentProfile(ctx, dbgen.UpdateAgentProfileParams{
+		ID: id, Slug: pf.slug, Name: pf.name, Description: pf.description, AccentColor: pf.accent,
+		WelcomeMessage: pf.welcome, StarterQuestions: pf.starters, Draft: draft, DraftChanged: changed,
+	})
+	if apperr.IsUniqueViolation(err, "agents_team_slug_key") {
+		return slugTaken()
+	} else if err != nil {
+		return err
+	}
+	before, after := agentSnapshot(cur), agentSnapshot(*out)
+	if !jsonEqual(before, after) {
+		e := a.Audit("agent.update", "agent", id.String())
+		e.TeamID, e.Before, e.After = acc.Team.ID, before, after
+		return audit.Record(ctx, q, e)
+	}
+	return nil
 }
 
 // errLiveProfile: the profile isn't versioned, so on an agent published
@@ -436,4 +441,25 @@ func (s *Service) Delete(ctx context.Context, a authz.Actor, teamRef string, id 
 		e.TeamID, e.Before = acc.Team.ID, agentSnapshot(cur)
 		return audit.Record(ctx, q, e)
 	})
+}
+
+// CreateTx and UpdateTx are Create and Update inside the caller's transaction (a configuration file is applied in one,
+// docs/specs/config-as-code-import), with the same checks: team access, limits, the live-profile rule and audit. Neither
+// publishes: a configuration file changes drafts and profiles only.
+func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, a authz.Actor, teamRef string, in CreateInput) (dbgen.Agent, error) {
+	acc, err := s.teamAccess(ctx, a, teamRef, authz.RoleEditor)
+	if err != nil {
+		return dbgen.Agent{}, err
+	}
+	return s.insertDraft(ctx, q, a, acc.Team.ID, in)
+}
+
+func (s *Service) UpdateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, id uuid.UUID, in UpdateInput, expectedRevision int64) (dbgen.Agent, error) {
+	acc, err := s.teamAccess(ctx, a, teamRef, authz.RoleEditor)
+	if err != nil {
+		return dbgen.Agent{}, err
+	}
+	var out dbgen.Agent
+	err = s.update(ctx, q, tx, a, acc, id, in, expectedRevision, &out)
+	return out, err
 }

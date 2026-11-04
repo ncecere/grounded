@@ -19,6 +19,7 @@ import (
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/teams"
 )
 
 // Case is a question with its expected documents decoded.
@@ -121,30 +122,35 @@ func (s *Service) CreateQuestion(ctx context.Context, a authz.Actor, teamRef str
 		return Case{}, err
 	}
 	var c dbgen.EvalCase
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		set, err := loadSet(ctx, q, acc.Team.ID, setID, true)
-		if err != nil {
-			return err
-		}
-		if err := s.checkQuestionRoom(ctx, q, set, 1); err != nil {
-			return err
-		}
-		if err := s.checkPicked(ctx, set, in.Expected); err != nil {
-			return err
-		}
-		if c, err = insertCase(ctx, q, a, setID, in); err != nil {
-			return err
-		}
-		e := a.Audit("evaluation.question_create", "evaluation_set", setID.String())
-		e.After = caseSnapshot(c)
-		meta := map[string]any{"questionId": c.ID}
-		if in.FromSharedQuestion != uuid.Nil {
-			meta["fromSharedQuestion"] = in.FromSharedQuestion
-		}
-		e.Metadata = mergeMeta(e.Metadata, meta)
-		return audited(ctx, q, e, acc.Team.ID)
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.createQuestion(ctx, q, tx, a, acc, setID, in, &c)
 	})
 	return DecodeCase(c), err
+}
+
+// createQuestion is CreateQuestion's transaction.
+func (s *Service) createQuestion(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, setID uuid.UUID, in CaseInput, c *dbgen.EvalCase) error {
+	set, err := loadSet(ctx, q, acc.Team.ID, setID, true)
+	if err != nil {
+		return err
+	}
+	if err := s.checkQuestionRoom(ctx, q, set, 1); err != nil {
+		return err
+	}
+	if err := s.checkPicked(ctx, set, in.Expected); err != nil {
+		return err
+	}
+	if *c, err = insertCase(ctx, q, a, setID, in); err != nil {
+		return err
+	}
+	e := a.Audit("evaluation.question_create", "evaluation_set", setID.String())
+	e.After = caseSnapshot(*c)
+	meta := map[string]any{"questionId": c.ID}
+	if in.FromSharedQuestion != uuid.Nil {
+		meta["fromSharedQuestion"] = in.FromSharedQuestion
+	}
+	e.Metadata = mergeMeta(e.Metadata, meta)
+	return audited(ctx, q, e, acc.Team.ID)
 }
 
 // checkQuestionRoom applies evaluation_questions_per_set before adding n
@@ -189,34 +195,39 @@ func (s *Service) UpdateQuestion(ctx context.Context, a authz.Actor, teamRef str
 		return Case{}, err
 	}
 	var next dbgen.EvalCase
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		set, err := loadSet(ctx, q, acc.Team.ID, setID, true)
-		if err != nil {
-			return err
-		}
-		cur, err := q.LockEvalCase(ctx, dbgen.LockEvalCaseParams{ID: id, SetID: setID})
-		if errors.Is(store.NotFound(err), store.ErrNotFound) {
-			return errNoQuestion
-		} else if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		if err := s.checkPicked(ctx, set, in.Expected); err != nil {
-			return err
-		}
-		raw, _ := json.Marshal(in.Expected)
-		if next, err = q.UpdateEvalCase(ctx, dbgen.UpdateEvalCaseParams{ID: id, Question: in.Question, Expected: raw,
-			MustMention: in.MustMention, Note: in.Note}); err != nil {
-			return err
-		}
-		e := a.Audit("evaluation.question_update", "evaluation_set", setID.String())
-		e.Before, e.After = caseSnapshot(cur), caseSnapshot(next)
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"questionId": id, "changed": caseChanges(cur, next)})
-		return audited(ctx, q, e, acc.Team.ID)
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.updateQuestion(ctx, q, tx, a, acc, setID, id, in, expectedRevision, &next)
 	})
 	return DecodeCase(next), err
+}
+
+// updateQuestion is UpdateQuestion's transaction.
+func (s *Service) updateQuestion(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, setID, id uuid.UUID, in CaseInput, expectedRevision int64, next *dbgen.EvalCase) error {
+	set, err := loadSet(ctx, q, acc.Team.ID, setID, true)
+	if err != nil {
+		return err
+	}
+	cur, err := q.LockEvalCase(ctx, dbgen.LockEvalCaseParams{ID: id, SetID: setID})
+	if errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return errNoQuestion
+	} else if err != nil {
+		return err
+	}
+	if cur.Revision != expectedRevision {
+		return apperr.Stale()
+	}
+	if err := s.checkPicked(ctx, set, in.Expected); err != nil {
+		return err
+	}
+	raw, _ := json.Marshal(in.Expected)
+	if *next, err = q.UpdateEvalCase(ctx, dbgen.UpdateEvalCaseParams{ID: id, Question: in.Question, Expected: raw,
+		MustMention: in.MustMention, Note: in.Note}); err != nil {
+		return err
+	}
+	e := a.Audit("evaluation.question_update", "evaluation_set", setID.String())
+	e.Before, e.After = caseSnapshot(cur), caseSnapshot(*next)
+	e.Metadata = mergeMeta(e.Metadata, map[string]any{"questionId": id, "changed": caseChanges(cur, *next)})
+	return audited(ctx, q, e, acc.Team.ID)
 }
 
 // DeleteQuestion removes a question; past runs keep its results (audited).

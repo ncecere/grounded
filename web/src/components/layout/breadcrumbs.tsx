@@ -137,6 +137,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
     else if (sub === "/content-health" && ["editor", "admin", "owner"].includes(team.data?.role ?? "")) crumbs.push({ label: "Content health" });
     else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
+    else if (sub === "/settings/configuration" && ["editor", "admin", "owner"].includes(team.data?.role ?? ""))
+      crumbs.push({ label: terms.teamSettings, render: <Link to="/teams/$team/settings" params={{ team: slug }} search={{ tab: "general" }} /> }, { label: "Import configuration" });
     return crumbs;
   }
 

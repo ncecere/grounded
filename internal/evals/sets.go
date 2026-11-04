@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/teams"
 )
 
 // SetView is a set with its target's name, question count and latest run.
@@ -110,31 +111,37 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 		return SetView{}, err
 	}
 	var set dbgen.EvalSet
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		if err := s.checkTarget(ctx, q, acc.Team.ID, in); err != nil {
-			return err
-		}
-		if s.Limits != nil {
-			if err := s.Limits.LockUsage(ctx, q, acc.Team.ID); err != nil {
-				return err
-			}
-			if err := s.Limits.CheckResources(ctx, q, acc.Team.ID, limits.Need{EvalSets: 1}); err != nil {
-				return err
-			}
-		}
-		if set, err = q.InsertEvalSet(ctx, dbgen.InsertEvalSetParams{TeamID: acc.Team.ID, KBID: nullID(in.KBID), AgentID: nullID(in.AgentID),
-			Name: in.Name, Description: in.Description, AutoRun: in.AutoRun, CreatedBy: nullUser(a)}); err != nil {
-			return err
-		}
-		e := a.Audit("evaluation.set_create", "evaluation_set", set.ID.String())
-		e.After = setSnapshot(set)
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"kbId": in.KBID, "agentId": in.AgentID})
-		return audited(ctx, q, e, acc.Team.ID)
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.createSet(ctx, q, tx, a, acc, in, &set)
 	})
 	if err != nil {
 		return SetView{}, err
 	}
 	return s.view(ctx, acc.Team.ID, set.ID)
+}
+
+// createSet is Create's transaction.
+func (s *Service) createSet(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, in SetInput, set *dbgen.EvalSet) error {
+	var err error
+	if err := s.checkTarget(ctx, q, acc.Team.ID, in); err != nil {
+		return err
+	}
+	if s.Limits != nil {
+		if err := s.Limits.LockUsage(ctx, q, acc.Team.ID); err != nil {
+			return err
+		}
+		if err := s.Limits.CheckResources(ctx, q, acc.Team.ID, limits.Need{EvalSets: 1}); err != nil {
+			return err
+		}
+	}
+	if *set, err = q.InsertEvalSet(ctx, dbgen.InsertEvalSetParams{TeamID: acc.Team.ID, KBID: nullID(in.KBID), AgentID: nullID(in.AgentID),
+		Name: in.Name, Description: in.Description, AutoRun: in.AutoRun, CreatedBy: nullUser(a)}); err != nil {
+		return err
+	}
+	e := a.Audit("evaluation.set_create", "evaluation_set", set.ID.String())
+	e.After = setSnapshot(*set)
+	e.Metadata = mergeMeta(e.Metadata, map[string]any{"kbId": in.KBID, "agentId": in.AgentID})
+	return audited(ctx, q, e, acc.Team.ID)
 }
 
 // Update changes a set's name, description or automatic runs (audited).
@@ -143,39 +150,44 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 	if err != nil {
 		return SetView{}, err
 	}
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := loadSet(ctx, q, acc.Team.ID, id, true)
-		if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		p := dbgen.UpdateEvalSetParams{ID: id, Name: cur.Name, Description: cur.Description, AutoRun: cur.AutoRun}
-		if in.Name != nil {
-			p.Name = strings.TrimSpace(*in.Name)
-		}
-		if in.Description != nil {
-			p.Description = strings.TrimSpace(*in.Description)
-		}
-		if in.AutoRun != nil {
-			p.AutoRun = *in.AutoRun
-		}
-		if err := checkNames(p.Name, p.Description); err != nil {
-			return err
-		}
-		next, err := q.UpdateEvalSet(ctx, p)
-		if err != nil {
-			return err
-		}
-		e := a.Audit("evaluation.set_update", "evaluation_set", id.String())
-		e.Before, e.After = setSnapshot(cur), setSnapshot(next)
-		return audited(ctx, q, e, acc.Team.ID)
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.updateSet(ctx, q, tx, a, acc, id, in, expectedRevision)
 	})
 	if err != nil {
 		return SetView{}, err
 	}
 	return s.view(ctx, acc.Team.ID, id)
+}
+
+// updateSet is Update's transaction.
+func (s *Service) updateSet(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, id uuid.UUID, in SetUpdate, expectedRevision int64) error {
+	cur, err := loadSet(ctx, q, acc.Team.ID, id, true)
+	if err != nil {
+		return err
+	}
+	if cur.Revision != expectedRevision {
+		return apperr.Stale()
+	}
+	p := dbgen.UpdateEvalSetParams{ID: id, Name: cur.Name, Description: cur.Description, AutoRun: cur.AutoRun}
+	if in.Name != nil {
+		p.Name = strings.TrimSpace(*in.Name)
+	}
+	if in.Description != nil {
+		p.Description = strings.TrimSpace(*in.Description)
+	}
+	if in.AutoRun != nil {
+		p.AutoRun = *in.AutoRun
+	}
+	if err := checkNames(p.Name, p.Description); err != nil {
+		return err
+	}
+	next, err := q.UpdateEvalSet(ctx, p)
+	if err != nil {
+		return err
+	}
+	e := a.Audit("evaluation.set_update", "evaluation_set", id.String())
+	e.Before, e.After = setSnapshot(cur), setSnapshot(next)
+	return audited(ctx, q, e, acc.Team.ID)
 }
 
 // Delete removes a set with its questions and runs (audited).
@@ -324,4 +336,53 @@ func mergeMeta(a, b map[string]any) map[string]any {
 		a[k] = v
 	}
 	return a
+}
+
+// CreateTx, UpdateTx, CreateQuestionTx and UpdateQuestionTx are Create, Update, CreateQuestion and UpdateQuestion inside
+// the caller's transaction (a configuration file is applied in one, docs/specs/config-as-code-import), with the same
+// checks: evaluations switched on, a signed-in editor (never an API key), limits, names and audit entries.
+func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, in SetInput) (dbgen.EvalSet, error) {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return dbgen.EvalSet{}, err
+	}
+	in.Name, in.Description = strings.TrimSpace(in.Name), strings.TrimSpace(in.Description)
+	if err := checkNames(in.Name, in.Description); err != nil {
+		return dbgen.EvalSet{}, err
+	}
+	var set dbgen.EvalSet
+	err = s.createSet(ctx, q, tx, a, acc, in, &set)
+	return set, err
+}
+
+func (s *Service) UpdateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, id uuid.UUID, in SetUpdate, expectedRevision int64) error {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return err
+	}
+	return s.updateSet(ctx, q, tx, a, acc, id, in, expectedRevision)
+}
+
+func (s *Service) CreateQuestionTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, setID uuid.UUID, in CaseInput) error {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return err
+	}
+	if in, err = in.Normalize(); err != nil {
+		return err
+	}
+	var c dbgen.EvalCase
+	return s.createQuestion(ctx, q, tx, a, acc, setID, in, &c)
+}
+
+func (s *Service) UpdateQuestionTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, setID, id uuid.UUID, in CaseInput, expectedRevision int64) error {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return err
+	}
+	if in, err = in.Normalize(); err != nil {
+		return err
+	}
+	var next dbgen.EvalCase
+	return s.updateQuestion(ctx, q, tx, a, acc, setID, id, in, expectedRevision, &next)
 }

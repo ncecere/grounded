@@ -464,6 +464,39 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/MyTeam" }
         "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/configuration:
+    get:
+      operationId: exportTeamConfiguration
+      summary: Download bounded portable team configuration (read only)
+      description: |
+        Requires actual editor/admin/owner membership, or an unrestricted team key
+        with configuration:export scope (not manage). Personal keys also require
+        current editor membership. No content or secret values: webhooks export
+        their URL, description, events and whether they are on, never signing
+        material. Unsupported references/settings refuse the whole export with
+        configuration_unsupported. Check a file with .../configuration/plan and
+        apply it with .../configuration/apply.
+      parameters:
+        - $ref: "#/components/parameters/TeamParam"
+      responses:
+        "200":
+          description: Deterministic JSON-compatible YAML; at most 1 MiB, 500 resources
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/yaml:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409":
+          description: Unsupported or protected configuration; no partial download
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+
   /v1/teams/{team}:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -485,6 +518,77 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/TeamView" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/configuration/plan:
+    post:
+      operationId: planTeamConfiguration
+      summary: Check what applying a configuration file would change (writes nothing)
+      description: |
+        The body is a configuration file (YAML, at most 1 MiB). Objects match the team's by kind and
+        identity: sources, knowledge bases and evaluation sets by name (case-insensitive), agents by
+        slug, webhooks by URL. Nothing is ever deleted or renamed; objects not in the file are listed as
+        not-in-file. Requires actual editor/admin/owner membership, or an unrestricted team key with
+        configuration:apply and manage (personal keys also need current editor membership). API keys
+        never reach evaluation questions. No write, job, network call or audit entry, even when refused.
+        docs/specs/config-as-code-import.
+      parameters:
+        - $ref: "#/components/parameters/TeamParam"
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema: { type: string }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ConfigurationPlan" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+  /v1/teams/{team}/configuration/apply:
+    post:
+      operationId: applyTeamConfiguration
+      summary: Apply a checked configuration file in one transaction
+      description: |
+        The same file as the plan, with the plan's digest in If-Match. The plan is recomputed under the
+        team's lock with the caller's current grants: 412 (with the fresh plan in error.details.plan) when
+        the team, the install or the file changed; 409 configuration_blocked (with the plan) while any row
+        is blocked; 428 without If-Match. All changes go through the domain checks and audit entries, or
+        none do. A file never publishes an agent, starts a crawl or an evaluation run, or turns a webhook on:
+        new web sources start paused and new webhooks off, with a fresh signing secret returned once.
+      parameters:
+        - $ref: "#/components/parameters/TeamParam"
+        - in: header
+          name: If-Match
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema: { type: string }
+      responses:
+        "200":
+          description: Applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ConfigurationApplied" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
   /v1/teams/{team}/members:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -13066,8 +13170,12 @@ components:
         query searches knowledge bases and asks agents over the REST API; ingest
         uploads and manages documents; manage changes sources and knowledge
         bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md)
-        and grants nothing on the REST API
-      enum: [query, ingest, manage, mcp]
+        and grants nothing on the REST API. configuration:export downloads only
+        supported team configuration; no general REST or write grant, no evaluation
+        question access, and no restricted KB/agent grants. configuration:apply
+        checks and applies a configuration file to the key's team; it requires
+        manage on the same key and never reaches evaluation questions.
+      enum: [query, ingest, manage, mcp, "configuration:export", "configuration:apply"]
     APIKey:
       type: object
       required: [id, name, kind, prefix, scopes, createdAt]
@@ -16797,3 +16905,55 @@ components:
           required: [revision]
           properties:
             revision: { type: integer, format: int64 }
+
+    ConfigurationPlan:
+      type: object
+      required: [planDigest, counts, rows, notes]
+      properties:
+        planDigest: { type: string, description: "Send in If-Match to apply. Detects change; never an authorization." }
+        counts:
+          type: object
+          required: [create, update, noOp, notInFile, blocked]
+          properties:
+            create: { type: integer }
+            update: { type: integer }
+            noOp: { type: integer }
+            notInFile: { type: integer }
+            blocked: { type: integer }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/ConfigurationPlanRow" }
+        notes: { type: array, items: { type: string } }
+    ConfigurationPlanRow:
+      type: object
+      required: [kind, key, action, changes, blockers, notes]
+      properties:
+        kind: { type: string, enum: [source, knowledgeBase, agent, evaluationSet, webhook] }
+        key: { type: string, description: "Name, an agent's slug, or a webhook's URL" }
+        title: { type: string, description: "A friendlier name when the key is not one (an agent's name)" }
+        action: { type: string, enum: [create, update, no-op, not-in-file] }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [field, from, to]
+            properties:
+              field: { type: string }
+              from: { type: string }
+              to: { type: string }
+        blockers: { type: array, items: { type: string } }
+        notes: { type: array, items: { type: string } }
+    ConfigurationApplied:
+      type: object
+      required: [plan, webhookSecrets]
+      properties:
+        plan: { $ref: "#/components/schemas/ConfigurationPlan" }
+        webhookSecrets:
+          type: array
+          description: Signing secrets of webhooks this apply made, shown only here.
+          items:
+            type: object
+            required: [url, secret]
+            properties:
+              url: { type: string }
+              secret: { type: string }

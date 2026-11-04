@@ -16,8 +16,13 @@ func validateScopes(scopes, allowed []string) error {
 	known := authz.MaxScopesForRole(authz.RoleOwner)
 	for _, sc := range scopes {
 		if !slices.Contains(known, sc) {
-			return apperr.Invalid("invalid_scopes", "Scopes must be query, ingest, manage or mcp (lower-case)")
+			return apperr.Invalid("invalid_scopes", "Scopes must be query, ingest, manage, mcp, configuration:export or configuration:apply (lower-case)")
 		}
+	}
+	// Applying a configuration file changes sources, knowledge bases and agents: it needs manage on the same key, so
+	// the scope never stands alone (docs/specs/config-as-code-import §6).
+	if slices.Contains(scopes, authz.ScopeConfigurationApply) && !slices.Contains(scopes, authz.ScopeManage) {
+		return apperr.Invalid("invalid_scopes", "The configuration:apply scope needs the manage scope on the same key")
 	}
 	for _, sc := range scopes {
 		if !slices.Contains(allowed, sc) {

@@ -71,3 +71,4 @@ Once an ADR is accepted, leave its substance alone. To reverse or replace a deci
 | [0029](0029-structural-procedure-boundaries.md) | Opt-in structural passage boundaries | Accepted | 2026-10-31 |
 | [0030](0030-assistant-disclosures.md) | Published assistant disclosures | Accepted | 2026-10-31 |
 | [0031](0031-generated-helm.md) | Generated Helm alongside canonical Kustomize | Accepted | 2026-10-31 |
+| [0033](0033-team-configuration-as-code.md) | Team configuration as code | Accepted | 2026-10-31 |

@@ -73,39 +73,45 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in 
 	}
 	var out Created
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		if in, err = s.normalize(ctx, q, sc, in, nil); err != nil {
-			return err
-		}
-		// The scope's count is read under a lock, so two requests cannot both pass the limit.
-		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "webhooks:"+sc.id().String()); err != nil {
-			return err
-		}
-		if n, err := q.CountWebhooks(ctx, nullTeam(sc.id())); err != nil {
-			return err
-		} else if n >= maxWebhooksPerScope {
-			return errTooMany
-		}
-		id := uuid.New()
-		cipher, hint, err := s.seal(id, secret)
-		if err != nil {
-			return err
-		}
-		row, err := q.InsertWebhook(ctx, dbgen.InsertWebhookParams{ID: id, TeamID: nullTeam(sc.id()), URL: in.URL, Description: in.Description,
-			Events: in.Events, SecretCipher: cipher, SecretHint: hint, CreatedBy: nullTeam(a.UserID)})
-		if err != nil {
-			return err
-		}
-		if !in.Enabled { // made turned off
-			if row, err = q.UpdateWebhook(ctx, dbgen.UpdateWebhookParams{ID: id, URL: row.URL, Description: row.Description, Events: row.Events, Enabled: false}); err != nil {
-				return err
-			}
-		}
-		out = Created{Webhook: webhookOf(row), Secret: secret}
-		e := entry(a, sc, "webhook.create", id)
-		e.After = snapshot(row)
-		return audit.Record(ctx, q, e)
+		return s.create(ctx, q, tx, a, sc, in, secret, &out)
 	})
 	return out, err
+}
+
+// create is Create's transaction: the address check, the per-scope limit (under a lock), the sealed secret and the audit entry.
+func (s *Service) create(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, sc scope, in Input, secret string, out *Created) error {
+	var err error
+	if in, err = s.normalize(ctx, q, sc, in, nil); err != nil {
+		return err
+	}
+	// The scope's count is read under a lock, so two requests cannot both pass the limit.
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "webhooks:"+sc.id().String()); err != nil {
+		return err
+	}
+	if n, err := q.CountWebhooks(ctx, nullTeam(sc.id())); err != nil {
+		return err
+	} else if n >= maxWebhooksPerScope {
+		return errTooMany
+	}
+	id := uuid.New()
+	cipher, hint, err := s.seal(id, secret)
+	if err != nil {
+		return err
+	}
+	row, err := q.InsertWebhook(ctx, dbgen.InsertWebhookParams{ID: id, TeamID: nullTeam(sc.id()), URL: in.URL, Description: in.Description,
+		Events: in.Events, SecretCipher: cipher, SecretHint: hint, CreatedBy: nullTeam(a.UserID)})
+	if err != nil {
+		return err
+	}
+	if !in.Enabled { // made turned off
+		if row, err = q.UpdateWebhook(ctx, dbgen.UpdateWebhookParams{ID: id, URL: row.URL, Description: row.Description, Events: row.Events, Enabled: false}); err != nil {
+			return err
+		}
+	}
+	*out = Created{Webhook: webhookOf(row), Secret: secret}
+	e := entry(a, sc, "webhook.create", id)
+	e.After = snapshot(row)
+	return audit.Record(ctx, q, e)
 }
 
 // Update changes a webhook (If-Match). Turning it on again clears what paused it.
@@ -120,30 +126,35 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		return Webhook{}, errOff
 	}
 	var out Webhook
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := s.load(ctx, q, sc, id, true)
-		if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		if in.KeepDescription {
-			in.Description = cur.Description
-		}
-		if in, err = s.normalize(ctx, q, sc, in, &cur); err != nil {
-			return err
-		}
-		row, err := q.UpdateWebhook(ctx, dbgen.UpdateWebhookParams{ID: id, URL: in.URL, Description: in.Description, Events: in.Events, Enabled: in.Enabled})
-		if err != nil {
-			return err
-		}
-		out = webhookOf(row)
-		e := entry(a, sc, "webhook.update", id)
-		e.Before, e.After = snapshot(cur), snapshot(row)
-		return audit.Record(ctx, q, e)
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.update(ctx, q, tx, a, sc, id, in, expectedRevision, &out)
 	})
 	return out, err
+}
+
+// update is Update's transaction.
+func (s *Service) update(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, sc scope, id uuid.UUID, in Input, expectedRevision int64, out *Webhook) error {
+	cur, err := s.load(ctx, q, sc, id, true)
+	if err != nil {
+		return err
+	}
+	if cur.Revision != expectedRevision {
+		return apperr.Stale()
+	}
+	if in.KeepDescription {
+		in.Description = cur.Description
+	}
+	if in, err = s.normalize(ctx, q, sc, in, &cur); err != nil {
+		return err
+	}
+	row, err := q.UpdateWebhook(ctx, dbgen.UpdateWebhookParams{ID: id, URL: in.URL, Description: in.Description, Events: in.Events, Enabled: in.Enabled})
+	if err != nil {
+		return err
+	}
+	*out = webhookOf(row)
+	e := entry(a, sc, "webhook.update", id)
+	e.Before, e.After = snapshot(cur), snapshot(row)
+	return audit.Record(ctx, q, e)
 }
 
 // Delete removes a webhook and its deliveries.
@@ -240,4 +251,55 @@ func (s *Service) Deliveries(ctx context.Context, a authz.Actor, teamRef string,
 		out[i] = deliveryOf(r)
 	}
 	return out, err
+}
+
+// CreateTx and UpdateTx are Create and Update inside the caller's transaction (a configuration file is applied in one,
+// docs/specs/config-as-code-import §5), with the same checks and audit entries. A webhook made from a file is always
+// created turned off, with a fresh secret made here: a file never carries signing material and never starts deliveries.
+func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, in Input) (Created, error) {
+	sc, err := s.manage(ctx, a, teamRef, true)
+	if err != nil {
+		return Created{}, err
+	}
+	if on, err := s.Enabled(ctx); err != nil {
+		return Created{}, err
+	} else if !on {
+		return Created{}, errOff
+	}
+	secret, err := newSecret()
+	if err != nil {
+		return Created{}, err
+	}
+	in.Enabled = false
+	var out Created
+	err = s.create(ctx, q, tx, a, sc, in, secret, &out)
+	return out, err
+}
+
+func (s *Service) UpdateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, id uuid.UUID, in Input, expectedRevision int64) (Webhook, error) {
+	sc, err := s.manage(ctx, a, teamRef, true)
+	if err != nil {
+		return Webhook{}, err
+	}
+	if on, err := s.Enabled(ctx); err != nil {
+		return Webhook{}, err
+	} else if !on {
+		return Webhook{}, errOff
+	}
+	var out Webhook
+	err = s.update(ctx, q, tx, a, sc, id, in, expectedRevision, &out)
+	return out, err
+}
+
+// CheckURL says whether a webhook could be sent to an address now: https on 443, a host name a platform admin approved.
+// It saves nothing (a configuration plan uses it).
+func (s *Service) CheckURL(ctx context.Context, q *dbgen.Queries, raw string) error {
+	_, approved, err := s.checkURL(ctx, q, raw)
+	if err != nil {
+		return err
+	}
+	if !approved {
+		return errNotApproved
+	}
+	return nil
 }

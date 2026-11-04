@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/teamconfig"
 	"github.com/ncecere/grounded/internal/webhooks"
 )
 
@@ -26,6 +27,8 @@ func wireWebhooks(s *Services, box *secrets.Box, jobsClient *jobs.Client) {
 	}
 	s.Webhooks.OnPaused = s.webhookPaused
 	s.Teams.Webhooks, s.TeamRequests.Webhooks, s.Agents.Webhooks, s.Web.Webhooks = s.Webhooks, s.Webhooks, s.Webhooks, s.Webhooks
+	// Configuration files write through every domain service; webhooks is the last of them to exist.
+	s.TeamConfig = &teamconfig.Service{Pool: s.pool, Sources: s.Sources, KBs: s.KBs, Agents: s.Agents, Evals: s.Evaluations, Webhooks: s.Webhooks}
 }
 
 // webhookPaused tells the people who manage a webhook that it stopped sending: a team's admins and owners, or the platform admins.
