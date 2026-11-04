@@ -247,15 +247,7 @@ func (r *refresh) classify(ctx context.Context, row dbgen.SourceBoilerplate, eff
 	if err != nil {
 		return err
 	}
-	changed := len(old) != len(next)
-	for h, b := range next {
-		o, ok := old[h]
-		changed = changed || !ok || o.CanonicalDocumentID != b.CanonicalDocumentID
-		if ok && o.Sample != "" {
-			b.Sample = o.Sample
-			next[h] = b
-		}
-	}
+	changed := carrySamples(old, next)
 	if err := r.addSamples(ctx, next); err != nil {
 		return err
 	}
@@ -325,6 +317,26 @@ func (r *refresh) load(ctx context.Context) (classified, error) {
 		out[b.BlockHash] = b
 	}
 	return out, nil
+}
+
+// carrySamples keeps the display text of blocks whose canonical document is
+// unchanged, so the refresh reads parsed text only for new or moved blocks, and
+// reports whether the classification changed. A sample is only ever the text of
+// the block in its current canonical document: reusing one from a refresh that
+// picked another document made it depend on the order documents arrived in
+// (a near-duplicate variant takes its cluster's canonical document).
+func carrySamples(old, next classified) (changed bool) {
+	changed = len(old) != len(next)
+	for h, b := range next {
+		o, ok := old[h]
+		moved := !ok || o.CanonicalDocumentID != b.CanonicalDocumentID
+		changed = changed || moved
+		if !moved && o.Sample != "" {
+			b.Sample = o.Sample
+			next[h] = b
+		}
+	}
+	return changed
 }
 
 // addSamples fills in the display text of blocks without one, from their
