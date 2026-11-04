@@ -10847,6 +10847,9 @@ type PlatformAnalytics struct {
 	TopAgents  []PlatformAnalyticsAgent `json:"topAgents"`
 	TopTeams   []PlatformAnalyticsTeam  `json:"topTeams"`
 	Totals     PlatformAnalyticsTotals  `json:"totals"`
+
+	// UsageChannels The usage ledger by where it was used (E13); the team filter applies, the audience filter does not.
+	UsageChannels []PlatformAnalyticsUsageChannel `json:"usageChannels"`
 }
 
 // PlatformAnalyticsAgent defines model for PlatformAnalyticsAgent.
@@ -10946,6 +10949,16 @@ type PlatformAnalyticsTotals struct {
 	// UniqueUsers Distinct pseudonymous IDs. They are per team (per agent for anonymous sessions), so a person using two teams' agents counts twice; service keys are not counted.
 	UniqueUsers int64 `json:"uniqueUsers"`
 	Up          int64 `json:"up"`
+}
+
+// PlatformAnalyticsUsageChannel The usage ledger of one channel (E13): where queries and answers came from. ui is the signed-in app, public the public page, widget the embedded widget, api and openai the REST and OpenAI-compatible APIs, mcp the MCP server, test Try it and editors' knowledge base tests, evaluation evaluation runs; "" is indexing and other background work. Includes usage retention already rolled up by day.
+type PlatformAnalyticsUsageChannel struct {
+	Channel          string `json:"channel"`
+	ChatInputTokens  int64  `json:"chatInputTokens"`
+	ChatOutputTokens int64  `json:"chatOutputTokens"`
+	EmbeddingTokens  int64  `json:"embeddingTokens"`
+	OtherTokens      int64  `json:"otherTokens"`
+	Queries          int64  `json:"queries"`
 }
 
 // PlatformLimit defines model for PlatformLimit.

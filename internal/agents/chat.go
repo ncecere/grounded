@@ -30,6 +30,8 @@ const (
 	ChannelAPI    = "api"
 	ChannelOpenAI = "openai"
 	ChannelTest   = "test"
+	// ChannelEvaluation tags the usage of evaluation runs (their answers are still recorded as test chats).
+	ChannelEvaluation = "evaluation"
 	// ChannelMCP is the MCP server's ask tool (docs/mcp.md).
 	ChannelMCP = "mcp"
 )

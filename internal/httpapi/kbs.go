@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
@@ -152,8 +153,13 @@ func (a *api) retrieve(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid_topk", "topK must be between 1 and 50")
 		return
 	}
+	// The usage ledger says where a query came from (E13): an API key's, or an editor trying the knowledge base.
+	channel := agents.ChannelTest
+	if a.actor(r).Key != nil {
+		channel = agents.ChannelAPI
+	}
 	res, err := a.KBs.Retrieve(r.Context(), a.actor(r), r.PathValue("team"), id, kbs.Query{Text: in.Query, TopK: deref(in.TopK, 0),
-		Filter: metadataFilter(in.Filters), Judge: deref(in.Judge, false), NoRerank: !deref(in.Rerank, true)})
+		Filter: metadataFilter(in.Filters), Judge: deref(in.Judge, false), NoRerank: !deref(in.Rerank, true), Channel: channel})
 	if failed(w, r, err) {
 		return
 	}

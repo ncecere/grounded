@@ -84,6 +84,11 @@ func (a *api) adminGetAnalytics(w http.ResponseWriter, r *http.Request) {
 		out.Models[i] = apitypes.PlatformAnalyticsModel{ModelId: m.ModelID, ModelName: m.ModelName, Kind: m.Kind,
 			ChatInputTokens: m.ChatInput, ChatOutputTokens: m.ChatOutput, EmbeddingTokens: m.Embedding, OtherTokens: m.Other}
 	}
+	out.UsageChannels = make([]apitypes.PlatformAnalyticsUsageChannel, len(ov.UsageChannels))
+	for i, c := range ov.UsageChannels {
+		out.UsageChannels[i] = apitypes.PlatformAnalyticsUsageChannel{Channel: c.Channel, Queries: c.Queries,
+			ChatInputTokens: c.ChatInput, ChatOutputTokens: c.ChatOutput, EmbeddingTokens: c.Embedding, OtherTokens: c.Other}
+	}
 	for i, ag := range ov.TopAgents {
 		out.TopAgents[i] = apitypes.PlatformAnalyticsAgent{AgentId: ag.AgentID, AgentSlug: ag.AgentSlug, AgentName: ag.AgentName,
 			TeamId: ag.TeamID, TeamSlug: ag.TeamSlug, TeamName: ag.TeamName, Deleted: ag.Deleted, Answers: ag.Answers,

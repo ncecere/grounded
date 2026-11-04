@@ -15,15 +15,16 @@ import (
 // auditors). Draft test chats (channel test) are left out of every count
 // except the token ledger, which records all usage.
 type Overview struct {
-	From, To   time.Time // UTC days, inclusive
-	Totals     Totals
-	Audiences  []Share // answers by audience
-	Channels   []Share // answers by channel
-	Moderation []ModerationCount
-	Models     []ModelTokens
-	TopAgents  []TopAgent
-	TopTeams   []TopTeam
-	Daily      []Day
+	From, To      time.Time // UTC days, inclusive
+	Totals        Totals
+	Audiences     []Share // answers by audience
+	Channels      []Share // answers by channel
+	Moderation    []ModerationCount
+	Models        []ModelTokens
+	UsageChannels []ChannelTokens // the usage ledger by where it was used (E13)
+	TopAgents     []TopAgent
+	TopTeams      []TopTeam
+	Daily         []Day
 }
 
 // Totals summarise the range.
@@ -63,6 +64,15 @@ type ModelTokens struct {
 	ChatInput, ChatOutput, Embedding int64
 	// Other is SystemOne, rerank and OCR (vision) tokens, which Costs counts too (AD-28).
 	Other int64
+}
+
+// ChannelTokens is the usage ledger of one channel: where a question or an answer came from (the signed-in app,
+// the public page, the widget, the API, MCP, Try it, evaluation runs), "" for indexing and other background work.
+type ChannelTokens struct {
+	Channel                          string
+	Queries                          int64
+	ChatInput, ChatOutput, Embedding int64
+	Other                            int64
 }
 
 // TopAgent is one of the agents with the most answers.
@@ -161,6 +171,7 @@ func (s *Service) Overview(ctx context.Context, a authz.Actor, from, to time.Tim
 			return err
 		},
 		func(ctx context.Context) error { return s.models(ctx, &out, from, end, f.Team) },
+		func(ctx context.Context) error { return s.channelTokens(ctx, &out, from, end, f.Team) },
 		func(ctx context.Context) error { return s.topAgents(ctx, &out, args) },
 		func(ctx context.Context) error { return s.topTeams(ctx, &out, args) },
 		func(ctx context.Context) (err error) { out.Daily, err = s.daily(ctx, from, end, args); return err },
