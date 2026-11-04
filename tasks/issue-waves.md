@@ -2,7 +2,11 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-11-04
+## Current execution status — 2026-11-04 (v0.8.0)
+
+- **v0.8.0 is being released** from `main`: #34 (PR #211), #31 (PR #212) and the UI polish (bitop-ui#6, PR #213), with the Dependabot batch (#208, #209). #34 and #31 close with their PRs. **#32** (configuration as code) and **#33** (bitop-ui docs site) move to v0.9.0; #32's import design awaits the owner in PR #214. #36, #40 and the rest of v0.9.0 stay parked; #19 and #89 are unchanged.
+
+### Earlier status (2026-11-04, morning)
 
 - **Work resumes on the owner's go-ahead (2026-11-04).** Dependabot #208 and #209 merged after green CI. Block 3 restarts with **#34** (accessibility statement and model cards) and **#31** (Helm chart) from their parked branches, rebased onto `main`; **#32** (configuration as code) follows once its import/dry-run design is written. A UI polish pass (bitop-ui and the app) runs alongside. #36, #40 and the rest of v0.9.0 stay parked; #19 still needs the owner's reference-install pages; #89 is unchanged.
 

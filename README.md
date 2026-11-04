@@ -199,8 +199,9 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.6.2** (2026-10-29): a dependency security patch (Go 1.26.10 and package updates).
 - [x] **v0.6.3** (2026-10-30): QA fixes for the API, chat, editors and team requests, and deny-all network egress for the OCR sidecar.
 - [x] **v0.7.0** (2026-11-01): six opt-in retrieval changes, judged with the index preview: near-duplicate repeated blocks, tables kept structured, structural boundaries, parent/child retrieval, the content health report and contextual chunks.
+- [x] **v0.8.0** (2026-11-04): adoption by other installs, first part: a Helm chart generated from the Kustomize base, an accessibility statement and an "About this assistant" card on every chat surface, and a polish pass over the interface.
 
-**Next:** v0.8.0, "adoption by other installs" ([`docs/roadmap.md`](docs/roadmap.md)): a Helm chart, configuration as code, the docs site and registry, and an accessibility statement with model cards.
+**Next:** v0.9.0 ([`docs/roadmap.md`](docs/roadmap.md)): configuration as code and the bitop-ui docs site (carried from v0.8.0), then identity and compliance.
 
 **Later**
 
