@@ -10,6 +10,7 @@
     "deploy/helm/scripts/generate.py": "8ff6d244ea4e5f6b141000c99f9dfff1f204e9b78fcf88d0b3869a027451e1a9",
     "deploy/helm/scripts/install-lifecycle-tools.sh": "56c1caabbd1cf3e57626b663d6f6161827f658b51bf04aafc34f42b9e57472ed",
     "deploy/helm/scripts/install-tools.sh": "8c963e28ea95a8648fd505aca14f5f96799b995366b58ad90bdcc1274ff70688",
+    "deploy/helm/scripts/kind-lifecycle.sh": "2c81fb335ed644437561e89326c081511e7fd2b22404f8455752e028f3ccf91a",
     "deploy/helm/scripts/mutation.py": "c4761f7dd4c68992b1c7c806480dac085ab2a8b91014e90c0740c5cdab4f8edd",
     "deploy/helm/scripts/preflight.py": "32639c3e6d1366f9b8267734088feed32d293280b225ec7e67e8ba66c302be6c",
     "deploy/helm/scripts/publish.sh": "78a1825613ddd807d5be684ad15213b42e4701150a5cfad17d0ea4306d0a87dd",
