@@ -1,0 +1,363 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "appImage",
+    "ocrImage",
+    "runtimeSecret",
+    "s3Secret",
+    "smtpSecret",
+    "appURL",
+    "s3Endpoint",
+    "s3Bucket",
+    "postgres",
+    "valkey",
+    "apiReplicas",
+    "workerReplicas",
+    "ocrReplicas",
+    "ocr",
+    "ingress",
+    "ingressHost",
+    "ingressClass",
+    "ingressNamespace",
+    "tlsSecret",
+    "tracing",
+    "tracingEndpoint",
+    "tracingNamespace",
+    "tracingSample",
+    "monitoring",
+    "monitoringNamespace",
+    "postgresDestination",
+    "valkeyDestination"
+  ],
+  "properties": {
+    "appImage": {
+      "type": "string",
+      "pattern": "^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$"
+    },
+    "ocrImage": {
+      "type": "string",
+      "pattern": "^$|^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$"
+    },
+    "runtimeSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "s3Secret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "smtpSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "appURL": {
+      "type": "string",
+      "pattern": "^https://[a-zA-Z0-9.-]+(:[0-9]+)?$"
+    },
+    "s3Endpoint": {
+      "type": "string",
+      "pattern": "^https://[a-zA-Z0-9.-]+(:[0-9]+)?$"
+    },
+    "s3Bucket": {
+      "type": "string"
+    },
+    "postgres": {
+      "type": "string",
+      "enum": [
+        "external",
+        "bundled"
+      ]
+    },
+    "valkey": {
+      "type": "string",
+      "enum": [
+        "external",
+        "bundled"
+      ]
+    },
+    "apiReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "workerReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "ocrReplicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "ocr": {
+      "type": "boolean"
+    },
+    "ingress": {
+      "type": "boolean"
+    },
+    "ingressHost": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "ingressClass": {
+      "type": "string"
+    },
+    "ingressNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tlsSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tracing": {
+      "type": "boolean"
+    },
+    "tracingEndpoint": {
+      "type": "string",
+      "pattern": "^https?://[a-zA-Z0-9.-]+:4318$"
+    },
+    "tracingNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "tracingSample": {
+      "type": "string",
+      "pattern": "^(0(\\.[0-9]+)?|1(\\.0+)?)$"
+    },
+    "monitoring": {
+      "type": "boolean"
+    },
+    "monitoringNamespace": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "postgresDestination": {
+      "type": "object"
+    },
+    "valkeyDestination": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "postgres": {
+            "const": "external"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "postgresDestination": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "host",
+                  "port",
+                  "namespace",
+                  "podLabels"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "not": {
+                      "enum": [
+                        9000
+                      ]
+                    }
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "maxLength": 63,
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "podLabels": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "maxProperties": 8,
+                    "propertyNames": {
+                      "maxLength": 317,
+                      "pattern": "^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*/)?[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63,
+                      "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9_.-]*[a-zA-Z0-9])?$"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "host",
+                  "port",
+                  "cidr"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "not": {
+                      "enum": [
+                        9000
+                      ]
+                    }
+                  },
+                  "cidr": {
+                    "type": "string",
+                    "pattern": "^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}/32$",
+                    "not": {
+                      "pattern": "^(0|127|169\\.254|(22[4-9]|2[3-5][0-9]))\\."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "postgresDestination": {
+            "maxProperties": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "valkey": {
+            "const": "external"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "valkeyDestination": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "host",
+                  "port",
+                  "namespace",
+                  "podLabels"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "not": {
+                      "enum": [
+                        9000
+                      ]
+                    }
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "maxLength": 63,
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "podLabels": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "maxProperties": 8,
+                    "propertyNames": {
+                      "maxLength": 317,
+                      "pattern": "^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*/)?[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63,
+                      "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9_.-]*[a-zA-Z0-9])?$"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "host",
+                  "port",
+                  "cidr"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "not": {
+                      "enum": [
+                        9000
+                      ]
+                    }
+                  },
+                  "cidr": {
+                    "type": "string",
+                    "pattern": "^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}/32$",
+                    "not": {
+                      "pattern": "^(0|127|169\\.254|(22[4-9]|2[3-5][0-9]))\\."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "valkeyDestination": {
+            "maxProperties": 0
+          }
+        }
+      }
+    }
+  ]
+}

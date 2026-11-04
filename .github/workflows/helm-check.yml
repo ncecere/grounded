@@ -1,0 +1,27 @@
+name: helm-check
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  generated-helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install pinned render tools
+        run: |
+          bash deploy/helm/scripts/install-tools.sh
+          echo "$PWD/bin/helm-tools" >> "$GITHUB_PATH"
+          python3 -m pip install PyYAML==6.0.1
+      - name: Check generated source before regeneration
+        run: python3 deploy/helm/scripts/generate.py --check
+      - name: Independent semantic matrix, lint and schema negatives
+        run: python3 deploy/helm/scripts/test_chart.py
+      - name: Controlled stale-source mutation and restoration
+        run: python3 deploy/helm/scripts/mutation.py "$RUNNER_TEMP/helm-mutation"
