@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/blob"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -18,6 +19,14 @@ func TestPGLateCommitDuringPagesEventuallyExported(t *testing.T) {
 	pool, _ := testutil.NewDB(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	// The late transaction, the gate and the freeze each hold a connection while the test watches for the freeze
+	// to block: watch on a connection of its own, or a small pool (CI sets GROUNDED_TEST_POOL_MAX_CONNS=3) leaves none, the watch
+	// waits, and the freeze's 5-second lock timeout fires first.
+	watch, err := pgx.ConnectConfig(ctx, pool.Config().ConnConfig.Copy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer watch.Close(context.Background())
 	day := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	late, err := pool.Begin(ctx)
 	if err != nil {
@@ -64,7 +73,7 @@ func TestPGLateCommitDuringPagesEventuallyExported(t *testing.T) {
 	}()
 	for {
 		var blocked bool
-		err = pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND objid=390021 AND NOT granted)").Scan(&blocked)
+		err = watch.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND objid=390021 AND NOT granted)").Scan(&blocked)
 		if err != nil {
 			t.Fatal(err)
 		}
