@@ -1,6 +1,6 @@
 # ADR-0030: Published assistant disclosures
 
-- Status: Proposed
+- Status: Accepted (2026-11-04, v0.8.0)
 - Date: 2026-10-31
 
 ## Context

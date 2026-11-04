@@ -1,9 +1,10 @@
-# Generated Helm chart (proposed, unreleased)
+# Generated Helm chart
 
-Kustomize remains canonical. Existing overlays/installations do not change.
-[Design](../../docs/specs/generated-helm/DESIGN.md), Proposed
-[ADR-0031](../../docs/adr/0031-generated-helm.md). No chart has been published or
-installation/upgrade certified by this change.
+New in v0.8.0. Kustomize remains canonical; existing overlays and installations do not change.
+[Design](../../docs/specs/generated-helm/DESIGN.md), [ADR-0031](../../docs/adr/0031-generated-helm.md) (accepted).
+Each release publishes a signed chart, `oci://ghcr.io/ncecere/charts/grounded` at the release's version, with its
+image digests filled in (see "OCI publication" below). It has been exercised on kind, not certified on a production
+cluster.
 
 ## Tools and source workflow
 
@@ -147,16 +148,23 @@ restore data**, even if Helm reports rollback succeeded. Follow forward-only
 [restore](../../docs/operations/restore.md) policies; do not skip required versions.
 No local Helm install/upgrade or data-preservation claim is made by template tests.
 
-## Future OCI publication
+## OCI publication
 
-The caller in ci.yml waits for existing protected image and release jobs and the
-new chart checks. Only future semver tags from v0.7 onward are eligible. It packages
+The caller in ci.yml waits for the protected image and release jobs and the
+chart checks, on `v*` tags only (v0.8.0 is the first). It packages
 with the tag-derived version and signed app/OCR digests, refuses existing registry
 versions, pushes to `oci://ghcr.io/<owner>/charts`, signs the resulting chart digest
 and attaches source/hash/image provenance. No mutable alias is moved. Failures do
-not bypass existing signing/scanning/checksum gates. Parent must review workflow
-permissions, registry identity/cosign compatibility and protected-CI/publication
-acceptance before enabling a release. This worker never runs publish.sh.
+not bypass existing signing/scanning/checksum gates: `publish.sh` verifies both
+images' signatures with the exact identity `image.yml@refs/tags/<tag>` before it
+packages anything. To verify a published chart:
+
+```sh
+cosign verify ghcr.io/ncecere/charts/grounded@<chart digest> \
+  --certificate-identity-regexp '^https://github.com/ncecere/grounded/\.github/workflows/.+@refs/tags/v0.8.0$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+helm install grounded oci://ghcr.io/ncecere/charts/grounded --version 0.8.0 -n <namespace> -f install-values.yaml
+```
 
 ## Isolated lifecycle evidence
 

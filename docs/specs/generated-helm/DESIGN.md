@@ -158,5 +158,5 @@ routing. A minimal TLS OIDC discovery document stands in for the identity provid
 
 The cluster and registry are deleted on exit, success or failure. Not covered: a
 previous-release SQL upgrade, the bundled datastores (exercised by the earlier
-follow-up), OCI publication and protected CI. ADR-0031 stays Proposed until review.
+follow-up) and a production cluster. ADR-0031 was accepted with v0.8.0 (2026-11-04), the first release that publishes the chart.
 
