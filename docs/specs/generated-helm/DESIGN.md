@@ -133,3 +133,30 @@ Exact commands, exits, logs, source identity and cleanup proof are handed to Pi
 outside the repository in `grounded-jobs/issue31-lifecycle-2/artifacts`. Proposed
 ADR-0031 remains Proposed; protected CI, release compatibility, OCI publication
 and parent review are still gates. No publication/signing was executed.
+
+## Independent check (2026-11-04)
+
+Reproduced from the repository with `deploy/helm/scripts/kind-lifecycle.sh` (kind
+v0.33.0, Kubernetes 1.37.0, kindnet enforcing NetworkPolicies) against the chart on
+this branch after rebasing onto `main` (generated output unchanged: `generate.py
+--check`, `test_chart.py` 7 tests and 14 negatives, and `mutation.py` all pass). The
+app image is v0.7.0 plus a throwaway fixture CA, pushed to a local registry and
+pinned by digest. Postgres 17 (pgvector 0.8.7), Valkey and S3 (the CI's Silo
+image, TLS) run in a **separate `datastores` namespace**, and the chart reaches
+Postgres and Valkey through `postgresDestination` and `valkeyDestination` with
+`namespace` and `podLabels`: the first **live** proof of cross-namespace pod-label
+routing. A minimal TLS OIDC discovery document stands in for the identity provider.
+
+| Step | Result |
+|---|---|
+| `helm install` (1 API, 1 worker), restricted Pod Security | `grounded doctor` in api and worker: 13 checks, 0 failed (safety, Postgres, pgvector, migrations 59, Valkey, S3 write/read/delete, OIDC discovery and JWKS) |
+| Values upgrade to 2 API and 2 workers with a new `appURL` | doctor passes in both |
+| `helm rollback` to revision 1 | doctor passes; a SQL marker written after install is kept |
+| Negative control: Postgres `podLabels` that match nothing | doctor fails on `postgres connect` only (Valkey, S3 and OIDC still pass) |
+| Restore the right labels | doctor passes |
+| `helm uninstall` | the external database and its marker are untouched |
+
+The cluster and registry are deleted on exit, success or failure. Not covered: a
+previous-release SQL upgrade, the bundled datastores (exercised by the earlier
+follow-up), OCI publication and protected CI. ADR-0031 stays Proposed until review.
+

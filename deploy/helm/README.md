@@ -164,6 +164,10 @@ The follow-up exercised a real owned local kind install, same-source values
 upgrade, rollback, SQL/PVC retention, reinstall and a separate managed TLS release.
 See the [design evidence and limits](../../docs/specs/generated-helm/DESIGN.md#local-follow-up-evidence-not-parent-acceptance).
 This is not previous-release upgrade certification or parent acceptance.
+An independent rerun on 2026-11-04 (`deploy/helm/scripts/kind-lifecycle.sh`) added the
+live cross-namespace proof: external Postgres and Valkey in another namespace, selected
+by `namespace` and `podLabels`, through install, values upgrade, rollback, a negative
+policy control and uninstall ([results](../../docs/specs/generated-helm/DESIGN.md#independent-check-2026-11-04)).
 For Linux amd64 local lifecycle tools, `bash deploy/helm/scripts/install-lifecycle-tools.sh`
 uses the repo's kind pin and checksummed kubectl matching the pinned test node.
 
