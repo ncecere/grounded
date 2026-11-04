@@ -173,7 +173,7 @@ func (q *Queries) ExportConfigurationEvalPresence(ctx context.Context, teamID uu
 }
 
 const exportConfigurationEvalSets = `-- name: ExportConfigurationEvalSets :many
-SELECT s.id, s.name, s.description, s.auto_run, coalesce(k.name,'')::text AS kb, coalesce(a.name,'')::text AS agent
+SELECT s.id, s.name, s.description, s.auto_run, coalesce(k.name,'')::text AS kb, coalesce(a.slug,'')::text AS agent
 FROM eval_sets s LEFT JOIN knowledge_bases k ON k.id=s.kb_id AND k.team_id=s.team_id
 LEFT JOIN agents a ON a.id=s.agent_id AND a.team_id=s.team_id AND a.deleted_at IS NULL
 WHERE s.team_id=$1 ORDER BY s.name COLLATE "C" LIMIT 501
@@ -438,13 +438,39 @@ func (q *Queries) ExportConfigurationVersions(ctx context.Context, teamID uuid.U
 	return items, nil
 }
 
-const exportConfigurationWebhookCount = `-- name: ExportConfigurationWebhookCount :one
-SELECT count(*) FROM (SELECT 1 FROM webhooks WHERE team_id=$1 LIMIT 1) AS present
+const exportConfigurationWebhooks = `-- name: ExportConfigurationWebhooks :many
+SELECT url, description, events, enabled FROM webhooks WHERE team_id=$1 ORDER BY url COLLATE "C", created_at LIMIT 51
 `
 
-func (q *Queries) ExportConfigurationWebhookCount(ctx context.Context, teamID uuid.NullUUID) (int64, error) {
-	row := q.db.QueryRow(ctx, exportConfigurationWebhookCount, teamID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+type ExportConfigurationWebhooksRow struct {
+	URL         string
+	Description string
+	Events      []string
+	Enabled     bool
+}
+
+// A team's webhooks without any signing material: no secret_cipher, secret_hint or delivery data.
+func (q *Queries) ExportConfigurationWebhooks(ctx context.Context, teamID uuid.NullUUID) ([]ExportConfigurationWebhooksRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigurationWebhooks, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigurationWebhooksRow{}
+	for rows.Next() {
+		var i ExportConfigurationWebhooksRow
+		if err := rows.Scan(
+			&i.URL,
+			&i.Description,
+			&i.Events,
+			&i.Enabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

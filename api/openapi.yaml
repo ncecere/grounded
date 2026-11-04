@@ -13100,8 +13100,10 @@ components:
         bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md)
         and grants nothing on the REST API. configuration:export downloads only
         supported team configuration; no general REST or write grant, no evaluation
-        question access, and no restricted KB/agent grants.
-      enum: [query, ingest, manage, mcp, "configuration:export"]
+        question access, and no restricted KB/agent grants. configuration:apply
+        checks and applies a configuration file to the key's team; it requires
+        manage on the same key and never reaches evaluation questions.
+      enum: [query, ingest, manage, mcp, "configuration:export", "configuration:apply"]
     APIKey:
       type: object
       required: [id, name, kind, prefix, scopes, createdAt]

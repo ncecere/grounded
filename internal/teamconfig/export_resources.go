@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/ncecere/grounded/internal/agents"
-	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/web"
@@ -61,8 +61,8 @@ func portableConfig(ctx context.Context, q *dbgen.Queries, raw json.RawMessage, 
 	return out, nil
 }
 
-func loadAgents(ctx context.Context, q *dbgen.Queries, team uuid.UUID, names map[uuid.UUID]string, d *Document) error {
-	rows, err := q.ExportConfigurationAgents(ctx, team)
+func (l *loader) loadAgents(ctx context.Context, names map[uuid.UUID]string, d *Document) error {
+	rows, err := l.q.ExportConfigurationAgents(ctx, l.team)
 	if err != nil {
 		return err
 	}
@@ -71,13 +71,26 @@ func loadAgents(ctx context.Context, q *dbgen.Queries, team uuid.UUID, names map
 	}
 	indices := map[uuid.UUID]int{}
 	published := map[uuid.UUID]uuid.UUID{}
+	slugs := map[uuid.UUID]string{}
 	for _, r := range rows {
-		if r.CacheSettings || r.ShortNames {
-			return errUnsupported
+		slugs[r.ID] = r.Slug
+		reason := ""
+		var config AgentConfig
+		switch {
+		case r.CacheSettings:
+			reason = "it has saved-answer settings, which files do not carry yet"
+		case r.ShortNames:
+			reason = "it has short names, which files do not carry yet"
+		default:
+			if config, err = portableConfig(ctx, l.q, r.Draft, names); err != nil {
+				reason = "its draft uses MCP tools, source filters by ID or another setting files do not carry yet"
+			}
 		}
-		config, err := portableConfig(ctx, q, r.Draft, names)
-		if err != nil {
-			return err
+		if reason != "" {
+			if err := l.refuse(KindAgent, r.Slug, reason); err != nil {
+				return err
+			}
+			continue
 		}
 		indices[r.ID] = len(d.Agents)
 		if r.PublishedVersionID.Valid {
@@ -89,24 +102,26 @@ func loadAgents(ctx context.Context, q *dbgen.Queries, team uuid.UUID, names map
 		}
 		d.Agents = append(d.Agents, Agent{Name: r.Name, Slug: r.Slug, Description: r.Description, AccentColor: r.AccentColor, WelcomeMessage: r.WelcomeMessage, StarterQuestions: starters, Status: r.Status, Draft: config, Versions: []AgentVersion{}})
 	}
-	versions, err := q.ExportConfigurationVersions(ctx, team)
+	versions, err := l.q.ExportConfigurationVersions(ctx, l.team)
 	if err != nil {
 		return err
 	}
 	if len(versions) > MaxSequenceItems {
 		return errUnsupported
 	}
+	dropped := map[uuid.UUID]bool{}
 	for _, v := range versions {
-		if v.EffectiveRank > v.CeilingRank {
-			return errUnsupported
-		}
-		config, err := portableConfig(ctx, q, v.Config, names)
-		if err != nil {
-			return err
-		}
 		i, ok := indices[v.AgentID]
-		if !ok {
-			return errUnsupported
+		if !ok || dropped[v.AgentID] {
+			continue // the agent itself was left out (lenient) or already dropped
+		}
+		config, err := portableConfig(ctx, l.q, v.Config, names)
+		if err != nil || v.EffectiveRank > v.CeilingRank {
+			if err := l.refuse(KindAgent, slugs[v.AgentID], "a published version uses settings files do not carry yet"); err != nil {
+				return err
+			}
+			dropped[v.AgentID] = true
+			continue
 		}
 		d.Agents[i].Versions = append(d.Agents[i].Versions, AgentVersion{Version: v.Version, Note: v.Note, Config: config})
 		if published[v.AgentID] == v.ID {
@@ -114,38 +129,37 @@ func loadAgents(ctx context.Context, q *dbgen.Queries, team uuid.UUID, names map
 		}
 	}
 	for id := range published {
-		if d.Agents[indices[id]].PublishedVersion == 0 {
+		if !dropped[id] && d.Agents[indices[id]].PublishedVersion == 0 {
 			return errUnsupported
 		}
+	}
+	if len(dropped) > 0 {
+		kept := d.Agents[:0]
+		for _, ag := range d.Agents {
+			if l.skipped[KindAgent][foldKey(KindAgent, ag.Slug)] == "" {
+				kept = append(kept, ag)
+			}
+		}
+		d.Agents = kept
 	}
 	return nil
 }
 
-func loadEvaluations(ctx context.Context, q *dbgen.Queries, team uuid.UUID, a authz.Actor, d *Document) error {
-	rows, err := q.ExportConfigurationEvalSets(ctx, team)
+func (l *loader) loadEvaluations(ctx context.Context, d *Document) error {
+	if l.evalsHidden {
+		return nil
+	}
+	rows, err := l.q.ExportConfigurationEvalSets(ctx, l.team)
 	if err != nil {
 		return err
 	}
 	if len(rows)+len(d.Sources)+len(d.KnowledgeBases)+len(d.Agents) > MaxResources {
 		return errUnsupported
 	}
-	// Reconcile the existing evaluation policy without letting export scope
-	// expose protected questions to API keys. Keys may export teams without sets.
-	if len(rows) > 0 {
-		if a.Key != nil {
-			return errUnsupported
-		}
-		settings, err := q.GetEvaluationSettings(ctx)
-		if err != nil {
-			return err
-		}
-		if !settings.Enabled {
-			return errUnsupported
-		}
-	}
 	total := 0
+	seen := map[string]bool{}
 	for _, r := range rows {
-		cases, err := q.ExportConfigurationCases(ctx, dbgen.ExportConfigurationCasesParams{TeamID: team, ID: r.ID})
+		cases, err := l.q.ExportConfigurationCases(ctx, dbgen.ExportConfigurationCasesParams{TeamID: l.team, ID: r.ID})
 		if err != nil {
 			return err
 		}
@@ -153,11 +167,18 @@ func loadEvaluations(ctx context.Context, q *dbgen.Queries, team uuid.UUID, a au
 		if total > MaxSequenceItems {
 			return errUnsupported
 		}
+		key := strings.ToLower(r.Name)
+		reason := ""
+		if seen[key] {
+			reason = "another evaluation set of this team has the same name"
+		}
+		seen[key] = true
 		out := EvaluationSet{Name: r.Name, Description: r.Description, KnowledgeBase: r.Kb, Agent: r.Agent, AutoRun: r.AutoRun, Cases: []EvaluationCase{}}
 		for _, c := range cases {
 			var expected evals.Expected
 			if strictJSON(c.Expected, &expected) != nil || len(expected.DocumentIDs) > 0 || len(expected.Filenames) > 0 {
-				return errUnsupported
+				reason = "a question expects a picked document or file name, which files do not carry (only page addresses)"
+				break
 			}
 			urls := expected.URLs
 			if urls == nil {
@@ -169,7 +190,22 @@ func loadEvaluations(ctx context.Context, q *dbgen.Queries, team uuid.UUID, a au
 			}
 			out.Cases = append(out.Cases, EvaluationCase{Question: c.Question, URLs: urls, MustMention: phrases, Note: c.Note})
 		}
+		if reason != "" {
+			if err := l.refuse(KindEvaluationSet, r.Name, reason); err != nil {
+				return err
+			}
+			continue
+		}
 		d.EvaluationSets = append(d.EvaluationSets, out)
+	}
+	if !l.strict {
+		kept := d.EvaluationSets[:0]
+		for _, s := range d.EvaluationSets {
+			if l.skipped[KindEvaluationSet][foldKey(KindEvaluationSet, s.Name)] == "" {
+				kept = append(kept, s)
+			}
+		}
+		d.EvaluationSets = kept
 	}
 	return nil
 }

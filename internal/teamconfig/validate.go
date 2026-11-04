@@ -6,21 +6,22 @@ import (
 	"encoding/json"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/boilerplate"
 	"github.com/ncecere/grounded/internal/evals"
 	kbservice "github.com/ncecere/grounded/internal/kbs"
+	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/web"
+	"github.com/ncecere/grounded/internal/webhooks"
 )
 
 func domainError() error { return invalid("unsupported_configuration", "$", nil) }
 
 func (d Document) validate() error {
-	if len(d.Webhooks) != 0 {
-		return domainError()
-	}
 	sources := map[string]bool{}
 	kbs := map[string]bool{}
 	if err := d.validateSources(sources); err != nil {
@@ -33,6 +34,9 @@ func (d Document) validate() error {
 		return err
 	}
 	if err := d.validateEvaluations(kbs); err != nil {
+		return err
+	}
+	if err := d.validateWebhooks(); err != nil {
 		return err
 	}
 	raw, _ := json.Marshal(d)
@@ -96,7 +100,8 @@ func (d Document) validateKBs(sources, kbs map[string]bool) error {
 				return domainError()
 			}
 			seen[r] = true
-			if r.Namespace != "platform" && (r.Namespace != "team" || !sources[r.Name]) {
+			// A team source may be in the file or already in the team: planning resolves it (§1).
+			if r.Namespace != "platform" && r.Namespace != "team" {
 				return domainError()
 			}
 		}
@@ -105,7 +110,7 @@ func (d Document) validateKBs(sources, kbs map[string]bool) error {
 }
 func (d Document) validateAgents(kbs map[string]bool) error {
 	for _, a := range d.Agents {
-		if agentProfile(a) != nil || validateConfig(a.Draft, kbs) != nil {
+		if !referenceName(a.Name) || agentProfile(a) != nil || validateConfig(a.Draft, kbs) != nil {
 			return domainError()
 		}
 		seen := map[int32]bool{}
@@ -122,10 +127,6 @@ func (d Document) validateAgents(kbs map[string]bool) error {
 	return nil
 }
 func (d Document) validateEvaluations(kbs map[string]bool) error {
-	agentsByName := map[string]bool{}
-	for _, a := range d.Agents {
-		agentsByName[a.Name] = true
-	}
 	for _, s := range d.EvaluationSets {
 		if len(s.Description) > 2000 {
 			return domainError()
@@ -133,7 +134,8 @@ func (d Document) validateEvaluations(kbs map[string]bool) error {
 		if (s.KnowledgeBase == "") == (s.Agent == "") {
 			return domainError()
 		}
-		if s.KnowledgeBase != "" && !kbs[s.KnowledgeBase] || s.Agent != "" && !agentsByName[s.Agent] {
+		// The target is a knowledge base's name or an agent's address (slug), in the file or the team (§1).
+		if s.KnowledgeBase != "" && !referenceName(s.KnowledgeBase) || s.Agent != "" && teams.ValidateSlug(s.Agent) != nil {
 			return domainError()
 		}
 		if len(s.Cases) > MaxSequenceItems {
@@ -148,6 +150,30 @@ func (d Document) validateEvaluations(kbs map[string]bool) error {
 					return domainError()
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// validateWebhooks checks what is portable: an https URL on port 443 without credentials, query or fragment (a query
+// is where a receiver's token usually hides), one line of description, and known team events. Whether the host is
+// approved is a property of the target install, checked when planning.
+func (d Document) validateWebhooks() error {
+	for _, h := range d.Webhooks {
+		u, err := url.Parse(h.URL)
+		if err != nil || u.Scheme != "https" || (u.Port() != "" && u.Port() != "443") || !safeURL(h.URL) {
+			return domainError()
+		}
+		if utf8.RuneCountInString(h.Description) > 200 || strings.ContainsAny(h.Description, "\r\n") || len(h.Events) == 0 || len(h.Events) > 50 {
+			return domainError()
+		}
+		seen := map[string]bool{}
+		for _, e := range h.Events {
+			t, ok := webhooks.Lookup(e)
+			if !ok || t.Test || t.Scope != webhooks.ScopeTeam || seen[e] {
+				return domainError()
+			}
+			seen[e] = true
 		}
 	}
 	return nil
@@ -179,10 +205,10 @@ func validateConfig(c AgentConfig, kbs map[string]bool) error {
 	}
 	seen := map[string]bool{}
 	for _, r := range c.KnowledgeBases {
-		if !kbs[r.Name] || seen[r.Name] || r.TopK != nil && (*r.TopK < 1 || *r.TopK > 50) {
+		if !referenceName(r.Name) || seen[strings.ToLower(r.Name)] || r.TopK != nil && (*r.TopK < 1 || *r.TopK > 50) {
 			return domainError()
 		}
-		seen[r.Name] = true
+		seen[strings.ToLower(r.Name)] = true
 	}
 	return nil
 }
@@ -195,13 +221,27 @@ func safeURL(s string) bool {
 	return e == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.User == nil && u.RawQuery == "" && u.Fragment == "" && !u.ForceQuery && !strings.ContainsAny(u.EscapedPath(), "%@")
 }
 
-// This is a credential-marker check, not general secret discovery/DLP. Free
-// configuration text is authorized; connection/secret tables are never read.
-// Decode bounded encodings to prevent hiding recognizable credential syntax.
+// This is a credential-pattern check, not general secret discovery/DLP: configuration text is authorized content,
+// and connection and secret tables are never read. It looks for credential syntax (an Authorization or Cookie value,
+// a key=value secret, well-known token prefixes, a private key block), not for words: instructions that tell people
+// how to reset their password are ordinary help-desk text and must export. Bounded decoding stops a credential from
+// hiding behind URL or base64 encoding.
+var credentialPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\b(authorization|proxy-authorization)\s*:\s*((bearer|basic|token|negotiate|digest)\s+)?[a-z0-9._~+/=-]{8,}`),
+	regexp.MustCompile(`(?i)\b(bearer|basic)\s+[a-z0-9._~+/=-]{20,}`),
+	regexp.MustCompile(`(?i)\bcookie\s*:\s*[^\s=;]+=\S+`),
+	regexp.MustCompile(`(?i)\b(password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?token|auth[_-]?token|signing[_-]?secret)\s*[:=]\s*["']?[^\s"',;]{6,}`),
+	regexp.MustCompile(`\b(sk|rk|pk)-[A-Za-z0-9_-]{20,}`),
+	regexp.MustCompile(`\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}|\bgithub_pat_[A-Za-z0-9_]{30,}`),
+	regexp.MustCompile(`\bxox[abpors]-[A-Za-z0-9-]{10,}`),
+	regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`),
+	regexp.MustCompile(`\brag_[A-Za-z0-9_]{20,}`), // Grounded API keys (internal/apikeys)
+	regexp.MustCompile(`(?i)-----begin [a-z ]*private key-----`),
+}
+
 func unsafeText(s string, depth int) bool {
-	l := strings.ToLower(s)
-	for _, marker := range []string{"authorization", "bearer ", "cookie", "password", "signingsecret", "api_key", "api-key", "access_token", "sk-", "-----begin private"} {
-		if strings.Contains(l, marker) {
+	for _, re := range credentialPatterns {
+		if re.MatchString(s) {
 			return true
 		}
 	}

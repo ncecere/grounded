@@ -23,13 +23,12 @@ func TestStrictDocument(t *testing.T) {
 	for _, change := range []struct{ from, to string }{
 		{`"description":""`, `"unknown":"password=canary","description":""`},
 		{`"namespace":"team"`, `"namespace":"other-team"`},
-		{`"name":"Guide"`, `"name":"Missing"`},
 		{`"topK":6`, `"topK":"six"`},
 		{`"topK":6`, `"topK":0`},
 		{`"topK":6`, `"topK":51`},
 		{`"boilerplate":{}`, `"boilerplate":{"authorization":"canary"}`},
 	} {
-		// The missing-reference case changes only the source's name.
+		// A reference to a source that is not in the file is resolved against the team when planning (plan_test.go).
 		changed := strings.Replace(string(raw), change.from, change.to, 1)
 		if _, err := DecodeDocument(strings.NewReader(changed)); err == nil {
 			t.Errorf("accepted invalid domain %s", change.to)
@@ -67,6 +66,20 @@ func TestCredentialMarkersEncodedAndURLs(t *testing.T) {
 	for _, u := range []string{"https://user:pw@example.edu", "https://example.edu?key=x", "https://example.edu/#x", "https://example.edu/%74oken"} {
 		if safeURL(u) {
 			t.Fatalf("credential URL accepted %s", u)
+		}
+	}
+}
+
+// Credential syntax is refused; the words alone are ordinary help-desk text.
+func TestCredentialPatternsNotWords(t *testing.T) {
+	for _, text := range []string{"Help students reset their password.", "Explain cookies and the session timeout.", "Ask for an access token only through the portal.", "Authorization forms are in the registrar's office."} {
+		if unsafeText(text, 0) {
+			t.Errorf("refused ordinary text %q", text)
+		}
+	}
+	for _, text := range []string{"password: Tr0ub4dor&3", "api_key=abcdef123456", "Authorization: Basic dXNlcjpwYXNzd29yZA==", "sk-" + strings.Repeat("a", 24), "ghp_" + strings.Repeat("b", 36), "AKIAABCDEFGHIJKLMNOP", "rag_" + strings.Repeat("c", 30), "Cookie: session=abc123", "-----BEGIN RSA PRIVATE KEY-----"} {
+		if !unsafeText(text, 0) {
+			t.Errorf("accepted credential syntax %q", text)
 		}
 	}
 }

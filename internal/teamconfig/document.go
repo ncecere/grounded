@@ -96,15 +96,14 @@ type EvaluationCase struct {
 	Note        string   `json:"note"`
 }
 
-// Webhooks require a target-install named signing secret. The current domain
-// has no such identity, so v1 refuses nonempty webhooks instead of fabricating it.
+// Webhook is identified by its URL (webhooks have no name) and never carries signing material: an import creates
+// a webhook turned off with a fresh secret made in the target install, and an update keeps the existing one
+// (docs/specs/config-as-code-import §5).
 type Webhook struct {
-	Name             string   `json:"name"`
-	URL              string   `json:"url"`
-	Description      string   `json:"description"`
-	Events           []string `json:"events"`
-	Enabled          bool     `json:"enabled"`
-	SigningSecretRef string   `json:"signingSecretRef"`
+	URL         string   `json:"url"`
+	Description string   `json:"description"`
+	Events      []string `json:"events"`
+	Enabled     bool     `json:"enabled"`
 }
 
 func strictJSON(raw []byte, out any) error {

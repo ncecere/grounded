@@ -17,6 +17,40 @@ import (
 var errDenied = apperr.NotFound("team_not_found", "Team not found")
 var errUnsupported = apperr.Conflict("configuration_unsupported", "Configuration contains unsupported settings, references, credentials or exceeds export limits; no partial export is available")
 
+// Kinds, as plan rows name them.
+const (
+	KindSource        = "source"
+	KindKnowledgeBase = "knowledgeBase"
+	KindAgent         = "agent"
+	KindEvaluationSet = "evaluationSet"
+	KindWebhook       = "webhook"
+)
+
+// loader reads a team's configuration into a Document. Strict (export): anything a file cannot carry refuses the
+// whole export, so a download is never silently partial. Lenient (planning): such an object is left out of the
+// current state and recorded, and only a plan row that touches it is blocked.
+type loader struct {
+	q      *dbgen.Queries
+	team   uuid.UUID
+	actor  authz.Actor
+	strict bool
+	// skipped is what a lenient load left out, by kind and identity, with why.
+	skipped map[string]map[string]string
+	// evalsHidden: the caller (an API key) may not read evaluation questions, so the sets were not loaded.
+	evalsHidden bool
+}
+
+func (l *loader) refuse(kind, key, reason string) error {
+	if l.strict {
+		return errUnsupported
+	}
+	if l.skipped[kind] == nil {
+		l.skipped[kind] = map[string]string{}
+	}
+	l.skipped[kind][foldKey(kind, key)] = reason
+	return nil
+}
+
 // Export reads a single consistent snapshot. It has no network, jobs, audit or
 // mutation dependencies and never selects content or secret storage columns.
 func Export(ctx context.Context, pool *pgxpool.Pool, a authz.Actor, ref string) ([]byte, error) {
@@ -26,29 +60,13 @@ func Export(ctx context.Context, pool *pgxpool.Pool, a authz.Actor, ref string) 
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := dbgen.New(tx)
-	t, err := exportAccess(ctx, q, a, ref)
+	t, err := access(ctx, q, a, ref, authz.ScopeConfigurationExport)
 	if err != nil {
 		return nil, err
 	}
-	if err = aggregateEligibility(ctx, q, t.ID, a); err != nil {
-		return nil, err
-	}
-	budget, err := q.ExportConfigurationBudget(ctx, uuid.NullUUID{UUID: t.ID, Valid: true})
+	l := &loader{q: q, team: t.ID, actor: a, strict: true}
+	d, err := l.load(ctx)
 	if err != nil {
-		return nil, err
-	}
-	if budget.Resources > MaxResources || budget.RawBytes > MaxBytes || budget.Versions > MaxSequenceItems || budget.Cases > MaxSequenceItems {
-		return nil, errUnsupported
-	}
-	d := Document{APIVersion: Version, Sources: []Source{}, KnowledgeBases: []KnowledgeBase{}, Agents: []Agent{}, EvaluationSets: []EvaluationSet{}, Webhooks: []Webhook{}}
-	kbNames, err := loadSourcesKBs(ctx, q, t.ID, a.Delegated(), &d)
-	if err != nil {
-		return nil, err
-	}
-	if err = loadAgents(ctx, q, t.ID, kbNames, &d); err != nil {
-		return nil, err
-	}
-	if err = loadEvaluations(ctx, q, t.ID, a, &d); err != nil {
 		return nil, err
 	}
 	raw, err := json.MarshalIndent(d, "", "  ")
@@ -67,7 +85,37 @@ func Export(ctx context.Context, pool *pgxpool.Pool, a authz.Actor, ref string) 
 	return raw, nil
 }
 
-func exportAccess(ctx context.Context, q *dbgen.Queries, a authz.Actor, ref string) (dbgen.Team, error) {
+// load reads the team's configuration in the export's order and bounds.
+func (l *loader) load(ctx context.Context) (Document, error) {
+	if err := l.evaluationAccess(ctx); err != nil {
+		return Document{}, err
+	}
+	budget, err := l.q.ExportConfigurationBudget(ctx, uuid.NullUUID{UUID: l.team, Valid: true})
+	if err != nil {
+		return Document{}, err
+	}
+	if budget.Resources > MaxResources || budget.RawBytes > MaxBytes || budget.Versions > MaxSequenceItems || budget.Cases > MaxSequenceItems {
+		return Document{}, errUnsupported
+	}
+	d := Document{APIVersion: Version, Sources: []Source{}, KnowledgeBases: []KnowledgeBase{}, Agents: []Agent{}, EvaluationSets: []EvaluationSet{}, Webhooks: []Webhook{}}
+	kbNames, err := l.loadSourcesKBs(ctx, &d)
+	if err != nil {
+		return d, err
+	}
+	if err = l.loadAgents(ctx, kbNames, &d); err != nil {
+		return d, err
+	}
+	if err = l.loadEvaluations(ctx, &d); err != nil {
+		return d, err
+	}
+	return d, l.loadWebhooks(ctx, &d)
+}
+
+// access checks a caller against a team for a configuration operation. Sessions need an actual editor-or-higher
+// membership (platform roles and break-glass give none). An API key must belong to the team, have no knowledge-base
+// or agent restrictions and hold the operation's scope (applying also needs manage); a personal key also needs its
+// owner's current editor-or-higher membership. OAuth clients are refused.
+func access(ctx context.Context, q *dbgen.Queries, a authz.Actor, ref, scope string) (dbgen.Team, error) {
 	var t dbgen.Team
 	var err error
 	if id, e := uuid.Parse(ref); e == nil {
@@ -92,14 +140,17 @@ func exportAccess(ctx context.Context, q *dbgen.Queries, a authz.Actor, ref stri
 		if !authz.RoleAtLeast(m.Role, authz.RoleEditor) {
 			return t, errDenied
 		}
-	} else {
-		k := a.Key
-		if k.TeamID != t.ID || !k.HasScope(authz.ScopeConfigurationExport) || k.KBsLimited() || len(k.AgentIDs) > 0 {
-			return t, errDenied
-		}
-		if k.Personal() && !authz.RoleAtLeast(m.Role, authz.RoleEditor) {
-			return t, errDenied
-		}
+		return t, nil
+	}
+	k := a.Key
+	if k.TeamID != t.ID || !k.HasScope(scope) || k.KBsLimited() || len(k.AgentIDs) > 0 {
+		return t, errDenied
+	}
+	if scope == authz.ScopeConfigurationApply && !k.HasScope(authz.ScopeManage) {
+		return t, errDenied
+	}
+	if k.Personal() && !authz.RoleAtLeast(m.Role, authz.RoleEditor) {
+		return t, errDenied
 	}
 	return t, nil
 }
@@ -113,112 +164,49 @@ func number(f *float64) *json.Number {
 	return &n
 }
 
-func loadSources(ctx context.Context, q *dbgen.Queries, team uuid.UUID, delegated bool, d *Document) error {
-	srcs, err := q.ExportConfigurationSources(ctx, uuid.NullUUID{UUID: team, Valid: true})
+// evaluationAccess applies the evaluation policy before any payload read: API keys never see evaluation
+// questions (an export with sets refuses; a plan leaves the sets out), and the platform's evaluation switch applies.
+func (l *loader) evaluationAccess(ctx context.Context) error {
+	exists, err := l.q.ExportConfigurationEvalPresence(ctx, l.team)
+	if err != nil || !exists {
+		return err
+	}
+	settings, err := l.q.GetEvaluationSettings(ctx)
 	if err != nil {
 		return err
 	}
-	if len(srcs) > MaxResources {
-		return errUnsupported
-	}
-	for _, s := range srcs {
-		if s.Contextual || s.Rank > s.CeilingRank || (delegated && !s.DirectRetrieve) {
+	if l.actor.Key != nil || !settings.Enabled {
+		if l.strict {
 			return errUnsupported
 		}
-		out := Source{Name: s.Name, Description: s.Description, Type: s.Type, Classification: s.Classification, EmbeddingProfile: s.Profile, Status: s.Status, OCREnabled: s.OcrEnabled}
-		if strictJSON(s.Boilerplate, &out.Boilerplate) != nil {
-			return errUnsupported
-		}
-		if s.Type == "web" {
-			out.Web = newWebConfig()
-			if strictJSON(s.Config, out.Web) != nil {
-				return errUnsupported
-			}
-			if out.Web.URLs == nil {
-				out.Web.URLs = []string{}
-			}
-			if out.Web.IncludePrefixes == nil {
-				out.Web.IncludePrefixes = []string{}
-			}
-			if out.Web.Exclude == nil {
-				out.Web.Exclude = []string{}
-			}
-			if out.Web.Tags == nil {
-				out.Web.Tags = []string{}
-			}
-		} else if string(s.Config) != "{}" {
-			return errUnsupported
-		}
-		d.Sources = append(d.Sources, out)
+		l.evalsHidden = true
 	}
 	return nil
 }
 
-func loadSourcesKBs(ctx context.Context, q *dbgen.Queries, team uuid.UUID, delegated bool, d *Document) (map[uuid.UUID]string, error) {
-	if err := loadSources(ctx, q, team, delegated, d); err != nil {
-		return nil, err
-	}
-
-	rows, err := q.ExportConfigurationKBs(ctx, team)
+func (l *loader) loadWebhooks(ctx context.Context, d *Document) error {
+	rows, err := l.q.ExportConfigurationWebhooks(ctx, uuid.NullUUID{UUID: l.team, Valid: true})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if len(rows)+len(d.Sources) > MaxResources {
-		return nil, errUnsupported
+	if len(rows) > 50 {
+		return errUnsupported
 	}
-	names := map[uuid.UUID]string{}
-	index := map[string]int{}
-	for _, k := range rows {
-		names[k.ID] = k.Name
-		index[k.Name] = len(d.KnowledgeBases)
-		d.KnowledgeBases = append(d.KnowledgeBases, KnowledgeBase{Name: k.Name, Description: k.Description, EmbeddingProfile: k.Profile, TopK: k.TopK, VectorWeight: number(k.VectorWeight), KeywordWeight: number(k.KeywordWeight), Sources: []SourceRef{}})
-	}
-	links, err := q.ExportConfigurationLinks(ctx, team)
-	if err != nil {
-		return nil, err
-	}
-	if len(links) > MaxSequenceItems {
-		return nil, errUnsupported
-	}
-	for _, l := range links {
-		if l.ForeignTeam || l.Rank > l.CeilingRank || (delegated && !l.DirectRetrieve) {
-			return nil, errUnsupported
+	seen := map[string]bool{}
+	for _, r := range rows {
+		// Two webhooks on one URL cannot be told apart by a file: refuse them rather than export one.
+		if seen[r.URL] || !safeURL(r.URL) {
+			if err := l.refuse(KindWebhook, r.URL, "two webhooks share this URL, or it has a query or credentials a file cannot carry"); err != nil {
+				return err
+			}
+			continue
 		}
-		ns := "team"
-		if l.Shared {
-			ns = "platform"
+		seen[r.URL] = true
+		events := r.Events
+		if events == nil {
+			events = []string{}
 		}
-		i := index[l.Kb]
-		d.KnowledgeBases[i].Sources = append(d.KnowledgeBases[i].Sources, SourceRef{Namespace: ns, Name: l.Name})
-	}
-	return names, nil
-}
-
-// Refuse protected/unnamed kinds before any payload or byte-budget read.
-func aggregateEligibility(ctx context.Context, q *dbgen.Queries, team uuid.UUID, a authz.Actor) error {
-	hooks, err := q.ExportConfigurationWebhookCount(ctx, uuid.NullUUID{UUID: team, Valid: true})
-	if err != nil {
-		return err
-	}
-	if hooks != 0 {
-		return errUnsupported
-	}
-	exists, err := q.ExportConfigurationEvalPresence(ctx, team)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return nil
-	}
-	if a.Key != nil {
-		return errUnsupported
-	}
-	settings, err := q.GetEvaluationSettings(ctx)
-	if err != nil {
-		return err
-	}
-	if !settings.Enabled {
-		return errUnsupported
+		d.Webhooks = append(d.Webhooks, Webhook{URL: r.URL, Description: r.Description, Events: events, Enabled: r.Enabled})
 	}
 	return nil
 }

@@ -93,6 +93,9 @@ const (
 	ScopeManage              = "manage"
 	ScopeMCP                 = "mcp"
 	ScopeConfigurationExport = "configuration:export"
+	// ScopeConfigurationApply applies a configuration file to the key's team (docs/specs/config-as-code-import). It
+	// is honoured only together with manage, on an unrestricted key of that team.
+	ScopeConfigurationApply = "configuration:apply"
 )
 
 // HasScope reports whether the key has scope.
@@ -173,7 +176,7 @@ func KeyTeamRole(k *KeyGrant, ownerRole string) string {
 func MaxScopesForRole(role string) []string {
 	switch {
 	case RoleAtLeast(role, RoleAdmin):
-		return []string{ScopeQuery, ScopeIngest, ScopeManage, ScopeMCP, ScopeConfigurationExport}
+		return []string{ScopeQuery, ScopeIngest, ScopeManage, ScopeMCP, ScopeConfigurationExport, ScopeConfigurationApply}
 	case role == RoleEditor:
 		return []string{ScopeQuery, ScopeIngest, ScopeMCP, ScopeConfigurationExport}
 	case role == RoleMember:

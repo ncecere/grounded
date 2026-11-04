@@ -189,14 +189,26 @@ func checkEnvelope(m map[string]any) error {
 		if total > MaxResources {
 			return invalid("resource_limit", "$", nil)
 		}
-		if err := checkNames(items, "$."+field); err != nil {
+		if err := checkNames(items, "$."+field, field); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkNames(items []any, path string) error {
+// identityOf is how each kind is matched against a team (docs/specs/config-as-code-import §1): sources, knowledge
+// bases and evaluation sets by name, case-insensitively as their unique indexes compare them; agents by their address
+// (slug), which is unique while names are not; webhooks by URL, since they have no name.
+var identityOf = map[string]string{"agents": "slug", "webhooks": "url"}
+
+func checkNames(items []any, path, field string) error {
+	key, limit := identityOf[field], 100
+	if key == "" {
+		key = "name"
+	}
+	if key == "url" {
+		limit = 2048
+	}
 	seen := map[string]bool{}
 	for i, item := range items {
 		p := fmt.Sprintf("%s[%d]", path, i)
@@ -204,17 +216,28 @@ func checkNames(items []any, path string) error {
 		if !ok {
 			return invalid("resource_mapping_required", p, nil)
 		}
-		name, ok := m["name"].(string)
-		if !ok || len(name) < 1 || len(name) > 100 || strings.TrimSpace(name) != name {
-			return invalid("invalid_name", p+".name", nil)
+		id, ok := m[key].(string)
+		if !ok || len(id) < 1 || len(id) > limit || strings.TrimSpace(id) != id {
+			return invalid("invalid_"+key, p+"."+key, nil)
 		}
-		if displaytext.Validate(name, "invalid_name", "Name") != nil {
-			return invalid("invalid_name", p+".name", nil)
+		if displaytext.Validate(id, "invalid_"+key, "Name") != nil {
+			return invalid("invalid_"+key, p+"."+key, nil)
 		}
-		if seen[name] {
-			return invalid("duplicate_name", p+".name", nil)
+		folded := id
+		if key != "url" {
+			folded = strings.ToLower(id)
 		}
-		seen[name] = true
+		if seen[folded] {
+			return invalid("duplicate_"+key, p+"."+key, nil)
+		}
+		seen[folded] = true
+		if key != "name" {
+			if name, ok := m["name"]; ok {
+				if n, ok := name.(string); !ok || len(n) < 1 || len(n) > 100 || strings.TrimSpace(n) != n || displaytext.Validate(n, "invalid_name", "Name") != nil {
+					return invalid("invalid_name", p+".name", nil)
+				}
+			}
+		}
 	}
 	return nil
 }

@@ -118,7 +118,7 @@ func TestReaderFailure(t *testing.T) {
 
 func TestResourceKindsHaveSeparateNames(t *testing.T) {
 	in := strings.Replace(empty, "sources: []", "sources: [{name: a}]", 1)
-	in = strings.Replace(in, "agents: []", "agents: [{name: a}]", 1)
+	in = strings.Replace(in, "agents: []", "agents: [{name: a, slug: a}]", 1)
 	if _, err := DecodeEnvelope(strings.NewReader(in)); err != nil {
 		t.Fatal(err)
 	}

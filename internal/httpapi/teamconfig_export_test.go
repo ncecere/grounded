@@ -178,11 +178,22 @@ func TestConfigurationExportProtectedAndSecretFixtures(t *testing.T) {
 		t.Fatal("nonportable evaluation document reference accepted")
 	}
 	exec(`DELETE FROM eval_sets WHERE name='Portable checks'`)
+	// A webhook exports what it is (URL, description, events, on or off), never its signing material.
 	exec(`INSERT INTO webhooks(team_id,url,description,events,secret_cipher,secret_hint)
- SELECT team_id,'https://example.edu/hook','synthetic-export-canary',ARRAY['source.updated'],decode('736563726574','hex'),'nary' FROM knowledge_bases WHERE id=$1`, env.kb.Id)
+ SELECT team_id,'https://example.edu/hook','Tell the help desk',ARRAY['source.synced','agent.published'],decode('73796e7468657469632d7369676e696e672d63616e617279','hex'),'nary' FROM knowledge_bases WHERE id=$1`, env.kb.Id)
+	code, raw = env.owner.raw("GET", path, nil, nil)
+	if code != 200 || bytes.Contains(raw, []byte("signing-canary")) || bytes.Contains(raw, []byte(`"secret`)) || bytes.Contains(raw, []byte(`"signing`)) || bytes.Contains(raw, []byte(`"hint"`)) {
+		t.Fatalf("webhook export %d leaked signing material or failed", code)
+	}
+	d, err = teamconfig.DecodeDocument(bytes.NewReader(raw))
+	if err != nil || len(d.Webhooks) != 1 || d.Webhooks[0].URL != "https://example.edu/hook" || len(d.Webhooks[0].Events) != 2 || d.Webhooks[0].Description != "Tell the help desk" {
+		t.Fatalf("webhook not exported as configured: %v %+v", err, d.Webhooks)
+	}
+	// A query is where a receiver's token usually hides: such a webhook refuses the whole export.
+	exec(`UPDATE webhooks SET url='https://example.edu/hook?token=synthetic-canary'`)
 	code, raw = env.owner.raw("GET", path, nil, nil)
 	if code != 409 || bytes.Contains(raw, []byte("canary")) {
-		t.Fatal("unnamed signing secret or webhook settings leaked")
+		t.Fatal("credential-bearing webhook URL exported")
 	}
 }
 

@@ -46,7 +46,7 @@ WHERE a.team_id=$1 AND a.deleted_at IS NULL ORDER BY a.name COLLATE "C",v.versio
 SELECT m.key AS name, c.name AS connection FROM models m JOIN model_connections c ON c.id=m.connection_id WHERE m.id=$1;
 
 -- name: ExportConfigurationEvalSets :many
-SELECT s.id, s.name, s.description, s.auto_run, coalesce(k.name,'')::text AS kb, coalesce(a.name,'')::text AS agent
+SELECT s.id, s.name, s.description, s.auto_run, coalesce(k.name,'')::text AS kb, coalesce(a.slug,'')::text AS agent
 FROM eval_sets s LEFT JOIN knowledge_bases k ON k.id=s.kb_id AND k.team_id=s.team_id
 LEFT JOIN agents a ON a.id=s.agent_id AND a.team_id=s.team_id AND a.deleted_at IS NULL
 WHERE s.team_id=$1 ORDER BY s.name COLLATE "C" LIMIT 501;
@@ -56,8 +56,9 @@ SELECT c.question,(CASE WHEN octet_length(c.expected::text)<=65536 THEN c.expect
 FROM eval_cases c JOIN eval_sets s ON s.id=c.set_id
 WHERE s.team_id=$1 AND s.id=$2 ORDER BY c.question COLLATE "C",c.expected::text,c.must_mention,c.note COLLATE "C" LIMIT 1001;
 
--- name: ExportConfigurationWebhookCount :one
-SELECT count(*) FROM (SELECT 1 FROM webhooks WHERE team_id=$1 LIMIT 1) AS present;
+-- A team's webhooks without any signing material: no secret_cipher, secret_hint or delivery data.
+-- name: ExportConfigurationWebhooks :many
+SELECT url, description, events, enabled FROM webhooks WHERE team_id=$1 ORDER BY url COLLATE "C", created_at LIMIT 51;
 
 -- Preflight returns only counts/byte lengths, never configuration payloads.
 -- Sentinel limits also bound the metadata work if old writers exceeded caps.
