@@ -5,12 +5,12 @@ test("signed exports: real off/key-error state, 390px keyboard and auditor facts
  await page.setViewportSize({width:390,height:844});
  await page.goto("/admin/logs");
  const panel=page.getByRole("region",{name:"Signed daily exports"});
- await expect(panel.getByText(/Off — no daily exports approved/)).toBeVisible();
- await expect(panel.getByText(/Unavailable — an operator/)).toBeVisible();
- const approval=panel.getByRole("button",{name:"Approve daily exports"});
- await approval.focus();
- await page.keyboard.press("Enter");
- await expect(panel.getByRole("alert")).toContainText("Private signed export configuration is unavailable");
+ await expect(panel.getByText("Off", { exact: true })).toBeVisible();
+ await expect(panel.getByText(/Unavailable: an operator must configure/)).toBeVisible();
+ // Without the operator's signing key there is nothing to approve: the button says so by being disabled.
+ await expect(panel.getByRole("button",{name:"Approve daily exports"})).toBeDisabled();
+ await panel.getByLabel("First covered UTC day").focus();
+ await expect(panel.getByLabel("First covered UTC day")).toBeFocused();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await a11y(page);
  await page.screenshot({path:info.outputPath("signed-exports-admin-390.png"),fullPage:true});
