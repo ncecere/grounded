@@ -2,7 +2,11 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-11-01
+## Current execution status — 2026-11-04
+
+- **Work resumes on the owner's go-ahead (2026-11-04).** Dependabot #208 and #209 merged after green CI. Block 3 restarts with **#34** (accessibility statement and model cards) and **#31** (Helm chart) from their parked branches, rebased onto `main`; **#32** (configuration as code) follows once its import/dry-run design is written. A UI polish pass (bitop-ui and the app) runs alongside. #36, #40 and the rest of v0.9.0 stay parked; #19 still needs the owner's reference-install pages; #89 is unchanged.
+
+### Earlier status (2026-11-01)
 
 - **v0.7.0 (retrieval) is being released** from `main`: #23, #24, #20, #22, #21 and the first part of #19 (opt-in chunker v4), all off by default. #21 closed with PR #204 (merge `f0b014b`) after a pacing-revocation review finding was fixed, a second bounded real-model check on the final runtime source and full exact-head CI/cluster acceptance. #19 merged with PR #205 but **stays open** for representative mixed-procedure pages; #25 stays open for the reference-install measurement. **12 of the original 29 issues are closed, 17 open.** The planned adoption release is renumbered v0.8.0, compliance v0.9.0, private content v0.10.0 (scope unchanged). After the release, work pauses: block 3 (adoption/compliance) remains parked on private branches and needs a new owner go-ahead; #19/#25 need the owner's reference install, examples and traces.
 
