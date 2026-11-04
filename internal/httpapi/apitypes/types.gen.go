@@ -51,6 +51,7 @@ func (e APIKeyCreateKind) Valid() bool {
 
 // Defines values for APIKeyScope.
 const (
+	APIKeyScopeConfigurationApply  APIKeyScope = "configuration:apply"
 	APIKeyScopeConfigurationExport APIKeyScope = "configuration:export"
 	APIKeyScopeIngest              APIKeyScope = "ingest"
 	APIKeyScopeManage              APIKeyScope = "manage"
@@ -61,6 +62,8 @@ const (
 // Valid indicates whether the value is a known member of the APIKeyScope enum.
 func (e APIKeyScope) Valid() bool {
 	switch e {
+	case APIKeyScopeConfigurationApply:
+		return true
 	case APIKeyScopeConfigurationExport:
 		return true
 	case APIKeyScopeIngest:
@@ -1054,6 +1057,57 @@ func (e ClassificationUpdateAllowedSourceTypes) Valid() bool {
 	case ClassificationUpdateAllowedSourceTypesUpload:
 		return true
 	case ClassificationUpdateAllowedSourceTypesWeb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationPlanRowAction.
+const (
+	ConfigurationPlanRowActionCreate    ConfigurationPlanRowAction = "create"
+	ConfigurationPlanRowActionNoOp      ConfigurationPlanRowAction = "no-op"
+	ConfigurationPlanRowActionNotInFile ConfigurationPlanRowAction = "not-in-file"
+	ConfigurationPlanRowActionUpdate    ConfigurationPlanRowAction = "update"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationPlanRowAction enum.
+func (e ConfigurationPlanRowAction) Valid() bool {
+	switch e {
+	case ConfigurationPlanRowActionCreate:
+		return true
+	case ConfigurationPlanRowActionNoOp:
+		return true
+	case ConfigurationPlanRowActionNotInFile:
+		return true
+	case ConfigurationPlanRowActionUpdate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationPlanRowKind.
+const (
+	ConfigurationPlanRowKindAgent         ConfigurationPlanRowKind = "agent"
+	ConfigurationPlanRowKindEvaluationSet ConfigurationPlanRowKind = "evaluationSet"
+	ConfigurationPlanRowKindKnowledgeBase ConfigurationPlanRowKind = "knowledgeBase"
+	ConfigurationPlanRowKindSource        ConfigurationPlanRowKind = "source"
+	ConfigurationPlanRowKindWebhook       ConfigurationPlanRowKind = "webhook"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationPlanRowKind enum.
+func (e ConfigurationPlanRowKind) Valid() bool {
+	switch e {
+	case ConfigurationPlanRowKindAgent:
+		return true
+	case ConfigurationPlanRowKindEvaluationSet:
+		return true
+	case ConfigurationPlanRowKindKnowledgeBase:
+		return true
+	case ConfigurationPlanRowKindSource:
+		return true
+	case ConfigurationPlanRowKindWebhook:
 		return true
 	default:
 		return false
@@ -4912,7 +4966,7 @@ type APIKeyCreated struct {
 	Secret string `json:"secret"`
 }
 
-// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
+// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants. configuration:apply checks and applies a configuration file to the key's team; it requires manage on the same key and never reaches evaluation questions.
 type APIKeyScope string
 
 // AccessLogEntry defines model for AccessLogEntry.
@@ -6812,6 +6866,55 @@ type ClassificationUpdate struct {
 
 // ClassificationUpdateAllowedSourceTypes defines model for ClassificationUpdate.AllowedSourceTypes.
 type ClassificationUpdateAllowedSourceTypes string
+
+// ConfigurationApplied defines model for ConfigurationApplied.
+type ConfigurationApplied struct {
+	Plan ConfigurationPlan `json:"plan"`
+
+	// WebhookSecrets Signing secrets of webhooks this apply made, shown only here.
+	WebhookSecrets []struct {
+		Secret string `json:"secret"`
+		Url    string `json:"url"`
+	} `json:"webhookSecrets"`
+}
+
+// ConfigurationPlan defines model for ConfigurationPlan.
+type ConfigurationPlan struct {
+	Counts struct {
+		Blocked   int `json:"blocked"`
+		Create    int `json:"create"`
+		NoOp      int `json:"noOp"`
+		NotInFile int `json:"notInFile"`
+		Update    int `json:"update"`
+	} `json:"counts"`
+	Notes []string `json:"notes"`
+
+	// PlanDigest Send in If-Match to apply. Detects change; never an authorization.
+	PlanDigest string                 `json:"planDigest"`
+	Rows       []ConfigurationPlanRow `json:"rows"`
+}
+
+// ConfigurationPlanRow defines model for ConfigurationPlanRow.
+type ConfigurationPlanRow struct {
+	Action   ConfigurationPlanRowAction `json:"action"`
+	Blockers []string                   `json:"blockers"`
+	Changes  []struct {
+		Field string `json:"field"`
+		From  string `json:"from"`
+		To    string `json:"to"`
+	} `json:"changes"`
+
+	// Key Name, an agent's slug, or a webhook's URL
+	Key   string                   `json:"key"`
+	Kind  ConfigurationPlanRowKind `json:"kind"`
+	Notes []string                 `json:"notes"`
+}
+
+// ConfigurationPlanRowAction defines model for ConfigurationPlanRow.Action.
+type ConfigurationPlanRowAction string
+
+// ConfigurationPlanRowKind defines model for ConfigurationPlanRow.Kind.
+type ConfigurationPlanRowKind string
 
 // ConfiguredCheck defines model for ConfiguredCheck.
 type ConfiguredCheck string
@@ -13743,6 +13846,11 @@ type ListTeamAuditParams struct {
 
 // ListTeamAuditParamsActorKind defines parameters for ListTeamAudit.
 type ListTeamAuditParamsActorKind string
+
+// ApplyTeamConfigurationParams defines parameters for ApplyTeamConfiguration.
+type ApplyTeamConfigurationParams struct {
+	IfMatch string `json:"If-Match"`
+}
 
 // ListContentHealthFindingsParams defines parameters for ListContentHealthFindings.
 type ListContentHealthFindingsParams struct {

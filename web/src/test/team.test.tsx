@@ -515,9 +515,9 @@ describe("API keys", () => {
   it("limits scopes by role", () => {
     expect(allowedScopes("member", "personal")).toEqual(["query", "mcp"]);
     expect(allowedScopes("editor", "personal")).toEqual(["query", "ingest", "mcp", "configuration:export"]);
-    expect(allowedScopes("admin", "personal")).toEqual(["query", "ingest", "manage", "mcp", "configuration:export"]);
+    expect(allowedScopes("admin", "personal")).toEqual(["query", "ingest", "manage", "mcp", "configuration:export", "configuration:apply"]);
     expect(allowedScopes("editor", "service")).toEqual([]);
-    expect(allowedScopes("owner", "service")).toEqual(["query", "ingest", "manage", "mcp", "configuration:export"]);
+    expect(allowedScopes("owner", "service")).toEqual(["query", "ingest", "manage", "mcp", "configuration:export", "configuration:apply"]);
   });
 
   it("shows the secret once, with a curl example, and never again", async () => {

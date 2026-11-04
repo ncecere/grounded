@@ -322,10 +322,11 @@ export interface paths {
          * Download bounded portable team configuration (read only)
          * @description Requires actual editor/admin/owner membership, or an unrestricted team key
          *     with configuration:export scope (not manage). Personal keys also require
-         *     current editor membership. No content or secret values. Unsupported
-         *     references/settings refuse the whole export with configuration_unsupported.
-         *     Webhooks currently refuse export because signing secrets have no named
-         *     target-install reference. No import, dry run or apply is implemented.
+         *     current editor membership. No content or secret values: webhooks export
+         *     their URL, description, events and whether they are on, never signing
+         *     material. Unsupported references/settings refuse the whole export with
+         *     configuration_unsupported. Check a file with .../configuration/plan and
+         *     apply it with .../configuration/apply.
          */
         get: operations["exportTeamConfiguration"];
         put?: never;
@@ -350,6 +351,57 @@ export interface paths {
         get: operations["getTeam"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/configuration/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check what applying a configuration file would change (writes nothing)
+         * @description The body is a configuration file (YAML, at most 1 MiB). Objects match the team's by kind and
+         *     identity: sources, knowledge bases and evaluation sets by name (case-insensitive), agents by
+         *     slug, webhooks by URL. Nothing is ever deleted or renamed; objects not in the file are listed as
+         *     not-in-file. Requires actual editor/admin/owner membership, or an unrestricted team key with
+         *     configuration:apply and manage (personal keys also need current editor membership). API keys
+         *     never reach evaluation questions. No write, job, network call or audit entry, even when refused.
+         *     docs/specs/config-as-code-import.
+         */
+        post: operations["planTeamConfiguration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/configuration/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a checked configuration file in one transaction
+         * @description The same file as the plan, with the plan's digest in If-Match. The plan is recomputed under the
+         *     team's lock with the caller's current grants: 412 (with the fresh plan in error.details.plan) when
+         *     the team, the install or the file changed; 409 configuration_blocked (with the plan) while any row
+         *     is blocked; 428 without If-Match. All changes go through the domain checks and audit entries, or
+         *     none do. A file never publishes an agent, starts a crawl or an evaluation run, or turns a webhook on:
+         *     new web sources start paused and new webhooks off, with a fresh signing secret returned once.
+         */
+        post: operations["applyTeamConfiguration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9279,10 +9331,10 @@ export interface components {
             latencyMs: number;
         };
         /**
-         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants.
+         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API. configuration:export downloads only supported team configuration; no general REST or write grant, no evaluation question access, and no restricted KB/agent grants. configuration:apply checks and applies a configuration file to the key's team; it requires manage on the same key and never reaches evaluation questions.
          * @enum {string}
          */
-        APIKeyScope: "query" | "ingest" | "manage" | "mcp" | "configuration:export";
+        APIKeyScope: "query" | "ingest" | "manage" | "mcp" | "configuration:export" | "configuration:apply";
         APIKey: {
             /** Format: uuid */
             id: string;
@@ -13015,6 +13067,42 @@ export interface components {
             /** Format: int64 */
             revision: number;
         };
+        ConfigurationPlan: {
+            /** @description Send in If-Match to apply. Detects change; never an authorization. */
+            planDigest: string;
+            counts: {
+                create: number;
+                update: number;
+                noOp: number;
+                notInFile: number;
+                blocked: number;
+            };
+            rows: components["schemas"]["ConfigurationPlanRow"][];
+            notes: string[];
+        };
+        ConfigurationPlanRow: {
+            /** @enum {string} */
+            kind: "source" | "knowledgeBase" | "agent" | "evaluationSet" | "webhook";
+            /** @description Name, an agent's slug, or a webhook's URL */
+            key: string;
+            /** @enum {string} */
+            action: "create" | "update" | "no-op" | "not-in-file";
+            changes: {
+                field: string;
+                from: string;
+                to: string;
+            }[];
+            blockers: string[];
+            notes: string[];
+        };
+        ConfigurationApplied: {
+            plan: components["schemas"]["ConfigurationPlan"];
+            /** @description Signing secrets of webhooks this apply made, shown only here. */
+            webhookSecrets: {
+                url: string;
+                secret: string;
+            }[];
+        };
     };
     responses: {
         /** @description Current safe public statement links */
@@ -13817,6 +13905,76 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    planTeamConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/yaml": string;
+            };
+        };
+        responses: {
+            /** @description The plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConfigurationPlan"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    applyTeamConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/yaml": string;
+            };
+        };
+        responses: {
+            /** @description Applied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConfigurationApplied"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

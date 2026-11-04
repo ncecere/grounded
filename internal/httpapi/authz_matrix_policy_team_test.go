@@ -29,8 +29,16 @@ func init() {
 	}
 }
 
+var emptyConfiguration = map[string]any{"apiVersion": "grounded.team/v1", "sources": []any{}, "knowledgeBases": []any{}, "agents": []any{}, "evaluationSets": []any{}, "webhooks": []any{}}
+
 var teamPolicies = map[string]policy{
 	"exportTeamConfiguration": {own: editors, also: []string{"409 configuration_unsupported"}, build: func(c *mctx) request { return get(c.team("/configuration")) }},
+	// An empty file (JSON is YAML): planning lists the team's objects as not in the file; applying it with a digest
+	// that never matches is refused for drift after authorization (docs/specs/config-as-code-import).
+	"planTeamConfiguration": {own: editors, also: []string{"409 configuration_unsupported"}, build: func(c *mctx) request { return post(c.team("/configuration/plan"), emptyConfiguration) }},
+	"applyTeamConfiguration": {own: editors, also: []string{"409 configuration_unsupported", "412 configuration_changed"}, build: func(c *mctx) request {
+		return post(c.team("/configuration/apply"), emptyConfiguration).h(map[string]string{"If-Match": `"not-a-plan"`})
+	}},
 	// Teams, members, invites, audit, limits.
 	"getTeam":     {own: members, foreign: platform, build: func(c *mctx) request { return get(c.team("")) }},
 	"listMembers": {own: members, foreign: platform, build: func(c *mctx) request { return get(c.team("/members")) }},

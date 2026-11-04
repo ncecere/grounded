@@ -133,6 +133,7 @@ const actionLabels: Record<string, string> = {
   "source.sync": "Started sync",
   "source.sync_cancel": "Cancelled sync",
   "team.create": "Created team",
+  "team.configuration_apply": "Applied a configuration file",
   "team.update": "Changed team",
   "team.archive": "Archived team",
   "team.unarchive": "Unarchived team",

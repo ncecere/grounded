@@ -1,4 +1,12 @@
-# Lane 32 design, written before implementation
+# Configuration as code: export (#32)
+
+**Superseded as the design of record by [`specs/config-as-code-import/DESIGN.md`](specs/config-as-code-import/DESIGN.md)**
+(import, dry run and apply, accepted 2026-11-04) and [ADR-0033](adr/0033-team-configuration-as-code.md). This page keeps
+the export increment's detailed notes; where they say import is not built, or webhooks refuse, the spec is current:
+webhooks now export without signing material, agents are identified by slug, and references may be in the file or the
+team.
+
+## Export increment notes (2026-10-31)
 
 ## Delivery boundary: read-only export
 

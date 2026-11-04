@@ -1,8 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../api/client";
 import { SettingsSection } from "../../../components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
+import c from "./import-page.module.css";
 
 /** Mounted only for actual editors/admins/owners. No request on mount. */
 export function ConfigurationExport({ team }: { team: string }) {
@@ -29,12 +31,17 @@ export function ConfigurationExport({ team }: { team: string }) {
     }
   }
   return (
-    <SettingsSection title="Configuration as code" description="Download names, settings and portable references as YAML. No uploaded content or secret values. Unsupported settings or protected references refuse the whole download. Import, dry run and apply are not available yet.">
-      <Button type="button" disabled={state === "loading"} onClick={() => void download()}>
-        {state === "loading" ? "Checking configuration…" : "Export configuration"}
-      </Button>
+    <SettingsSection title="Configuration as code" description="Export the team's sources, knowledge bases, agents, evaluation sets and webhooks as YAML, or import a file: you see every change before anything is applied. Never uploaded files, passages, conversations or secrets.">
+      <div className={c.actions}>
+        <Button type="button" variant="secondary" disabled={state === "loading"} onClick={() => void download()}>
+          {state === "loading" ? "Checking configuration…" : "Export configuration"}
+        </Button>
+        <Button variant="secondary" render={<Link to="/teams/$team/settings/configuration" params={{ team }} />}>
+          Import configuration…
+        </Button>
+      </div>
       <div role="status">{state === "done" ? "Configuration checked. Download started." : ""}</div>
-      {state === "error" && <Alert tone="danger" title="Configuration could not be exported">Your access may have changed, or this team has unsupported settings, protected evaluation data, unnamed webhook signing secrets or exceeds the export limits. No partial file was downloaded.</Alert>}
+      {state === "error" && <Alert tone="danger" title="Configuration could not be exported">Your access may have changed, or this team has settings files do not carry yet (MCP tools, contextual chunks, saved-answer settings, short names), protected evaluation data, or exceeds the export limits. No partial file was downloaded.</Alert>}
     </SettingsSection>
   );
 }

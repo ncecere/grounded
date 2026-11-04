@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Configuration as code** (D4, #32; ADR-0033, [design](docs/specs/config-as-code-import/DESIGN.md)). Team settings → General → **Export configuration** downloads the team's sources, knowledge bases, agents (drafts and version history), evaluation sets and webhooks as YAML, and **Import configuration** checks a file and shows every change before anything happens: what is created, updated, unchanged, not in the file (kept, never deleted), and what blocks a change and why. **Apply changes** makes all of it or none, through the same checks, limits and audit entries as the app. A file never starts work: new web sources are paused, new agents are drafts (nothing is published), new webhooks are off with a new signing secret shown once, and no crawl, evaluation run, delivery or model call starts. Objects match by name (sources, knowledge bases, evaluation sets; case-insensitive), by address (agents) or by URL (webhooks); references may be in the file or the team, so a file can change a single agent. Files never carry uploaded files, passages, conversations, secrets or install-specific IDs. API: `GET /v1/teams/{team}/configuration`, `POST .../configuration/plan`, `POST .../configuration/apply` (If-Match with the plan's digest: 412 with the fresh plan when something changed, 409 while blocked), for signed-in editors, admins and owners, or an unrestricted team key with the new **`configuration:apply`** scope together with `manage` (`configuration:export` for downloading). API keys never reach evaluation questions. Migration 00061 only widens the API-key scope constraint; to downgrade, remove keys with a configuration scope first.
+
+### Changed
+
+- The export's credential check looks for credential syntax (an Authorization or Cookie value, `password=`-style assignments, known token prefixes, private keys) instead of words, so instructions such as "help students reset their password" export. Webhooks now export (without signing material) instead of refusing the download.
+
 ## [0.8.0] - 2026-11-04
 
 Adoption by other installs, first part: a Helm chart generated from the Kustomize base, an accessibility statement with an "About this assistant" card on every chat surface, and a polish pass over the whole interface. Release notes: [`docs/releases/v0.8.0.md`](docs/releases/v0.8.0.md). Configuration as code (D4) and the bitop-ui docs site (F11) move to v0.9.0.

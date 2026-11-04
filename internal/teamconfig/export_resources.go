@@ -69,32 +69,19 @@ func (l *loader) loadAgents(ctx context.Context, names map[uuid.UUID]string, d *
 	if len(rows)+len(d.Sources)+len(d.KnowledgeBases) > MaxResources {
 		return errUnsupported
 	}
-	indices := map[uuid.UUID]int{}
-	published := map[uuid.UUID]uuid.UUID{}
-	slugs := map[uuid.UUID]string{}
+	h := agentHistory{indices: map[uuid.UUID]int{}, published: map[uuid.UUID]uuid.UUID{}, slugs: map[uuid.UUID]string{}, dropped: map[uuid.UUID]bool{}}
 	for _, r := range rows {
-		slugs[r.ID] = r.Slug
-		reason := ""
-		var config AgentConfig
-		switch {
-		case r.CacheSettings:
-			reason = "it has saved-answer settings, which files do not carry yet"
-		case r.ShortNames:
-			reason = "it has short names, which files do not carry yet"
-		default:
-			if config, err = portableConfig(ctx, l.q, r.Draft, names); err != nil {
-				reason = "its draft uses MCP tools, source filters by ID or another setting files do not carry yet"
-			}
-		}
+		h.slugs[r.ID] = r.Slug
+		config, reason := agentDraft(ctx, l.q, r, names)
 		if reason != "" {
 			if err := l.refuse(KindAgent, r.Slug, reason); err != nil {
 				return err
 			}
 			continue
 		}
-		indices[r.ID] = len(d.Agents)
+		h.indices[r.ID] = len(d.Agents)
 		if r.PublishedVersionID.Valid {
-			published[r.ID] = r.PublishedVersionID.UUID
+			h.published[r.ID] = r.PublishedVersionID.UUID
 		}
 		starters := r.StarterQuestions
 		if starters == nil {
@@ -102,38 +89,10 @@ func (l *loader) loadAgents(ctx context.Context, names map[uuid.UUID]string, d *
 		}
 		d.Agents = append(d.Agents, Agent{Name: r.Name, Slug: r.Slug, Description: r.Description, AccentColor: r.AccentColor, WelcomeMessage: r.WelcomeMessage, StarterQuestions: starters, Status: r.Status, Draft: config, Versions: []AgentVersion{}})
 	}
-	versions, err := l.q.ExportConfigurationVersions(ctx, l.team)
-	if err != nil {
+	if err := l.loadVersions(ctx, names, d, &h); err != nil {
 		return err
 	}
-	if len(versions) > MaxSequenceItems {
-		return errUnsupported
-	}
-	dropped := map[uuid.UUID]bool{}
-	for _, v := range versions {
-		i, ok := indices[v.AgentID]
-		if !ok || dropped[v.AgentID] {
-			continue // the agent itself was left out (lenient) or already dropped
-		}
-		config, err := portableConfig(ctx, l.q, v.Config, names)
-		if err != nil || v.EffectiveRank > v.CeilingRank {
-			if err := l.refuse(KindAgent, slugs[v.AgentID], "a published version uses settings files do not carry yet"); err != nil {
-				return err
-			}
-			dropped[v.AgentID] = true
-			continue
-		}
-		d.Agents[i].Versions = append(d.Agents[i].Versions, AgentVersion{Version: v.Version, Note: v.Note, Config: config})
-		if published[v.AgentID] == v.ID {
-			d.Agents[i].PublishedVersion = v.Version
-		}
-	}
-	for id := range published {
-		if !dropped[id] && d.Agents[indices[id]].PublishedVersion == 0 {
-			return errUnsupported
-		}
-	}
-	if len(dropped) > 0 {
+	if len(h.dropped) > 0 {
 		kept := d.Agents[:0]
 		for _, ag := range d.Agents {
 			if l.skipped[KindAgent][foldKey(KindAgent, ag.Slug)] == "" {
@@ -141,6 +100,64 @@ func (l *loader) loadAgents(ctx context.Context, names map[uuid.UUID]string, d *
 			}
 		}
 		d.Agents = kept
+	}
+	return nil
+}
+
+// agentDraft is an agent's portable draft, or why a file cannot carry the agent yet.
+func agentDraft(ctx context.Context, q *dbgen.Queries, r dbgen.ExportConfigurationAgentsRow, names map[uuid.UUID]string) (AgentConfig, string) {
+	switch {
+	case r.CacheSettings:
+		return AgentConfig{}, "it has saved-answer settings, which files do not carry yet"
+	case r.ShortNames:
+		return AgentConfig{}, "it has short names, which files do not carry yet"
+	}
+	config, err := portableConfig(ctx, q, r.Draft, names)
+	if err != nil {
+		return config, "its draft uses MCP tools, source filters by ID or another setting files do not carry yet"
+	}
+	return config, ""
+}
+
+// agentHistory tracks the agents loaded so far while their versions are read.
+type agentHistory struct {
+	indices   map[uuid.UUID]int
+	published map[uuid.UUID]uuid.UUID
+	slugs     map[uuid.UUID]string
+	dropped   map[uuid.UUID]bool
+}
+
+// loadVersions adds each loaded agent's version history and its published version number.
+func (l *loader) loadVersions(ctx context.Context, names map[uuid.UUID]string, d *Document, h *agentHistory) error {
+	versions, err := l.q.ExportConfigurationVersions(ctx, l.team)
+	if err != nil {
+		return err
+	}
+	if len(versions) > MaxSequenceItems {
+		return errUnsupported
+	}
+	for _, v := range versions {
+		i, ok := h.indices[v.AgentID]
+		if !ok || h.dropped[v.AgentID] {
+			continue // the agent itself was left out (lenient) or already dropped
+		}
+		config, err := portableConfig(ctx, l.q, v.Config, names)
+		if err != nil || v.EffectiveRank > v.CeilingRank {
+			if err := l.refuse(KindAgent, h.slugs[v.AgentID], "a published version uses settings files do not carry yet"); err != nil {
+				return err
+			}
+			h.dropped[v.AgentID] = true
+			continue
+		}
+		d.Agents[i].Versions = append(d.Agents[i].Versions, AgentVersion{Version: v.Version, Note: v.Note, Config: config})
+		if h.published[v.AgentID] == v.ID {
+			d.Agents[i].PublishedVersion = v.Version
+		}
+	}
+	for id := range h.published {
+		if !h.dropped[id] && d.Agents[h.indices[id]].PublishedVersion == 0 {
+			return errUnsupported
+		}
 	}
 	return nil
 }

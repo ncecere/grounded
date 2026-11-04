@@ -1,47 +1,47 @@
 # ADR-0033: Team configuration as code
 
-- Status: Proposed
-- Date: 2026-10-31
+- Status: Accepted (owner, 2026-11-04)
+- Date: 2026-10-31, revised 2026-11-04
 
 ## Context
 
-D4 requests YAML export, read-only dry run and explicit transactional apply from
-Team Settings and a scoped team API key. Configuration is not a content backup,
-secret transfer, publication request or model-spend consent. Existing evaluation
-API-key restrictions need explicit reconciliation before pipeline access ships.
+D4 asks for a team's configuration as YAML: export, a dry-run diff, and an explicit apply, in the app and from a
+pipeline with an API key ([`v0.8.0.md`](../v0.8.0.md)). Configuration is not a content backup, a secret transfer, a
+publication request or consent to spend on models. The first increment (export) left five decisions open; the owner
+took them on 2026-11-04 ([design](../specs/config-as-code-import/DESIGN.md)).
 
 ## Decision
 
-Propose a bounded, versioned typed schema with deterministic ordering, exact
-namespaced references, no arbitrary UUID binding, no secret values and no content.
-Export and planning must be side-effect free. Apply must revalidate all grants,
-objects, references and revisions before any mutation in one audited transaction.
-A plan is bound to the exact source, actor, team and current dependencies; it does
-not confer authority. Omissions never delete; conflicts never silently overwrite.
-Imported drafts never publish or start crawls, eval runs, webhooks or contextual
-model spending. Shared sources remain platform-owned references.
-
-Use existing yaml.v3 syntax parsing with strict finite limits, no aliases, custom
-tags, duplicate keys or multiple documents. Follow syntax validation with strict
-per-kind field/type validation and existing domain validators. Never expose the
-syntax boundary alone as a validated plan. The detailed design and outstanding
-policy/atomicity work are in [configuration-as-code](../configuration-as-code.md).
+- **A bounded, versioned, typed file** (`grounded.team/v1`): hostile-YAML ingress (no aliases, tags, duplicate keys or
+  extra documents; 1 MiB, 500 resources), then a strict per-kind schema. Names and portable references only: never
+  uploaded files, passages, conversations, secrets or install-specific IDs. Webhooks carry no signing material.
+- **Match by identity, never delete.** Sources, knowledge bases and evaluation sets by name (case-insensitive), agents by
+  slug, webhooks by URL. A match is an update, no match a create; objects not in the file stay. Changes the domain
+  forbids in place (a source's type or profile, a knowledge base's profile, a set's target) block the row.
+- **Imports start nothing.** New web sources are paused, new agents are drafts (nothing is published), new webhooks
+  are off with a fresh secret made in the target and shown once; status and on/off are never applied. No crawl,
+  re-index, evaluation run, delivery or model spend comes from a file.
+- **The plan digest detects drift; it never authorizes.** Planning reads a read-only snapshot and stores nothing.
+  Apply sends the same file with the digest in If-Match; under the team's lock it recomputes the plan with the caller's
+  own grants and refuses on any difference (412, with the fresh plan) or any blocker (409), then applies in one
+  transaction. Replay is a no-op.
+- **Every write goes through the domain services** in that transaction (transaction-scoped variants of their
+  operations), so validation, limits, revisions, live-profile rules and audit entries are the app's own.
+- **Keys:** `configuration:export` reads; `configuration:apply` applies, only together with `manage`, on an unrestricted
+  key of the team. Evaluation questions stay out of reach of every API key.
 
 ## Consequences
 
-The retained follow-up implements strict domain validation and a usable read-only
-Settings/API download for supported configurations. Explicit whole-export refusals
-cover unnamed webhook signing credentials, nonportable references and unsupported
-meaningful settings; these are documented rather than silently omitted. API keys
-need configuration:export, not manage; evaluation-question access remains denied
-to keys. Migration 00061 expands only the existing scope constraint (00060 is
-reserved for #34). Import/dry run/apply remain separate and #32 remains open.
-The complete owner workflow and this proposed ADR still need parent review.
+Teams can keep their configuration in version control and promote it between installs. A file can also be small (one
+agent) because references resolve against the team. Objects a file cannot carry yet (MCP tools, contextual chunks,
+saved-answer settings, short names, picked evaluation documents) refuse export and block only the plan rows that touch
+them. Migration 00061 widens the API-key scope constraint (expand-only); downgrading needs keys with configuration
+scopes removed first. Deleting objects missing from a file, renames and a CLI are not part of this decision.
 
 ## Alternatives considered
 
-- Generic execution/template engine, CLI or SDK: outside the owner's scope.
-- Upsert via privileged HTTP calls: bypasses transactional/domain safeguards.
-- Stored dry-run plans: create writes on a required read-only path.
-- Silently omit unsupported settings or redact required settings: misleading and
-  not a lossless configuration round trip; fail closed instead.
+- Matching by stored IDs: not portable between installs.
+- Upsert through privileged HTTP calls: bypasses transactional and domain safeguards.
+- Stored, signed plans: writes on a read-only path, and a reusable bearer capability.
+- Refusing same-name objects unless confirmed one by one: makes keeping a team in step with a file impossible.
+- Starting crawls or publishing on import: a file would spend money and change what people see.
