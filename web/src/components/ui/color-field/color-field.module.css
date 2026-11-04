@@ -21,7 +21,7 @@
 
   &:focus-within {
     border-color: var(--color-focus-ring);
-    box-shadow: var(--shadow-focus);
+    box-shadow: var(--shadow-focus-field);
   }
 }
 
@@ -62,7 +62,7 @@
 
   &:focus {
     border-color: var(--color-focus-ring);
-    box-shadow: var(--shadow-focus);
+    box-shadow: var(--shadow-focus-field);
   }
 
   &[aria-invalid="true"],

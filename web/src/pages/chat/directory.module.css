@@ -34,6 +34,23 @@
   }
 }
 
+/* Inside a card: a hairline panel that tints on hover, without a shadow or a lift of its own. */
+.agent.nested {
+  border-radius: var(--radius-3);
+  box-shadow: none;
+  background-color: transparent;
+
+  &:hover {
+    border-color: var(--color-border-emphasis);
+    background-color: var(--color-surface-hover);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    box-shadow: var(--shadow-focus);
+  }
+}
+
 .agentText {
   display: flex;
   flex: 1;

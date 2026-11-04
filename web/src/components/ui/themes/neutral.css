@@ -34,7 +34,7 @@
   --palette-neutral-150: #e8ebef;
   --palette-neutral-200: #dde1e7;
   --palette-neutral-300: #c4cad4;
-  --palette-neutral-400: #7f8795; /* 3.62:1 on white, 3.41:1 on neutral-50: control boundaries */
+  --palette-neutral-400: #868e9b; /* 3.30:1 on white, 3.11:1 on neutral-50: control boundaries (lightest that keeps 3:1) */
   --palette-neutral-500: #646c7b; /* 5.29:1 on white, 4.97:1 on neutral-50 */
   --palette-neutral-600: #525a69; /* 6.53:1 on neutral-50, 6.19:1 on neutral-100 */
   --palette-neutral-700: #3b4250;
@@ -103,7 +103,7 @@
   --color-border: rgba(15, 23, 42, 0.08); /* hairline: decorative separators only */
   --color-border-muted: rgba(15, 23, 42, 0.05);
   --color-border-emphasis: rgba(15, 23, 42, 0.16); /* decorative outlines (badges) */
-  --color-border-strong: var(--palette-neutral-400); /* 3.41:1+ : control boundaries (WCAG 1.4.11) */
+  --color-border-strong: var(--palette-neutral-400); /* 3.11:1+ : control boundaries (WCAG 1.4.11) */
   --color-border-hover: var(--palette-neutral-500);
 
   --color-primary: var(--palette-accent-600); /* white text 6.20:1; as text on bg 5.83:1 */
@@ -174,6 +174,7 @@
 
   --color-focus-ring: var(--palette-accent-600); /* 5.83:1 on bg: always >= 3:1 */
   --color-focus-halo: rgba(75, 79, 214, 0.2); /* soft glow around the solid ring (decorative) */
+  --color-focus-halo-field: rgba(75, 79, 214, 0.16); /* text fields: the accent border is the indicator, this only softens it */
   --color-overlay: rgba(11, 13, 18, 0.45);
   --color-skeleton: var(--palette-neutral-150);
   --color-skeleton-shine: rgba(255, 255, 255, 0.65);
@@ -187,6 +188,10 @@
   --shadow-4: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.05), 0 24px 56px -12px rgba(15, 23, 42, 0.24);
   --shadow-button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.16);
   --shadow-focus: 0 0 0 1px var(--color-focus-ring), 0 0 0 4px var(--color-focus-halo);
+  /* Text fields swap their 1px border for --color-focus-ring (>= 3:1) and add this halo: one ring, not two. */
+  --shadow-focus-field: 0 0 0 3px var(--color-focus-halo-field);
+  /* The selected item of a segmented track (toggle groups, pill tabs): raised, with a hairline ring. */
+  --shadow-segment: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.08);
   --shadow-control: 0 0 0 1px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-control-hover: 0 0 0 1px rgba(15, 23, 42, 0.18), 0 2px 4px rgba(15, 23, 42, 0.07);
   --shadow-primary: var(--shadow-button-highlight), 0 0 0 1px var(--color-primary-hover), 0 1px 2px rgba(39, 40, 102, 0.24);
@@ -221,8 +226,8 @@
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-muted: rgba(255, 255, 255, 0.05);
   --color-border-emphasis: rgba(255, 255, 255, 0.16);
-  --color-border-strong: #6b7383; /* 3.89:1, 3.65:1 on raised */
-  --color-border-hover: #858d9b;
+  --color-border-strong: #646c7c; /* 3.52:1, 3.30:1 on raised, 3.68:1 on bg */
+  --color-border-hover: #7d8594;
 
   --color-primary: #5357e6; /* white text 5.42:1 */
   --color-primary-hover: #5d61ec; /* white text 4.79:1 */
@@ -285,6 +290,7 @@
 
   --color-focus-ring: #8f95f5; /* 6.45:1 on raised, 7.21:1 on bg */
   --color-focus-halo: rgba(143, 149, 245, 0.28);
+  --color-focus-halo-field: rgba(143, 149, 245, 0.22);
   --color-overlay: rgba(0, 0, 0, 0.6);
   --color-skeleton: #1f232c;
   --color-skeleton-shine: rgba(255, 255, 255, 0.06);
@@ -297,6 +303,8 @@
   --shadow-4: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 4px 8px rgba(0, 0, 0, 0.4), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
   --shadow-button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --shadow-focus: 0 0 0 1px var(--color-focus-ring), 0 0 0 4px var(--color-focus-halo);
+  --shadow-focus-field: 0 0 0 3px var(--color-focus-halo-field);
+  --shadow-segment: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-control: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-control-hover: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 4px rgba(0, 0, 0, 0.4);
   --shadow-primary: var(--shadow-button-highlight), 0 0 0 1px var(--color-primary-active), 0 1px 2px rgba(0, 0, 0, 0.5);

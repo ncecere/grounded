@@ -100,7 +100,7 @@
   inset-inline: 0;
   bottom: 0;
   max-height: calc(100dvh - var(--space-11));
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
   transform-origin: 50% 0;
 
   &[data-snap-points] {
@@ -121,7 +121,7 @@
   inset-inline: 0;
   top: 0;
   max-height: calc(100dvh - var(--space-11));
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  border-radius: 0 0 var(--radius-dialog) var(--radius-dialog);
   transform-origin: 50% 100%;
 
   &::after {
@@ -148,7 +148,7 @@
   --drawer-closed: translate3d(calc(-100% - 2px), 0, 0);
 
   left: 0;
-  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  border-radius: 0 var(--radius-dialog) var(--radius-dialog) 0;
   transform-origin: 100% 50%;
 
   &::after {
@@ -160,7 +160,7 @@
   --drawer-closed: translate3d(calc(100% + 2px), 0, 0);
 
   right: 0;
-  border-radius: var(--radius-card) 0 0 var(--radius-card);
+  border-radius: var(--radius-dialog) 0 0 var(--radius-dialog);
   transform-origin: 0 50%;
 
   &::after {

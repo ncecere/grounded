@@ -42,7 +42,7 @@
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
-  letter-spacing: var(--letter-spacing-tight);
+  letter-spacing: var(--letter-spacing-display);
   color: var(--color-text);
 }
 
@@ -53,7 +53,7 @@
 }
 
 .description {
-  max-width: 48rem;
+  max-width: 44rem; /* about 90 characters: one comfortable line length */
   font-size: var(--font-size-md);
   line-height: var(--line-height-normal);
   color: var(--color-text-muted);

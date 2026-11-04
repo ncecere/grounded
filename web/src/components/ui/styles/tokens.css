@@ -30,9 +30,13 @@
   --radius-4: 12px;
   --radius-5: 16px;
   --radius-full: 9999px;
-  --radius-control: var(--radius-3); /* buttons, inputs */
-  --radius-card: var(--radius-4); /* cards, dialogs */
-  --radius-popover: var(--radius-3);
+  /* One rule: controls 6px, menus and popovers 8px, cards and dialogs 12px, the
+     inner item of a segmented track 4px (its 6px track minus the 2px inset). */
+  --radius-control: var(--radius-2); /* buttons, inputs, toggles */
+  --radius-control-inner: var(--radius-1); /* the selected item inside a segmented track */
+  --radius-card: var(--radius-4); /* cards */
+  --radius-dialog: var(--radius-4); /* dialogs, sheets' corners, the command palette */
+  --radius-popover: var(--radius-3); /* menus, selects, popovers, tooltips */
   --radius-pill: var(--radius-full);
 
   /* ---------- Typography ---------- */
@@ -58,6 +62,7 @@
   --line-height-snug: 1.35;
   --line-height-normal: 1.5;
 
+  --letter-spacing-display: -0.025em; /* page titles (24px and up) */
   --letter-spacing-tight: -0.02em;
   --letter-spacing-snug: -0.01em;
   --letter-spacing-caps: 0.06em;

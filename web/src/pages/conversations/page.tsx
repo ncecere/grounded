@@ -5,7 +5,7 @@
  */
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MessagesSquare, SearchX } from "lucide-react";
+import { MessagesSquare, Search, SearchX } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { agentDirectoryQuery, conversationsKey } from "../../api/queries";
 import { LoadMore } from "../../components/query-view";
@@ -76,6 +76,7 @@ export function ConversationsPage() {
             size="sm"
             aria-label="Search conversations"
             placeholder="Search titles and agents"
+            startIcon={<Search />}
             value={filters.query}
             onChange={(e) => filters.setQuery(e.target.value)}
             className={c.search}
