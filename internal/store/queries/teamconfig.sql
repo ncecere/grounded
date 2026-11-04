@@ -92,3 +92,29 @@ SELECT coalesce(sum(resources),0)::bigint AS resources,
 
 -- name: ExportConfigurationEvalPresence :one
 SELECT EXISTS(SELECT 1 FROM eval_sets WHERE team_id=$1);
+
+-- Planning and applying a configuration file (docs/specs/config-as-code-import). Identities and
+-- revisions only; the configuration itself is read by the export queries above.
+-- name: ConfigurationTeamObjects :many
+SELECT 'source'::text AS kind, ds.id, ds.name AS key, ds.revision FROM data_sources ds WHERE ds.team_id = @team_id::uuid
+UNION ALL SELECT 'knowledgeBase', kb.id, kb.name, kb.revision FROM knowledge_bases kb WHERE kb.team_id = @team_id::uuid
+UNION ALL SELECT 'agent', ag.id, ag.slug, ag.revision FROM agents ag WHERE ag.team_id = @team_id::uuid AND ag.deleted_at IS NULL
+UNION ALL SELECT 'evaluationSet', es.id, es.name, es.revision FROM eval_sets es WHERE es.team_id = @team_id::uuid
+UNION ALL SELECT 'webhook', wh.id, wh.url, wh.revision FROM webhooks wh WHERE wh.team_id = @team_id::uuid;
+
+-- name: ConfigurationKBSourceIDs :many
+SELECT source_id FROM kb_sources WHERE kb_id = $1;
+
+-- name: ConfigurationEvalCases :many
+SELECT id, question, revision FROM eval_cases WHERE set_id = $1 ORDER BY created_at, id;
+
+-- Embedding profiles a file may name: never an index preview's hidden candidate.
+-- name: ConfigurationProfiles :many
+SELECT id, key FROM embedding_profiles WHERE candidate_of IS NULL;
+
+-- name: ConfigurationModels :many
+SELECT m.id, m.key, c.name AS connection, m.kind, m.enabled
+FROM models m JOIN model_connections c ON c.id = m.connection_id;
+
+-- name: ConfigurationSharedSources :many
+SELECT id, name FROM data_sources WHERE team_id IS NULL;

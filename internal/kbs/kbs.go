@@ -233,77 +233,72 @@ func kbSnapshot(kb dbgen.KnowledgeBase) map[string]any {
 }
 
 func (s *Service) Create(ctx context.Context, a authz.Actor, teamRef string, in Input) (KB, error) {
-	acc, err := s.access(ctx, a, teamRef, true)
+	acc, in, err := s.prepareCreate(ctx, a, teamRef, in)
 	if err != nil {
 		return KB{}, err
 	}
-	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
-		return KB{}, err
-	}
-	if in.TopK == 0 {
-		in.TopK = 8
-	}
-	if err := validate(in); err != nil {
-		return KB{}, err
-	}
-	in.Name = strings.TrimSpace(in.Name)
 	var (
 		out     dbgen.KnowledgeBase
 		created []KB
 	)
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		if s.Limits != nil {
-			if err := s.Limits.LockUsage(ctx, q, acc.Team.ID); err != nil {
-				return err
-			}
-			if err := s.Limits.CheckResources(ctx, q, acc.Team.ID, limits.Need{KnowledgeBases: 1}); err != nil {
-				return err
-			}
-		}
-		profileID := uuid.Nil
-		if in.ProfileID != nil {
-			profileID = *in.ProfileID
-		} else {
-			profiles, err := q.ListEmbeddingProfiles(ctx)
-			if err != nil {
-				return err
-			}
-			for _, p := range profiles {
-				if p.EmbeddingProfile.IsDefault {
-					profileID = p.EmbeddingProfile.ID
-				}
-			}
-			if profileID == uuid.Nil {
-				return apperr.Invalid("no_default_profile", "No default embedding profile is configured. Ask a platform admin.")
-			}
-		}
-		if _, err := s.Catalog.ProfileForUse(ctx, q, profileID, 0); err != nil {
-			return err
-		}
-		var err error
-		vw, kw := weightColumns(in.Weights)
-		out, err = q.InsertKB(ctx, dbgen.InsertKBParams{
-			TeamID: acc.Team.ID, Name: in.Name, Description: in.Description, EmbeddingProfileID: profileID,
-			TopK: in.TopK, VectorWeight: vw, KeywordWeight: kw,
-			CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
-		})
-		if apperr.IsUniqueViolation(err, "knowledge_bases_team_name_key") {
-			return apperr.Conflict("name_taken", "This team already has a knowledge base with that name")
-		} else if err != nil {
-			return err
-		}
-		e := a.Audit("kb.create", "knowledge_base", out.ID.String())
-		e.TeamID, e.After = acc.Team.ID, kbSnapshot(out)
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
-		}
-		created, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{out})
-		return err
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.create(ctx, q, tx, a, acc, in, &out, &created)
 	})
 	if err != nil {
 		return KB{}, err
 	}
 	return created[0], nil
+}
+
+// create is Create's transaction: limits, the profile, the row and its audit entry.
+func (s *Service) create(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, in Input, out *dbgen.KnowledgeBase, created *[]KB) error {
+	if s.Limits != nil {
+		if err := s.Limits.LockUsage(ctx, q, acc.Team.ID); err != nil {
+			return err
+		}
+		if err := s.Limits.CheckResources(ctx, q, acc.Team.ID, limits.Need{KnowledgeBases: 1}); err != nil {
+			return err
+		}
+	}
+	profileID := uuid.Nil
+	if in.ProfileID != nil {
+		profileID = *in.ProfileID
+	} else {
+		profiles, err := q.ListEmbeddingProfiles(ctx)
+		if err != nil {
+			return err
+		}
+		for _, p := range profiles {
+			if p.EmbeddingProfile.IsDefault {
+				profileID = p.EmbeddingProfile.ID
+			}
+		}
+		if profileID == uuid.Nil {
+			return apperr.Invalid("no_default_profile", "No default embedding profile is configured. Ask a platform admin.")
+		}
+	}
+	if _, err := s.Catalog.ProfileForUse(ctx, q, profileID, 0); err != nil {
+		return err
+	}
+	var err error
+	vw, kw := weightColumns(in.Weights)
+	*out, err = q.InsertKB(ctx, dbgen.InsertKBParams{
+		TeamID: acc.Team.ID, Name: in.Name, Description: in.Description, EmbeddingProfileID: profileID,
+		TopK: in.TopK, VectorWeight: vw, KeywordWeight: kw,
+		CreatedBy: uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil},
+	})
+	if apperr.IsUniqueViolation(err, "knowledge_bases_team_name_key") {
+		return apperr.Conflict("name_taken", "This team already has a knowledge base with that name")
+	} else if err != nil {
+		return err
+	}
+	e := a.Audit("kb.create", "knowledge_base", out.ID.String())
+	e.TeamID, e.After = acc.Team.ID, kbSnapshot(*out)
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	*created, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{*out})
+	return err
 }
 
 func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID, in Input, expectedRevision int64) (KB, error) {
@@ -312,54 +307,59 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		return KB{}, err
 	}
 	var out []KB
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := s.load(ctx, q, a, acc.Team.ID, id, true)
-		if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		// The handler fills in the name even for unrelated updates. Do not force
-		// existing objects to be renamed unless their name actually changes.
-		if in.Name != cur.Name {
-			if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
-				return err
-			}
-		}
-		if in.ProfileID != nil && *in.ProfileID != cur.EmbeddingProfileID {
-			return apperr.Invalid("profile_immutable", "A knowledge base's embedding profile cannot be changed")
-		}
-		if err := validate(in); err != nil {
-			return err
-		}
-		in.Name = strings.TrimSpace(in.Name)
-		vw, kw := cur.VectorWeight, cur.KeywordWeight
-		switch {
-		case in.DefaultWeights:
-			vw, kw = nil, nil
-		case in.Weights != nil:
-			vw, kw = weightColumns(in.Weights)
-		}
-		updated, err := q.UpdateKB(ctx, dbgen.UpdateKBParams{ID: id, Name: in.Name, Description: in.Description, TopK: in.TopK,
-			VectorWeight: vw, KeywordWeight: kw})
-		if apperr.IsUniqueViolation(err, "knowledge_bases_team_name_key") {
-			return apperr.Conflict("name_taken", "This team already has a knowledge base with that name")
-		} else if err != nil {
-			return err
-		}
-		e := a.Audit("kb.update", "knowledge_base", id.String())
-		e.TeamID, e.Before, e.After = acc.Team.ID, kbSnapshot(cur), kbSnapshot(updated)
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
-		}
-		out, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{updated})
-		return err
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.update(ctx, q, tx, a, acc, id, in, expectedRevision, &out)
 	})
 	if err != nil {
 		return KB{}, err
 	}
 	return out[0], nil
+}
+
+// update is Update's transaction.
+func (s *Service) update(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, id uuid.UUID, in Input, expectedRevision int64, out *[]KB) error {
+	cur, err := s.load(ctx, q, a, acc.Team.ID, id, true)
+	if err != nil {
+		return err
+	}
+	if cur.Revision != expectedRevision {
+		return apperr.Stale()
+	}
+	// The handler fills in the name even for unrelated updates. Do not force
+	// existing objects to be renamed unless their name actually changes.
+	if in.Name != cur.Name {
+		if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+			return err
+		}
+	}
+	if in.ProfileID != nil && *in.ProfileID != cur.EmbeddingProfileID {
+		return apperr.Invalid("profile_immutable", "A knowledge base's embedding profile cannot be changed")
+	}
+	if err := validate(in); err != nil {
+		return err
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	vw, kw := cur.VectorWeight, cur.KeywordWeight
+	switch {
+	case in.DefaultWeights:
+		vw, kw = nil, nil
+	case in.Weights != nil:
+		vw, kw = weightColumns(in.Weights)
+	}
+	updated, err := q.UpdateKB(ctx, dbgen.UpdateKBParams{ID: id, Name: in.Name, Description: in.Description, TopK: in.TopK,
+		VectorWeight: vw, KeywordWeight: kw})
+	if apperr.IsUniqueViolation(err, "knowledge_bases_team_name_key") {
+		return apperr.Conflict("name_taken", "This team already has a knowledge base with that name")
+	} else if err != nil {
+		return err
+	}
+	e := a.Audit("kb.update", "knowledge_base", id.String())
+	e.TeamID, e.Before, e.After = acc.Team.ID, kbSnapshot(cur), kbSnapshot(updated)
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	*out, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{updated})
+	return err
 }
 
 func (s *Service) Delete(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) error {
@@ -434,43 +434,48 @@ func (s *Service) changeSources(ctx context.Context, a authz.Actor, teamRef stri
 		return KB{}, err
 	}
 	var out []KB
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		// Profile migrations lock before the KB (see joinMigration).
-		if err := q.LockProfileMigrations(ctx); err != nil {
-			return err
-		}
-		kb, err := s.load(ctx, q, a, acc.Team.ID, kbID, true)
-		if err != nil {
-			return err
-		}
-		src, err := q.GetSource(ctx, sourceID)
-		if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && src.TeamID.Valid && src.TeamID.UUID != acc.Team.ID) {
-			return apperr.NotFound("source_not_found", "Data source not found")
-		} else if err != nil {
-			return err
-		}
-		shared := !src.TeamID.Valid
-		action := "kb.source_detach"
-		if attach {
-			action = "kb.source_attach"
-			if err := s.attach(ctx, q, a, acc, kb, src); err != nil {
-				return err
-			}
-		} else if _, err := q.DetachSource(ctx, dbgen.DetachSourceParams{KBID: kbID, SourceID: sourceID}); err != nil {
-			return err
-		}
-		e := a.Audit(action, "knowledge_base", kbID.String())
-		e.TeamID, e.Metadata = acc.Team.ID, mergeMeta(e.Metadata, map[string]any{"sourceId": sourceID.String(), "sourceName": src.Name, "shared": shared})
-		if err := audit.Record(ctx, q, e); err != nil {
-			return err
-		}
-		out, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{kb})
-		return err
+	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		return s.changeSourcesIn(ctx, q, tx, a, acc, kbID, sourceID, attach, &out)
 	})
 	if err != nil {
 		return KB{}, err
 	}
 	return out[0], nil
+}
+
+// changeSourcesIn attaches or detaches a source inside a transaction.
+func (s *Service) changeSourcesIn(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, acc teams.Access, kbID, sourceID uuid.UUID, attach bool, out *[]KB) error {
+	// Profile migrations lock before the KB (see joinMigration).
+	if err := q.LockProfileMigrations(ctx); err != nil {
+		return err
+	}
+	kb, err := s.load(ctx, q, a, acc.Team.ID, kbID, true)
+	if err != nil {
+		return err
+	}
+	src, err := q.GetSource(ctx, sourceID)
+	if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && src.TeamID.Valid && src.TeamID.UUID != acc.Team.ID) {
+		return apperr.NotFound("source_not_found", "Data source not found")
+	} else if err != nil {
+		return err
+	}
+	shared := !src.TeamID.Valid
+	action := "kb.source_detach"
+	if attach {
+		action = "kb.source_attach"
+		if err := s.attach(ctx, q, a, acc, kb, src); err != nil {
+			return err
+		}
+	} else if _, err := q.DetachSource(ctx, dbgen.DetachSourceParams{KBID: kbID, SourceID: sourceID}); err != nil {
+		return err
+	}
+	e := a.Audit(action, "knowledge_base", kbID.String())
+	e.TeamID, e.Metadata = acc.Team.ID, mergeMeta(e.Metadata, map[string]any{"sourceId": sourceID.String(), "sourceName": src.Name, "shared": shared})
+	if err := audit.Record(ctx, q, e); err != nil {
+		return err
+	}
+	*out, err = s.withSources(ctx, q, []dbgen.KnowledgeBase{kb})
+	return err
 }
 
 // attach checks and attaches a source: the KB's embedding profile, the
@@ -574,4 +579,69 @@ func joinMigration(ctx context.Context, q *dbgen.Queries, kbID uuid.UUID, src db
 	}
 	_, err = q.InsertEmbeddingSet(ctx, dbgen.InsertEmbeddingSetParams{SourceID: src.ID, ProfileID: m.ToProfileID, Status: "building"})
 	return err
+}
+
+func (s *Service) prepareCreate(ctx context.Context, a authz.Actor, teamRef string, in Input) (teams.Access, Input, error) {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return acc, in, err
+	}
+	if err := displaytext.Validate(in.Name, "invalid_name", "Name"); err != nil {
+		return acc, in, err
+	}
+	if in.TopK == 0 {
+		in.TopK = 8
+	}
+	if err := validate(in); err != nil {
+		return acc, in, err
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	return acc, in, nil
+}
+
+// CreateTx, UpdateTx, AttachSourceTx and DetachSourceTx are Create, Update, AttachSource and DetachSource inside the
+// caller's transaction (a configuration file is applied in one, docs/specs/config-as-code-import), with the same checks
+// and audit entries.
+func (s *Service) CreateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, in Input) (KB, error) {
+	acc, in, err := s.prepareCreate(ctx, a, teamRef, in)
+	if err != nil {
+		return KB{}, err
+	}
+	var (
+		out     dbgen.KnowledgeBase
+		created []KB
+	)
+	if err := s.create(ctx, q, tx, a, acc, in, &out, &created); err != nil {
+		return KB{}, err
+	}
+	return created[0], nil
+}
+
+func (s *Service) UpdateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, id uuid.UUID, in Input, expectedRevision int64) (KB, error) {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return KB{}, err
+	}
+	var out []KB
+	if err := s.update(ctx, q, tx, a, acc, id, in, expectedRevision, &out); err != nil {
+		return KB{}, err
+	}
+	return out[0], nil
+}
+
+func (s *Service) AttachSourceTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, kbID, sourceID uuid.UUID) error {
+	return s.changeSourcesTx(ctx, q, tx, a, teamRef, kbID, sourceID, true)
+}
+
+func (s *Service) DetachSourceTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, kbID, sourceID uuid.UUID) error {
+	return s.changeSourcesTx(ctx, q, tx, a, teamRef, kbID, sourceID, false)
+}
+
+func (s *Service) changeSourcesTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, teamRef string, kbID, sourceID uuid.UUID, attach bool) error {
+	acc, err := s.access(ctx, a, teamRef, true)
+	if err != nil {
+		return err
+	}
+	var out []KB
+	return s.changeSourcesIn(ctx, q, tx, a, acc, kbID, sourceID, attach, &out)
 }

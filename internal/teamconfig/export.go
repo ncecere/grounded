@@ -36,8 +36,9 @@ type loader struct {
 	strict bool
 	// skipped is what a lenient load left out, by kind and identity, with why.
 	skipped map[string]map[string]string
-	// evalsHidden: the caller (an API key) may not read evaluation questions, so the sets were not loaded.
-	evalsHidden bool
+	// evalsDenied: the caller may not read or write evaluation questions (an API key, or evaluations are off).
+	// evalsHidden: and the team has sets, which were therefore not loaded.
+	evalsDenied, evalsHidden bool
 }
 
 func (l *loader) refuse(kind, key, reason string) error {
@@ -167,15 +168,16 @@ func number(f *float64) *json.Number {
 // evaluationAccess applies the evaluation policy before any payload read: API keys never see evaluation
 // questions (an export with sets refuses; a plan leaves the sets out), and the platform's evaluation switch applies.
 func (l *loader) evaluationAccess(ctx context.Context) error {
-	exists, err := l.q.ExportConfigurationEvalPresence(ctx, l.team)
-	if err != nil || !exists {
-		return err
-	}
 	settings, err := l.q.GetEvaluationSettings(ctx)
 	if err != nil {
 		return err
 	}
-	if l.actor.Key != nil || !settings.Enabled {
+	l.evalsDenied = l.actor.Key != nil || !settings.Enabled
+	exists, err := l.q.ExportConfigurationEvalPresence(ctx, l.team)
+	if err != nil || !exists {
+		return err
+	}
+	if l.evalsDenied {
 		if l.strict {
 			return errUnsupported
 		}

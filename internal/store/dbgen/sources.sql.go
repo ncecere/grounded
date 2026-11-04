@@ -756,6 +756,36 @@ func (q *Queries) MaxSourceRankForTeam(ctx context.Context, teamID uuid.UUID) (i
 	return column_1, err
 }
 
+const pauseImportedSource = `-- name: PauseImportedSource :one
+UPDATE data_sources SET status = 'paused' WHERE id = $1 RETURNING id, team_id, name, description, type, config, classification, embedding_profile_id, status, revision, created_by, created_at, updated_at, last_sync_at, next_sync_at, ocr_enabled
+`
+
+// A source made from a configuration file starts paused: an import never starts a crawl
+// (docs/specs/config-as-code-import §4).
+func (q *Queries) PauseImportedSource(ctx context.Context, id uuid.UUID) (DataSource, error) {
+	row := q.db.QueryRow(ctx, pauseImportedSource, id)
+	var i DataSource
+	err := row.Scan(
+		&i.ID,
+		&i.TeamID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Config,
+		&i.Classification,
+		&i.EmbeddingProfileID,
+		&i.Status,
+		&i.Revision,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSyncAt,
+		&i.NextSyncAt,
+		&i.OcrEnabled,
+	)
+	return i, err
+}
+
 const recoverStuckDocuments = `-- name: RecoverStuckDocuments :execrows
 UPDATE documents SET status = 'pending', updated_at = now()
 WHERE status IN ('queued', 'processing') AND updated_at < now() - make_interval(mins => $1::int)

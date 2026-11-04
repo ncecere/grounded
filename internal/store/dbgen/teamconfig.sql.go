@@ -12,6 +12,200 @@ import (
 	"github.com/google/uuid"
 )
 
+const configurationEvalCases = `-- name: ConfigurationEvalCases :many
+SELECT id, question, revision FROM eval_cases WHERE set_id = $1 ORDER BY created_at, id
+`
+
+type ConfigurationEvalCasesRow struct {
+	ID       uuid.UUID
+	Question string
+	Revision int64
+}
+
+func (q *Queries) ConfigurationEvalCases(ctx context.Context, setID uuid.UUID) ([]ConfigurationEvalCasesRow, error) {
+	rows, err := q.db.Query(ctx, configurationEvalCases, setID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigurationEvalCasesRow{}
+	for rows.Next() {
+		var i ConfigurationEvalCasesRow
+		if err := rows.Scan(&i.ID, &i.Question, &i.Revision); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const configurationKBSourceIDs = `-- name: ConfigurationKBSourceIDs :many
+SELECT source_id FROM kb_sources WHERE kb_id = $1
+`
+
+func (q *Queries) ConfigurationKBSourceIDs(ctx context.Context, kbID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, configurationKBSourceIDs, kbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var source_id uuid.UUID
+		if err := rows.Scan(&source_id); err != nil {
+			return nil, err
+		}
+		items = append(items, source_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const configurationModels = `-- name: ConfigurationModels :many
+SELECT m.id, m.key, c.name AS connection, m.kind, m.enabled
+FROM models m JOIN model_connections c ON c.id = m.connection_id
+`
+
+type ConfigurationModelsRow struct {
+	ID         uuid.UUID
+	Key        string
+	Connection string
+	Kind       string
+	Enabled    bool
+}
+
+func (q *Queries) ConfigurationModels(ctx context.Context) ([]ConfigurationModelsRow, error) {
+	rows, err := q.db.Query(ctx, configurationModels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigurationModelsRow{}
+	for rows.Next() {
+		var i ConfigurationModelsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Connection,
+			&i.Kind,
+			&i.Enabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const configurationProfiles = `-- name: ConfigurationProfiles :many
+SELECT id, key FROM embedding_profiles WHERE candidate_of IS NULL
+`
+
+type ConfigurationProfilesRow struct {
+	ID  uuid.UUID
+	Key string
+}
+
+// Embedding profiles a file may name: never an index preview's hidden candidate.
+func (q *Queries) ConfigurationProfiles(ctx context.Context) ([]ConfigurationProfilesRow, error) {
+	rows, err := q.db.Query(ctx, configurationProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigurationProfilesRow{}
+	for rows.Next() {
+		var i ConfigurationProfilesRow
+		if err := rows.Scan(&i.ID, &i.Key); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const configurationSharedSources = `-- name: ConfigurationSharedSources :many
+SELECT id, name FROM data_sources WHERE team_id IS NULL
+`
+
+type ConfigurationSharedSourcesRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) ConfigurationSharedSources(ctx context.Context) ([]ConfigurationSharedSourcesRow, error) {
+	rows, err := q.db.Query(ctx, configurationSharedSources)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigurationSharedSourcesRow{}
+	for rows.Next() {
+		var i ConfigurationSharedSourcesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const configurationTeamObjects = `-- name: ConfigurationTeamObjects :many
+SELECT 'source'::text AS kind, ds.id, ds.name AS key, ds.revision FROM data_sources ds WHERE ds.team_id = $1::uuid
+UNION ALL SELECT 'knowledgeBase', kb.id, kb.name, kb.revision FROM knowledge_bases kb WHERE kb.team_id = $1::uuid
+UNION ALL SELECT 'agent', ag.id, ag.slug, ag.revision FROM agents ag WHERE ag.team_id = $1::uuid AND ag.deleted_at IS NULL
+UNION ALL SELECT 'evaluationSet', es.id, es.name, es.revision FROM eval_sets es WHERE es.team_id = $1::uuid
+UNION ALL SELECT 'webhook', wh.id, wh.url, wh.revision FROM webhooks wh WHERE wh.team_id = $1::uuid
+`
+
+type ConfigurationTeamObjectsRow struct {
+	Kind     string
+	ID       uuid.UUID
+	Key      string
+	Revision int64
+}
+
+// Planning and applying a configuration file (docs/specs/config-as-code-import). Identities and
+// revisions only; the configuration itself is read by the export queries above.
+func (q *Queries) ConfigurationTeamObjects(ctx context.Context, teamID uuid.UUID) ([]ConfigurationTeamObjectsRow, error) {
+	rows, err := q.db.Query(ctx, configurationTeamObjects, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigurationTeamObjectsRow{}
+	for rows.Next() {
+		var i ConfigurationTeamObjectsRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.ID,
+			&i.Key,
+			&i.Revision,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportConfigurationAgents = `-- name: ExportConfigurationAgents :many
 SELECT id, name, slug, description, accent_color, welcome_message, starter_questions, status, (CASE WHEN octet_length(draft::text)<=65536 THEN draft ELSE NULL END)::jsonb AS draft,
  published_version_id,

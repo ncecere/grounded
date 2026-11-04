@@ -46,6 +46,7 @@ import (
 	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
+	"github.com/ncecere/grounded/internal/teamconfig"
 	"github.com/ncecere/grounded/internal/teamrequests"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/web"
@@ -107,6 +108,8 @@ type Deps struct {
 	Evaluations *evals.Service
 	// TeamRequests handles in-app requests for a team (v0.6.0, E3).
 	TeamRequests *teamrequests.Service
+	// TeamConfig plans and applies configuration files (docs/specs/config-as-code-import).
+	TeamConfig *teamconfig.Service
 	// Webhooks sends signed, retried events to other systems (v0.6.0, F3).
 	Webhooks *webhooks.Service
 	// MCP registers MCP servers and approves their tools (docs/mcp-client.md).
@@ -216,6 +219,8 @@ func (a *api) teamRoutes() []route {
 		{"GET", "/v1/teams", a.session(a.listMyTeams)},
 		{"GET", "/v1/teams/{team}", a.session(a.getTeam)},
 		{"GET", "/v1/teams/{team}/configuration", a.configurationRoute()},
+		{"POST", "/v1/teams/{team}/configuration/plan", a.configurationPlanRoute()},
+		{"POST", "/v1/teams/{team}/configuration/apply", a.configurationApplyRoute()},
 		{"GET", "/v1/teams/{team}/members", a.session(a.listMembers)},
 		{"POST", "/v1/teams/{team}/members", a.session(a.addMember)},
 		{"PATCH", "/v1/teams/{team}/members/{userId}", a.session(a.updateMember)},

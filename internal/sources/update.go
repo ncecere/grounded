@@ -173,48 +173,8 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 	}
 	var out dbgen.DataSource
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		cur, err := s.source(ctx, q, sc, id, true)
-		if err != nil {
-			return err
-		}
-		if cur.Revision != expectedRevision {
-			return apperr.Stale()
-		}
-		p, err := textAndStatus(cur, in)
-		if err != nil {
-			return err
-		}
-		if noop, err := s.isNoop(ctx, q, cur, p, newConfig, in); err != nil {
-			return err
-		} else if noop {
-			// Nothing to change: no write, no new revision and no audit entry (#132).
-			out = cur
-			return nil
-		}
-		scheduleChanged, err := applyWebConfig(ctx, q, cur, newConfig, &p)
-		if err != nil {
-			return err
-		}
-		meta := map[string]any{}
-		if in.Classification != nil && *in.Classification != cur.Classification {
-			if err := s.checkReclassification(ctx, q, sc, cur, in, meta); err != nil {
-				return err
-			}
-			p.Classification = *in.Classification
-		}
-		out, err = q.UpdateSource(ctx, p)
-		if sc.nameTaken(err) {
-			return sc.nameTakenErr()
-		} else if err != nil {
-			return err
-		}
-		if err := s.afterUpdate(ctx, q, tx, cur, out, scheduleChanged, newConfig); err != nil {
-			return err
-		}
-		if err := s.setSwitches(ctx, q, tx, a, sc, cur, &out, in); err != nil {
-			return err
-		}
-		return s.recordUpdate(ctx, q, tx, a, sc, cur, out, meta)
+		out, err = s.update(ctx, q, tx, a, sc, id, in, newConfig, expectedRevision)
+		return err
 	})
 	if err != nil {
 		return Summary{}, err
@@ -227,6 +187,64 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 		return Summary{}, err
 	}
 	return s.summary(ctx, src)
+}
+
+// UpdateTx is Update's transaction for a caller that owns it (a configuration file, docs/specs/config-as-code-import):
+// the same checks, no-op detection, scheduling, switches and audit. Status is the caller's to leave alone.
+func (s *Service) UpdateTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, o Owner, id uuid.UUID, in UpdateInput, expectedRevision int64) (dbgen.DataSource, error) {
+	sc, err := s.access(ctx, a, o, true)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	newConfig, err := s.validateUpdate(ctx, sc, in)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	return s.update(ctx, q, tx, a, sc, id, in, newConfig, expectedRevision)
+}
+
+func (s *Service) update(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, sc scope, id uuid.UUID, in UpdateInput, newConfig *web.Config, expectedRevision int64) (dbgen.DataSource, error) {
+	cur, err := s.source(ctx, q, sc, id, true)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	if cur.Revision != expectedRevision {
+		return dbgen.DataSource{}, apperr.Stale()
+	}
+	p, err := textAndStatus(cur, in)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	if noop, err := s.isNoop(ctx, q, cur, p, newConfig, in); err != nil {
+		return dbgen.DataSource{}, err
+	} else if noop {
+		// Nothing to change: no write, no new revision and no audit entry (#132).
+		return cur, nil
+	}
+	scheduleChanged, err := applyWebConfig(ctx, q, cur, newConfig, &p)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	meta := map[string]any{}
+	if in.Classification != nil && *in.Classification != cur.Classification {
+		if err := s.checkReclassification(ctx, q, sc, cur, in, meta); err != nil {
+			return dbgen.DataSource{}, err
+		}
+		p.Classification = *in.Classification
+	}
+	out, err := q.UpdateSource(ctx, p)
+	if sc.nameTaken(err) {
+		return dbgen.DataSource{}, sc.nameTakenErr()
+	} else if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	if err := s.afterUpdate(ctx, q, tx, cur, out, scheduleChanged, newConfig); err != nil {
+		return dbgen.DataSource{}, err
+	}
+	if err := s.setSwitches(ctx, q, tx, a, sc, cur, &out, in); err != nil {
+		return dbgen.DataSource{}, err
+	}
+	return out, s.recordUpdate(ctx, q, tx, a, sc, cur, out, meta)
 }
 
 // isNoop reports whether an update changes nothing: the text, status, classification, web configuration, OCR switch

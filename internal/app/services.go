@@ -47,6 +47,7 @@ import (
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
+	"github.com/ncecere/grounded/internal/teamconfig"
 	"github.com/ncecere/grounded/internal/teamrequests"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/vectorstore"
@@ -99,6 +100,8 @@ type Services struct {
 	TeamRequests *teamrequests.Service
 	// Webhooks sends signed, retried events to other systems (v0.6.0, F3).
 	Webhooks *webhooks.Service
+	// TeamConfig plans and applies configuration files (D4, docs/specs/config-as-code-import).
+	TeamConfig *teamconfig.Service
 	// Costs prices usage, reports spend and enforces budgets (E2).
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).

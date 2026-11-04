@@ -13,7 +13,7 @@ func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
 	d.Retention, d.BreakGlass = s.Retention, s.BreakGlass
 	d.ProfileMigrations, d.Evaluations, d.MCP, d.OAuth = s.ProfileMigrations, s.Evaluations, s.MCP, s.OAuth
 	d.Contextual = s.Contextual
-	d.TeamRequests, d.Webhooks = s.TeamRequests, s.Webhooks
+	d.TeamRequests, d.Webhooks, d.TeamConfig = s.TeamRequests, s.Webhooks, s.TeamConfig
 	d.Gaps, d.ContentHealth, d.AnswerCache = s.Gaps, s.ContentHealth, s.AnswerCache
 	return d
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -20,6 +21,11 @@ import (
 )
 
 func domainError() error { return invalid("unsupported_configuration", "$", nil) }
+
+// domainAt names the resource a domain check refused, by its position only (never its text).
+func domainAt(field string, i int) error {
+	return invalid("unsupported_configuration", fmt.Sprintf("%s[%d]", field, i), nil)
+}
 
 func (d Document) validate() error {
 	sources := map[string]bool{}
@@ -46,108 +52,108 @@ func (d Document) validate() error {
 	return nil
 }
 func (d Document) validateSources(sources map[string]bool) error {
-	for _, s := range d.Sources {
+	for i, s := range d.Sources {
 		sources[s.Name] = true
 		if !referenceName(s.EmbeddingProfile) || !referenceName(s.Classification) || len(s.Description) > 2000 || (s.Status != "active" && s.Status != "paused") {
-			return domainError()
+			return domainAt("$.sources", i)
 		}
 		switch s.Type {
 		case "upload":
 			if s.Web != nil {
-				return domainError()
+				return domainAt("$.sources", i)
 			}
 		case "web":
 			if s.Web == nil {
-				return domainError()
+				return domainAt("$.sources", i)
 			}
 			raw, _ := json.Marshal(s.Web)
 			if _, err := web.ParseConfig(raw, 1000000); err != nil {
-				return domainError()
+				return domainAt("$.sources", i)
 			}
 			for _, u := range s.Web.URLs {
 				if !safeURL(u) {
-					return domainError()
+					return domainAt("$.sources", i)
 				}
 			}
 		default:
-			return domainError()
+			return domainAt("$.sources", i)
 		}
 		if err := s.Boilerplate.validate(); err != nil {
-			return err
+			return domainAt("$.sources", i)
 		}
 	}
 	return nil
 }
 func (d Document) validateKBs(sources, kbs map[string]bool) error {
-	for _, k := range d.KnowledgeBases {
+	for i, k := range d.KnowledgeBases {
 		kbs[k.Name] = true
 		if !referenceName(k.EmbeddingProfile) || len(k.Description) > 2000 || k.TopK < 1 || k.TopK > 50 {
-			return domainError()
+			return domainAt("$.knowledgeBases", i)
 		}
 		if (k.VectorWeight == nil) != (k.KeywordWeight == nil) {
-			return domainError()
+			return domainAt("$.knowledgeBases", i)
 		}
 		if k.VectorWeight != nil {
 			v, e := k.VectorWeight.Float64()
 			w, err := k.KeywordWeight.Float64()
 			if e != nil || err != nil || !(kbservice.Weights{Vector: v, Keyword: w}).Valid() {
-				return domainError()
+				return domainAt("$.knowledgeBases", i)
 			}
 		}
 		seen := map[SourceRef]bool{}
 		for _, r := range k.Sources {
 			if seen[r] || !referenceName(r.Name) {
-				return domainError()
+				return domainAt("$.knowledgeBases", i)
 			}
 			seen[r] = true
 			// A team source may be in the file or already in the team: planning resolves it (§1).
 			if r.Namespace != "platform" && r.Namespace != "team" {
-				return domainError()
+				return domainAt("$.knowledgeBases", i)
 			}
 		}
 	}
 	return nil
 }
 func (d Document) validateAgents(kbs map[string]bool) error {
-	for _, a := range d.Agents {
+	for i, a := range d.Agents {
 		if !referenceName(a.Name) || agentProfile(a) != nil || validateConfig(a.Draft, kbs) != nil {
-			return domainError()
+			return domainAt("$.agents", i)
 		}
 		seen := map[int32]bool{}
 		for _, v := range a.Versions {
 			if v.Version < 1 || seen[v.Version] || validateConfig(v.Config, kbs) != nil {
-				return domainError()
+				return domainAt("$.agents", i)
 			}
 			seen[v.Version] = true
 		}
 		if a.PublishedVersion != 0 && !seen[a.PublishedVersion] {
-			return domainError()
+			return domainAt("$.agents", i)
 		}
 	}
 	return nil
 }
 func (d Document) validateEvaluations(kbs map[string]bool) error {
-	for _, s := range d.EvaluationSets {
+	for i, s := range d.EvaluationSets {
 		if len(s.Description) > 2000 {
-			return domainError()
+			return domainAt("$.evaluationSets", i)
 		}
 		if (s.KnowledgeBase == "") == (s.Agent == "") {
-			return domainError()
+			return domainAt("$.evaluationSets", i)
 		}
 		// The target is a knowledge base's name or an agent's address (slug), in the file or the team (§1).
 		if s.KnowledgeBase != "" && !referenceName(s.KnowledgeBase) || s.Agent != "" && teams.ValidateSlug(s.Agent) != nil {
-			return domainError()
+			return domainAt("$.evaluationSets", i)
 		}
 		if len(s.Cases) > MaxSequenceItems {
-			return domainError()
+			return domainAt("$.evaluationSets", i)
 		}
 		for _, c := range s.Cases {
 			if _, err := (evals.CaseInput{Question: c.Question, Expected: evals.Expected{URLs: c.URLs}, MustMention: c.MustMention, Note: c.Note}).Normalize(); err != nil {
-				return domainError()
+				return domainAt("$.evaluationSets", i)
 			}
 			for _, u := range c.URLs {
 				if !safeURL(strings.TrimSuffix(u, "*")) {
-					return domainError()
+					return domainAt("$.evaluationSets", i)
 				}
 			}
 		}
@@ -159,19 +165,19 @@ func (d Document) validateEvaluations(kbs map[string]bool) error {
 // is where a receiver's token usually hides), one line of description, and known team events. Whether the host is
 // approved is a property of the target install, checked when planning.
 func (d Document) validateWebhooks() error {
-	for _, h := range d.Webhooks {
+	for i, h := range d.Webhooks {
 		u, err := url.Parse(h.URL)
 		if err != nil || u.Scheme != "https" || (u.Port() != "" && u.Port() != "443") || !safeURL(h.URL) {
-			return domainError()
+			return domainAt("$.webhooks", i)
 		}
 		if utf8.RuneCountInString(h.Description) > 200 || strings.ContainsAny(h.Description, "\r\n") || len(h.Events) == 0 || len(h.Events) > 50 {
-			return domainError()
+			return domainAt("$.webhooks", i)
 		}
 		seen := map[string]bool{}
 		for _, e := range h.Events {
 			t, ok := webhooks.Lookup(e)
 			if !ok || t.Test || t.Scope != webhooks.ScopeTeam || seen[e] {
-				return domainError()
+				return domainAt("$.webhooks", i)
 			}
 			seen[e] = true
 		}

@@ -360,66 +360,14 @@ func nullUser(a authz.Actor) uuid.NullUUID {
 // Create adds a source. A web source's first crawl starts in the same
 // transaction (trigger "create").
 func (s *Service) Create(ctx context.Context, a authz.Actor, o Owner, in CreateInput) (Summary, error) {
-	sc, err := s.access(ctx, a, o, true)
-	if err != nil {
-		return Summary{}, err
-	}
-	if err := validateNewText(in.Name, in.Description); err != nil {
-		return Summary{}, err
-	}
-	in.Name = strings.TrimSpace(in.Name)
-	if in.Type == "" {
-		in.Type = TypeUpload
-	}
-	if err := validateBoilerplate(in.Boilerplate); err != nil {
-		return Summary{}, err
-	}
-	config, err := s.typeConfig(ctx, sc, in)
+	sc, in, config, err := s.prepareCreate(ctx, a, o, in)
 	if err != nil {
 		return Summary{}, err
 	}
 	var out Summary
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		if sc.team != nil && s.Limits != nil {
-			if err := s.Limits.LockUsage(ctx, q, sc.team.ID); err != nil {
-				return err
-			}
-			if err := s.Limits.CheckResources(ctx, q, sc.team.ID, limits.Need{DataSources: 1}); err != nil {
-				return err
-			}
-		}
-		profileID, err := s.resolveProfile(ctx, q, in.ProfileID)
-		if err != nil {
-			return err
-		}
-		if err := s.checkClassification(ctx, q, sc, in.Classification, in.Type, profileID); err != nil {
-			return err
-		}
-		src, err := q.InsertSource(ctx, dbgen.InsertSourceParams{
-			TeamID: sc.teamID(), Name: in.Name, Description: in.Description,
-			Type: in.Type, Config: config, Classification: in.Classification,
-			EmbeddingProfileID: profileID, CreatedBy: nullUser(a),
-		})
-		if sc.nameTaken(err) {
-			return sc.nameTakenErr()
-		} else if err != nil {
-			return err
-		}
-		if in.OCREnabled != nil && !*in.OCREnabled {
-			if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: src.ID, OcrEnabled: false}); err != nil {
-				return err
-			}
-			src.OcrEnabled = false
-		}
-		out.Source = src
-		if src.Type == TypeWeb {
-			cr, err := s.Web.StartRun(ctx, tx, src, web.TriggerCreate, a.UserID)
-			if err != nil {
-				return err
-			}
-			out.ActiveCrawl = &cr
-		}
-		return s.recordCreate(ctx, q, tx, a, sc, src, in.Boilerplate)
+		out, err = s.insert(ctx, q, tx, a, sc, in, config, true)
+		return err
 	})
 	if err != nil {
 		return out, err
@@ -427,6 +375,92 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, o Owner, in CreateI
 	bp, err := s.boilerplateSummaries(ctx, []dbgen.DataSource{out.Source}, []uuid.UUID{out.Source.ID})
 	out.Boilerplate = bp[out.Source.ID]
 	return out, err
+}
+
+// CreateImportedTx makes a source from a configuration file inside the caller's transaction, with every check Create
+// makes, except that it never starts a crawl and the source starts paused (docs/specs/config-as-code-import §4).
+func (s *Service) CreateImportedTx(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, o Owner, in CreateInput) (dbgen.DataSource, error) {
+	sc, in, config, err := s.prepareCreate(ctx, a, o, in)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	out, err := s.insert(ctx, q, tx, a, sc, in, config, false)
+	if err != nil {
+		return dbgen.DataSource{}, err
+	}
+	return q.PauseImportedSource(ctx, out.Source.ID)
+}
+
+// CheckWebConfig validates a web source's crawl rules for a team as Create would (the crawl allowlist included),
+// without saving anything.
+func (s *Service) CheckWebConfig(ctx context.Context, teamID uuid.UUID, raw json.RawMessage) error {
+	_, err := s.Web.ValidateConfig(ctx, uuid.NullUUID{UUID: teamID, Valid: true}, raw)
+	return err
+}
+
+func (s *Service) prepareCreate(ctx context.Context, a authz.Actor, o Owner, in CreateInput) (scope, CreateInput, json.RawMessage, error) {
+	sc, err := s.access(ctx, a, o, true)
+	if err != nil {
+		return sc, in, nil, err
+	}
+	if err := validateNewText(in.Name, in.Description); err != nil {
+		return sc, in, nil, err
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Type == "" {
+		in.Type = TypeUpload
+	}
+	if err := validateBoilerplate(in.Boilerplate); err != nil {
+		return sc, in, nil, err
+	}
+	config, err := s.typeConfig(ctx, sc, in)
+	return sc, in, config, err
+}
+
+// insert is Create's transaction: limits, profile, classification, the row, OCR, the first crawl (when startCrawl),
+// boilerplate overrides and the audit entry.
+func (s *Service) insert(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, sc scope, in CreateInput, config json.RawMessage, startCrawl bool) (Summary, error) {
+	var out Summary
+	if sc.team != nil && s.Limits != nil {
+		if err := s.Limits.LockUsage(ctx, q, sc.team.ID); err != nil {
+			return out, err
+		}
+		if err := s.Limits.CheckResources(ctx, q, sc.team.ID, limits.Need{DataSources: 1}); err != nil {
+			return out, err
+		}
+	}
+	profileID, err := s.resolveProfile(ctx, q, in.ProfileID)
+	if err != nil {
+		return out, err
+	}
+	if err := s.checkClassification(ctx, q, sc, in.Classification, in.Type, profileID); err != nil {
+		return out, err
+	}
+	src, err := q.InsertSource(ctx, dbgen.InsertSourceParams{
+		TeamID: sc.teamID(), Name: in.Name, Description: in.Description,
+		Type: in.Type, Config: config, Classification: in.Classification,
+		EmbeddingProfileID: profileID, CreatedBy: nullUser(a),
+	})
+	if sc.nameTaken(err) {
+		return out, sc.nameTakenErr()
+	} else if err != nil {
+		return out, err
+	}
+	if in.OCREnabled != nil && !*in.OCREnabled {
+		if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: src.ID, OcrEnabled: false}); err != nil {
+			return out, err
+		}
+		src.OcrEnabled = false
+	}
+	out.Source = src
+	if src.Type == TypeWeb && startCrawl {
+		cr, err := s.Web.StartRun(ctx, tx, src, web.TriggerCreate, a.UserID)
+		if err != nil {
+			return out, err
+		}
+		out.ActiveCrawl = &cr
+	}
+	return out, s.recordCreate(ctx, q, tx, a, sc, src, in.Boilerplate)
 }
 
 // typeConfig validates the type-specific configuration of a new source.
