@@ -41,4 +41,7 @@ those entries (the signed export still has them, from its coverage start).
 
 Migration 00066 adds `audit_log.txid` with an insert trigger and builds an index **concurrently** (the migration runs outside a
 transaction), so a large audit log stays writable during the upgrade. If that migration is interrupted, run it again: every
-statement is idempotent.
+statement is idempotent. From this release a migration waiting for another one polls the migration lock instead of blocking
+on it, because a blocked wait holds a snapshot that the concurrent index build waits for. A pod of the **previous** release
+that starts (and migrates) while this migration runs still waits the old way: don't start old pods during the upgrade; if the
+migration hangs anyway, delete the old pod and it continues.
