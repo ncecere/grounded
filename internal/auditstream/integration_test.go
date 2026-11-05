@@ -250,7 +250,8 @@ func TestStreamHECFailureAndRecovery(t *testing.T) {
 	f.record("team.second")
 	f.exec(`UPDATE audit_stream_destinations SET next_attempt_at = NULL WHERE id = $1`, id)
 	f.until(id, func(got []string) bool { return len(got) >= 3 }, c)
-	if got := c.got(); strings.Join(got, ",") != "platform.audit_stream_enable,team.first,team.second" || c.auth[0] != token {
+	// The stream may start a few entries before its switch-on when another transaction was open on the server (CI): check the end.
+	if got := c.got(); !strings.HasSuffix(strings.Join(got, ","), "platform.audit_stream_enable,team.first,team.second") || c.auth[0] != token {
 		t.Fatalf("after recovery: %v %v", got, c.auth)
 	}
 	if d := f.dest(id); d.Failures != 0 || d.LastErrorClass != "" || d.FailingSince != nil {
@@ -312,23 +313,26 @@ func TestStreamSyslogTLS(t *testing.T) {
 	id := f.destination(Input{Name: "Syslog", Kind: KindSyslog, Address: "example.com:" + port, CAPEM: caPEM})
 	f.record("team.syslog_one")
 	f.record("team.syslog_two")
-	sent, deadline := 0, time.Now().Add(60*time.Second)
-	for sent < 3 && time.Now().Before(deadline) {
-		sent += f.deliver(id)
-		time.Sleep(100 * time.Millisecond)
-	}
-	if sent != 3 {
-		t.Fatalf("delivered %d", sent)
-	}
-	for _, want := range []string{"platform.audit_stream_enable", "team.syslog_one", "team.syslog_two"} {
-		select {
-		case m := <-msgs:
-			if !strings.HasPrefix(m, "<110>1 ") || !strings.Contains(m, " grounded.test grounded - "+want+" - {") {
-				t.Fatalf("message %q", m)
+	// Every message is RFC 5424 with the event's action as MSGID; the stream ends with these, in order (it may start a few entries
+	// early when another transaction was open on the server).
+	var actions []string
+	for deadline := time.Now().Add(60 * time.Second); !slices.Contains(actions, "team.syslog_two") && time.Now().Before(deadline); {
+		f.deliver(id)
+		for drained := false; !drained; {
+			select {
+			case m := <-msgs:
+				if !strings.HasPrefix(m, "<110>1 ") || !strings.Contains(m, " grounded.test grounded - ") {
+					t.Fatalf("message %q", m)
+				}
+				fields := strings.SplitN(m, " ", 7)
+				actions = append(actions, fields[5])
+			case <-time.After(300 * time.Millisecond):
+				drained = true
 			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("no message for %s", want)
 		}
+	}
+	if !strings.HasSuffix(strings.Join(actions, ","), "platform.audit_stream_enable,team.syslog_one,team.syslog_two") {
+		t.Fatalf("syslog messages %v", actions)
 	}
 	// Without the CA the handshake fails as tls.
 	if err := f.s.Update(f.ctx, f.admin, id, Input{Name: "Syslog", Address: "example.com:" + port}, f.dest(id).Revision); err != nil {
