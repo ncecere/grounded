@@ -1,14 +1,16 @@
 /*
- * Admin → SCIM provisioning (docs/operations/scim.md; route /admin/scim): what to give the identity provider (the base URL, a
- * token, the matching claim), the active tokens with Revoke, and how many people and groups SCIM manages. A token's secret is
+ * Admin → SCIM provisioning (docs/operations/scim.md; route /admin/scim), in pill tabs (?tab=): Setup (what to give the
+ * identity provider: the base URL and the matching claim, and how many people and groups SCIM manages) and Tokens (the
+ * active tokens, with Create and Revoke). A token's secret is
  * shown once, in a dialog, after it is made. Platform admins manage tokens; auditors read the page.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Plug, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
+import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { QueryView } from "@/components/query-view";
 import { ListPage, RelativeTime } from "@/components/templates/list-page";
 import { Alert } from "@/components/ui/alert/alert";
@@ -25,6 +27,7 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
+import { scimTabs } from "@/lib/tabs";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 
@@ -36,6 +39,7 @@ export const scimKey = ["admin", "scim"];
 export function ScimPage() {
   const isAdmin = useIsPlatformAdmin();
   const status = useQuery({ queryKey: scimKey, queryFn: async () => unwrap(await api.GET("/v1/admin/scim")) });
+  const [tab, setTab] = useUrlTab(scimTabs);
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -44,10 +48,15 @@ export function ScimPage() {
       />
       <QueryView query={status} loadingLabel="Loading SCIM provisioning…">
         {status.data && (
-          <>
-            <Connection status={status.data} />
-            <Tokens status={status.data} isAdmin={isAdmin} />
-          </>
+          <PageTabs
+            label="SCIM provisioning sections"
+            value={tab}
+            onValueChange={setTab}
+            tabs={[
+              { value: "setup", label: "Setup", icon: <Plug aria-hidden />, content: <Connection status={status.data} /> },
+              { value: "tokens", label: `Tokens (${status.data.tokens.length})`, icon: <KeyRound aria-hidden />, content: <Tokens status={status.data} isAdmin={isAdmin} /> },
+            ]}
+          />
         )}
       </QueryView>
     </Stack>

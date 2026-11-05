@@ -39,7 +39,9 @@ describe("Admin → SCIM provisioning", () => {
     const { container } = renderApp("/admin/scim");
     expect(await screen.findByText("https://grounded.example.edu/scim/v2")).toBeInTheDocument();
     expect(screen.getByText("12 managed by SCIM, 3 not signed in yet")).toBeInTheDocument();
-    expect(within(screen.getByRole("table", { name: "SCIM tokens" })).getByText("Okta")).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("tab", { name: "Tokens (1)" }));
+    expect(within(await screen.findByRole("table", { name: "SCIM tokens" })).getByText("Okta")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("button", { name: "Create token" }));
@@ -65,6 +67,8 @@ describe("Admin → SCIM provisioning", () => {
     mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/scim": () => status({ available: false, tokens: [] }) });
     const { container } = renderApp("/admin/scim");
     expect(await screen.findByText("SCIM needs a sign-in provider")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Tokens (0)" }));
+    expect(await screen.findByRole("table", { name: "SCIM tokens" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create token" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
