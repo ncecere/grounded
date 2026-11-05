@@ -22,6 +22,18 @@ $$;
 DROP TRIGGER IF EXISTS audit_log_txid ON audit_log;
 CREATE TRIGGER audit_log_txid BEFORE INSERT ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_set_txid();
 
+-- An interrupted concurrent build leaves an invalid index of this name, which IF NOT EXISTS would keep for good; this file runs
+-- again after such a failure, so drop an invalid one first (a valid one is kept). The drop is brief: the index has no data.
+-- +goose StatementBegin
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_index WHERE indexrelid = to_regclass('audit_log_txid_idx') AND NOT indisvalid) THEN
+        DROP INDEX audit_log_txid_idx;
+    END IF;
+END
+$$;
+-- +goose StatementEnd
+
 CREATE INDEX CONCURRENTLY IF NOT EXISTS audit_log_txid_idx ON audit_log (txid, id) WHERE txid IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS audit_stream_settings (
