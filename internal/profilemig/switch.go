@@ -26,7 +26,8 @@ import (
 // for the target profile; otherwise it does nothing. It is idempotent and
 // runs after each source completes, after a start, and from the sweep.
 func (s *Service) Advance(ctx context.Context, id uuid.UUID) error {
-	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+	var readied *dbgen.ProfileMigration
+	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		if err := q.LockProfileMigrations(ctx); err != nil {
 			return err
 		}
@@ -48,38 +49,72 @@ func (s *Service) Advance(ctx context.Context, id uuid.UUID) error {
 			return err
 		}
 		if m.Hold {
-			return s.ready(ctx, q, tx, m, kb)
+			if m, err = s.ready(ctx, q, tx, m, kb); err == nil {
+				readied = &m
+			}
+			return err
 		}
 		return s.doSwitch(ctx, q, tx, m, kb, nil)
 	})
+	if err != nil || readied == nil {
+		return err
+	}
+	// The comparison of the live index with the new one starts after the migration is ready, outside the migrations' lock: it
+	// reads agents, knowledge bases and profiles through the pool, and doing that while holding the global lock and the KB's
+	// row lock starved a small pool (another Advance waits on the lock holding a connection). A failure to start it never
+	// keeps the migration from being ready; it is logged, and an admin can ask for it again.
+	if _, err := s.startComparison(ctx, readied.ID, nil); err != nil {
+		s.Log.WarnContext(ctx, "index preview: the comparison could not be started", "migration", readied.ID, "err", err)
+	}
+	return nil
 }
 
 // ready stops a held migration before its switch: the new index is built, the KB keeps its profile, and the platform
-// admins are told it waits for them. The migration still counts as the KB's active one and keeps its sets.
-func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase) error {
+// admins are told it waits for them. The migration still counts as the KB's active one and keeps its sets. The comparison
+// starts after this transaction commits (Advance).
+func (s *Service) ready(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration, kb dbgen.KnowledgeBase) (dbgen.ProfileMigration, error) {
 	m, err := q.ReadyProfileMigration(ctx, m.ID)
 	if err != nil {
-		return err
-	}
-	// The comparison of the live index with this one: a failure to start it must not keep the migration from becoming ready, so it runs in a
-	// savepoint and is logged (an admin can ask for it again).
-	sets := 0
-	if s.OnPreviewReady != nil {
-		if sp, err := tx.Begin(ctx); err == nil {
-			if n, herr := s.OnPreviewReady(ctx, sp, kb.ID, m.ID, m.FromProfileID, m.ToProfileID); herr != nil {
-				_ = sp.Rollback(ctx)
-				s.Log.WarnContext(ctx, "index preview: the comparison could not be started", "migration", m.ID, "err", herr)
-			} else if err := sp.Commit(ctx); err == nil {
-				sets = n
-			}
-		}
+		return m, err
 	}
 	e := audit.Entry{ActorKind: audit.ActorSystem, TeamID: kb.TeamID, Action: "kb.profile_preview_ready",
-		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, map[string]any{"evaluationSets": sets})}
+		TargetType: "knowledge_base", TargetID: kb.ID.String(), Metadata: s.meta(m, nil)}
 	if err := audit.Record(ctx, q, e); err != nil {
-		return err
+		return m, err
 	}
-	return s.notifyReady(ctx, q, tx, m, kb)
+	return m, s.notifyReady(ctx, q, tx, m, kb)
+}
+
+// startComparison starts a ready held migration's comparison (live index against candidate, over the KB's evaluation sets) in
+// its own transaction, holding only a lock for this migration (two starts of one migration don't both run), never the
+// migrations' global lock: the hook reads through the pool. It is audited as kb.profile_preview_evaluate, by the admin who
+// asked (by) or the system. It returns how many sets it started.
+func (s *Service) startComparison(ctx context.Context, id uuid.UUID, by *authz.Actor) (int, error) {
+	started := 0
+	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "grounded.profile_preview:"+id.String()); err != nil {
+			return err
+		}
+		m, err := q.LockProfileMigration(ctx, id)
+		if err != nil {
+			return errNotFound
+		}
+		if m.Status != StatusReady {
+			return errNotReady
+		}
+		if s.OnPreviewReady != nil {
+			if started, err = s.OnPreviewReady(ctx, tx, m.KBID, m.ID, m.FromProfileID, m.ToProfileID); err != nil {
+				return err
+			}
+		}
+		e := audit.Entry{ActorKind: audit.ActorSystem, Action: "kb.profile_preview_evaluate", TargetType: "knowledge_base", TargetID: m.KBID.String()}
+		if by != nil {
+			e = by.Audit("kb.profile_preview_evaluate", "knowledge_base", m.KBID.String())
+		}
+		e.TeamID, e.Metadata = m.TeamID, mergeMeta(e.Metadata, s.meta(m, map[string]any{"evaluationSets": started}))
+		return audit.Record(ctx, q, e)
+	})
+	return started, err
 }
 
 // doSwitch points the KB at the migration's profile: the automatic switch of a migration that is not held (by is nil,

@@ -181,14 +181,55 @@ func TestProfilePreviewIsReadyEvenIfTheComparisonCannotStart(t *testing.T) {
 	if n := env.previewRuns(t, m.Id, ""); n != 0 {
 		t.Errorf("preview runs = %d, want none (the hook failed)", n)
 	}
-	var sets int64
-	if err := env.app.Pool.QueryRow(t.Context(), `SELECT (metadata->>'evaluationSets')::bigint FROM audit_log WHERE action = 'kb.profile_preview_ready'
-		AND target_id = $1`, kb.Id.String()).Scan(&sets); err != nil || sets != 0 {
-		t.Errorf("ready audit evaluationSets = %d, %v", sets, err)
+	// Ready is recorded; the comparison that failed to start is not.
+	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'kb.profile_preview_ready' AND target_id = $1`, kb.Id.String()); n != 1 {
+		t.Errorf("ready audit entries = %d, want 1", n)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'kb.profile_preview_evaluate' AND target_id = $1`, kb.Id.String()); n != 0 {
+		t.Errorf("a comparison that failed to start was audited (%d)", n)
 	}
 	// And it can be asked for again once it works.
 	env.app.Svc.ProfileMigrations.OnPreviewReady = hook
 	code, e := env.admin.call("POST", "/v1/admin/profile-migrations/"+m.Id.String()+"/evaluate", nil, nil, nil)
 	mustCode(t, "evaluate again", code, e, 202, "")
 	env.waitPreviewRuns(t, m.Id, 2)
+}
+
+// The comparison starts outside the migrations' global lock (and the knowledge base's row lock): its hook reads agents, knowledge
+// bases and profiles through the pool, and doing that while holding them starved a small pool (CI, pool size 3: the migration
+// stayed running for good). The hook checks the lock is free from another connection, then starts the runs; the start is
+// audited by the system with its count.
+func TestPreviewComparisonStartsOutsideTheMigrationLock(t *testing.T) {
+	env := newMigEnv(t)
+	src := env.source(t, "Handbook", upload{"parking.md", []byte(longText("Parking permits", 40))})
+	kb := env.kb(t, "Handbook", src.Id)
+	set := env.previewEvalSet(t, kb.Id, "Handbook questions")
+	env.previewEvalQuestion(t, set, "How do I get a parking permit?", "parking.md")
+
+	hook := env.app.Svc.ProfileMigrations.OnPreviewReady
+	held := make(chan bool, 4)
+	env.app.Svc.ProfileMigrations.OnPreviewReady = func(ctx context.Context, tx pgx.Tx, kbID, migration, live, cand uuid.UUID) (int, error) {
+		conn, err := env.app.Pool.Acquire(ctx)
+		if err != nil {
+			return 0, err
+		}
+		defer conn.Release()
+		var free bool
+		if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtext('grounded.profile_migrations'))`).Scan(&free); err != nil {
+			return 0, err
+		}
+		held <- !free
+		return hook(ctx, tx, kbID, migration, live, cand)
+	}
+	m := env.preview(t, kb.Id, map[string]any{"chunkSize": 256, "chunkOverlap": 32})
+	env.waitStatus(t, m.Id, statusReady)
+	env.waitPreviewRuns(t, m.Id, 2)
+	if <-held {
+		t.Fatal("the comparison started while the migrations' lock was held")
+	}
+	var sets int64
+	if err := env.app.Pool.QueryRow(t.Context(), `SELECT (metadata->>'evaluationSets')::bigint FROM audit_log WHERE action = 'kb.profile_preview_evaluate'
+		AND actor_kind = 'system' AND target_id = $1`, kb.Id.String()).Scan(&sets); err != nil || sets != 1 {
+		t.Errorf("comparison audit evaluationSets = %d, %v", sets, err)
+	}
 }
