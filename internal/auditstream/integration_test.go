@@ -192,7 +192,7 @@ func TestStreamOrderAndStart(t *testing.T) {
 	if err := slow.Commit(f.ctx); err != nil {
 		t.Fatal(err)
 	}
-	f.until(id, func(got []string) bool { return len(got) >= before+2 }, c)
+	f.until(id, func(got []string) bool { return slices.Contains(got, "team.after_late") }, c)
 	f.deliver(id) // nothing new: nothing twice
 	got = c.got()
 	if strings.Join(got[before-1:], ",") != "team.one,team.late,team.after_late" || !slices.Contains(got, "platform.audit_stream_enable") {
@@ -249,7 +249,7 @@ func TestStreamHECFailureAndRecovery(t *testing.T) {
 	c.fail = false
 	f.record("team.second")
 	f.exec(`UPDATE audit_stream_destinations SET next_attempt_at = NULL WHERE id = $1`, id)
-	f.until(id, func(got []string) bool { return len(got) >= 3 }, c)
+	f.until(id, func(got []string) bool { return slices.Contains(got, "team.second") }, c)
 	// The stream may start a few entries before its switch-on when another transaction was open on the server (CI): check the end.
 	if got := c.got(); !strings.HasSuffix(strings.Join(got, ","), "platform.audit_stream_enable,team.first,team.second") || c.auth[0] != token {
 		t.Fatalf("after recovery: %v %v", got, c.auth)
