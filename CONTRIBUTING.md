@@ -108,7 +108,7 @@ Commit generated files with the change that caused them, and never edit them by 
 
 ## UI components
 
-UI components come from the [bitop-ui](web/README.md#ui-components-bitop-ui) registry and are installed into `web/src/components/ui` with the shadcn CLI.
+UI components come from the published [bitop-ui](web/README.md#ui-components-bitop-ui) registry (https://ncecere.github.io/bitop-ui/) and are installed into `web/src/components/ui` with bitop-ui's CLI; CI checks they match it.
 - Don't edit files in `web/src/components/ui` by hand. Fix or extend the component in bitop-ui, then re-install it.
 - Grounded-specific components live in `web/src/components/` or next to their page in `web/src/pages/`.
 - [`web/README.md`](web/README.md) explains how to serve the registry locally and update components.

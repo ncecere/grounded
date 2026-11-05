@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "registry": "../../../typescript/bitop-ui",
+  "registry": "https://ncecere.github.io/bitop-ui/r/{name}.json",
   "items": {
     "accordion": {
       "files": {
@@ -106,7 +106,7 @@
     "combobox": {
       "files": {
         "src/components/ui/combobox/combobox.module.css": "b93ff0acef61a7eaae9b4a29e5e5808780a1bc089cb7234d64e25d5ad586da03",
-        "src/components/ui/combobox/combobox.tsx": "05bc8b89696fc4e201eecdc2437d1182d9cd65e65b4c5b751a4df31c67a182fb"
+        "src/components/ui/combobox/combobox.tsx": "9919b225db852797f554bc932dcfab696d939c13915fe8ae8069ce407cbd172d"
       }
     },
     "command-palette": {
@@ -144,7 +144,7 @@
     },
     "data-table": {
       "files": {
-        "src/components/ui/data-table/data-table.module.css": "b01f8baa9607737c13883f6bcb4c4ca5049b6dd406ba757d65c47830e101a801",
+        "src/components/ui/data-table/data-table.module.css": "9d179f657249540c6e6eafeda03dce39a191fa853387d533ccf72a333a90d9d5",
         "src/components/ui/data-table/data-table.tsx": "019d962b748d36173f47cbee08681e1bf0b78ee3f4cd9f2b9c8975dd7e44faef"
       }
     },
@@ -289,7 +289,7 @@
     "model-selector": {
       "files": {
         "src/components/ui/model-selector/model-selector.module.css": "4daf0e9d8be45f3f6c52c55d12087d2efd4331369ae2a1b25d6d62e02b841f94",
-        "src/components/ui/model-selector/model-selector.tsx": "585891cc0efaa2fa1421fe388fae5977f56f2f5494eaad45ce6638b32dcf170b"
+        "src/components/ui/model-selector/model-selector.tsx": "04f5fb7e679d6112e5c232f1b10e22138fbe68320b071bb70c919339d2179fdb"
       }
     },
     "number-input": {
@@ -300,7 +300,7 @@
     },
     "page-header": {
       "files": {
-        "src/components/ui/page-header/page-header.module.css": "2fee5a878a49a817a15724cad39a18310e6bce0c5a800bf3233639e3e48d4a42",
+        "src/components/ui/page-header/page-header.module.css": "8832e825e5d4c0569104d304b10ae206020c358f41189163305d5dc4cddaaa0b",
         "src/components/ui/page-header/page-header.tsx": "e9ffdc7acb15c1f4698879bbbdacbc0c575c1bc22046316663217ba68827d3f5"
       }
     },
@@ -440,7 +440,7 @@
     },
     "table": {
       "files": {
-        "src/components/ui/table/table.module.css": "ec3b33a3f0b769ca669df9f221d7c7dafce7ff622e2ebb37684a958b7990daaf",
+        "src/components/ui/table/table.module.css": "00c33e566d7005856b9c138499b88e724da9d1b02ee95446f9e177399786ef48",
         "src/components/ui/table/table.tsx": "17937503044779b087e576642b6501d1dd93509b03d2cabe8b1f606b4b6eef13"
       }
     },
