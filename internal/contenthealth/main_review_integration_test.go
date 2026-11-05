@@ -145,6 +145,10 @@ func TestFailureFinalizationHasABoundedCleanupBudget(t *testing.T) {
 	_ = tx.Rollback(f.ctx)
 	// A database lock can prevent terminal-state persistence; recovery remains
 	// possible after the lock ends, rather than keeping a worker stuck forever.
+	// The recovery runs with the normal budget: the 100 ms one above only had to
+	// prove a blocked finalization gives up, and an unblocked one can take longer
+	// than that on a loaded runner (CI failed here with a deadline exceeded).
+	f.svc.finalizeLimit = 0
 	if err := f.svc.fail(f.ctx, rep.ID, ErrTimedOut); err != nil {
 		t.Fatal(err)
 	}
