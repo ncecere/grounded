@@ -23,5 +23,7 @@ jobs:
         run: python3 deploy/helm/scripts/generate.py --check
       - name: Independent semantic matrix, lint and schema negatives
         run: python3 deploy/helm/scripts/test_chart.py
+      - name: Publication script against fake registry and signer
+        run: python3 deploy/helm/scripts/test_publish.py
       - name: Controlled stale-source mutation and restoration
         run: python3 deploy/helm/scripts/mutation.py "$RUNNER_TEMP/helm-mutation"
