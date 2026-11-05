@@ -63,7 +63,7 @@ test("only platform staff open the admin portal", async ({ as, a11y }) => {
   await expect(auditor.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await a11y(auditor, "admin overview as an auditor");
   // A switch the auditor can't change (Admin → Settings, AD-39) stays in the tab order, so its reason is reachable from the keyboard.
-  await auditor.goto("/admin/settings");
+  await auditor.goto("/admin/settings?tab=features");
   await expect(auditor.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   const features = auditor.getByRole("region", { name: "Features" });
   const evaluations = features.getByRole("switch", { name: "Allow evaluations" });

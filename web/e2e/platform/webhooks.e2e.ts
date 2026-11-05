@@ -24,7 +24,7 @@ test("webhooks: turn on, approve a destination, make one, test it, change it, ro
 
   const platform = await as("admin");
   await test.step("a platform admin turns webhooks on", async () => {
-    await platform.goto("/admin/settings");
+    await platform.goto("/admin/settings?tab=features");
     const sw = platform.getByRole("switch", { name: "Allow webhooks" });
     await expect(sw).not.toBeChecked();
     await a11y(platform, "settings: webhooks off");

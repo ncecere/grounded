@@ -17,9 +17,9 @@ import {
   evaluationSetTabs, gapTabs,
   limitTabs,
   logTabs,
-  moderationTabs, personalDataTabs, scimTabs,
+  moderationTabs, personalDataTabs, scimTabs, adminSettingsTabs, parsingTabs,
   movedLegalHoldSearch,
-  renamedTabHref,
+  renamedTabHref, hashTabHref,
   notificationTabs,
   retentionTabs,
   sourceTabs,
@@ -293,7 +293,7 @@ const adminMoved = <P extends string>(
 /** An admin page with tabs; list filters, ?q= and ?record= pass through (ListPage, RecordSheet). `renamed` redirects old ?tab= values. */
 const adminTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean; renamed?: Record<string, T> }) =>
   createRoute({ getParentRoute: () => adminRoute, path, validateSearch: tabSearch(tabs, { passthrough: true, ...opts }), component, beforeLoad: ({ location }) => {
-    const href = opts?.renamed && renamedTabHref(location.pathname, location.searchStr, opts.renamed);
+    const href = (opts?.renamed && renamedTabHref(location.pathname, location.searchStr, opts.renamed)) || hashTabHref(location.pathname, location.searchStr, location.hash, tabs);
     if (href) throw redirect({ href, replace: true });
   } });
 
@@ -365,7 +365,7 @@ const appTree = appRoute.addChildren([
       adminTabs("shared-sources/$sourceId", sourceTabs, lazy(pages.shared, "SharedSourceDetailPage"), { passthrough: true }),
       adminTabs("crawl-domains", crawlDomainTabs, lazy(pages.crawling, "CrawlingPage")),
       adminMoved("crawling", "/admin/crawl-domains"),
-      admin("parsing", lazy(pages.parsing, "ParsingPage")), adminTabs("personal-data", personalDataTabs, lazy(pages.personalData, "PersonalDataPage")),
+      adminTabs("parsing", parsingTabs, lazy(pages.parsing, "ParsingPage")), adminTabs("personal-data", personalDataTabs, lazy(pages.personalData, "PersonalDataPage")),
       adminTabs("limits", limitTabs, lazy(pages.limits, "LimitsPage")),
       adminAgentsRoute, admin("agent-templates", lazy(pages.agentTemplates, "AgentTemplatesPage")),
       adminTabs("analytics", analyticsTabs, lazy(pages.adminAnalytics, "AdminAnalyticsPage")),
@@ -375,7 +375,7 @@ const appTree = appRoute.addChildren([
       adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage"), { renamed: { report: "dry-run" } }),
       adminMoved("legal-holds", "/admin/retention", "holds", movedLegalHoldSearch),
       adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")), breakGlassConversationsRoute,
-      logsRoute, admin("settings", lazy(pages.adminSettings, "AdminSettingsPage")),
+      logsRoute, adminTabs("settings", adminSettingsTabs, lazy(pages.adminSettings, "AdminSettingsPage")),
       adminMoved("access-log", "/admin/logs", "access"), adminMoved("audit", "/admin/logs"),
     ]),
   ]);

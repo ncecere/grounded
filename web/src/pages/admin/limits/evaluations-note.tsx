@@ -15,7 +15,7 @@ export function EvaluationsNote() {
   return (
     <p className={s.muted}>
       {state ? `Evaluations are ${state}` : "Evaluations are turned on or off"} (
-      <TextLink render={<Link to="/admin/settings" hash="features" />}>Settings → Features</TextLink>).
+      <TextLink render={<Link to="/admin/settings" search={{ tab: "features" }} />}>Settings → Features</TextLink>).
     </p>
   );
 }

@@ -31,6 +31,10 @@ export const moderationTabs = ["team", "all_authenticated", "public", "providers
 export const personalDataTabs = ["settings", "review"] as const;
 /** Admin → SCIM provisioning: what to give the identity provider, and the tokens. */
 export const scimTabs = ["setup", "tokens"] as const;
+/** Admin → Settings: the platform's general settings, the feature switches, what the environment sets, and the areas that keep their own settings. */
+export const adminSettingsTabs = ["general", "features", "environment", "other"] as const;
+/** Admin → Parsing & OCR: the settings, and the documents that failed or need OCR. */
+export const parsingTabs = ["settings", "documents"] as const;
 
 /**
  * validateSearch for a route with tabs: keeps ?tab= when it names a tab other
@@ -52,6 +56,14 @@ export function renamedTabHref(pathname: string, searchStr: string, renamed: Rec
   if (!Object.hasOwn(renamed, tab)) return undefined;
   const next = renamed[tab]!;
   q.set("tab", next);
+  return `${pathname}?${q.toString()}`;
+}
+/** An address whose #hash names one of the page's tabs (a link made before the page had tabs, e.g. /admin/settings#features)
+ * and no ?tab=: the same page with ?tab= instead, so it opens on that tab without showing the first one. */
+export function hashTabHref(pathname: string, searchStr: string, hash: string, tabs: readonly string[]) {
+  const q = new URLSearchParams(searchStr);
+  if (!hash || q.has("tab") || !tabs.includes(hash)) return undefined;
+  q.set("tab", hash);
   return `${pathname}?${q.toString()}`;
 }
 export const crawlDomainTabs = ["requests", "allowlist"] as const;

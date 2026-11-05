@@ -25,7 +25,7 @@ test("team requests: turn on, ask, approve with a first agent, decline with a re
   const person = await as("user");
   try {
     await test.step("a platform admin turns team requests on", async () => {
-      await platform.goto("/admin/settings");
+      await platform.goto("/admin/settings?tab=features");
       const sw = platform.getByRole("switch", { name: "Allow team requests" });
       await expect(sw).not.toBeChecked();
       await a11y(platform, "settings: team requests off");
@@ -109,7 +109,7 @@ test("team requests: turn on, ask, approve with a first agent, decline with a re
     });
 
     await test.step("turning the feature off says so on the user's page and keeps their history", async () => {
-      await platform.goto("/admin/settings");
+      await platform.goto("/admin/settings?tab=features");
       await platform.getByRole("switch", { name: "Allow team requests" }).click();
       const confirm = platform.getByRole("alertdialog");
       await a11y(platform, "turn team requests off");

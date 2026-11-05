@@ -3,13 +3,15 @@
  * OCR for scanned documents on the settings template. OCR on/off, the
  * backend (only configured ones can be chosen), the vision model or the
  * languages, the per-document cap, a Test button that reads a built-in
- * sample page; then, outside the form, the documents that failed or need
- * OCR by team and source, with Retry these and Notify owners. OCR is off by
- * default.
+ * sample page; on its own tab (?tab=documents), the documents that failed
+ * or need OCR by team and source, with Retry these and Notify owners. OCR is
+ * off by default.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { FileWarning, ScanText } from "lucide-react";
 import { useState } from "react";
+import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { ApiError, api, ifMatch, unwrap } from "@/api/client";
 import { QueryView } from "@/components/query-view";
 import { useRevisionForm } from "@/components/templates/revision-form";
@@ -26,6 +28,7 @@ import { Switch } from "@/components/ui/switch/switch";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import { backendDescriptions, backendLabels, parsingChanges, parsingForm, parsingInput, parsingProblems, type OcrBackend, type ParsingForm, type ParsingSettings } from "@/lib/parsing";
+import { parsingTabs } from "@/lib/tabs";
 import { adminOnly } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
@@ -40,6 +43,7 @@ export function ParsingPage() {
   const settings = useQuery({ queryKey: parsingKey, queryFn: async () => unwrap(await api.GET("/v1/admin/parsing")) });
   const models = useModels();
   const vision = (models.data ?? []).filter((m) => m.kind === "vision");
+  const [tab, setTab] = useUrlTab(parsingTabs);
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -48,10 +52,24 @@ export function ParsingPage() {
           settings.data?.ocrEnabled ? "It is on for the platform; each source can turn it off." : "It is off until a platform admin turns it on."
         }`}
       />
-      <QueryView query={settings} loadingLabel="Loading parsing settings…">
-        {settings.data && <ParsingEditor saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
-      </QueryView>
-      <DocumentProblemsSection isAdmin={isAdmin} />
+      <PageTabs
+        label="Parsing sections"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          {
+            value: "settings",
+            label: "Settings",
+            icon: <ScanText aria-hidden />,
+            content: (
+              <QueryView query={settings} loadingLabel="Loading parsing settings…">
+                {settings.data && <ParsingEditor saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
+              </QueryView>
+            ),
+          },
+          { value: "documents", label: "Failed or need OCR", icon: <FileWarning aria-hidden />, content: <DocumentProblemsSection isAdmin={isAdmin} /> },
+        ]}
+      />
     </Stack>
   );
 }

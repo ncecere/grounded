@@ -170,7 +170,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       title: `${plural(f.failed, "document", "documents")} failed to index in ${f.teamName ?? "shared sources"}`,
       description: "See them by source and reason on Parsing & OCR, retry them or notify the team's owners.",
       action: "Failed documents",
-      link: <Link to="/admin/parsing" hash="document-problems" />,
+      link: <Link to="/admin/parsing" search={{ tab: "documents" }} />,
     });
   }
   for (const n of overview.data?.teamsNearLimits ?? []) {

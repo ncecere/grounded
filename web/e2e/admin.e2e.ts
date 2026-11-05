@@ -21,6 +21,9 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await page.goto("/admin/settings");
   await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Currency" })).toBeVisible();
+  await a11y(page, "admin settings: general");
+  await page.getByRole("tab", { name: "Features" }).click();
+  await expect(page).toHaveURL(/\?tab=features$/);
   const features = page.getByRole("region", { name: "Features" });
   await expect(features.getByRole("switch", { name: "Allow evaluations" })).toBeVisible();
   await expect(features.getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
@@ -146,9 +149,11 @@ test("parsing: OCR is off by default, with each backend's state", async ({ as, a
   await expect(page.getByRole("switch", { name: /Read scanned pages and images with OCR/ })).not.toBeChecked();
   await expect(page.getByText("Not configured: set OCR_TESSERACT_URL.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Test" })).toBeVisible();
-  // Failed and needs-OCR documents by team and source (other specs' documents may be listed, or none).
+  await a11y(page, "parsing: settings");
+  // Failed and needs-OCR documents by team and source, on their own tab (other specs' documents may be listed, or none).
+  await page.getByRole("tab", { name: "Failed or need OCR" }).click();
   await expect(page.getByRole("heading", { name: "Documents that failed or need OCR" })).toBeVisible();
-  await a11y(page);
+  await a11y(page, "parsing: documents");
 });
 
 test("retention dry run, and a legal hold placed and released", async ({ as, admin, a11y }) => {
