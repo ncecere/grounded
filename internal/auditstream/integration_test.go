@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,6 +81,13 @@ func (f *fixture) destination(in Input) uuid.UUID {
 	return id
 }
 
+func (f *fixture) exec(sql string, args ...any) {
+	f.t.Helper()
+	if _, err := f.pool.Exec(f.ctx, sql, args...); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
 func (f *fixture) deliver(id uuid.UUID) int {
 	f.t.Helper()
 	n, err := f.s.Deliver(f.ctx, id, 10*time.Second)
@@ -146,7 +154,8 @@ func trust(f *fixture, srv *httptest.Server) {
 }
 
 // A stream starts with entries written after it is turned on; it sends in commit order, holds back an entry whose transaction
-// is still open even when later entries committed, and sends nothing twice.
+// is still open even when later entries committed, and sends nothing twice. Other databases on the same server (parallel test
+// packages) may hold back the boundary too, so delivery is awaited rather than counted at once; the ordering is what matters.
 func TestStreamOrderAndStart(t *testing.T) {
 	f := newFixture(t)
 	c := &collector{}
@@ -163,25 +172,47 @@ func TestStreamOrderAndStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = slow.Rollback(context.Background()) }) // releases its connection if the test stops early
 	if err := audit.Record(f.ctx, dbgen.New(slow), audit.Entry{ActorKind: audit.ActorSystem, Action: "team.late", TargetType: "team"}); err != nil {
 		t.Fatal(err)
 	}
 	f.record("team.after_late")
-	if n := f.deliver(id); n != 2 {
-		t.Fatalf("delivered %d with a transaction open, want the switch-on and team.one", n)
+	// A stream starts at the oldest transaction running when it is turned on: usually with its switch-on entry, but an older
+	// transaction still open elsewhere on the server makes it start a little earlier (extra entries, never missing ones).
+	f.until(id, func(got []string) bool { return slices.Contains(got, "team.one") }, c)
+	f.deliver(id)
+	got := c.got()
+	if got[len(got)-1] != "team.one" || slices.Contains(got, "team.late") || slices.Contains(got, "team.after_late") {
+		t.Fatalf("with a transaction open, delivered %v: want nothing after it", got)
+	}
+	before := len(got)
+	if lag, err := f.s.Lag(f.ctx, id); err != nil || lag <= 0 {
+		t.Fatalf("lag with an entry held back = %v %v, want it behind", lag, err)
 	}
 	if err := slow.Commit(f.ctx); err != nil {
 		t.Fatal(err)
 	}
-	f.deliver(id)
+	f.until(id, func(got []string) bool { return len(got) >= before+2 }, c)
 	f.deliver(id) // nothing new: nothing twice
-	got := c.got()
-	// The stream opens with the entry that turned it on.
-	if strings.Join(got, ",") != "platform.audit_stream_enable,team.one,team.late,team.after_late" {
+	got = c.got()
+	if strings.Join(got[before-1:], ",") != "team.one,team.late,team.after_late" || !slices.Contains(got, "platform.audit_stream_enable") {
 		t.Fatalf("delivered %v", got)
 	}
-	if d := f.dest(id); d.SentTotal != 4 || d.LastErrorClass != "" {
-		t.Fatalf("destination %+v", d)
+	if d := f.dest(id); d.SentTotal != int64(len(got)) || d.LastErrorClass != "" {
+		t.Fatalf("destination %+v, %d delivered", d, len(got))
+	}
+}
+
+// until delivers until the collector's events satisfy ok (at most 60 s: another database's transaction may hold back the boundary).
+func (f *fixture) until(id uuid.UUID, ok func([]string) bool, c *collector) {
+	f.t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for !ok(c.got()) {
+		if time.Now().After(deadline) {
+			f.t.Fatalf("not delivered in time: %v", c.got())
+		}
+		f.deliver(id)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -203,7 +234,11 @@ func TestStreamHECFailureAndRecovery(t *testing.T) {
 
 	c.fail = true
 	f.record("team.first")
-	f.deliver(id)
+	waitFailure := time.Now().Add(60 * time.Second)
+	for f.dest(id).Failures == 0 && time.Now().Before(waitFailure) {
+		f.deliver(id)
+		time.Sleep(100 * time.Millisecond)
+	}
 	d := f.dest(id)
 	if d.LastErrorClass != ClassHTTP5xx || d.Failures != 1 || d.NextAttemptAt == nil || time.Until(*d.NextAttemptAt) > 6*time.Second {
 		t.Fatalf("after a 503: %+v", d)
@@ -213,7 +248,8 @@ func TestStreamHECFailureAndRecovery(t *testing.T) {
 	}
 	c.fail = false
 	f.record("team.second")
-	f.deliver(id)
+	f.exec(`UPDATE audit_stream_destinations SET next_attempt_at = NULL WHERE id = $1`, id)
+	f.until(id, func(got []string) bool { return len(got) >= 3 }, c)
 	if got := c.got(); strings.Join(got, ",") != "platform.audit_stream_enable,team.first,team.second" || c.auth[0] != token {
 		t.Fatalf("after recovery: %v %v", got, c.auth)
 	}
@@ -276,8 +312,13 @@ func TestStreamSyslogTLS(t *testing.T) {
 	id := f.destination(Input{Name: "Syslog", Kind: KindSyslog, Address: "example.com:" + port, CAPEM: caPEM})
 	f.record("team.syslog_one")
 	f.record("team.syslog_two")
-	if n := f.deliver(id); n != 3 {
-		t.Fatalf("delivered %d", n)
+	sent, deadline := 0, time.Now().Add(60*time.Second)
+	for sent < 3 && time.Now().Before(deadline) {
+		sent += f.deliver(id)
+		time.Sleep(100 * time.Millisecond)
+	}
+	if sent != 3 {
+		t.Fatalf("delivered %d", sent)
 	}
 	for _, want := range []string{"platform.audit_stream_enable", "team.syslog_one", "team.syslog_two"} {
 		select {
@@ -294,7 +335,9 @@ func TestStreamSyslogTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.record("team.syslog_three")
-	f.deliver(id)
+	for deadline := time.Now().Add(60 * time.Second); f.dest(id).Failures == 0 && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		f.deliver(id)
+	}
 	if d := f.dest(id); d.LastErrorClass != ClassTLS {
 		t.Fatalf("without the CA: %+v", d)
 	}

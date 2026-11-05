@@ -40,7 +40,6 @@ func (q *Queries) AdvanceAuditStreamCursor(ctx context.Context, arg AdvanceAudit
 const auditStreamOldestUnsent = `-- name: AuditStreamOldestUnsent :one
 SELECT coalesce(min(a.occurred_at), now())::timestamptz FROM audit_log a
 WHERE a.txid IS NOT NULL AND (a.txid, a.id) > ($1::text::xid8, $2::bigint)
-  AND a.txid < pg_snapshot_xmin(pg_current_snapshot())
 `
 
 type AuditStreamOldestUnsentParams struct {
@@ -48,7 +47,8 @@ type AuditStreamOldestUnsentParams struct {
 	CursorID   int64
 }
 
-// How far behind a destination is: the oldest finished entry it has not sent.
+// How far behind a destination is: the oldest committed entry it has not sent, including those held back because an older
+// transaction (in any database of the server) is still open, so a stalled stream shows as behind rather than idle.
 func (q *Queries) AuditStreamOldestUnsent(ctx context.Context, arg AuditStreamOldestUnsentParams) (time.Time, error) {
 	row := q.db.QueryRow(ctx, auditStreamOldestUnsent, arg.CursorTxid, arg.CursorID)
 	var column_1 time.Time

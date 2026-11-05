@@ -45,6 +45,9 @@ const routes = (extra: Record<string, Handler> = {}): Record<string, Handler> =>
       { id: "s2", name: "Syslog", kind: "syslog", format: "rfc5424", address: "siem.example.edu:6514", hasAuthHeader: false, caPem: "", enabled: true, started: true,
         sentTotal: 10, lastSentAt: null, lastErrorClass: "timeout", failingSince: new Date(Date.now() - 60_000).toISOString(), nextAttemptAt: null, lagSeconds: 60,
         revision: 1, createdAt: "2026-11-01T10:00:00Z" },
+      // Not failing, but held back for half an hour by a transaction left open on the database server.
+      { id: "s3", name: "Elastic", kind: "https", format: "ndjson", address: "https://elastic.example.edu/", hasAuthHeader: false, caPem: "", enabled: true, started: true,
+        sentTotal: 10, lastSentAt: null, lastErrorClass: "", failingSince: null, nextAttemptAt: null, lagSeconds: 1800, revision: 1, createdAt: "2026-11-01T10:00:00Z" },
     ],
   }),
   "GET /v1/admin/agents": () => [adminAgent("disabled_by_platform"), adminAgent("active", { id: "ag2", name: "Public helper", audience: "public" })],
@@ -116,6 +119,7 @@ describe("admin overview", () => {
     expect(within(queue).getByText("The public audience has no moderation provider")).toBeInTheDocument();
     expect(await within(queue).findByText("Audit streaming to Splunk is failing")).toBeInTheDocument();
     expect(within(queue).queryByText("Audit streaming to Syslog is failing")).toBeNull();
+    expect(within(queue).getByText("Audit streaming to Elastic is 30 min behind")).toBeInTheDocument();
     expect(within(queue).getByText("2 documents failed to index in Office of the Registrar")).toBeInTheDocument();
     // Failed documents lead to Parsing & OCR, where admins retry them or notify the owners (not to the team's page).
     expect(within(queue).getByRole("link", { name: /Failed documents/ })).toHaveAttribute("href", "/admin/parsing#document-problems");

@@ -30,8 +30,10 @@ export function lagText(seconds: number): string {
   return `${Math.round(seconds / 86_400)} days`;
 }
 
-/** Destinations failing for more than 15 minutes (the admin overview's Needs attention). */
-export const failingLong = (d: Destination, now = Date.now()) => d.enabled && !!d.failingSince && now - Date.parse(d.failingSince) > 15 * 60_000;
+/** Destinations failing, or more than 15 minutes behind, for more than 15 minutes (the admin overview's Needs attention). Behind
+ * without failing means entries are held back: a transaction stays open on the database server. */
+export const failingLong = (d: Destination, now = Date.now()) =>
+  d.enabled && ((!!d.failingSince && now - Date.parse(d.failingSince) > 15 * 60_000) || d.lagSeconds > 15 * 60);
 
 /** What's wrong with the form, by field, before it is sent (the server checks again). */
 export function destinationProblems(f: DestinationInput): Partial<Record<keyof DestinationInput, string>> {

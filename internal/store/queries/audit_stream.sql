@@ -72,11 +72,11 @@ WHERE a.txid IS NOT NULL
 ORDER BY a.txid, a.id
 LIMIT sqlc.arg(max_rows);
 
--- How far behind a destination is: the oldest finished entry it has not sent.
+-- How far behind a destination is: the oldest committed entry it has not sent, including those held back because an older
+-- transaction (in any database of the server) is still open, so a stalled stream shows as behind rather than idle.
 -- name: AuditStreamOldestUnsent :one
 SELECT coalesce(min(a.occurred_at), now())::timestamptz FROM audit_log a
-WHERE a.txid IS NOT NULL AND (a.txid, a.id) > (sqlc.arg(cursor_txid)::text::xid8, sqlc.arg(cursor_id)::bigint)
-  AND a.txid < pg_snapshot_xmin(pg_current_snapshot());
+WHERE a.txid IS NOT NULL AND (a.txid, a.id) > (sqlc.arg(cursor_txid)::text::xid8, sqlc.arg(cursor_id)::bigint);
 
 -- name: AdvanceAuditStreamCursor :exec
 UPDATE audit_stream_destinations SET cursor_txid = sqlc.arg(cursor_txid)::text::xid8, cursor_id = sqlc.arg(cursor_id)::bigint,

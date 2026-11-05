@@ -201,8 +201,10 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
     rows.push({
       id: `audit-stream-${d.id}`,
       icon: <RadioTower />,
-      title: `Audit streaming to ${d.name} is failing`,
-      description: `${errorClassText[d.lastErrorClass] ?? "It can't deliver"}; ${lagText(d.lagSeconds)} behind. It keeps retrying.`,
+      title: d.failingSince ? `Audit streaming to ${d.name} is failing` : `Audit streaming to ${d.name} is ${lagText(d.lagSeconds)} behind`,
+      description: d.failingSince
+        ? `${errorClassText[d.lastErrorClass] ?? "It can't deliver"}; ${lagText(d.lagSeconds)} behind. It keeps retrying.`
+        : "Entries are held back while an older transaction stays open on the database server. They are sent, in order, once it ends.",
       action: "Streaming",
       link: <Link to="/admin/logs" search={{ tab: "streaming" } as never} />,
       tone: "danger",

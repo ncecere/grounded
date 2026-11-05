@@ -9,7 +9,7 @@ its reasons are in [specs/audit-streaming/DESIGN.md](../specs/audit-streaming/DE
 Per entry: `id` (deduplicate on it: delivery is at least once), `occurredAt`, `actorKind`, `actorUserId`, `actorEmail`,
 `apiKeyId`, `teamId`, `teamSlug`, `action`, `targetType`, `targetId` (UUIDs only), `requestId`, `clientIp`, `source:
 "grounded"` and the instance name. Never before/after values, metadata, labels, or any document or conversation text.
-A stream starts with the entry that turned it on; earlier history is in the signed exports.
+A stream starts at the entry that turned it on (or a few entries earlier, if an older transaction was open then); earlier history is in the signed exports.
 
 ## Set it up
 
@@ -28,6 +28,14 @@ A stream starts with the entry that turned it on; earlier history is in the sign
 Private addresses are allowed (a SIEM is usually internal); loopback, link-local and cloud metadata addresses are refused,
 the address is checked at every connection, redirects aren't followed and no proxy is used. Allow egress from the API and
 worker pods to the SIEM in your network policies.
+
+## When it falls behind
+
+Entries are sent once every transaction that began before them has ended. A transaction left open on the database server (an
+idle session `idle in transaction`, a long manual query that writes, in any database of that server) holds the stream back
+until it ends; nothing is skipped. The destination shows how far behind it is, and from 15 minutes it is listed under Needs
+attention. Find the culprit with `SELECT pid, datname, state, xact_start FROM pg_stat_activity WHERE backend_xid IS NOT NULL
+ORDER BY xact_start;`.
 
 ## When it fails
 
