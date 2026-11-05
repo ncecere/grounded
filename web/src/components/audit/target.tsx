@@ -121,7 +121,7 @@ function platformLink(e: AuditEntry): ReactElement | null {
     }
     case "evaluation_settings":
       // The switch is on Admin → Settings › Features (AD-39).
-      return <Link to="/admin/settings" hash="features" />;
+      return <Link to="/admin/settings" search={{ tab: "features" }} />;
     case "moderation_policy":
       return <Link to="/admin/moderation" search={{ tab: id === "team" ? undefined : (id as "public" | "all_authenticated") }} />;
     default:

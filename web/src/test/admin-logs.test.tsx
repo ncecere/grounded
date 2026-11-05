@@ -160,7 +160,7 @@ describe("admin logs", () => {
     // The evaluations switch: which way it went, in words, and its place now (Settings → Features, AD-39).
     const evalsRow = within(table).getByText("Turned evaluations off").closest("tr")!;
     expect(evalsRow).toHaveTextContent("Evaluations On → Off");
-    expect(within(evalsRow).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/admin/settings#features");
+    expect(within(evalsRow).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/admin/settings?tab=features");
     // A budget's target is the team, by its slug like every other link to it.
     const budgetRow = within(table).getByText("Changed a team budget").closest("tr")!;
     for (const link of within(budgetRow).getAllByRole("link", { name: "Academic Advising" })) expect(link).toHaveAttribute("href", "/admin/teams/advising");
