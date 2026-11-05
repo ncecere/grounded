@@ -1,6 +1,7 @@
 /* Human-readable audit actions, action groups (areas) and actors. */
 import type { Schemas } from "../../api/client";
 import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
+import { auditStreamActionLabels } from "./audit-stream-labels";
 import { scimActionLabels } from "./scim-labels";
 
 type AuditEntry = Schemas["AuditEntry"];
@@ -120,13 +121,6 @@ const actionLabels: Record<string, string> = {
   "platform.systemone_settings_update": "Changed SystemOne settings",
   "platform.rerank_settings_update": "Changed reranking settings",
   "platform.parsing_settings_update": "Changed parsing settings",
-  "platform.audit_streaming": "Changed audit streaming",
-  "platform.audit_stream_create": "Added an audit streaming destination",
-  "platform.audit_stream_update": "Changed an audit streaming destination",
-  "platform.audit_stream_delete": "Deleted an audit streaming destination",
-  "platform.audit_stream_enable": "Turned an audit streaming destination on",
-  "platform.audit_stream_disable": "Turned an audit streaming destination off",
-  "platform.audit_stream_test": "Tested an audit streaming destination",
   "platform.pii": "Changed personal data scanning",
   "platform.documents_retry": "Retried failed documents (admin)",
   "platform.document_owners_notify": "Told owners about failed documents",
@@ -198,6 +192,7 @@ const actionLabels: Record<string, string> = {
   "team.invite_revoke": "Revoked invite",
   "team.invite_accept": "Accepted invite",
   ...scimActionLabels,
+  ...auditStreamActionLabels,
 };
 
 type Obj = Record<string, unknown>;
