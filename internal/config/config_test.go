@@ -115,6 +115,12 @@ func TestValidate(t *testing.T) {
 		{"crawl concurrency", func(c *Config) { c.Crawl.Concurrency = 0 }, "worker", "CRAWL_CONCURRENCY"},
 		{"crawl user agent", func(c *Config) { c.Crawl.UserAgent = "grounded\r\nX-Evil: 1" }, "worker", "CRAWL_USER_AGENT"},
 		{"crawl timeout", func(c *Config) { c.Crawl.Timeout = 0 }, "worker", "CRAWL_TIMEOUT"},
+		{"export copy in its own bucket", func(c *Config) {
+			c.BlobBackend, c.S3.Bucket, c.AuditExportCopy.Bucket = "s3", "grounded", "grounded-audit"
+		}, "worker", ""},
+		{"export copy into grounded's storage", func(c *Config) {
+			c.BlobBackend, c.S3.Bucket, c.AuditExportCopy.Bucket = "s3", "grounded", "grounded"
+		}, "worker", "AUDIT_EXPORT_COPY_S3_BUCKET"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

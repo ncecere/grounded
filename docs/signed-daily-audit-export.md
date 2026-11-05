@@ -4,7 +4,7 @@ Written before implementation; built and reviewed on 2026-11-04 (#36, first part
 release that ships it. The review produced a real export from a fresh install and verified it with OpenSSL and an
 independently generated key exactly as "Offline standard signature procedure" below describes (signature, payload hash,
 line chain, ordinals, coverage; a one-byte change to the manifest or payload is detected), and confirmed that metadata
-and non-UUID targets are not exported. SIEM streaming is in [specs/audit-streaming/DESIGN.md](specs/audit-streaming/DESIGN.md) (v0.9.0); external S3 destinations for the exports remain open on #36.
+and non-UUID targets are not exported. SIEM streaming is in [specs/audit-streaming/DESIGN.md](specs/audit-streaming/DESIGN.md) (v0.9.0); external copies are described under "External copy" (v0.9.0).
 
 ## Working built-in path (Proposed; not owner acceptance)
 
@@ -134,6 +134,25 @@ the envelope/public key, not private signing material. Bundled public-key
 consistency is not independent trust. Separate external first/latest checkpoints
 are still essential: signatures cannot detect an unknown deleted final suffix or
 prove all source facts existed or were retained.
+
+## External copy
+
+The signatures can't show that a final day was deleted, so the first and latest checkpoints must also be kept somewhere
+Grounded's admins don't control. An operator can name such a bucket in the environment (`AUDIT_EXPORT_COPY_S3_BUCKET` and
+the other `AUDIT_EXPORT_COPY_S3_*` settings; never in the UI, never with Grounded's own storage bucket and prefix, which the
+configuration refuses). Every five minutes a job copies each completed day, oldest first and at most five at a time:
+
+- `<prefix>audit-exports/<YYYY-MM-DD>/payload.jsonl` and `.../envelope.json`, the exact bytes Grounded holds. Keys are
+  deterministic, so a retry writes the same objects; with S3 Object Lock (compliance mode) an earlier copy can't be replaced.
+- Before copying, the payload's SHA-256 is checked against the signed manifest: a local payload that no longer matches is
+  never copied (class `hash`). After copying, both objects are read back and compared (class `verify` if they differ).
+- A failure (`read`, `hash`, `write`, `verify`) is recorded per day and retried with backoff from 1 minute to 6 hours. Admin
+  → Logs → Signed exports shows the bucket and each day's state; nothing about the bucket's credentials is shown.
+- Days completed before the bucket was configured are copied too, oldest first.
+
+Give the job credentials that can write and read, but not delete or change retention, and keep the bucket's own access
+logs. The copy is a delivery, not a new trust root: verify copies with the offline procedure below, pinning the public key
+independently.
 
 ## Offline standard signature procedure
 

@@ -3,13 +3,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { SignedExports } from "../pages/admin/logs/signed-exports";
+import { SignedExports, copyText } from "../pages/admin/logs/signed-exports";
 import { mockApi } from "./harness";
 
 const role=vi.hoisted(()=>({admin:true}));
 vi.mock("../pages/admin/hooks",()=>({useIsPlatformAdmin:()=>role.admin}));
 afterEach(()=>{vi.unstubAllGlobals();role.admin=true;});
-const cfg={enabled:false,coverageStart:"2026-01-01",destination:"builtin",revision:3,keyReady:false,keyId:""};
+const cfg={enabled:false,coverageStart:"2026-01-01",destination:"builtin",revision:3,keyReady:false,keyId:"",externalCopy:{configured:false,bucket:"",prefix:""}};
 function view(){return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><SignedExports/></QueryClientProvider>);}
 it("cannot approve without the operator's signing key",async()=>{
  mockApi({"GET /v1/admin/audit-export-settings":()=>cfg,"GET /v1/admin/audit-exports":()=>[]});
@@ -50,5 +50,18 @@ it("auditors see semantic facts and safe download, not a disabled editor",async(
  await userEvent.click(screen.getByRole("button",{name:/Verification for 2026-01-01/}));
  expect(screen.getByText(/The public key here is information/)).toBeVisible();
  await waitFor(()=>expect(calls.every(c=>c.method==="GET")).toBe(true));
+ expect(await axe(container)).toHaveNoViolations();
+});
+
+it("shows the external copy bucket and each day's copy state",async()=>{
+ expect(copyText({state:"completed",copiedAt:null,copyErrorClass:"write"},true)).toBe("Retrying: the bucket refused it");
+ expect(copyText({state:"completed",copiedAt:"2026-11-05T10:00:00Z",copyErrorClass:""},false)).toBe("—");
+ const day=(d:string,extra:object)=>({id:d,day:d,state:"completed",revision:1,failureCode:"",envelope:{},...extra});
+ mockApi({"GET /v1/admin/audit-export-settings":()=>({...cfg,enabled:true,keyReady:true,keyId:"a96ee895",externalCopy:{configured:true,bucket:"audit-archive",prefix:"grounded/"}}),
+  "GET /v1/admin/audit-exports":()=>[day("2026-11-04",{copiedAt:"2026-11-05T00:10:00Z",copyErrorClass:""}),day("2026-11-03",{copiedAt:null,copyErrorClass:"verify"})]});
+ const {container}=view();
+ expect(await screen.findByText(/s3:\/\/audit-archive\/grounded\/audit-exports/)).toBeInTheDocument();
+ expect(await screen.findByText("Copied")).toBeInTheDocument();
+ expect(screen.getByText("Retrying: the bucket returned other bytes")).toBeInTheDocument();
  expect(await axe(container)).toHaveNoViolations();
 });

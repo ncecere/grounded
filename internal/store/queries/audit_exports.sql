@@ -63,3 +63,21 @@ SELECT count(*)::bigint FROM (
  AND NOT EXISTS (SELECT 1 FROM audit_export_facts f WHERE f.source_id=a.id)
  LIMIT 100001
 ) candidates;
+
+-- External copies (docs/signed-daily-audit-export.md, "External copy"): completed exports not yet copied, oldest day first,
+-- that are not backing off.
+-- name: DueAuditExportCopies :many
+SELECT id, day FROM audit_exports
+WHERE state = 'completed' AND copied_at IS NULL AND (copy_next_at IS NULL OR copy_next_at <= now())
+ORDER BY day LIMIT @max_rows;
+
+-- name: MarkAuditExportCopied :exec
+UPDATE audit_exports SET copied_at = now(), copy_error_class = '', copy_failures = 0, copy_next_at = NULL WHERE id = @id;
+
+-- name: FailAuditExportCopy :exec
+UPDATE audit_exports SET copy_error_class = @error_class, copy_failures = copy_failures + 1, copy_next_at = @next_at WHERE id = @id;
+
+-- Exports whose copy has been failing for a while (Needs attention), oldest first.
+-- name: FailingAuditExportCopies :many
+SELECT day, copy_error_class FROM audit_exports
+WHERE state = 'completed' AND copied_at IS NULL AND copy_failures >= @min_failures ORDER BY day;

@@ -87,6 +87,7 @@ func (c Config) validateIngest() []error {
 	default:
 		errs = append(errs, errors.New("BLOB_BACKEND must be fs or s3"))
 	}
+	errs = append(errs, c.validateExportCopy()...)
 	if c.TikaURL != "" {
 		if u, err := url.Parse(c.TikaURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 			errs = append(errs, errors.New("TIKA_URL must be an http(s) URL such as http://tika:9998"))
@@ -224,4 +225,14 @@ func isLoopbackHost(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// validateExportCopy refuses an external copy of the signed exports into Grounded's own bucket and prefix: that is no copy at
+// all, since the same admins and the same failures reach both (docs/signed-daily-audit-export.md, "External copy").
+func (c *Config) validateExportCopy() []error {
+	cp := c.AuditExportCopy
+	if cp.Bucket != "" && c.BlobBackend == "s3" && cp.Bucket == c.S3.Bucket && cp.Endpoint == c.S3.Endpoint && cp.Prefix == c.S3.Prefix {
+		return []error{errors.New("AUDIT_EXPORT_COPY_S3_BUCKET must not be Grounded's own storage bucket and prefix: use another bucket (ideally with Object Lock)")}
+	}
+	return nil
 }

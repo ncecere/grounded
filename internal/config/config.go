@@ -53,7 +53,10 @@ type Config struct {
 	BlobBackend               string // "fs" (default, single node) or "s3"
 	BlobDir                   string
 	AuditExportSigningKeyFile string // operator file reference only, never signing bytes
-	S3                        S3
+	// AuditExportCopy is the operator's bucket the signed daily exports are copied to (docs/signed-daily-audit-export.md,
+	// "External copy"); off while its bucket is empty.
+	AuditExportCopy S3
+	S3              S3
 
 	// Ingestion.
 	MaxUploadBytes        int64

@@ -34,7 +34,9 @@ func (a *api) exportSettings(row dbgen.AuditExportSetting) apitypes.AuditExportS
 	if a.AuditExports != nil {
 		key = a.AuditExports.KeyID()
 	}
-	return apitypes.AuditExportSettings{CoverageStart: openapi_types.Date{Time: row.CoverageStart.Time}, Destination: "builtin", Enabled: row.Enabled, Revision: row.Revision, KeyReady: key != "", KeyId: key}
+	cp := a.Config.AuditExportCopy
+	return apitypes.AuditExportSettings{CoverageStart: openapi_types.Date{Time: row.CoverageStart.Time}, Destination: "builtin", Enabled: row.Enabled, Revision: row.Revision, KeyReady: key != "", KeyId: key,
+		ExternalCopy: apitypes.AuditExportCopyTarget{Configured: cp.Bucket != "", Bucket: cp.Bucket, Prefix: cp.Prefix}}
 }
 func (a *api) getAuditExportSettings(w http.ResponseWriter, r *http.Request) {
 	row, err := a.q.GetAuditExportSettings(r.Context())
@@ -86,6 +88,7 @@ func (a *api) exportStatus(ctx context.Context, row dbgen.AuditExportRequest) (a
 			return out, auditexport.ErrInvalid
 		}
 		out.Envelope = &envelope
+		out.CopiedAt, out.CopyErrorClass = e.CopiedAt, &e.CopyErrorClass
 	}
 	return out, nil
 }

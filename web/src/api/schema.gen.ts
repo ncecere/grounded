@@ -7607,6 +7607,13 @@ export interface components {
             keyReady: boolean;
             /** @description SHA-256 of operator Ed25519 public key, never private material */
             keyId: string;
+            externalCopy: components["schemas"]["AuditExportCopyTarget"];
+        };
+        /** @description The operator's bucket each completed day is copied to (AUDIT_EXPORT_COPY_S3_*; set in the environment, never here; no credentials are shown). Objects: <prefix>audit-exports/<day>/payload.jsonl and envelope.json. */
+        AuditExportCopyTarget: {
+            configured: boolean;
+            bucket: string;
+            prefix: string;
         };
         AuditExportRequest: {
             /** Format: date */
@@ -7627,6 +7634,13 @@ export interface components {
             envelope?: {
                 [key: string]: unknown;
             };
+            /**
+             * Format: date-time
+             * @description When the day was copied to the external bucket and read back (null: not yet, or no bucket)
+             */
+            copiedAt?: string | null;
+            /** @description Why the last copy failed: read, hash, write or verify ('' when none) */
+            copyErrorClass?: string;
         };
         AuditExportList: components["schemas"]["AuditExportStatus"][];
         AuditEntry: {

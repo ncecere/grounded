@@ -77,6 +77,39 @@ func (q *Queries) CreateAuditExport(ctx context.Context, arg CreateAuditExportPa
 	return err
 }
 
+const dueAuditExportCopies = `-- name: DueAuditExportCopies :many
+SELECT id, day FROM audit_exports
+WHERE state = 'completed' AND copied_at IS NULL AND (copy_next_at IS NULL OR copy_next_at <= now())
+ORDER BY day LIMIT $1
+`
+
+type DueAuditExportCopiesRow struct {
+	ID  uuid.UUID
+	Day pgtype.Date
+}
+
+// External copies (docs/signed-daily-audit-export.md, "External copy"): completed exports not yet copied, oldest day first,
+// that are not backing off.
+func (q *Queries) DueAuditExportCopies(ctx context.Context, maxRows int32) ([]DueAuditExportCopiesRow, error) {
+	rows, err := q.db.Query(ctx, dueAuditExportCopies, maxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DueAuditExportCopiesRow{}
+	for rows.Next() {
+		var i DueAuditExportCopiesRow
+		if err := rows.Scan(&i.ID, &i.Day); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const expiredAuditExportUploads = `-- name: ExpiredAuditExportUploads :many
 WITH candidates AS MATERIALIZED (
  SELECT u.object_key FROM audit_export_uploads u
@@ -101,6 +134,52 @@ func (q *Queries) ExpiredAuditExportUploads(ctx context.Context) ([]string, erro
 			return nil, err
 		}
 		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const failAuditExportCopy = `-- name: FailAuditExportCopy :exec
+UPDATE audit_exports SET copy_error_class = $1, copy_failures = copy_failures + 1, copy_next_at = $2 WHERE id = $3
+`
+
+type FailAuditExportCopyParams struct {
+	ErrorClass string
+	NextAt     *time.Time
+	ID         uuid.UUID
+}
+
+func (q *Queries) FailAuditExportCopy(ctx context.Context, arg FailAuditExportCopyParams) error {
+	_, err := q.db.Exec(ctx, failAuditExportCopy, arg.ErrorClass, arg.NextAt, arg.ID)
+	return err
+}
+
+const failingAuditExportCopies = `-- name: FailingAuditExportCopies :many
+SELECT day, copy_error_class FROM audit_exports
+WHERE state = 'completed' AND copied_at IS NULL AND copy_failures >= $1 ORDER BY day
+`
+
+type FailingAuditExportCopiesRow struct {
+	Day            pgtype.Date
+	CopyErrorClass string
+}
+
+// Exports whose copy has been failing for a while (Needs attention), oldest first.
+func (q *Queries) FailingAuditExportCopies(ctx context.Context, minFailures int32) ([]FailingAuditExportCopiesRow, error) {
+	rows, err := q.db.Query(ctx, failingAuditExportCopies, minFailures)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FailingAuditExportCopiesRow{}
+	for rows.Next() {
+		var i FailingAuditExportCopiesRow
+		if err := rows.Scan(&i.Day, &i.CopyErrorClass); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -165,7 +244,7 @@ func (q *Queries) FreezeAuditExportPage(ctx context.Context, arg FreezeAuditExpo
 }
 
 const getAuditExport = `-- name: GetAuditExport :one
-SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE id = $1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash, copied_at, copy_error_class, copy_failures, copy_next_at FROM audit_exports WHERE id = $1
 `
 
 func (q *Queries) GetAuditExport(ctx context.Context, id uuid.UUID) (AuditExport, error) {
@@ -182,12 +261,16 @@ func (q *Queries) GetAuditExport(ctx context.Context, id uuid.UUID) (AuditExport
 		&i.ObjectKey,
 		&i.Envelope,
 		&i.EnvelopeHash,
+		&i.CopiedAt,
+		&i.CopyErrorClass,
+		&i.CopyFailures,
+		&i.CopyNextAt,
 	)
 	return i, err
 }
 
 const getAuditExportByDay = `-- name: GetAuditExportByDay :one
-SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports WHERE day = $1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash, copied_at, copy_error_class, copy_failures, copy_next_at FROM audit_exports WHERE day = $1
 `
 
 func (q *Queries) GetAuditExportByDay(ctx context.Context, day pgtype.Date) (AuditExport, error) {
@@ -204,6 +287,10 @@ func (q *Queries) GetAuditExportByDay(ctx context.Context, day pgtype.Date) (Aud
 		&i.ObjectKey,
 		&i.Envelope,
 		&i.EnvelopeHash,
+		&i.CopiedAt,
+		&i.CopyErrorClass,
+		&i.CopyFailures,
+		&i.CopyNextAt,
 	)
 	return i, err
 }
@@ -218,7 +305,7 @@ func (q *Queries) JournalAuditExportUpload(ctx context.Context, objectKey string
 }
 
 const latestAuditExport = `-- name: LatestAuditExport :one
-SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash FROM audit_exports ORDER BY day DESC LIMIT 1
+SELECT id, day, coverage_start, snapshot_at, watermark, previous_hash, state, object_key, envelope, envelope_hash, copied_at, copy_error_class, copy_failures, copy_next_at FROM audit_exports ORDER BY day DESC LIMIT 1
 `
 
 func (q *Queries) LatestAuditExport(ctx context.Context) (AuditExport, error) {
@@ -235,6 +322,10 @@ func (q *Queries) LatestAuditExport(ctx context.Context) (AuditExport, error) {
 		&i.ObjectKey,
 		&i.Envelope,
 		&i.EnvelopeHash,
+		&i.CopiedAt,
+		&i.CopyErrorClass,
+		&i.CopyFailures,
+		&i.CopyNextAt,
 	)
 	return i, err
 }
@@ -245,6 +336,15 @@ SELECT pg_advisory_xact_lock(7260390034)
 
 func (q *Queries) LockAuditExports(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockAuditExports)
+	return err
+}
+
+const markAuditExportCopied = `-- name: MarkAuditExportCopied :exec
+UPDATE audit_exports SET copied_at = now(), copy_error_class = '', copy_failures = 0, copy_next_at = NULL WHERE id = $1
+`
+
+func (q *Queries) MarkAuditExportCopied(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markAuditExportCopied, id)
 	return err
 }
 

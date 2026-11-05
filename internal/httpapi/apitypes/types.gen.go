@@ -6264,6 +6264,13 @@ type AuditEntry struct {
 // AuditEntryActorKind defines model for AuditEntry.ActorKind.
 type AuditEntryActorKind string
 
+// AuditExportCopyTarget The operator's bucket each completed day is copied to (AUDIT_EXPORT_COPY_S3_*; set in the environment, never here; no credentials are shown). Objects: <prefix>audit-exports/<day>/payload.jsonl and envelope.json.
+type AuditExportCopyTarget struct {
+	Bucket     string `json:"bucket"`
+	Configured bool   `json:"configured"`
+	Prefix     string `json:"prefix"`
+}
+
 // AuditExportList defines model for AuditExportList.
 type AuditExportList = []AuditExportStatus
 
@@ -6280,6 +6287,9 @@ type AuditExportSettings struct {
 	// Destination External destinations are unsupported and fail closed
 	Destination AuditExportSettingsDestination `json:"destination"`
 	Enabled     bool                           `json:"enabled"`
+
+	// ExternalCopy The operator's bucket each completed day is copied to (AUDIT_EXPORT_COPY_S3_*; set in the environment, never here; no credentials are shown). Objects: <prefix>audit-exports/<day>/payload.jsonl and envelope.json.
+	ExternalCopy AuditExportCopyTarget `json:"externalCopy"`
 
 	// KeyId SHA-256 of operator Ed25519 public key, never private material
 	KeyId    string `json:"keyId"`
@@ -6305,7 +6315,12 @@ type AuditExportSettingsInputDestination string
 
 // AuditExportStatus defines model for AuditExportStatus.
 type AuditExportStatus struct {
-	Day openapi_types.Date `json:"day"`
+	// CopiedAt When the day was copied to the external bucket and read back (null: not yet, or no bucket)
+	CopiedAt *time.Time `json:"copiedAt,omitempty"`
+
+	// CopyErrorClass Why the last copy failed: read, hash, write or verify ('' when none)
+	CopyErrorClass *string            `json:"copyErrorClass,omitempty"`
+	Day            openapi_types.Date `json:"day"`
 
 	// Envelope Signed manifest and public verification information; not a trust root
 	Envelope *map[string]interface{} `json:"envelope,omitempty"`

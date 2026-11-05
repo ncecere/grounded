@@ -68,6 +68,12 @@ export function SignedExports() {
               { label: "Daily exports", value: cfg.enabled ? <StatusBadge tone="success">Approved</StatusBadge> : <StatusBadge tone="neutral">Off</StatusBadge> },
               { label: "Coverage starts", value: `${cfg.coverageStart} (UTC)` },
               { label: "Destination", value: "Built-in private storage" },
+              {
+                label: "External copy",
+                value: cfg.externalCopy.configured
+                  ? `s3://${cfg.externalCopy.bucket}/${cfg.externalCopy.prefix}audit-exports/<day>/: every completed day, read back to verify`
+                  : "None: an operator can set AUDIT_EXPORT_COPY_S3_BUCKET to keep a copy outside Grounded (ideally with Object Lock)",
+              },
               { label: "Operator signing key", value: cfg.keyReady ? <code className={s.key}>{cfg.keyId}</code> : "Unavailable: an operator must configure a private signing-key file." },
             ]}
           />
@@ -104,7 +110,7 @@ export function SignedExports() {
             {error}
           </Alert>
         )}
-        {exports.data && exports.data.length > 0 && <ExportsTable rows={exports.data} admin={admin} busy={busy} act={act} />}
+        {exports.data && exports.data.length > 0 && <ExportsTable rows={exports.data} admin={admin} busy={busy} act={act} copy={!!cfg?.externalCopy.configured} />}
         <p className={s.note}>
           Late facts are carried forward to the next file, never added to an old one. A signature authenticates the facts in the file, not that the database kept every fact: keep trusted public keys and your first and latest
           checkpoints outside this system, and verify files offline (docs/signed-daily-audit-export.md).
@@ -114,9 +120,17 @@ export function SignedExports() {
   );
 }
 
-function ExportsTable({ rows, admin, busy, act }: { rows: Export[]; admin: boolean; busy: boolean; act: (w: () => Promise<unknown>) => Promise<void> }) {
+/** A completed day's external copy, in words. */
+export function copyText(row: Pick<Export, "state" | "copiedAt" | "copyErrorClass">, configured: boolean): string {
+  if (!configured || row.state !== "completed") return "—";
+  if (row.copiedAt) return "Copied";
+  const why: Record<string, string> = { read: "couldn't read Grounded's copy", hash: "Grounded's copy doesn't match its signature", write: "the bucket refused it", verify: "the bucket returned other bytes" };
+  return row.copyErrorClass ? `Retrying: ${why[row.copyErrorClass] ?? row.copyErrorClass}` : "Waiting";
+}
+
+function ExportsTable({ rows, admin, busy, act, copy }: { rows: Export[]; admin: boolean; busy: boolean; act: (w: () => Promise<unknown>) => Promise<void>; copy: boolean }) {
   return (
-    <Table caption="Signed daily exports" columns={["Day (UTC)", "State", { label: "Actions", hideLabel: true }]} stack>
+    <Table caption="Signed daily exports" columns={["Day (UTC)", "State", ...(copy ? ["External copy"] : []), { label: "Actions", hideLabel: true }]} stack>
       {rows.map((row) => (
         <Tr key={row.id}>
           <Td nowrap>{row.day}</Td>
@@ -124,6 +138,7 @@ function ExportsTable({ rows, admin, busy, act }: { rows: Export[]; admin: boole
             <StatusBadge tone={stateTone[row.state]}>{stateLabel[row.state]}</StatusBadge>
             {row.failureCode && <span className={s.code}>{row.failureCode}</span>}
           </Td>
+          {copy && <Td muted={!row.copiedAt}>{copyText(row, copy)}</Td>}
           <Td>
             <div className={s.actions}>
               {row.state === "completed" && (

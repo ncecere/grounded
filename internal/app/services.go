@@ -64,6 +64,8 @@ import (
 // Services are the domain services shared by the API and worker.
 type Services struct {
 	AuditExports *auditexport.Service
+	// AuditExportCopier copies the signed daily exports to the operator's bucket (nil: no copy bucket configured).
+	AuditExportCopier *auditexport.Copier
 	// AuditStream streams audit entries to a SIEM (docs/specs/audit-streaming/DESIGN.md).
 	AuditStream *auditstream.Service
 	Teams       *teams.Service
@@ -203,6 +205,9 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		Blob:         store,
 		HealthChecks: healthcheck.New(pool),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
+	}
+	if s.AuditExportCopier, err = newExportCopier(ctx, cfg, pool, store, log); err != nil {
+		return nil, err
 	}
 	if kvs != nil {
 		s.Catalog.Pacer = &ratelimit.Pacer{KV: kvs}
@@ -344,6 +349,9 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
 			profilemig.Register(w, s.ProfileMigrations, proc)
 			auditexport.Register(w, s.AuditExports)
+			if s.AuditExportCopier != nil {
+				river.AddWorker(w, &auditexport.CopyWorker{C: s.AuditExportCopier})
+			}
 			auditstream.Register(w, s.AuditStream)
 			retention.Register(w, &retention.Runner{
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
@@ -387,7 +395,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			evals.Periodic(),
 			gaps.Periodic(),
 			contenthealth.PrunePeriodic(),
-		}, healthPeriodic(cfg)...),
+		}, append(healthPeriodic(cfg), exportCopyPeriodic(s)...)...),
 	}, nil
 }
 
@@ -409,4 +417,26 @@ func appHost(appURL string) string {
 		return u.Hostname()
 	}
 	return "grounded"
+}
+
+// exportCopyPeriodic copies the signed daily exports to the operator's bucket, when one is configured.
+func exportCopyPeriodic(s *Services) []*river.PeriodicJob {
+	if s.AuditExportCopier == nil {
+		return nil
+	}
+	return []*river.PeriodicJob{auditexport.CopyPeriodic()}
+}
+
+// newExportCopier connects the external copy bucket (docs/signed-daily-audit-export.md, "External copy"); nil when none is set.
+func newExportCopier(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, store blob.Store, log *slog.Logger) (*auditexport.Copier, error) {
+	c := cfg.AuditExportCopy
+	if c.Bucket == "" {
+		return nil, nil
+	}
+	dest, err := blob.NewS3(ctx, blob.S3Config{Endpoint: c.Endpoint, Region: c.Region, Bucket: c.Bucket, AccessKey: c.AccessKey, SecretKey: c.SecretKey,
+		ForcePathStyle: c.ForcePathStyle, CAFile: c.CAFile, Prefix: c.Prefix})
+	if err != nil {
+		return nil, fmt.Errorf("audit export copy bucket: %w", err)
+	}
+	return &auditexport.Copier{Pool: pool, Store: store, Dest: dest, Log: log}, nil
 }
