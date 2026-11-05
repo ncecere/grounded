@@ -139,6 +139,10 @@
   },
   {
    "persona": "admin",
+   "path": "/admin/scim"
+  },
+  {
+   "persona": "admin",
    "path": "/admin/public-access"
   },
   {

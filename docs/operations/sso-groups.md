@@ -69,3 +69,10 @@ If the rule itself was deleted, such a kept membership has no rule. It no longer
 ## Trying it locally
 
 With `DEV_AUTH=true`, set for example `DEV_AUTH_GROUPS=alex=registrar-staff` and restart. Add a rule for `registrar-staff` in Admin → SSO groups, then sign in as Alex Dev: Alex joins the team. Remove the persona from `DEV_AUTH_GROUPS`, restart and sign in again: Alex is removed. The integration tests (`internal/httpapi/groupmapping_integration_test.go`) use the test OIDC provider in `internal/testutil/oidcprovider.go`.
+
+## Groups from SCIM
+
+With [SCIM provisioning](scim.md), the identity provider can push groups instead of (or as well as) a groups claim. A SCIM
+group counts under its name and its externalId; once any group has been pushed, a SCIM-managed person's groups come from SCIM
+only, and changes apply at once rather than at the next sign-in.
+

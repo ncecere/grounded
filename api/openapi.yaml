@@ -1040,6 +1040,76 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/scim:
+    get:
+      tags: [admin]
+      operationId: adminGetScim
+      summary: SCIM provisioning (platform admins and auditors, signed in)
+      description: >-
+        Whether SCIM is available (it needs a sign-in provider), the base URL
+        and matching claim to give the identity provider, the active tokens
+        (never their secrets), and how many users and groups SCIM manages
+        (pendingUsers: created by SCIM, not signed in yet). The protocol itself
+        is at /scim/v2 (RFC 7644; docs/operations/scim.md).
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ScimStatus" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/scim/tokens:
+    post:
+      tags: [admin]
+      operationId: adminCreateScimToken
+      summary: Create a SCIM token (a signed-in platform admin; audited)
+      description: >-
+        The secret is in this response only. A token reaches /scim/v2 and
+        nothing else. At most 10 are active (409 too_many_tokens); 409
+        scim_unavailable without a sign-in provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100, description: "For example the identity provider's name" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ScimTokenCreated" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/scim/tokens/{tokenId}:
+    parameters:
+      - name: tokenId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [admin]
+      operationId: adminRevokeScimToken
+      summary: Revoke a SCIM token at once (a signed-in platform admin; audited)
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/group-mapping:
     get:
       tags: [admin]
@@ -11252,6 +11322,7 @@ components:
         createdAt: { type: string, format: date-time }
         lastLoginAt: { type: string, format: date-time, nullable: true }
         teamCount: { type: integer, format: int64, description: "Teams the user belongs to (admin user list only)" }
+        scim: { type: boolean, description: "Present and true when the identity provider manages this user through SCIM (its name, email and active status; docs/operations/scim.md)" }
     Capabilities:
       type: object
       required: [platformAdmin, platformAuditor]
@@ -11371,6 +11442,34 @@ components:
         description: { type: string }
         maxClassification: { type: string }
         status: { $ref: "#/components/schemas/TeamStatus" }
+    ScimToken:
+      type: object
+      required: [id, name, createdAt, lastUsedAt, createdBy]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+        createdBy: { type: string, description: "The display name of the admin who created it ('' when they no longer exist)" }
+    ScimTokenCreated:
+      type: object
+      required: [token, secret]
+      properties:
+        token: { $ref: "#/components/schemas/ScimToken" }
+        secret: { type: string, description: "The bearer token for the identity provider (scim_…). Shown once." }
+    ScimStatus:
+      type: object
+      required: [available, baseUrl, matchClaim, tokens, users, pendingUsers, groups]
+      properties:
+        available: { type: boolean, description: "false without a sign-in provider (OIDC_ISSUER)" }
+        baseUrl: { type: string, description: "The SCIM base URL to give the identity provider" }
+        matchClaim: { type: string, description: "SCIM_MATCH_CLAIM: the sign-in claim equal to a user's externalId" }
+        tokens:
+          type: array
+          items: { $ref: "#/components/schemas/ScimToken" }
+        users: { type: integer, format: int64 }
+        pendingUsers: { type: integer, format: int64, description: "Created by SCIM and not signed in yet" }
+        groups: { type: integer, format: int64 }
     GroupMappingStatus:
       type: object
       required: [groupsClaim, oidcEnabled, ruleCount, peopleSeen, peopleWithClaim, recentSignIns, recentWithClaim, groups]

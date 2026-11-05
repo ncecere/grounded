@@ -115,7 +115,7 @@ func (q *Queries) GetOAuthClient(ctx context.Context, arg GetOAuthClientParams) 
 }
 
 const getOAuthToken = `-- name: GetOAuthToken :one
-SELECT t.id, t.grant_id, t.kind, t.token_hash, t.pepper_id, t.resource, t.expires_at, t.rotated_at, t.created_at, g.id, g.user_id, g.client_id, g.client_kind, g.client_name, g.client_uri, g.resource, g.scopes, g.created_at, g.last_used_at, g.revoked_at, g.revoked_reason, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision
+SELECT t.id, t.grant_id, t.kind, t.token_hash, t.pepper_id, t.resource, t.expires_at, t.rotated_at, t.created_at, g.id, g.user_id, g.client_id, g.client_kind, g.client_name, g.client_uri, g.resource, g.scopes, g.created_at, g.last_used_at, g.revoked_at, g.revoked_reason, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision, u.scim_external_id, u.scim_user_name
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 JOIN users u ON u.id = g.user_id
@@ -171,6 +171,8 @@ func (q *Queries) GetOAuthToken(ctx context.Context, arg GetOAuthTokenParams) (G
 		&i.User.UpdatedAt,
 		&i.User.LastLoginAt,
 		&i.User.Revision,
+		&i.User.ScimExternalID,
+		&i.User.ScimUserName,
 	)
 	return i, err
 }

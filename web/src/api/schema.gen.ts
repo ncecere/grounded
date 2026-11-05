@@ -703,6 +703,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/scim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SCIM provisioning (platform admins and auditors, signed in)
+         * @description Whether SCIM is available (it needs a sign-in provider), the base URL and matching claim to give the identity provider, the active tokens (never their secrets), and how many users and groups SCIM manages (pendingUsers: created by SCIM, not signed in yet). The protocol itself is at /scim/v2 (RFC 7644; docs/operations/scim.md).
+         */
+        get: operations["adminGetScim"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/scim/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a SCIM token (a signed-in platform admin; audited)
+         * @description The secret is in this response only. A token reaches /scim/v2 and nothing else. At most 10 are active (409 too_many_tokens); 409 scim_unavailable without a sign-in provider.
+         */
+        post: operations["adminCreateScimToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/scim/tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a SCIM token at once (a signed-in platform admin; audited) */
+        delete: operations["adminRevokeScimToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/group-mapping": {
         parameters: {
             query?: never;
@@ -6900,6 +6959,8 @@ export interface components {
              * @description Teams the user belongs to (admin user list only)
              */
             teamCount?: number;
+            /** @description Present and true when the identity provider manages this user through SCIM (its name, email and active status; docs/operations/scim.md) */
+            scim?: boolean;
         };
         Capabilities: {
             platformAdmin: boolean;
@@ -7011,6 +7072,40 @@ export interface components {
             description?: string;
             maxClassification?: string;
             status?: components["schemas"]["TeamStatus"];
+        };
+        ScimToken: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastUsedAt: string | null;
+            /** @description The display name of the admin who created it ('' when they no longer exist) */
+            createdBy: string;
+        };
+        ScimTokenCreated: {
+            token: components["schemas"]["ScimToken"];
+            /** @description The bearer token for the identity provider (scim_…). Shown once. */
+            secret: string;
+        };
+        ScimStatus: {
+            /** @description false without a sign-in provider (OIDC_ISSUER) */
+            available: boolean;
+            /** @description The SCIM base URL to give the identity provider */
+            baseUrl: string;
+            /** @description SCIM_MATCH_CLAIM: the sign-in claim equal to a user's externalId */
+            matchClaim: string;
+            tokens: components["schemas"]["ScimToken"][];
+            /** Format: int64 */
+            users: number;
+            /**
+             * Format: int64
+             * @description Created by SCIM and not signed in yet
+             */
+            pendingUsers: number;
+            /** Format: int64 */
+            groups: number;
         };
         GroupMappingStatus: {
             /**
@@ -14831,6 +14926,80 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetScim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ScimStatus"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminCreateScimToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description For example the identity provider's name */
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ScimTokenCreated"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminRevokeScimToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

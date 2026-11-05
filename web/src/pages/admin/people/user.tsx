@@ -81,6 +81,7 @@ export function AdminUserPage() {
           <>
             <UserStatusBadge status={user.status} />
             {user.platformRole !== "none" && <Badge tone="info">{platformRoleLabels[user.platformRole]}</Badge>}
+            {user.scim && <Badge tone="neutral">Managed by SCIM</Badge>}
           </>
         }
         actions={
@@ -116,7 +117,11 @@ export function AdminUserPage() {
         open={confirmSuspend}
         onOpenChange={setConfirmSuspend}
         title={`Suspend ${name}?`}
-        description="They are signed out immediately and can't sign in until reactivated."
+        description={
+          user.scim
+            ? "They are signed out immediately and can't sign in until reactivated. Their identity provider manages this account through SCIM: it may reactivate them, so suspend them there too."
+            : "They are signed out immediately and can't sign in until reactivated."
+        }
         confirmLabel="Suspend"
         busy={update.isPending}
         error={update.error}

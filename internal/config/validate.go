@@ -211,6 +211,9 @@ func (c Config) validateSignIn() []error {
 		if c.OIDC.GroupsClaim == "" {
 			errs = append(errs, errors.New("OIDC_GROUPS_CLAIM must not be empty (the default is groups)"))
 		}
+		if c.OIDC.SCIMMatchClaim == "" || strings.EqualFold(c.OIDC.SCIMMatchClaim, "email") || c.OIDC.SCIMMatchClaim == c.OIDC.EmailClaim {
+			errs = append(errs, errors.New("SCIM_MATCH_CLAIM must name an identifier claim such as sub or oid, never the email (the default is sub)"))
+		}
 	}
 	return errs
 }

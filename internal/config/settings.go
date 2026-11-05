@@ -230,6 +230,7 @@ var settings = append([]setting{
 	{key: "OIDC_SCOPES", apply: list(func(c *Config) *[]string { return &c.OIDC.Scopes }, false)},
 	{key: "OIDC_EMAIL_CLAIM", apply: str(func(c *Config) *string { return &c.OIDC.EmailClaim })},
 	{key: "OIDC_GROUPS_CLAIM", apply: str(func(c *Config) *string { return &c.OIDC.GroupsClaim })},
+	{key: "SCIM_MATCH_CLAIM", apply: str(func(c *Config) *string { return &c.OIDC.SCIMMatchClaim })},
 	{key: "OIDC_REQUIRE_VERIFIED_EMAIL", apply: boolean(func(c *Config) *bool { return &c.OIDC.RequireVerifiedEmail })},
 	{key: "OIDC_ALLOWED_EMAIL_DOMAINS", apply: list(func(c *Config) *[]string { return &c.OIDC.AllowedEmailDomains }, true)},
 	{key: "BOOTSTRAP_ADMIN_SUBJECT", apply: str(func(c *Config) *string { return &c.OIDC.BootstrapAdminSubject })},

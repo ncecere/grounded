@@ -29,6 +29,8 @@ export const notificationTabs = ["all", "unread"] as const;
 export const moderationTabs = ["team", "all_authenticated", "public", "providers"] as const;
 /** Admin → Personal data: the scanning settings, and the teams with documents waiting for a review. */
 export const personalDataTabs = ["settings", "review"] as const;
+/** Admin → SCIM provisioning: what to give the identity provider, and the tokens. */
+export const scimTabs = ["setup", "tokens"] as const;
 
 /**
  * validateSearch for a route with tabs: keeps ?tab= when it names a tab other

@@ -44,6 +44,11 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 	reqID, ip := httpx.RequestID(ctx), s.clientIP(r)
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := dbgen.New(tx)
+		// A user SCIM created before this first sign-in takes this subject, matched by the identity provider's
+		// identifier (SCIM_MATCH_CLAIM), never by email (docs/specs/scim/DESIGN.md).
+		if err := s.claimSCIMUser(ctx, q, li, reqID, ip); err != nil {
+			return err
+		}
 		var err error
 		user, err = q.UpsertLoginUser(ctx, dbgen.UpsertLoginUserParams{
 			OIDCIssuer:  li.Issuer,
@@ -90,8 +95,13 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 				return err
 			}
 		}
-		// After invites: an invite is a hand-made membership, which a rule never changes.
-		if err := ssogroups.Sync(ctx, q, user.ID, li.Groups, ssogroups.Origin{
+		// After invites: an invite is a hand-made membership, which a rule never changes. Once the identity provider
+		// pushes SCIM groups, a SCIM-linked user's groups come from SCIM rather than the claim.
+		groups, err := ssogroups.SignInGroups(ctx, q, user, li.Groups)
+		if err != nil {
+			return err
+		}
+		if err := ssogroups.Sync(ctx, q, user.ID, groups, ssogroups.Origin{
 			Trigger: ssogroups.TriggerSignIn, RequestID: reqID, ClientIP: ip,
 		}); err != nil {
 			return err
@@ -172,4 +182,37 @@ func nullIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+// claimSCIMUser links a pending SCIM user to this sign-in when the sign-in's identifier claim equals their externalId.
+func (s *Service) claimSCIMUser(ctx context.Context, q *dbgen.Queries, li loginIdentity, reqID, ip string) error {
+	value := scimMatchValue(li, s.cfg.OIDC.SCIMMatchClaim)
+	if value == "" {
+		return nil
+	}
+	n, err := q.ClaimSCIMUser(ctx, dbgen.ClaimSCIMUserParams{Issuer: li.Issuer, Subject: li.Subject, ExternalID: value})
+	if err != nil || n == 0 {
+		return err
+	}
+	u, err := q.GetUserByIdentity(ctx, dbgen.GetUserByIdentityParams{OIDCIssuer: li.Issuer, OIDCSubject: li.Subject})
+	if err != nil {
+		return err
+	}
+	return audit.Record(ctx, q, audit.Entry{
+		ActorUserID: u.ID, Action: "auth.scim_link", TargetType: "user", TargetID: u.ID.String(),
+		Metadata: map[string]any{"method": li.Method, "claim": s.cfg.OIDC.SCIMMatchClaim}, RequestID: reqID, ClientIP: ip,
+	})
+}
+
+// scimMatchValue is the sign-in's identifier for SCIM: the subject for sub, else that claim when it is a string.
+func scimMatchValue(li loginIdentity, claim string) string {
+	if claim == "" || claim == "sub" {
+		return li.Subject
+	}
+	var claims map[string]any
+	if json.Unmarshal(li.Claims, &claims) != nil {
+		return ""
+	}
+	v, _ := claims[claim].(string)
+	return v
 }
