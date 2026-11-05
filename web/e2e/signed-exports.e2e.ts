@@ -3,7 +3,7 @@ import { expect, test } from "./support/fixtures";
 test("signed exports: real off/key-error state, 390px keyboard and auditor facts",async({as,a11y},info)=>{
  const page=await as("admin");
  await page.setViewportSize({width:390,height:844});
- await page.goto("/admin/logs");
+ await page.goto("/admin/logs?tab=exports");
  const panel=page.getByRole("region",{name:"Signed daily exports"});
  await expect(panel.getByText("Off", { exact: true })).toBeVisible();
  await expect(panel.getByText(/Unavailable: an operator must configure/)).toBeVisible();
@@ -16,7 +16,7 @@ test("signed exports: real off/key-error state, 390px keyboard and auditor facts
  await page.screenshot({path:info.outputPath("signed-exports-admin-390.png"),fullPage:true});
  const auditor=await as("auditor");
  await auditor.setViewportSize({width:390,height:844});
- await auditor.goto("/admin/logs");
+ await auditor.goto("/admin/logs?tab=exports");
  const facts=auditor.getByRole("region",{name:"Signed daily exports"});
  await expect(facts.getByText(/Coverage starts/)).toBeVisible();
  await expect(facts.getByRole("button",{name:"Approve daily exports"})).toHaveCount(0);

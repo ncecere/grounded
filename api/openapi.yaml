@@ -1469,6 +1469,204 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream:
+    get:
+      tags: [admin]
+      operationId: adminGetAuditStream
+      summary: Audit streaming to a SIEM, its switch and destinations (signed-in platform admins and auditors)
+      description: >-
+        docs/specs/audit-streaming/DESIGN.md. Destinations never include their
+        authorization header value (hasAuthHeader says whether one is set).
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStream" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream/settings:
+    put:
+      tags: [admin]
+      operationId: adminPutAuditStreamSettings
+      summary: Turn audit streaming on or off for the platform (signed-in platform admins; audited)
+      description: Off pauses every destination where it is; on resumes them. If-Match with the settings' revision.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditStreamSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStreamSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream/destinations:
+    post:
+      tags: [admin]
+      operationId: adminCreateAuditStreamDestination
+      summary: Add a streaming destination, off (signed-in platform admins; audited without the header value)
+      description: >-
+        409 streaming_off while the platform switch is off; 409
+        too_many_destinations past 5. 400 invalid_name, invalid_address,
+        invalid_format, invalid_auth or invalid_ca.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditStreamDestinationInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "201":
+          description: Created
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStreamDestination" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream/destinations/{destinationId}:
+    parameters:
+      - name: destinationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin]
+      operationId: adminPutAuditStreamDestination
+      summary: Change a destination's settings (its kind stays; the stream continues where it is)
+      description: authHeader absent keeps the stored value; "" removes it. If-Match with the destination's revision.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditStreamDestinationInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStreamDestination" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteAuditStreamDestination
+      summary: Delete a destination (allowed while streaming is off)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream/destinations/{destinationId}/enabled:
+    parameters:
+      - name: destinationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin]
+      operationId: adminSetAuditStreamDestinationEnabled
+      summary: Turn a destination on or off
+      description: >-
+        The first time it is turned on it starts with the entries written from
+        then on (history is in the signed daily exports). 409 streaming_off
+        while the platform switch is off.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStreamDestination" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit-stream/destinations/{destinationId}/test:
+    parameters:
+      - name: destinationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [admin]
+      operationId: adminTestAuditStreamDestination
+      summary: Send one test entry to a destination and report the outcome (audited; the test entry isn't stored)
+      description: >-
+        A failed delivery is a result (delivered false, with its error class),
+        not an error response.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditStreamTestResult" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/audit-export-settings:
     get:
       tags: [admin]
@@ -11781,6 +11979,65 @@ components:
         enabled: { type: boolean }
         coverageStart: { type: string, format: date, description: Immutable first covered UTC day once requests exist }
         destination: { type: string, enum: [builtin], description: External destinations are unsupported and fail closed }
+    AuditStreamSettings:
+      type: object
+      required: [enabled, revision]
+      properties:
+        enabled: { type: boolean }
+        revision: { type: integer, format: int64 }
+    AuditStreamSettingsInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    AuditStreamErrorClass:
+      type: string
+      description: "Why the last delivery failed: address (refused or invalid), connect, tls, timeout, http_3xx, http_4xx, http_5xx, internal; '' after a delivery"
+    AuditStreamDestination:
+      type: object
+      required: [id, name, kind, format, address, hasAuthHeader, caPem, enabled, started, sentTotal, lastSentAt, lastErrorClass, failingSince, nextAttemptAt, lagSeconds, revision, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [https, syslog] }
+        format: { type: string, enum: [splunk_hec, ndjson, rfc5424] }
+        address: { type: string, description: "https: the URL; syslog: host:port" }
+        hasAuthHeader: { type: boolean }
+        caPem: { type: string }
+        enabled: { type: boolean }
+        started: { type: boolean, description: "Has been turned on at least once (it streams from then on)" }
+        sentTotal: { type: integer, format: int64 }
+        lastSentAt: { type: string, format: date-time, nullable: true }
+        lastErrorClass: { $ref: "#/components/schemas/AuditStreamErrorClass" }
+        failingSince: { type: string, format: date-time, nullable: true }
+        nextAttemptAt: { type: string, format: date-time, nullable: true }
+        lagSeconds: { type: integer, format: int64, description: "How long the oldest entry not yet sent has waited (0: none waits)" }
+        revision: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+    AuditStreamDestinationInput:
+      type: object
+      required: [name, kind, format, address, caPem]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        kind: { type: string, enum: [https, syslog] }
+        format: { type: string, enum: [splunk_hec, ndjson, rfc5424], description: "https: splunk_hec or ndjson; syslog: rfc5424" }
+        address: { type: string, maxLength: 2048 }
+        authHeader: { type: string, maxLength: 4096, description: "The Authorization header value (e.g. Splunk <token>), stored encrypted and never shown. Absent: keep; '': remove. HTTPS only." }
+        caPem: { type: string, maxLength: 65536, description: "Extra CA certificate (PEM) for a private SIEM; '' for the system roots" }
+    AuditStream:
+      type: object
+      required: [settings, destinations]
+      properties:
+        settings: { $ref: "#/components/schemas/AuditStreamSettings" }
+        destinations:
+          type: array
+          items: { $ref: "#/components/schemas/AuditStreamDestination" }
+    AuditStreamTestResult:
+      type: object
+      required: [delivered, errorClass]
+      properties:
+        delivered: { type: boolean }
+        errorClass: { $ref: "#/components/schemas/AuditStreamErrorClass" }
     AuditExportSettings:
       allOf:
         - $ref: "#/components/schemas/AuditExportSettingsInput"

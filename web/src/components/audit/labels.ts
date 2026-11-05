@@ -1,6 +1,7 @@
 /* Human-readable audit actions, action groups (areas) and actors. */
 import type { Schemas } from "../../api/client";
 import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
+import { auditStreamActionLabels } from "./audit-stream-labels";
 import { scimActionLabels } from "./scim-labels";
 
 type AuditEntry = Schemas["AuditEntry"];
@@ -191,6 +192,7 @@ const actionLabels: Record<string, string> = {
   "team.invite_revoke": "Revoked invite",
   "team.invite_accept": "Accepted invite",
   ...scimActionLabels,
+  ...auditStreamActionLabels,
 };
 
 type Obj = Record<string, unknown>;
@@ -199,6 +201,7 @@ type Obj = Record<string, unknown>;
 const directedLabels: Record<string, (after: Obj, meta: Obj) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
+  "platform.audit_streaming": (a) => (typeof a.enabled === "boolean" ? `Turned audit streaming ${a.enabled ? "on" : "off"}` : undefined),
   "platform.answer_cache": (a) => (typeof a.enabled === "boolean" ? `Turned saved answers ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp_oauth": (a) => (typeof a.oauthEnabled === "boolean" ? `Turned OAuth sign-in for MCP clients ${a.oauthEnabled ? "on" : "off"}` : undefined),
 };

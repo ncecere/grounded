@@ -19,7 +19,6 @@ import { Switch } from "@/components/ui/switch/switch";
 import { useCostSettings } from "@/lib/costs";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
-import { SignedExports } from "./signed-exports";
 import { AuditEntryPage, AuditTeam } from "./audit-record";
 import { dateFacet, ExportButton, noMatches, one, rangeWindow, usePeopleOptions } from "./common";
 import l from "./logs.module.css";
@@ -133,7 +132,6 @@ export function AuditLogTab() {
 
   return (
     <>
-      <SignedExports />
       <ListPage<Entry>
         id="admin-audit"
         caption="Audit log"

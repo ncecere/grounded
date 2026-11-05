@@ -55,6 +55,12 @@ var seeders = map[string]func(ctx context.Context, pool *pgxpool.Pool, id uuid.U
 			VALUES ($1, 'https://hooks.example.edu/x', ARRAY['team.created'], $2, 'abcd')`, id, ct)
 		return err
 	},
+	// An audit streaming destination may have no header value (NULL): those rows are skipped by rotation.
+	"audit_stream_destinations.auth_header": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
+		_, err := pool.Exec(ctx, `INSERT INTO audit_stream_destinations (id, name, kind, format, address, auth_header)
+			VALUES ($1, 'SIEM', 'https', 'ndjson', 'https://siem.example.edu/ingest', $2)`, id, ct)
+		return err
+	},
 	"mcp_servers.auth_value_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
 		name := any(nil)
 		if ct != nil {

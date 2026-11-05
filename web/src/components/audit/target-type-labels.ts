@@ -37,6 +37,8 @@ export const targetTypeLabels: Record<string, string> = {
   model_connection: "Model connection",
   moderation_policy: "Moderation policy",
   parsing_settings: "Parsing settings",
+  audit_stream_settings: "Audit streaming setting",
+  audit_stream_destination: "Streaming destination",
   pii_settings: "Personal data scanning settings",
   platform_keys: "Key rotation",
   platform_limits: "Platform limits",

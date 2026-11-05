@@ -80,6 +80,31 @@ func OpenWait(ctx context.Context, url string, wait time.Duration, log *slog.Log
 	}
 }
 
+// migrationLockPoll is how often a migration waiting for another one tries the lock again.
+const migrationLockPoll = 500 * time.Millisecond
+
+// waitMigrationLock takes the migration lock, trying it rather than blocking on it: a statement blocked in pg_advisory_lock
+// holds a snapshot, and CREATE INDEX CONCURRENTLY (migration 00066) waits for every older snapshot, so a second pod waiting
+// for the lock while the first builds an index concurrently would deadlock them (seen in the k8s smoke test, where the API
+// and the worker migrate at once). Between tries this connection holds no transaction. The key is unchanged, so old and new
+// binaries still exclude each other.
+func waitMigrationLock(ctx context.Context, conn *pgx.Conn) error {
+	for {
+		var ok bool
+		if err := conn.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", migrationLockKey).Scan(&ok); err != nil {
+			return fmt.Errorf("migration lock: %w", err)
+		}
+		if ok {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("migration lock: %w", ctx.Err())
+		case <-time.After(migrationLockPoll):
+		}
+	}
+}
+
 // Migrate applies application (goose) and job-queue (River) migrations while
 // holding a session advisory lock, so concurrent starts are safe.
 func Migrate(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
@@ -96,8 +121,8 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
 		defer cancel()
 		_ = conn.Close(closeCtx) // also releases the session lock
 	}()
-	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
-		return fmt.Errorf("migration lock: %w", err)
+	if err := waitMigrationLock(ctx, conn); err != nil {
+		return err
 	}
 	defer func() {
 		// Use a fresh context so the lock is released even if ctx was cancelled.

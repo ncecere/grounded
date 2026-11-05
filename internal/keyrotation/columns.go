@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/ncecere/grounded/internal/auditstream"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/webhooks"
@@ -43,4 +44,5 @@ var Columns = []Column{
 	{Table: "model_connections", Column: "api_key_ciphertext", AAD: catalog.ConnectionAAD},
 	{Table: "mcp_servers", Column: "auth_value_cipher", AAD: mcpclient.ServerAAD},
 	{Table: "webhooks", Column: "secret_cipher", AAD: webhooks.SecretAAD},
+	{Table: "audit_stream_destinations", Column: "auth_header", AAD: auditstream.AuthAAD},
 }

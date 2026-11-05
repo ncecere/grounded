@@ -102,6 +102,8 @@ CROSS JOIN LATERAL (
         WHEN 'systemone_settings' THEN 'SystemOne settings'
         WHEN 'rerank_settings' THEN 'Reranking settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
+        WHEN 'audit_stream_settings' THEN 'Audit streaming'
+        WHEN 'audit_stream_destination' THEN (SELECT 'Streaming destination ' || asd.name FROM audit_stream_destinations asd WHERE asd.id = ids.target_uuid)
         WHEN 'pii_settings' THEN 'Personal data scanning'
         WHEN 'scim_token' THEN (SELECT 'SCIM token ' || st.name FROM scim_tokens st WHERE st.id = ids.target_uuid)
         WHEN 'scim_group' THEN (SELECT 'SCIM group ' || sg.display_name FROM scim_groups sg WHERE sg.id = ids.target_uuid)

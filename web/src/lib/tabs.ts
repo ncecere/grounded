@@ -60,7 +60,8 @@ export const teamSettingsTabs = ["members", "usage", "api-keys", "webhooks", "au
 /** The team's Data sources page (I4): the sources, and the team's crawl domain requests. */
 export const dataSourceTabs = ["sources", "crawl-domains"] as const;
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];
-export const logTabs = ["audit", "access"] as const;
+/** Admin → Logs: the audit log, the access log, the signed daily exports and streaming to a SIEM. */
+export const logTabs = ["audit", "access", "exports", "streaming"] as const;
 /** Admin → Analytics; Checks (the SystemOne cards) shows only while a SystemOne model is configured (v0.2.1 I8). */
 export const analyticsTabs = ["overview", "breakdown", "models", "top", "checks"] as const;
 /** Admin → Costs (E2). Overview and Budgets are hidden while the mode is Off. */

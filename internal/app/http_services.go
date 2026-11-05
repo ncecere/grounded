@@ -6,6 +6,7 @@ import "github.com/ncecere/grounded/internal/httpapi"
 // Keeping this mapping separate lets Run own lifecycle rather than field wiring.
 func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
 	d.AuditExports = s.AuditExports
+	d.AuditStream = s.AuditStream
 	d.Teams, d.Platform, d.Catalog = s.Teams, s.Platform, s.Catalog
 	d.Sources, d.WebSources, d.KBs = s.Sources, s.Web, s.KBs
 	d.APIKeys, d.Limits, d.Costs = s.APIKeys, s.Limits, s.Costs
