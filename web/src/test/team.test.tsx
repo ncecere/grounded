@@ -61,7 +61,7 @@ const profile = (id: string, name: string, isDefault: boolean) => ({
 });
 const profiles = [profile("p1", "Nomic (default)", true), profile("p2", "Other model", false)];
 
-const counts = { total: 3, pending: 0, processing: 0, ready: 2, failed: 1, skipped: 0, bytes: 2048, chunks: 40 };
+const counts = { total: 3, pending: 0, processing: 0, ready: 2, failed: 1, skipped: 0, bytes: 2048, chunks: 40, piiReview: 0 };
 const source = (id: string, name: string, embeddingProfileId = "p1", classification = "sensitive"): Schemas["DataSource"] => ({
   id,
   name,

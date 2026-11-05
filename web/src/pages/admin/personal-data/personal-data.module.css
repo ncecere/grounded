@@ -1,0 +1,25 @@
+/* A pattern: its name, its expression and Remove, on one line; stacked on a phone. */
+.patternRow {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 2fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.mono {
+  font-family: var(--font-family-mono);
+}
+
+/* Lines Remove up with the inputs, under their labels. */
+.remove {
+  margin-top: 1.625rem;
+}
+
+@media (max-width: 40rem) {
+  .patternRow {
+    grid-template-columns: 1fr auto;
+  }
+  .patternRow > :nth-child(2) {
+    grid-column: 1;
+  }
+}

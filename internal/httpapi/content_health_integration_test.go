@@ -102,7 +102,7 @@ func TestContentHealthReportEndToEnd(t *testing.T) {
 	}
 	done := waitReport(t, env.editor, reports+"/"+made.Id.String())
 	rep := done.Report
-	if rep.Status != "completed" || rep.AsOf == nil || rep.ExpiresAt == nil || len(rep.Signals) != 5 || len(done.Sources) != 1 {
+	if rep.Status != "completed" || rep.AsOf == nil || rep.ExpiresAt == nil || len(rep.Signals) != 6 || len(done.Sources) != 1 {
 		t.Fatalf("report = %+v sources %+v", rep, done.Sources)
 	}
 	var stale apitypes.ContentHealthSignal

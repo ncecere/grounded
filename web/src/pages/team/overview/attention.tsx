@@ -1,11 +1,11 @@
 /*
- * "Needs attention" on the team overview (W5): failed documents, pending
- * domain requests, limits at 80 % or more, and agents a platform admin turned
- * off. Each row links to where it's fixed. Nothing renders when all is well.
+ * "Needs attention" on the team overview (W5): failed documents, documents
+ * waiting for a personal data review (docs/pii-scanning.md), pending domain
+ * requests, limits at 80 % or more, and agents a platform admin turned off. Each row links to where it's fixed. Nothing renders when all is well.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Bot, FileWarning, Gauge, Globe } from "lucide-react";
+import { Bot, FileWarning, Gauge, Globe, ShieldAlert } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { teamLimitsQuery } from "../../../lib/limits";
 import { Badge } from "@/components/ui/badge/badge";
@@ -43,6 +43,18 @@ export function useAttention(): AttentionRow[] {
       tone: "danger",
       count: src.documents.failed,
       link: <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: src.id }} search={{ tab: "documents", status: "failed" } as { tab: "documents" }} />,
+    });
+  }
+  for (const src of sources.data ?? []) {
+    if (!src.documents.piiReview) continue;
+    rows.push({
+      id: `pii-${src.id}`,
+      icon: <ShieldAlert />,
+      title: `${plural(src.documents.piiReview, "document")} in ${src.name} may contain personal data`,
+      description: "Review what was found, then dismiss the flag, approve a held document, or delete it.",
+      tone: "warning",
+      count: src.documents.piiReview,
+      link: <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: src.id }} search={{ tab: "documents", status: "needs_review" } as { tab: "documents" }} />,
     });
   }
   const pending = (requests.data ?? []).filter((r) => r.status === "pending");

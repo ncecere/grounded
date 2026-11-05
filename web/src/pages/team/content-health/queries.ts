@@ -84,9 +84,19 @@ export const signalWords: Record<SignalName, SignalWords> = {
     notMeans: "Only the error code is shown; open the document for the details. A document that read with warnings is not listed.",
     empty: "No document failed.",
   },
+  personal_data: {
+    title: "Possible personal data",
+    measures: "Documents in which Grounded found possible personal data when it indexed them, and that are waiting for an editor's review: held out of search, or indexed and flagged.",
+    notMeans:
+      "Finding a pattern is not proof that a document holds personal data, and finding nothing is not proof that it doesn't: only the kinds a platform admin set up are looked for. Only the kind and the number of matches are kept, never the matches. Reviewed documents are not listed.",
+    empty: "No document is waiting for a personal data review.",
+  },
 };
 
-export const signalOrder: SignalName[] = ["stale", "broken_link", "duplicate", "never_cited", "ingestion_failure"];
+export const signalOrder: SignalName[] = ["stale", "broken_link", "duplicate", "never_cited", "ingestion_failure", "personal_data"];
+
+/** A personal data finding's review state. */
+export const personalDataLabel: Record<string, string> = { held: "Held for review", flagged: "Indexed, waiting for review" };
 
 /** Why a signal could not be measured or does not apply, in words. */
 export const reasonText: Record<string, string> = {

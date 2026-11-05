@@ -8,7 +8,7 @@
  * record page (?record=).
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Eye, FileText, Globe, RotateCcw, Tags, Trash2, Upload } from "lucide-react";
+import { Eye, FileText, Globe, RotateCcw, ShieldAlert, Tags, Trash2, Upload } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { ListPage, RelativeTime, timeColumn, useListFilters } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
@@ -19,11 +19,13 @@ import { AlertDialog } from "@/components/ui/dialog/dialog";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { maintenanceReason, useMaintenance } from "@/lib/maintenance";
 import { terms } from "@/lib/terms";
+import { awaitingReview } from "@/lib/pii";
 import { useDebounced } from "../../admin/hooks";
 import { type DataSource, type DocKind, useSourceOwner } from "../../sources/owner";
 import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
-import { type DocumentMutations, canRetry, deleteWording, isPartlyScanned, retryLabel, useDocumentMutations } from "./mutations";
+import { type DocumentMutations, canRetry, deleteWording, isHeld, isPartlyScanned, retryLabel, useDocumentMutations } from "./mutations";
+import { PiiBadge } from "./pii-review";
 import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
 import { countsSignature, useRefreshOnChange, useVisibleSelection } from "./selection";
@@ -34,6 +36,8 @@ const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipp
 const kinds: DocKind[] = ["pdf", "docx", "pptx", "html", "markdown", "text", "image"];
 /** The status filter's extra option: documents that need OCR (errorCode needs_ocr: skipped as scanned, or partly scanned; docs/ocr.md §5). */
 const needsOcr = "needs_ocr";
+/** And documents waiting for a review of possible personal data (?review=pii: flagged or held; docs/pii-scanning.md). */
+const needsReview = "needs_review";
 
 /** "/assets/fees.pdf" for a page's URL (the host is on the page already); the text as is when it isn't a URL. */
 export function urlPath(url: string) {
@@ -52,7 +56,7 @@ function facetsFor(tags: string[]): Facet<Doc>[] {
       label: "Status",
       type: "toggle",
       allLabel: "All",
-      options: [...statuses.map((v) => ({ value: v as string, label: docStatusLabels[v] })), { value: needsOcr, label: "Needs OCR" }],
+      options: [...statuses.map((v) => ({ value: v as string, label: docStatusLabels[v] })), { value: needsOcr, label: "Needs OCR" }, { value: needsReview, label: "Needs review" }],
     },
     { id: "kind", label: "Kind", type: "select", placeholder: "Any kind", options: kinds.map((k) => ({ value: k, label: kindLabel(k) })) },
     ...(tags.length > 0 ? [{ id: "tag", label: "Tag", type: "select" as const, placeholder: "Any tag", options: tags.map((t) => ({ value: t, label: t })) }] : []),
@@ -75,7 +79,8 @@ function columns(web: boolean): DataTableColumn<Doc>[] {
       cell: (doc) => (
         <span className={d.status}>
           <DocStatusBadge status={doc.status} waiting={isWaiting(doc)} />
-          {(canRetry(doc) || isWaiting(doc)) && documentError(doc) && (
+          <PiiBadge pii={doc.pii} />
+          {(canRetry(doc) || isWaiting(doc) || isHeld(doc)) && documentError(doc) && (
             // In the badge's tone: a failure is an error; a skipped, waiting or partly scanned (Ready) document a warning.
             <span className={d.statusNote} data-tone={doc.status === "failed" ? "danger" : "warning"} title={documentError(doc)}>
               {documentError(doc)}
@@ -103,8 +108,9 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
   const first = (id: string) => (filters.values[id] as string[] | undefined)?.[0];
   const status = first("status");
   const query = {
-    status: status === needsOcr ? undefined : (status as DocStatus | undefined),
+    status: status === needsOcr || status === needsReview ? undefined : (status as DocStatus | undefined),
     errorCode: status === needsOcr ? needsOcr : undefined,
+    review: status === needsReview ? ("pii" as const) : undefined,
     kind: first("kind") as DocKind | undefined,
     tag: first("tag"),
     q: q || undefined,
@@ -137,7 +143,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
     items.map((doc) => doc.id),
     `${signature}|${pager.cursor ?? ""}`,
   );
-  const filtered = Boolean(query.status || query.errorCode || query.kind || query.tag || query.q);
+  const filtered = Boolean(query.status || query.errorCode || query.review || query.kind || query.tag || query.q);
   const ocr = ocrStateOf(source);
   // A partly scanned PDF retried while OCR can't read the source would be indexed again without its scanned pages.
   const ocrBlocked = ocr !== "on" ? retryBlocked[ocr] : undefined;
@@ -163,6 +169,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         rowActions={(doc) => [
           { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(doc.id) },
           { label: "Edit tags", icon: <Tags aria-hidden />, onSelect: () => record.open(doc.id), hidden: !owner.canEdit },
+          { label: "Review personal data", icon: <ShieldAlert aria-hidden />, onSelect: () => record.open(doc.id), hidden: !owner.canEdit || !awaitingReview(doc.pii) },
           {
             label: retryLabel(doc),
             icon: <RotateCcw aria-hidden />,
@@ -175,7 +182,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         ]}
         empty={{
           icon: web ? <Globe /> : <FileText />,
-          title: query.errorCode ? `No ${noun} need OCR.` : filtered ? `No ${noun} match these filters.` : `No ${noun} yet.`,
+          title: query.errorCode ? `No ${noun} need OCR.` : query.review ? `No ${noun} are waiting for a personal data review.` : filtered ? `No ${noun} match these filters.` : `No ${noun} yet.`,
           description: filtered ? undefined : web ? "Pages appear here as the crawler fetches them." : undefined,
           action:
             !filtered && onUpload ? (

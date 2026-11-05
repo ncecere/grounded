@@ -14,7 +14,8 @@ import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { FINDINGS_PAGE, type Finding, type Report, type SignalName, failureClassLabel, findingsQuery, linkCodeLabel, signalWords } from "./queries";
+import { kindLabel } from "@/lib/pii";
+import { FINDINGS_PAGE, type Finding, type Report, type SignalName, failureClassLabel, findingsQuery, linkCodeLabel, personalDataLabel, signalWords } from "./queries";
 import s from "./content-health.module.css";
 
 const COLUMNS: Record<SignalName, string[]> = {
@@ -23,6 +24,7 @@ const COLUMNS: Record<SignalName, string[]> = {
   duplicate: ["Document", "Same file", "Last processed"],
   never_cited: ["Document", "Kept answers that could have cited its source", "Added"],
   ingestion_failure: ["Document", "What happened", "Since"],
+  personal_data: ["Document", "State", "What was found"],
 };
 
 /** A document's name: its title, else its file name, else its address. */
@@ -101,6 +103,21 @@ function Row({ f, team, report }: { f: Finding; team: string; report: Report }) 
           <Td>{f.value.toLocaleString()}</Td>
           <Td muted>
             <RelativeTime value={f.observedAt} />
+          </Td>
+        </Tr>
+      );
+    case "personal_data":
+      return (
+        <Tr>
+          <DocCell f={f} team={team} />
+          <Td>{personalDataLabel[f.code] ?? f.code}</Td>
+          <Td muted>
+            {f.detail
+              .split(",")
+              .filter(Boolean)
+              .map(kindLabel)
+              .join(", ")}{" "}
+            ({f.value.toLocaleString()} {f.value === 1 ? "match" : "matches"})
           </Td>
         </Tr>
       );

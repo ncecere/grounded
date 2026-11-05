@@ -130,32 +130,43 @@ func countCards(line string) int {
 	return n
 }
 
+// cardRange is a card network's issuer prefixes (lo-hi over the first width digits) and its card lengths.
+type cardRange struct {
+	lo, hi, width  int
+	minLen, maxLen int
+	only           []int // lengths allowed between minLen and maxLen (nil: all)
+}
+
+// cardRanges are the major networks' ranges: Visa, Mastercard (51-55 and 2221-2720), American Express, Discover, JCB and
+// Diners Club.
+var cardRanges = []cardRange{
+	{lo: 4, hi: 4, width: 1, minLen: 13, maxLen: 19, only: []int{13, 16, 19}},
+	{lo: 51, hi: 55, width: 2, minLen: 16, maxLen: 16},
+	{lo: 2221, hi: 2720, width: 4, minLen: 16, maxLen: 16},
+	{lo: 34, hi: 34, width: 2, minLen: 15, maxLen: 15},
+	{lo: 37, hi: 37, width: 2, minLen: 15, maxLen: 15},
+	{lo: 6011, hi: 6011, width: 4, minLen: 16, maxLen: 19},
+	{lo: 65, hi: 65, width: 2, minLen: 16, maxLen: 19},
+	{lo: 644, hi: 649, width: 3, minLen: 16, maxLen: 19},
+	{lo: 3528, hi: 3589, width: 4, minLen: 16, maxLen: 19},
+	{lo: 300, hi: 305, width: 3, minLen: 14, maxLen: 19},
+	{lo: 36, hi: 36, width: 2, minLen: 14, maxLen: 19},
+	{lo: 38, hi: 39, width: 2, minLen: 14, maxLen: 19},
+}
+
 // knownNetwork checks the issuer prefix and length of the major card networks.
 func knownNetwork(d string) bool {
-	prefix := func(lo, hi int, width int) bool {
-		if len(d) < width {
-			return false
+	for _, r := range cardRanges {
+		if len(d) < r.minLen || len(d) > r.maxLen || (r.only != nil && !slices.Contains(r.only, len(d))) {
+			continue
 		}
 		v := 0
-		for _, c := range d[:width] {
+		for _, c := range d[:r.width] {
 			v = v*10 + int(c-'0')
 		}
-		return v >= lo && v <= hi
-	}
-	l := len(d)
-	switch {
-	case d[0] == '4': // Visa
-		return l == 13 || l == 16 || l == 19
-	case prefix(51, 55, 2) || prefix(2221, 2720, 4): // Mastercard
-		return l == 16
-	case prefix(34, 34, 2) || prefix(37, 37, 2): // American Express
-		return l == 15
-	case prefix(6011, 6011, 4) || prefix(65, 65, 2) || prefix(644, 649, 3): // Discover
-		return l >= 16 && l <= 19
-	case prefix(3528, 3589, 4): // JCB
-		return l >= 16 && l <= 19
-	case prefix(300, 305, 3) || prefix(36, 36, 2) || prefix(38, 39, 2): // Diners Club
-		return l >= 14 && l <= 19
+		if v >= r.lo && v <= r.hi {
+			return true
+		}
 	}
 	return false
 }

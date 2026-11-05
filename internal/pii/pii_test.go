@@ -83,3 +83,15 @@ func TestScanIsBounded(t *testing.T) {
 		t.Fatalf("bounds: count %d, pages %d", got[0].Count, len(got[0].Pages))
 	}
 }
+
+func TestKnownNetworks(t *testing.T) {
+	for d, want := range map[string]bool{
+		"4111111111111111": true, "4222222222222": true, "5555555555554444": true, "2223003122003222": true,
+		"378282246310005": true, "6011111111111117": true, "3530111333300000": true, "30569309025904": true,
+		"411111111111111": false, "5555555555555": false, "1234567890123456": false, "3782822463100050": false,
+	} {
+		if got := knownNetwork(d); got != want {
+			t.Errorf("knownNetwork(%s) = %v", d, got)
+		}
+	}
+}
