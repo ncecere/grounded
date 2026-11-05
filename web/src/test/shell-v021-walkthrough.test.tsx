@@ -91,7 +91,7 @@ describe("⌘K ranks an exact name first", () => {
     await user.type(input, "features");
     await user.keyboard("{Enter}");
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/settings"));
-    expect(router.state.location.hash).toBe("features");
+    expect(router.state.location.search).toEqual({ tab: "features" });
   });
 
   // v0.4.0 walkthrough (adm-3): the new settings are found by their names, and "rerank" no longer leads to SystemOne.
@@ -99,8 +99,8 @@ describe("⌘K ranks an exact name first", () => {
     // Its own page since v0.4.2 (OW-2); "Reranking settings" goes to the page's settings.
     ["reranking", "/admin/reranking", "", "Reranking"],
     ["reranking settings", "/admin/reranking", "settings", "Reranking settings"],
-    ["saved answers", "/admin/settings", "features", "Saved answers"],
-    ["answer cache", "/admin/settings", "features", "Saved answers"],
+    ["saved answers", "/admin/settings", "tab=features", "Saved answers"],
+    ["answer cache", "/admin/settings", "tab=features", "Saved answers"],
     // Admin → Settings (AD-39) by what it holds.
     ["time zone", "/admin/settings", "", "Settings"],
   ])("opens “%s”", async (text, pathname, hash, first) => {
@@ -110,7 +110,9 @@ describe("⌘K ranks an exact name first", () => {
     await waitFor(() => expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent(first));
     await user.keyboard("{Enter}");
     await waitFor(() => expect(router.state.location.pathname).toBe(pathname));
-    expect(router.state.location.hash).toBe(hash);
+    // "tab=…": the entry opens a pill tab (?tab=); otherwise it is the page's anchor.
+    if (hash.startsWith("tab=")) expect(router.state.location.search).toEqual({ tab: hash.slice(4) });
+    else expect(router.state.location.hash).toBe(hash);
   });
 
   it.each([

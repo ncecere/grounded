@@ -348,7 +348,7 @@ describe("Admin → Settings › Features › Content health reports", () => {
       "GET /v1/admin/settings/content-health": () => settings(),
       "PUT /v1/admin/settings/content-health": (b) => settings({ ...(b as object), revision: 4 }),
     });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow content health reports" }, T);
     expect(sw).not.toBeChecked();
     await userEvent.click(sw);
@@ -365,7 +365,7 @@ describe("Admin → Settings › Features › Content health reports", () => {
 
   it("is read-only for an auditor, who is told why", async () => {
     mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/settings/content-health": () => settings({ enabled: true }) });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow content health reports" }, T);
     expect(sw).toHaveAttribute("aria-disabled", "true");
     expect(screen.getAllByText("Only platform admins can turn this on or off.").length).toBeGreaterThan(0);

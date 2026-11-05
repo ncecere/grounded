@@ -29,7 +29,7 @@ describe("Admin → Settings › Features › Webhooks", () => {
       ...featureRoutes("platform_admin", webhookSettings({ enabled: false })),
       "PUT /v1/admin/settings/webhooks": (b) => webhookSettings({ ...(b as object), revision: 5 }),
     });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow webhooks" }, slow);
     expect(sw).not.toBeChecked();
     await userEvent.click(sw);
@@ -60,7 +60,7 @@ describe("Admin → Settings › Features › Webhooks", () => {
 
   it("is off by default, links to the destinations, and is read only for an auditor", async () => {
     mockApi(featureRoutes("platform_auditor", webhookSettings({ enabled: false })));
-    const { container } = renderApp("/admin/settings");
+    const { container } = renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow webhooks" }, slow);
     expect(sw).toHaveAttribute("aria-disabled", "true");
     expect(sw).not.toBeChecked();
@@ -73,7 +73,7 @@ describe("Admin → Settings › Features › Webhooks", () => {
       ...featureRoutes("platform_admin", webhookSettings({ enabled: false })),
       "PUT /v1/admin/settings/webhooks": () => Reply.error(412, "revision_conflict"),
     });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     await userEvent.click(await screen.findByRole("switch", { name: "Allow webhooks" }, slow));
     expect(await screen.findByText("Couldn't change webhooks")).toBeInTheDocument();
     await waitFor(() => expect(calls.filter((c) => c.method === "GET" && c.url === "/v1/admin/settings/webhooks").length).toBeGreaterThan(1));
