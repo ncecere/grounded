@@ -196,16 +196,20 @@ type AnswerCacheSetting struct {
 }
 
 type AuditExport struct {
-	ID            uuid.UUID
-	Day           pgtype.Date
-	CoverageStart pgtype.Date
-	SnapshotAt    time.Time
-	Watermark     int64
-	PreviousHash  string
-	State         string
-	ObjectKey     *string
-	Envelope      []byte
-	EnvelopeHash  *string
+	ID             uuid.UUID
+	Day            pgtype.Date
+	CoverageStart  pgtype.Date
+	SnapshotAt     time.Time
+	Watermark      int64
+	PreviousHash   string
+	State          string
+	ObjectKey      *string
+	Envelope       []byte
+	EnvelopeHash   *string
+	CopiedAt       *time.Time
+	CopyErrorClass string
+	CopyFailures   int32
+	CopyNextAt     *time.Time
 }
 
 type AuditExportFact struct {

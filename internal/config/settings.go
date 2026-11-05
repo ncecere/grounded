@@ -111,6 +111,14 @@ func list(dst func(*Config) *[]string, lower bool) func(*Config, string) error {
 
 var settings = append([]setting{
 	{key: "AUDIT_EXPORT_SIGNING_KEY_FILE", apply: str(func(c *Config) *string { return &c.AuditExportSigningKeyFile })},
+	{key: "AUDIT_EXPORT_COPY_S3_ENDPOINT", apply: str(func(c *Config) *string { return &c.AuditExportCopy.Endpoint })},
+	{key: "AUDIT_EXPORT_COPY_S3_REGION", apply: str(func(c *Config) *string { return &c.AuditExportCopy.Region })},
+	{key: "AUDIT_EXPORT_COPY_S3_BUCKET", apply: str(func(c *Config) *string { return &c.AuditExportCopy.Bucket })},
+	{key: "AUDIT_EXPORT_COPY_S3_ACCESS_KEY", secret: true, apply: str(func(c *Config) *string { return &c.AuditExportCopy.AccessKey })},
+	{key: "AUDIT_EXPORT_COPY_S3_SECRET_KEY", secret: true, apply: str(func(c *Config) *string { return &c.AuditExportCopy.SecretKey })},
+	{key: "AUDIT_EXPORT_COPY_S3_CA_FILE", apply: str(func(c *Config) *string { return &c.AuditExportCopy.CAFile })},
+	{key: "AUDIT_EXPORT_COPY_S3_PREFIX", apply: str(func(c *Config) *string { return &c.AuditExportCopy.Prefix })},
+	{key: "AUDIT_EXPORT_COPY_S3_FORCE_PATH_STYLE", apply: boolean(func(c *Config) *bool { return &c.AuditExportCopy.ForcePathStyle })},
 	{key: "APP_URL", apply: str(func(c *Config) *string { return &c.AppURL })},
 	{key: "HTTP_ADDR", apply: str(func(c *Config) *string { return &c.HTTPAddr })},
 	{key: "WORKER_HTTP_ADDR", apply: str(func(c *Config) *string { return &c.WorkerHTTPAddr })},

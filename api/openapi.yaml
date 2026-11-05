@@ -12042,11 +12042,22 @@ components:
       allOf:
         - $ref: "#/components/schemas/AuditExportSettingsInput"
         - type: object
-          required: [revision, keyReady, keyId]
+          required: [revision, keyReady, keyId, externalCopy]
           properties:
             revision: { type: integer, format: int64 }
             keyReady: { type: boolean }
             keyId: { type: string, description: "SHA-256 of operator Ed25519 public key, never private material" }
+            externalCopy: { $ref: "#/components/schemas/AuditExportCopyTarget" }
+    AuditExportCopyTarget:
+      type: object
+      required: [configured, bucket, prefix]
+      description: >-
+        The operator's bucket each completed day is copied to (AUDIT_EXPORT_COPY_S3_*; set in the environment, never here; no
+        credentials are shown). Objects: <prefix>audit-exports/<day>/payload.jsonl and envelope.json.
+      properties:
+        configured: { type: boolean }
+        bucket: { type: string }
+        prefix: { type: string }
     AuditExportRequest:
       type: object
       additionalProperties: false
@@ -12063,6 +12074,8 @@ components:
         revision: { type: integer, format: int64 }
         failureCode: { type: string, description: "Redacted fixed operational code, never underlying error values" }
         envelope: { type: object, additionalProperties: true, description: Signed manifest and public verification information; not a trust root }
+        copiedAt: { type: string, format: date-time, nullable: true, description: "When the day was copied to the external bucket and read back (null: not yet, or no bucket)" }
+        copyErrorClass: { type: string, description: "Why the last copy failed: read, hash, write or verify ('' when none)" }
     AuditExportList:
       type: array
       maxItems: 100
