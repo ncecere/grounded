@@ -64,8 +64,6 @@ import (
 // Services are the domain services shared by the API and worker.
 type Services struct {
 	AuditExports *auditexport.Service
-	// AuditExportCopier copies the signed daily exports to the operator's bucket (nil: no copy bucket configured).
-	AuditExportCopier *auditexport.Copier
 	// AuditStream streams audit entries to a SIEM (docs/specs/audit-streaming/DESIGN.md).
 	AuditStream *auditstream.Service
 	Teams       *teams.Service
@@ -206,9 +204,6 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		HealthChecks: healthcheck.New(pool),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
-	if s.AuditExportCopier, err = newExportCopier(ctx, cfg, pool, store, log); err != nil {
-		return nil, err
-	}
 	if kvs != nil {
 		s.Catalog.Pacer = &ratelimit.Pacer{KV: kvs}
 	}
@@ -314,6 +309,11 @@ func (s *Services) Close() {
 // IngestRegistration registers the ingestion, web crawl and notification
 // workers, their queues and periodic jobs.
 func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log *slog.Logger) (jobs.Registration, error) {
+	// The external copy of the signed exports runs with the worker (nil: no copy bucket). NewS3 makes no network call.
+	copier, err := newExportCopier(context.Background(), cfg, pool, s.Blob, log)
+	if err != nil {
+		return jobs.Registration{}, err
+	}
 	counter, err := chunk.NewTokenCounter()
 	if err != nil {
 		return jobs.Registration{}, err
@@ -349,8 +349,8 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
 			profilemig.Register(w, s.ProfileMigrations, proc)
 			auditexport.Register(w, s.AuditExports)
-			if s.AuditExportCopier != nil {
-				river.AddWorker(w, &auditexport.CopyWorker{C: s.AuditExportCopier})
+			if copier != nil {
+				river.AddWorker(w, &auditexport.CopyWorker{C: copier})
 			}
 			auditstream.Register(w, s.AuditStream)
 			retention.Register(w, &retention.Runner{
@@ -395,7 +395,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			evals.Periodic(),
 			gaps.Periodic(),
 			contenthealth.PrunePeriodic(),
-		}, append(healthPeriodic(cfg), exportCopyPeriodic(s)...)...),
+		}, append(healthPeriodic(cfg), exportCopyPeriodic(copier)...)...),
 	}, nil
 }
 
@@ -420,8 +420,8 @@ func appHost(appURL string) string {
 }
 
 // exportCopyPeriodic copies the signed daily exports to the operator's bucket, when one is configured.
-func exportCopyPeriodic(s *Services) []*river.PeriodicJob {
-	if s.AuditExportCopier == nil {
+func exportCopyPeriodic(copier *auditexport.Copier) []*river.PeriodicJob {
+	if copier == nil {
 		return nil
 	}
 	return []*river.PeriodicJob{auditexport.CopyPeriodic()}
