@@ -54,9 +54,13 @@ describe("Admin → Personal data", () => {
     });
     const { container } = renderApp("/admin/personal-data");
     expect(await screen.findByRole("switch", { name: /Look for possible personal data/ })).toBeChecked();
-    const review = screen.getByRole("table", { name: /waiting for a personal data review/ });
+    expect(await axe(container)).toHaveNoViolations();
+    // The teams waiting for a review are on their own tab, with the count in its name.
+    await userEvent.click(screen.getByRole("tab", { name: "Waiting for review (7)" }));
+    const review = await screen.findByRole("table", { name: /waiting for a personal data review/ });
     expect(within(review).getByRole("link", { name: "Registrar" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
 
     await userEvent.click(await screen.findByRole("checkbox", { name: /Restricted/ }));
     await userEvent.click(screen.getByRole("button", { name: "Add pattern" }));

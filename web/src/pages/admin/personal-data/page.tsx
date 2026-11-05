@@ -3,13 +3,14 @@
  * data at ingest. On by default and flag-only: a document with findings is indexed, with what was found and on which
  * pages, and waits for an editor's review. Classification levels chosen here hold such documents out of the index
  * until an editor approves them. Platform admins add their institution's own formats as patterns; auditors read.
- * Outside the form, the teams with documents waiting for a review (counts only).
+ * Pill tabs (?tab=): Settings, and Waiting for review (the teams with documents to review, as counts only).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { FileCheck2, Plus, Trash2 } from "lucide-react";
+import { FileCheck2, Inbox, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { ApiError, api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { QueryView } from "@/components/query-view";
 import { ListPage } from "@/components/templates/list-page";
 import { useRevisionForm } from "@/components/templates/revision-form";
@@ -28,6 +29,7 @@ import { Switch } from "@/components/ui/switch/switch";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import { MAX_PATTERNS, patternProblems, piiChanges, piiForm, piiInput, type PatternProblem, type PiiForm, type PiiSettings } from "@/lib/pii";
+import { personalDataTabs } from "@/lib/tabs";
 import { adminOnly } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { useClassifications, useIsPlatformAdmin } from "../hooks";
@@ -38,6 +40,8 @@ export const piiKey = ["admin", "pii"];
 export function PersonalDataPage() {
   const isAdmin = useIsPlatformAdmin();
   const settings = useQuery({ queryKey: piiKey, queryFn: async () => unwrap(await api.GET("/v1/admin/pii")) });
+  const [tab, setTab] = useUrlTab(personalDataTabs);
+  const waiting = settings.data?.review.reduce((n, r) => n + r.held + r.flagged, 0) ?? 0;
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -46,10 +50,20 @@ export function PersonalDataPage() {
       />
       <QueryView query={settings} loadingLabel="Loading personal data settings…">
         {settings.data && (
-          <>
-            <PiiEditor saved={settings.data} isAdmin={isAdmin} />
-            <ReviewSection items={settings.data.review} />
-          </>
+          <PageTabs
+            label="Personal data sections"
+            value={tab}
+            onValueChange={setTab}
+            tabs={[
+              { value: "settings", label: "Settings", icon: <SlidersHorizontal aria-hidden />, content: <PiiEditor saved={settings.data} isAdmin={isAdmin} /> },
+              {
+                value: "review",
+                label: waiting > 0 ? `Waiting for review (${waiting.toLocaleString()})` : "Waiting for review",
+                icon: <Inbox aria-hidden />,
+                content: <ReviewSection items={settings.data.review} />,
+              },
+            ]}
+          />
         )}
       </QueryView>
     </Stack>
