@@ -58,7 +58,7 @@ export function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description"
 type Features = Schemas["AdminFeatures"];
 
 /** Where the switches are (AD-39), named after the row: four links named "Settings" said nothing apart (AD2-12). */
-const settingsLink = (title: string) => ({ title, action: "Settings", actionLabel: `Settings for ${title}`, link: <Link to="/admin/settings" hash="features" /> });
+const settingsLink = (title: string) => ({ title, action: "Settings", actionLabel: `Settings for ${title}`, link: <Link to="/admin/settings" search={{ tab: "features" }} /> });
 
 /** The switch features' rows: their state, with a link to Admin → Settings. */
 function useSwitchRows(): Row[] {

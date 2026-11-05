@@ -3,10 +3,11 @@
  * they are, the budget label never taking an invalid currency (AD-34), the feature switches, what the environment sets
  * (read-only, with its variable), links to the areas with their own settings, and auditors reading it all.
  */
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { hashTabHref } from "../lib/tabs";
 import { generalErrors, labelCurrency } from "../pages/admin/settings/general";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 
@@ -33,42 +34,22 @@ const routes = (role: "platform_admin" | "platform_auditor" = "platform_admin", 
 });
 
 describe("Admin → Settings", () => {
-  it.each(["platform_admin", "platform_auditor"] as const)("scrolls a cold #features entry after async layout settles (%s)", async (role) => {
-    let release!: (value: Schemas["CostSettings"]) => void;
-    const pending = new Promise<Schemas["CostSettings"]>((resolve) => { release = resolve; });
-    mockApi(routes(role, { "GET /v1/admin/costs/settings": () => pending }));
-    const previous = Element.prototype.scrollIntoView;
-    const settledScrolls: string[] = [];
-    Element.prototype.scrollIntoView = function (this: Element) {
-      if (screen.queryByRole("textbox", { name: "Currency" })) settledScrolls.push(this.id);
-    };
-    try {
-      const { qc } = renderApp("/admin/settings#features");
-      expect(await screen.findByText("Loading settings…")).toBeInTheDocument();
-      await act(async () => { release(costs); });
-      expect(await screen.findByRole("textbox", { name: "Currency" })).toBeInTheDocument();
-      await waitFor(() => expect(settledScrolls).toContain("features"));
-      const count = settledScrolls.length;
-      // A background refresh/save must not jump back to the card again.
-      await act(async () => { await qc.invalidateQueries(); });
-      expect(settledScrolls.length).toBe(count);
-    } finally {
-      Element.prototype.scrollIntoView = previous;
-    }
+  it("opens General in pill tabs, and an old #features link opens the Features tab", async () => {
+    mockApi(routes());
+    const { container } = renderApp("/admin/settings");
+    const tabs = await screen.findByRole("tablist", { name: "Settings sections" });
+    expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["General", "Features", "Environment", "Other settings"]);
+    expect(within(tabs).getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("textbox", { name: "Currency" })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Allow evaluations" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
-  it.each(["/admin/settings", "/admin/settings#unknown"])("does not pull an unrelated entry to Features (%s)", async (path) => {
-    mockApi(routes());
-    const previous = Element.prototype.scrollIntoView;
-    const targets: string[] = [];
-    Element.prototype.scrollIntoView = function (this: Element) { targets.push(this.id); };
-    try {
-      renderApp(path);
-      expect(await screen.findByRole("textbox", { name: "Currency" })).toBeInTheDocument();
-      expect(targets).not.toContain("features");
-    } finally {
-      Element.prototype.scrollIntoView = previous;
-    }
+  it.each(["platform_admin", "platform_auditor"] as const)("takes an old #features link to the Features tab (%s)", async (role) => {
+    mockApi(routes(role));
+    renderApp("/admin/settings#features");
+    expect(await screen.findByRole("switch", { name: "Allow evaluations" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Features" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("saves the currency, time zone and default budget with If-Match, keeping the cost mode and threshold", async () => {
@@ -95,16 +76,18 @@ describe("Admin → Settings", () => {
 
   it("has the feature switches, what the environment sets and links to the other settings pages", async () => {
     mockApi(routes());
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const features = (await screen.findByRole("heading", { level: 2, name: "Features" })).closest("section")!;
     expect(features).toHaveAttribute("id", "features");
     expect(await within(features).findByRole("switch", { name: "Allow evaluations" })).toBeChecked();
     expect(within(features).getByRole("switch", { name: "Allow MCP clients" })).not.toBeChecked();
-    const env = screen.getByRole("table", { name: "Settings from the environment" });
+    await userEvent.click(screen.getByRole("tab", { name: "Environment" }));
+    const env = await screen.findByRole("table", { name: "Settings from the environment" });
     expect(within(env).getByRole("row", { name: /Instance name Grounded INSTANCE_NAME/ })).toBeInTheDocument();
     expect(within(env).getByRole("row", { name: /Help link Not set SUPPORT_URL/ })).toBeInTheDocument();
     expect(within(env).queryByRole("textbox")).toBeNull();
-    const others = screen.getByRole("list", { name: "Other settings" });
+    await userEvent.click(screen.getByRole("tab", { name: "Other settings" }));
+    const others = await screen.findByRole("list", { name: "Other settings" });
     expect(within(others).getAllByRole("link").map((l) => l.textContent)).toEqual([
       "Costs", "Moderation", "Public access", "Limits", "Retention", "Reranking", "SystemOne", "Parsing & OCR",
     ]);
@@ -116,10 +99,20 @@ describe("Admin → Settings", () => {
     const { container } = renderApp("/admin/settings");
     expect(await screen.findByText(/Only platform admins can change/)).toBeInTheDocument();
     expect(await screen.findByRole("textbox", { name: "Currency" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("tab", { name: "Features" }));
     const toggle = await screen.findByRole("switch", { name: "Allow evaluations" });
     expect(toggle).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("turns an anchor that names a tab into ?tab=, and leaves other anchors and an explicit tab alone", () => {
+    const tabs = ["general", "features", "environment", "other"];
+    expect(hashTabHref("/admin/settings", "", "features", tabs)).toBe("/admin/settings?tab=features");
+    expect(hashTabHref("/admin/settings", "?q=x", "features", tabs)).toBe("/admin/settings?q=x&tab=features");
+    expect(hashTabHref("/admin/settings", "?tab=general", "features", tabs)).toBeUndefined();
+    expect(hashTabHref("/admin/settings", "", "unknown", tabs)).toBeUndefined();
+    expect(hashTabHref("/admin/settings", "", "", tabs)).toBeUndefined();
   });
 
   it("checks the fields and labels the budget with a valid currency only (AD-34)", () => {

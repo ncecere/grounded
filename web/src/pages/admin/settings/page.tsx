@@ -1,12 +1,15 @@
 /*
- * Admin → Settings (docs/v0.4.2.md AD-39, owner decision A): the platform's general settings in one place. The
- * currency, time zone and default monthly budget (moved from Costs → Settings, which keeps the cost tracking mode and
- * warning threshold), the feature switches (moved from Overview → Features, which keeps their state), what the
- * environment sets (read-only, with its variable), and links to the areas that keep their own settings pages.
- * Platform admins change things; auditors read them, with the reason.
+ * Admin → Settings (docs/v0.4.2.md AD-39, owner decision A): the platform's general settings in one place, in pill tabs
+ * (?tab=): General (the currency, time zone and default monthly budget, moved from Costs → Settings, which keeps the cost
+ * tracking mode and warning threshold), Features (the feature switches, moved from Overview → Features, which keeps their
+ * state), Environment (what the environment sets, read-only, with its variable) and Other settings (the areas that keep
+ * their own settings pages). Platform admins change things; auditors read them, with the reason. An old #features link
+ * opens the Features tab (the router's hashTabHref).
  */
-import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, type ReactElement } from "react";
+import { Link } from "@tanstack/react-router";
+import { Info, Server, SlidersHorizontal, ToggleRight } from "lucide-react";
+import type { ReactElement } from "react";
+import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { Card } from "@/components/ui/card/card";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
@@ -15,6 +18,7 @@ import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { useCostSettings } from "@/lib/costs";
+import { adminSettingsTabs } from "@/lib/tabs";
 import { useInstance } from "@/session";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
@@ -66,41 +70,54 @@ function EnvironmentCard() {
 export function AdminSettingsPage() {
   const isAdmin = useIsPlatformAdmin();
   const costs = useCostSettings();
-  const hash = useLocation({ select: (location) => location.hash });
-  useEffect(() => {
-    // On reload the browser/router can follow the hash while GeneralSettings
-    // is still a short loading placeholder. Re-anchor once that layout settles,
-    // but not on background refetches or saves (AD-146).
-    if (hash === "features" && !costs.isLoading) {
-      // Optional call: environments without layout (jsdom) have no scrollIntoView, and the anchor is a nicety.
-      document.getElementById("features")?.scrollIntoView?.({ block: "start" });
-    }
-  }, [hash, costs.isLoading]);
+  // Links made before the tabs pointed at #features: the router opens ?tab=features instead (hashTabHref).
+  const [tab, setTab] = useUrlTab(adminSettingsTabs);
+  const general = costs.isLoading ? (
+    <Loading label="Loading settings…" />
+  ) : costs.data ? (
+    // Not keyed by the revision: a remount would throw the edits away on a save conflict (AD2-01).
+    <GeneralSettings settings={costs.data} isAdmin={isAdmin} />
+  ) : (
+    <ErrorAlert error={costs.error} title="Couldn't load the settings" onRetry={() => void costs.refetch()} />
+  );
   return (
     <Stack gap={6} className={s.page}>
-      <PageHeader title="Settings" description="The platform's general settings and feature switches. Areas with settings of their own are linked at the end." />
-      {costs.isLoading ? (
-        <Loading label="Loading settings…" />
-      ) : costs.data ? (
-        // Not keyed by the revision: a remount would throw the edits away on a save conflict (AD2-01).
-        <GeneralSettings settings={costs.data} isAdmin={isAdmin} />
-      ) : (
-        <ErrorAlert error={costs.error} title="Couldn't load the settings" onRetry={() => void costs.refetch()} />
-      )}
-      <Card id="features" className={o.features} title="Features" description="Optional features for the whole platform. Each switch applies at once." flush>
-        <FeatureSwitches isAdmin={isAdmin} />
-      </Card>
-      <EnvironmentCard />
-      <Card title="Other settings" description="Areas that keep their settings on their own pages.">
-        <ul className={st.links} aria-label="Other settings">
-          {otherSettings.map((x) => (
-            <li key={x.name}>
-              <TextLink render={x.link}>{x.name}</TextLink>
-              <span className={s.muted}>{x.holds}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <PageHeader title="Settings" description="The platform's general settings and feature switches. Areas with settings of their own are listed under Other settings." />
+      <PageTabs
+        label="Settings sections"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          { value: "general", label: "General", icon: <SlidersHorizontal aria-hidden />, content: general },
+          {
+            value: "features",
+            label: "Features",
+            icon: <ToggleRight aria-hidden />,
+            content: (
+              <Card id="features" className={o.features} title="Features" description="Optional features for the whole platform. Each switch applies at once." flush>
+                <FeatureSwitches isAdmin={isAdmin} />
+              </Card>
+            ),
+          },
+          { value: "environment", label: "Environment", icon: <Server aria-hidden />, content: <EnvironmentCard /> },
+          { value: "other", label: "Other settings", icon: <Info aria-hidden />, content: <OtherSettings /> },
+        ]}
+      />
     </Stack>
+  );
+}
+
+function OtherSettings() {
+  return (
+    <Card title="Other settings" description="Areas that keep their settings on their own pages.">
+      <ul className={st.links} aria-label="Other settings">
+        {otherSettings.map((x) => (
+          <li key={x.name}>
+            <TextLink render={x.link}>{x.name}</TextLink>
+            <span className={s.muted}>{x.holds}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

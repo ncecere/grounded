@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Admin → Settings and Admin → Parsing & OCR use pill tabs**, like the other sidebar pages with several sections: Settings has General, Features, Environment and Other settings; Parsing & OCR has Settings and Failed or need OCR. Links to `#features` and `#document-problems` now open the tab (`?tab=`), and on every tabbed admin page an address whose anchor names a tab opens that tab.
 - **The other budget follow-ups** (E17): with a team's enforced budget used up, a document already queued now waits before it is parsed (instead of finishing), a profile migration's re-embedding waits, and raising the budget or granting an extension wakes both at once. From the warning threshold on, the team's spend is re-read every 5 seconds instead of 30, so it overshoots less.
 - The export's credential check looks for credential syntax (an Authorization or Cookie value, `password=`-style assignments, known token prefixes, private keys) instead of words, so instructions such as "help students reset their password" export. Webhooks now export (without signing material) instead of refusing the download.
 

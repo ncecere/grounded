@@ -276,7 +276,7 @@ describe("Admin → Settings › Features › Team requests", () => {
       ...featureRoutes("platform_admin", settings({ enabled: false })),
       "PUT /v1/admin/settings/team-requests": (b) => settings({ ...(b as object), revision: 5 }),
     });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow team requests" }, { timeout: scaled(5000) });
     expect(sw).not.toBeChecked();
     await userEvent.click(sw);
@@ -298,7 +298,7 @@ describe("Admin → Settings › Features › Team requests", () => {
 
   it("sets who may ask: a number from 1 to 20 and an optional SSO group", async () => {
     const calls = mockApi({ ...featureRoutes("platform_admin"), "PUT /v1/admin/settings/team-requests": (b) => settings({ ...(b as object), revision: 5 }) });
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     await userEvent.click(await screen.findByRole("button", { name: "Who may ask…" }, { timeout: scaled(5000) }));
     const dialog = await screen.findByRole("dialog", { name: "Who may ask for a team" });
     const max = within(dialog).getByRole("spinbutton", { name: /Open requests per person/ });
@@ -317,7 +317,7 @@ describe("Admin → Settings › Features › Team requests", () => {
 
   it("is read only for an auditor", async () => {
     mockApi(featureRoutes("platform_auditor"));
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const sw = await screen.findByRole("switch", { name: "Allow team requests" }, { timeout: scaled(5000) });
     expect(sw).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("button", { name: "Who may ask…" })).toBeNull();

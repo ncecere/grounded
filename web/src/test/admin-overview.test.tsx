@@ -122,7 +122,7 @@ describe("admin overview", () => {
     expect(within(queue).getByText("Audit streaming to Elastic is 30 min behind")).toBeInTheDocument();
     expect(within(queue).getByText("2 documents failed to index in Office of the Registrar")).toBeInTheDocument();
     // Failed documents lead to Parsing & OCR, where admins retry them or notify the owners (not to the team's page).
-    expect(within(queue).getByRole("link", { name: /Failed documents/ })).toHaveAttribute("href", "/admin/parsing#document-problems");
+    expect(within(queue).getByRole("link", { name: /Failed documents/ })).toHaveAttribute("href", "/admin/parsing?tab=documents");
     expect(within(queue).getByText("Office of the Registrar is at 90% of its knowledge bases limit")).toBeInTheDocument();
     // Production-readiness warnings (E7): a link where the fix is in the UI, none for environment settings.
     expect(within(queue).getByText("The crawl allowlist is empty, so no web source can be crawled.")).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe("admin overview", () => {
     const evals = await featureRow("Evaluations");
     expect(await within(evals).findByText("On")).toBeInTheDocument();
     expect(within(evals).queryByRole("switch")).toBeNull();
-    expect(within(evals).getByRole("link", { name: /Settings/ })).toHaveAttribute("href", "/admin/settings#features");
+    expect(within(evals).getByRole("link", { name: /Settings/ })).toHaveAttribute("href", "/admin/settings?tab=features");
     expect(within(evals).getByText(/Members never see them\.$/).className).toMatch(/fullText/);
     // The #features link lands below the sticky top bar.
     expect(screen.getByRole("heading", { level: 2, name: "Features" }).closest("section")!.className).toMatch(/features/);
@@ -200,7 +200,7 @@ describe("admin overview", () => {
 
   it("turns evaluations off for the platform on Admin → Settings, with If-Match", async () => {
     const calls = mockApi(routes({ "PUT /v1/admin/settings/evaluations": (b) => ({ ...(b as object), revision: 3, updatedAt: "2026-09-28T10:00:00Z" }) }));
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const row = await featureRow("Evaluations");
     const toggle = await within(row).findByRole("switch", { name: "Allow evaluations" });
     expect(toggle).toBeChecked();
@@ -222,7 +222,7 @@ describe("admin overview", () => {
 
   it("turns the MCP server on from Admin → Settings, links its guide, and confirms before turning it off", async () => {
     const calls = mockApi(routes({ "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }) }));
-    const { container } = renderApp("/admin/settings");
+    const { container } = renderApp("/admin/settings?tab=features");
     const row = await featureRow("MCP server");
     expect(await within(row).findByText("Off")).toBeInTheDocument();
     expect(within(row).getByText("No AI tool can connect over MCP. API keys with the MCP scope are kept.")).toBeInTheDocument();
@@ -258,7 +258,7 @@ describe("admin overview", () => {
         "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }),
       }),
     );
-    const { container } = renderApp("/admin/settings");
+    const { container } = renderApp("/admin/settings?tab=features");
     const row = await featureRow("OAuth sign-in for MCP clients");
     expect(within(row).getByText("Experimental")).toBeInTheDocument();
     expect(await within(row).findByText("AI tools connect with API keys only.")).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe("admin overview", () => {
 
   it("shows auditors each feature's state, and the switch disabled with the reason", async () => {
     mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
-    renderApp("/admin/settings");
+    renderApp("/admin/settings?tab=features");
     const row = await featureRow("Evaluations");
     expect(await within(row).findByText("On")).toBeInTheDocument();
     const toggle = within(row).getByRole("switch", { name: "Allow evaluations" });

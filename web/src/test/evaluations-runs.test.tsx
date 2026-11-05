@@ -323,7 +323,7 @@ describe("Admin → Limits › Evaluations", () => {
     });
     const { container } = renderApp("/admin/limits?tab=evaluations");
     expect(await screen.findByText(/Evaluations are off/, {}, T)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Settings → Features" })).toHaveAttribute("href", "/admin/settings#features");
+    expect(screen.getByRole("link", { name: "Settings → Features" })).toHaveAttribute("href", "/admin/settings?tab=features");
     expect(screen.queryByRole("switch")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });

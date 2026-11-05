@@ -87,8 +87,7 @@ describe("Admin → Parsing & OCR", () => {
       }),
     });
     const { container } = renderApp("/admin/parsing");
-    expect(await screen.findByText("No documents failed or need OCR.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("switch", { name: /Read scanned pages/ }));
+    await userEvent.click(await screen.findByRole("switch", { name: /Read scanned pages/ }));
     await userEvent.click(screen.getByRole("radio", { name: /Vision model/ }));
     expect(screen.queryByRole("textbox", { name: "Languages" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));

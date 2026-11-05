@@ -151,7 +151,7 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
     id: "features",
     label: "Features",
     to: "/admin/settings",
-    hash: "features",
+    tab: "features",
     icon: icon(ToggleRight),
     keywords: [
       "feature", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off", "optional", "cost tracking", "overview",
@@ -162,7 +162,7 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
     id: "saved-answers",
     label: "Saved answers",
     to: "/admin/settings",
-    hash: "features",
+    tab: "features",
     icon: icon(BookmarkCheck),
     keywords: ["saved", "saved answers", "answer cache", "cache", "reuse answers", "reused answers", "feature", "turn on", "turn off"],
   },

@@ -39,7 +39,7 @@ const routes = (role: "platform_admin" | "platform_auditor", items = groups) => 
 describe("Admin → Parsing & OCR: documents that failed or need OCR", () => {
   it("lists counts by team, source and reason, and explains why scans can't be retried while OCR is off", async () => {
     mockApi(routes("platform_admin"));
-    const { container } = renderApp("/admin/parsing");
+    const { container } = renderApp("/admin/parsing?tab=documents");
     expect(await screen.findByRole("heading", { level: 1, name: "Parsing & OCR" })).toBeInTheDocument();
     const table = await screen.findByRole("table", { name: /Documents that failed or need OCR \(6 documents\)/ });
     const scans = within(table).getByRole("row", { name: /Scanned forms.*Needs OCR/ });
@@ -57,7 +57,7 @@ describe("Admin → Parsing & OCR: documents that failed or need OCR", () => {
 
   it("retries a group and notifies a team's owners after confirming", async () => {
     const calls = mockApi(routes("platform_admin"));
-    const { container } = renderApp("/admin/parsing");
+    const { container } = renderApp("/admin/parsing?tab=documents");
     const table = await screen.findByRole("table", { name: /Documents that failed or need OCR/ });
     await userEvent.click(await within(table).findByRole("button", { name: "Actions for Scanned forms: Damaged or unsupported file" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry these" }));
@@ -78,7 +78,7 @@ describe("Admin → Parsing & OCR: documents that failed or need OCR", () => {
 
   it("doesn't offer Notify owners for a shared source, nor any action to auditors", async () => {
     mockApi(routes("platform_auditor"));
-    renderApp("/admin/parsing");
+    renderApp("/admin/parsing?tab=documents");
     const table = await screen.findByRole("table", { name: /Documents that failed or need OCR/ });
     expect(await within(table).findByRole("row", { name: /Campus handbook/ })).toBeInTheDocument();
     expect(within(table).queryByRole("button", { name: /^Actions for/ })).toBeNull();
@@ -86,7 +86,7 @@ describe("Admin → Parsing & OCR: documents that failed or need OCR", () => {
 
   it("says when nothing failed", async () => {
     mockApi(routes("platform_admin", []));
-    renderApp("/admin/parsing");
+    renderApp("/admin/parsing?tab=documents");
     expect(await screen.findByText("No documents failed or need OCR.")).toBeInTheDocument();
   });
 
