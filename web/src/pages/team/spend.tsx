@@ -23,6 +23,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table/data
 import { budgetStateLabel, monthLabel, requestsColumn, requestsHint, type TeamBudgetState, useTeamSpend } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { BudgetMeter } from "../admin/costs/budget-parts";
+import { AgentBudgets } from "./agent-budgets";
 import s from "../shared.module.css";
 import u from "./usage.module.css";
 
@@ -153,14 +154,14 @@ function Breakdown({ children }: { children: ReactNode }) {
   }, [linked]);
   return (
     <div id={breakdownHash} ref={ref}>
-      <Disclosure title="Spend breakdown" summary="This month's spend by agent and by model." defaultOpen={linked}>
+      <Disclosure title="Spend breakdown" summary="This month's spend by agent and by model, and each agent's budget." defaultOpen={linked}>
         {children}
       </Disclosure>
     </div>
   );
 }
 
-export function TeamSpendCard({ team }: { team: string }) {
+export function TeamSpendCard({ team, canEditBudgets = false }: { team: string; canEditBudgets?: boolean }) {
   const q = useTeamSpend(team);
   if (q.off) return null;
   if (q.isLoading) return <Loading label="Loading spend…" />;
@@ -181,6 +182,7 @@ export function TeamSpendCard({ team }: { team: string }) {
               <SpendTable caption="By agent" first="Agent" rows={d.agents} currency={cur} />
               <SpendTable caption="By model" first="Model" rows={d.models} currency={cur} />
               <p className={s.muted}>Requests: {requestsHint}</p>
+              {(canEditBudgets || (d.agentBudgets ?? []).length > 0) && <AgentBudgets team={team} spend={d} canEdit={canEditBudgets} />}
             </div>
           </Breakdown>
         )}

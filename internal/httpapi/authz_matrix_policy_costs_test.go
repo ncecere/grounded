@@ -65,6 +65,11 @@ func (e *matrixEnv) freshExtension(t *testing.T) string {
 var costTeamPolicies = map[string]policy{
 	"getTeamSpend":        {own: admins, foreign: platform, build: func(c *mctx) request { return get(c.team("/spend")) }},
 	"getTeamBudgetStatus": {own: members, foreign: platform, build: func(c *mctx) request { return get(c.team("/budget-status")) }},
+	// Per-agent budgets: the team's owners and admins, and platform staff (platform admins to write).
+	"getAgentBudget": {own: admins, foreign: platform, build: func(c *mctx) request { return get(c.ag("/budget")) }},
+	"putAgentBudget": {own: admins, foreign: padmin, build: func(c *mctx) request {
+		return put(c.ag("/budget"), map[string]any{"amount": "25.00"}).h(c.rev(c.ag("/budget")))
+	}},
 }
 
 // priceDate is a date no price row uses yet (one a day from 2001).

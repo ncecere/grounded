@@ -65,9 +65,20 @@ type Service struct {
 // (docs/costs.md §4).
 type BudgetChecker interface {
 	Check(ctx context.Context, teamID uuid.UUID) error
+	// CheckAgent admits a chat of one agent: an error (429 agent_budget_exhausted) when the agent's own enforced budget is
+	// used up (docs/specs/agent-budgets/DESIGN.md).
+	CheckAgent(ctx context.Context, teamID, agentID uuid.UUID) error
 	// Recorded adds usage this process just wrote to the ledger to the
 	// team's cached month-to-date spend, so the next check sees it.
 	Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams)
+}
+
+// CheckAgent applies an agent's own budget (after CheckChat applied the team's). nil budgets admit everything.
+func (s *Service) CheckAgent(ctx context.Context, teamID, agentID uuid.UUID) error {
+	if s == nil || s.Budget == nil {
+		return nil
+	}
+	return s.Budget.CheckAgent(ctx, teamID, agentID)
 }
 
 // Recorded tells the budget check about usage just written to the ledger.

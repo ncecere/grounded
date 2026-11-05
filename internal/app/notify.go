@@ -43,6 +43,9 @@ func wireCosts(s *Services, pool *pgxpool.Pool, jobsClient *jobs.Client, log *sl
 	s.Web.Budget = s.Costs
 	s.Costs.OnChange = func(ctx context.Context, team uuid.NullUUID) {
 		s.Web.BudgetChanged(ctx, team)
+		if _, err := ingest.WakeBudgetWaiting(ctx, pool, jobsClient, team); err != nil {
+			log.WarnContext(ctx, "could not wake documents waiting for the budget", "err", err)
+		}
 		if jobsClient != nil {
 			if _, err := jobsClient.Insert(ctx, ingest.DispatchArgs{}, nil); err != nil {
 				log.WarnContext(ctx, "could not kick the ingestion dispatcher after a budget change", "err", err)
@@ -56,7 +59,7 @@ func wireCosts(s *Services, pool *pgxpool.Pool, jobsClient *jobs.Client, log *sl
 		}
 		return s.Notify.BudgetReached(ctx, tx, n.TeamID, notify.BudgetNotice{
 			Exhausted: n.Level == costs.LevelExhausted, Month: n.Month, Spent: n.Spent.FloatString(2), Limit: n.Limit.FloatString(2),
-			Currency: n.Currency, Percent: pct, ResetsAt: n.ResetsAt, Location: n.TimeZone,
+			Currency: n.Currency, Percent: pct, ResetsAt: n.ResetsAt, Location: n.TimeZone, AgentID: n.AgentID, AgentName: n.AgentName,
 		})
 	}
 }

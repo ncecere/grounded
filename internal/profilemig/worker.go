@@ -97,6 +97,13 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 		if len(docs) == 0 {
 			break
 		}
+		// The team's enforced monthly budget is used up: wait, rather than spend (docs/specs/agent-budgets/DESIGN.md §2).
+		if wait, err := w.budgetWait(ctx, src); err != nil {
+			return err
+		} else if wait > 0 {
+			w.setError(ctx, q, args, "Waiting: the team's monthly budget is used up. The migration continues when a platform admin raises the budget or grants an extension, or when the month ends.")
+			return river.JobSnooze(wait)
+		}
 		w.setError(ctx, q, args, "") // a wait's reason (a cap) is shown only while it lasts
 		if wait, err := w.step(ctx, q, src, target, docs); err != nil {
 			return err
@@ -113,6 +120,25 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 	}
 	w.setError(ctx, q, args, "")
 	return w.S.finishSet(ctx, q, args)
+}
+
+// budgetMaxWait is the longest a set waits for the budget before checking again.
+const budgetMaxWait = 10 * time.Minute
+
+// budgetWait is how long a team's set waits for its used-up budget (0: go on). Shared sources have no team budget.
+func (w *SetWorker) budgetWait(ctx context.Context, src dbgen.DataSource) (time.Duration, error) {
+	if w.P == nil || w.P.Budget == nil || !src.TeamID.Valid {
+		return 0, nil
+	}
+	blocked, resets, err := w.P.Budget.Blocked(ctx, src.TeamID.UUID)
+	if err != nil || !blocked {
+		return 0, err
+	}
+	wait := budgetMaxWait
+	if d := time.Until(resets); !resets.IsZero() && d < wait {
+		wait = max(d, time.Second)
+	}
+	return wait, nil
 }
 
 // lockSet takes the set's session advisory lock, so one job per set runs

@@ -93,6 +93,22 @@ type AgentAudienceGrant struct {
 	CreatedAt     time.Time
 }
 
+type AgentBudget struct {
+	AgentID   uuid.UUID
+	TeamID    uuid.UUID
+	Amount    pgtype.Numeric
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
+type AgentBudgetNotice struct {
+	AgentID   uuid.UUID
+	Month     pgtype.Date
+	Level     string
+	CreatedAt time.Time
+}
+
 type AgentShortName struct {
 	ShortName string
 	AgentID   uuid.UUID

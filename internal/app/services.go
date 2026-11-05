@@ -311,7 +311,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 	proc := &ingest.Processor{
 		Pool: pool, Blob: s.Blob, Parser: s.Parser, Counter: counter, Catalog: s.Catalog,
 		Vectors: s.Vectors, EmbedBatch: cfg.EmbedBatchSize, MaxBytes: cfg.MaxUploadBytes, Log: log,
-		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR, ContextualOff: !cfg.ContextualChunks,
+		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR, ContextualOff: !cfg.ContextualChunks, Budget: s.Costs,
 		Contextual: &contextual.Generator{
 			Store: &contextual.PGStore{Pool: pool, Recorded: s.Limits.Recorded}, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider,
 			Counter: counter, Gate: contextGate(s.Costs, s.Limits), Concurrency: cfg.ContextualConcurrency, Log: log,

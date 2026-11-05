@@ -4880,6 +4880,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/agents/{agentId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * An agent's monthly budget and spend this month (team owners and admins; platform admins and auditors)
+         * @description 404 costs_off while the team's cost mode is off. The budget is enforced only when the team's effective mode is Enforce (docs/specs/agent-budgets/DESIGN.md); revision 1 means the agent has no budget.
+         */
+        get: operations["getAgentBudget"];
+        /**
+         * Set or remove an agent's monthly budget (team owners and admins, platform admins; audited)
+         * @description amount null removes the budget. If-Match with the budget's revision (1 when it has none). At 100% of an enforced budget the agent's chats are refused with 429 agent_budget_exhausted; the team's other agents are not affected.
+         */
+        put: operations["putAgentBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/spend": {
         parameters: {
             query?: never;
@@ -6373,7 +6401,28 @@ export interface components {
             amount: string | null;
             warnPercent: number | null;
         };
+        AgentBudget: {
+            /** Format: uuid */
+            agentId: string;
+            /** @description The monthly budget (null: none; the team's budget still applies) */
+            amount: components["schemas"]["Money"] | null;
+            /** @description Month to date (null while the team's cost mode is off) */
+            spent: components["schemas"]["Money"] | null;
+            currency: string;
+            state: components["schemas"]["BudgetState"];
+            /** @description true when the team's effective mode is Enforce and the agent has a budget */
+            enforced: boolean;
+            /** Format: date-time */
+            resetsAt: string;
+            /**
+             * Format: int64
+             * @description For If-Match; 1 when the agent has no budget (a new budget starts at 2)
+             */
+            revision: number;
+        };
         TeamSpend: {
+            /** @description The team's agents that have their own budget, with this month's state */
+            agentBudgets: components["schemas"]["AgentBudget"][];
             status: components["schemas"]["TeamBudgetState"];
             timeZone: string;
             /** Format: date */
@@ -22818,6 +22867,78 @@ export interface operations {
             };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    getAgentBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The agent's budget */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentBudget"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    putAgentBudget: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    amount: components["schemas"]["Money"] | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentBudget"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

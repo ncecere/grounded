@@ -59,6 +59,8 @@ type Processor struct {
 	// OCR reads pages without text and images when it is on (nil: off;
 	// docs/ocr.md).
 	OCR *ocr.Service
+	// Budget, when set, holds back a team's documents while its enforced monthly budget is used up (they wait).
+	Budget TeamBudget
 	// Contextual writes the context of contextual chunks (nil: not wired; every source embeds as before). ContextualOff is the platform
 	// switch CONTEXTUAL_CHUNKS=false (docs/contextual-chunks.md).
 	Contextual    *contextual.Generator
@@ -208,6 +210,12 @@ func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *ri
 		observeDocument(IngestWaiting, 0)
 		return p.waitForOCR(ctx, doc, w)
 	}
+	// So is a team's monthly budget used up after the document was dispatched (docs/specs/agent-budgets/DESIGN.md §3).
+	if bw, ok := asBudgetWait(err); ok && ctx.Err() == nil {
+		p.Log.InfoContext(ctx, "document waits for the team's monthly budget", "document", doc.ID, "until", bw.until)
+		observeDocument(IngestWaiting, 0)
+		return p.waitForBudget(ctx, doc, bw)
+	}
 	// A contextual-chunks cap, budget or daily quota is a wait too (docs/contextual-chunks.md section 5).
 	if l, ok := asContextLimit(err); ok && ctx.Err() == nil {
 		p.Log.InfoContext(ctx, "document waits for a contextual chunks limit", "document", doc.ID)
@@ -281,6 +289,9 @@ type result struct {
 
 func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, error) {
 	var res result
+	if err := p.checkBudget(ctx, doc.TeamID); err != nil {
+		return res, err
+	}
 	q := dbgen.New(p.Pool)
 	src, err := q.GetSource(ctx, doc.SourceID)
 	if err != nil {

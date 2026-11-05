@@ -8015,6 +8015,77 @@ paths:
                   data: { $ref: "#/components/schemas/TeamBudget" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/agents/{agentId}/budget:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: agentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [costs, agents]
+      operationId: getAgentBudget
+      summary: An agent's monthly budget and spend this month (team owners and admins; platform admins and auditors)
+      description: >-
+        404 costs_off while the team's cost mode is off. The budget is enforced
+        only when the team's effective mode is Enforce
+        (docs/specs/agent-budgets/DESIGN.md); revision 1 means the agent has no
+        budget.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The agent's budget
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentBudget" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [costs, agents]
+      operationId: putAgentBudget
+      summary: Set or remove an agent's monthly budget (team owners and admins, platform admins; audited)
+      description: >-
+        amount null removes the budget. If-Match with the budget's revision (1
+        when it has none). At 100% of an enforced budget the agent's chats are
+        refused with 429 agent_budget_exhausted; the team's other agents are not
+        affected.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  nullable: true
+                  allOf: [{ $ref: "#/components/schemas/Money" }]
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentBudget" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/spend:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -10701,10 +10772,32 @@ components:
         mode: { $ref: "#/components/schemas/CostModeOverride" }
         amount: { type: string, nullable: true }
         warnPercent: { type: integer, nullable: true }
+    AgentBudget:
+      type: object
+      required: [agentId, amount, spent, currency, state, enforced, resetsAt, revision]
+      properties:
+        agentId: { type: string, format: uuid }
+        amount:
+          description: "The monthly budget (null: none; the team's budget still applies)"
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/Money" }]
+        spent:
+          description: "Month to date (null while the team's cost mode is off)"
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/Money" }]
+        currency: { type: string }
+        state: { $ref: "#/components/schemas/BudgetState" }
+        enforced: { type: boolean, description: "true when the team's effective mode is Enforce and the agent has a budget" }
+        resetsAt: { type: string, format: date-time }
+        revision: { type: integer, format: int64, description: "For If-Match; 1 when the agent has no budget (a new budget starts at 2)" }
     TeamSpend:
       type: object
-      required: [status, timeZone, from, to, total, agents, models]
+      required: [status, timeZone, from, to, total, agents, models, agentBudgets]
       properties:
+        agentBudgets:
+          type: array
+          description: The team's agents that have their own budget, with this month's state
+          items: { $ref: "#/components/schemas/AgentBudget" }
         status: { $ref: "#/components/schemas/TeamBudgetState" }
         timeZone: { type: string }
         from: { type: string, format: date }

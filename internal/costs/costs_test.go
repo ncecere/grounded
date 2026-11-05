@@ -282,3 +282,10 @@ func TestValidCurrency(t *testing.T) {
 		t.Fatal("XYZ was accepted as a currency")
 	}
 }
+
+// Close to a limit the month-to-date cache lives NearCacheTTL, not CacheTTL (docs/specs/agent-budgets/DESIGN.md §4).
+func TestCacheTTLNearTheLimit(t *testing.T) {
+	if (cached{}).ttl() != CacheTTL || (cached{near: true}).ttl() != NearCacheTTL || NearCacheTTL >= CacheTTL {
+		t.Fatal("near-limit cache lifetime")
+	}
+}
