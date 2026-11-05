@@ -102,6 +102,7 @@ CROSS JOIN LATERAL (
         WHEN 'systemone_settings' THEN 'SystemOne settings'
         WHEN 'rerank_settings' THEN 'Reranking settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
+        WHEN 'pii_settings' THEN 'Personal data scanning'
         WHEN 'retention_settings' THEN 'Retention settings'
         WHEN 'retention' THEN 'Retention run'
         WHEN 'legal_hold' THEN (SELECT 'Legal hold on ' || lh.scope_type || ' ' || lh.scope_label FROM legal_holds lh WHERE lh.id = ids.target_uuid)
