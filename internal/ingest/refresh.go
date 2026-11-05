@@ -107,18 +107,15 @@ func (w *RefreshWorker) Work(ctx context.Context, job *river.Job[RefreshArgs]) e
 	if src.Status != "active" {
 		return nil // paused: the sweep resumes it once the source is active
 	}
-	// Count when the source's pages have settled: documents still being
-	// processed would be missed now and re-checked later.
 	idle := w.IdleWait
 	if idle <= 0 {
 		idle = 30 * time.Minute
 	}
-	if n, err := q.CountSourceInflight(ctx, src.ID); err != nil {
-		return err
-	} else if n > 0 && time.Since(job.CreatedAt) < idle {
-		return river.JobSnooze(idlePoll) // one indexed count per poll
-	}
-	r := &refresh{p: p, q: q, src: src}
+	// Count when the source's pages have settled: documents still being processed would be missed. This holds before every
+	// count, not only the first: a request made while this job runs (another upload batch) is handled in the same loop, and a
+	// document of that batch that finishes after the count matches the new classification, so it requests no recount and
+	// would stay out of the counts until the next change.
+	r := &refresh{p: p, q: q, src: src, settleUntil: job.CreatedAt.Add(idle)}
 	deadline := time.Now().Add(w.budget())
 	for {
 		// Maintenance mode: re-chunking waits (between bounded steps).
@@ -128,6 +125,9 @@ func (w *RefreshWorker) Work(ctx context.Context, job *river.Job[RefreshArgs]) e
 			return river.JobSnooze(maintenancePoll)
 		}
 		done, err := r.step(ctx)
+		if errors.Is(err, errUnsettled) {
+			return river.JobSnooze(idlePoll) // one indexed count per poll
+		}
 		if d, ok := backpressure(err); ok {
 			return river.JobSnooze(d)
 		} else if err != nil {
@@ -142,11 +142,32 @@ func (w *RefreshWorker) Work(ctx context.Context, job *river.Job[RefreshArgs]) e
 	}
 }
 
+// errUnsettled: the source has documents in flight, so counting now would miss them; the job waits (until settleUntil).
+var errUnsettled = errors.New("boilerplate refresh: documents in flight")
+
 // refresh is one source's refresh.
 type refresh struct {
 	p   *Processor
 	q   *dbgen.Queries
 	src dbgen.DataSource
+	// settleUntil is how long a count waits for the source's documents in flight (the job's creation plus IdleWait); zero
+	// counts at once.
+	settleUntil time.Time
+}
+
+// settled reports whether the source's documents can be counted now: none in flight, or waiting for them took too long.
+func (r *refresh) settled(ctx context.Context) error {
+	if r.settleUntil.IsZero() || !time.Now().Before(r.settleUntil) {
+		return nil
+	}
+	n, err := r.q.CountSourceInflight(ctx, r.src.ID)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return errUnsettled
+	}
+	return nil
 }
 
 // step does one bounded unit of work and reports whether none was left.
@@ -169,6 +190,9 @@ func (r *refresh) step(ctx context.Context) (bool, error) {
 		}
 	}
 	if due(row) {
+		if err := r.settled(ctx); err != nil {
+			return false, err
+		}
 		return false, r.classify(ctx, row, eff)
 	}
 	n, err := r.applyStale(ctx, row.Rev, eff.Enabled)
