@@ -52,15 +52,17 @@ Light or dark is the person's (VI-38, [`docs/personal-settings.md`](../docs/pers
 
 The UI library is [bitop-ui](https://github.com/ncecere/bitop-ui), a copy-and-own component library (Base UI + CSS Modules + CSS variables, no Tailwind). It is the single source of truth: component docs, behaviour tests and accessibility tests live there, and Grounded copies the files in with bitop-ui's CLI, [`@bitop-dev/cli`](https://www.npmjs.com/package/@bitop-dev/cli) (a pinned dev dependency, so `npm ci` installs it). `components.json` maps the aliases (`ui` → `src/components/ui`, `lib` → `src/lib`) and says where items come from; its other fields are left over from the shadcn CLI and ignored. `bitop-lock.json` records a hash of every installed file, which is how the CLI tells upstream changes apart from local edits. Commit both.
 
-### Where components come from (until bitop-ui is hosted)
+### Where components come from
 
-There is no hosted registry yet, so `components.json` points at a bitop-ui checkout, relative to `web/`:
+`components.json` points at the published registry, [bitop-ui's docs site](https://ncecere.github.io/bitop-ui/):
 
 ```json
-"registries": { "@bitop": "../../../typescript/bitop-ui" }
+"registries": { "@bitop": "https://ncecere.github.io/bitop-ui/r/{name}.json" }
 ```
 
-That matches `~/projects/golang/grounded` next to `~/projects/typescript/bitop-ui`. If your checkout lives elsewhere, pass `--registry <path>` or edit the path. The CLI reads the checkout directly: nothing to build or serve. Pull the checkout first to get the latest components. Once bitop-ui is hosted, set the source to its URL (`https://…/r/{name}.json`).
+It is published from bitop-ui's `main`, so a component fixed there is available here once that change merges and deploys (a
+few minutes). To try a bitop-ui change before it merges, run the CLI with `--registry <path to a bitop-ui checkout>` (it reads
+a checkout directly: nothing to build or serve), and don't commit `components.json` with a local path.
 
 ### Adding or updating components
 
@@ -74,7 +76,8 @@ npx @bitop-dev/cli update          # refresh every installed item; files edited 
 npx @bitop-dev/cli list            # what the registry offers (* = installed)
 ```
 
-`ui:check` needs the bitop-ui checkout, so it isn't in CI yet; add it there once the registry is hosted.
+CI runs `ui:check` against the published registry: a pull request that changes a file in `src/components/ui` by hand, or that
+falls behind a fix published in bitop-ui, fails until the component is fixed upstream and updated here.
 
 Then:
 

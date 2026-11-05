@@ -72,6 +72,10 @@ jobs:
       - name: Web styling policy (Base UI + CSS Modules + CSS variables)
         run: npm run check:styling && npm run check:size
         working-directory: web
+      # The UI components match the published bitop-ui registry (web/README.md, "UI components"): no hand edits, no missed fixes.
+      - name: UI components match bitop-ui
+        run: npm run ui:check
+        working-directory: web
       - name: Web type-check, unit and accessibility tests
         run: make web-test
       # The authorization matrix runs in the authz job below.

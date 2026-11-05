@@ -19,6 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@bitop": "../../../typescript/bitop-ui"
+    "@bitop": "https://ncecere.github.io/bitop-ui/r/{name}.json"
   }
 }
