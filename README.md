@@ -109,9 +109,11 @@ Each install sets its own name, logo, support links and crawl allowlist through 
 - **Data classification**: configurable levels decide which models may process data and which audiences an agent may have. They're checked when anything changes and again on every query.
 - **Retention**: every period is configurable and nothing is deleted until one is set (except anonymous conversations, after 24 hours). A dry-run report shows what a run would delete. **Legal holds** keep what they cover.
 - **Break-glass**: time-boxed, read-only access to one team's conversations or documents, with a written reason. An install can require a second admin's approval. Every read is audited, and the team's owners are notified.
-- **Costs and budgets:** dated prices per model and unit, spend per team and category, and monthly budgets that track only or enforce.
-- **SSO groups:** identity-provider groups grant team roles at sign-in, with a dry run.
-- **Audit log** of every change, saying how each person acted (signed in, API key or connected app), and an access log. Team analytics never contain message content.
+- **Costs and budgets:** dated prices per model and unit, spend per team, category, channel and agent, and monthly budgets per team and per agent that track only or enforce.
+- **SSO groups and SCIM:** identity-provider groups grant team roles at sign-in, with a dry run. With SCIM, the identity provider creates people before they sign in and suspends people who leave.
+- **Audit log** of every change, saying how each person acted (signed in, API key or connected app), and an access log. Team analytics never contain message content. The audit facts can be **streamed to a SIEM** (Splunk HEC, NDJSON or syslog over TLS), and exported daily as **signed, hash-chained files**, optionally copied to an S3 bucket outside Grounded.
+- **Personal data scanning:** documents with likely ID or card numbers are flagged for review, or held from search at the classification levels an admin chooses. Matched text is never stored.
+- **Configuration as code:** a team's sources, knowledge bases, agents, evaluation sets and webhooks export as YAML. An import shows every change first, then applies all of it or none.
 - Notifications in the app and by email.
 
 **Operations**
@@ -200,14 +202,14 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.6.3** (2026-10-30): QA fixes for the API, chat, editors and team requests, and deny-all network egress for the OCR sidecar.
 - [x] **v0.7.0** (2026-11-01): six opt-in retrieval changes, judged with the index preview: near-duplicate repeated blocks, tables kept structured, structural boundaries, parent/child retrieval, the content health report and contextual chunks.
 - [x] **v0.8.0** (2026-11-04): adoption by other installs, first part: a Helm chart generated from the Kustomize base, an accessibility statement and an "About this assistant" card on every chat surface, and a polish pass over the interface.
+- [x] **v0.9.0** (2026-11-06): identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest, per-agent budgets, and configuration as code.
 
-**Next:** v0.9.0 ([`docs/roadmap.md`](docs/roadmap.md)): configuration as code and the bitop-ui docs site (carried from v0.8.0), then identity and compliance.
+**Next:** v0.10.0 ([`docs/roadmap.md`](docs/roadmap.md)): private content: document permissions, then Microsoft 365, Google Drive and other connectors.
 
 **Later**
 
 - [ ] Microsoft Teams and Slack bots (D1)
 - [ ] Microsoft 365 connector: SharePoint and OneDrive (B1), with document ACLs (B6)
-- [ ] SCIM provisioning (E4) and audit export to a SIEM (E5)
 
 ## Development
 

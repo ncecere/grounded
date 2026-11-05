@@ -2,9 +2,14 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-11-04 (v0.8.0)
+## Current execution status — 2026-11-06 (v0.9.0)
 
-- **v0.9.0 is built (2026-11-05), not yet released.** Merged: #32 (PR #218), #40 (PR #219), #36's signed daily export (PR #220), #39 (PR #221), #37 (PR #222), #35 SCIM (PR #223, tested end to end with authentik), #38 per-agent budgets (PR #224), pill tabs (PR #225), #36's SIEM streaming (PR #228), #33's published registry (PR #229; bitop-ui#7 and #8, site live), and CI-found fixes (PR #226 boilerplate refresh, PR #227 profile preview with a small pool, PR #232 a content-health test budget). In review: #36's external S3 copies (PR #231). #19 and #89 unchanged; v0.10.0 (#41-#44) not started.
+- **v0.9.0 is being released** on the owner's go-ahead (2026-11-06). Every v0.9.0 issue is closed: #32, #33, #35, #36, #37, #38, #39, #40. Merged: PRs #218-#229 and #231-#234 (#230 replaced by #233 after GitHub refused pushes to its branch). Preparation in the v0.9.0 preparation PR; the published artifacts are verified in a follow-up docs PR. Next: v0.10.0 (#41-#44), starting with #41 document permissions. #19 still needs the owner's reference-install pages; #89 is unchanged.
+
+### Earlier status (2026-11-05)
+
+
+- **v0.9.0 is built (2026-11-05), not yet released.** Merged: #32 (PR #218), #40 (PR #219), #36's signed daily export (PR #220), #39 (PR #221), #37 (PR #222), #35 SCIM (PR #223, tested end to end with authentik), #38 per-agent budgets (PR #224), pill tabs (PR #225), #36's SIEM streaming (PR #228), #33's published registry (PR #229; bitop-ui#7 and #8, site live), and CI-found fixes (PR #226 boilerplate refresh, PR #227 profile preview with a small pool, PR #232 a content-health test budget). #36's external S3 copies merged too (PR #231). #19 and #89 unchanged; v0.10.0 (#41-#44) not started.
 - **v0.8.0 is published and verified** (tag at `7c83530`, PR #216): #34 (PR #211), #31 (PR #212) and the UI polish (bitop-ui#6, PR #213), with the Dependabot batch (#208, #209). #34 and #31 close with their PRs. **#32** (configuration as code) and **#33** (bitop-ui docs site) move to v0.9.0; #32's import design awaits the owner in PR #214. #36, #40 and the rest of v0.9.0 stay parked; #19 and #89 are unchanged.
 
 ### Earlier status (2026-11-04, morning)
