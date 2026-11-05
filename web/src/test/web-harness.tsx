@@ -55,7 +55,7 @@ const profile = (id: string, name: string, isDefault: boolean) => ({
 
 const profiles = [profile("p1", "Nomic", true), profile("p2", "Other model", false)];
 
-export const counts = { total: 40, pending: 0, processing: 0, ready: 38, failed: 1, skipped: 1, bytes: 204800, chunks: 400 };
+export const counts = { total: 40, pending: 0, processing: 0, ready: 38, failed: 1, skipped: 1, bytes: 204800, chunks: 400, piiReview: 0 };
 
 export const crawl = (extra: Partial<Schemas["Crawl"]> = {}): Schemas["Crawl"] => ({
   id: "c1",

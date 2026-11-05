@@ -67,6 +67,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/profile-migration.md`](operations/profile-migration.md) | Moving a knowledge base to a new embedding profile |
 | [`operations/sso-groups.md`](operations/sso-groups.md) | Mapping identity-provider groups to team roles (SSO group mapping) |
 | [`operations/ocr.md`](operations/ocr.md) | OCR for scanned documents: deploying the sidecar, choosing a backend, languages, retrying scanned documents, costs |
+| [`pii-scanning.md`](pii-scanning.md) | Personal data scanning at ingest: what is found, flagged and held documents, reviews, the admin settings, API and storage |
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |
 | [`operations/evaluations.md`](operations/evaluations.md) | Evaluation sets for knowledge bases and agents: building, running, reading results, automatic runs (team editors and platform admins) |
 | [`gaps.md`](gaps.md) | The gap report: failed questions grouped into topics, shared questions, who sees what, the topics job, retention, API and metrics |

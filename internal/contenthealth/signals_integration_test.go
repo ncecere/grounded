@@ -283,6 +283,38 @@ func TestIngestionFailureClasses(t *testing.T) {
 	}
 }
 
+// Personal data: documents waiting for a review, held ones first, with the kinds and the number of matches. Reviewed documents,
+// documents without findings and other teams' are not listed, and nothing that matched is kept.
+func TestPersonalDataFindings(t *testing.T) {
+	f := newFixture(t)
+	src := f.source(f.teamA, "Records", "upload")
+	flagged := f.addDoc(f.teamA, src, doc{})
+	held := f.addDoc(f.teamA, src, doc{status: "skipped", errCode: "pii_review"})
+	dismissed := f.addDoc(f.teamA, src, doc{})
+	f.addDoc(f.teamA, src, doc{})
+	theirs := f.addDoc(f.teamB, f.source(f.teamB, "Theirs", "upload"), doc{})
+	set := func(id uuid.UUID, state, findings string) {
+		f.exec(`UPDATE documents SET metadata = jsonb_set(metadata, '{pii}', jsonb_build_object('state', $2::text, 'hash', 'h', 'findings', $3::jsonb)) WHERE id = $1`, id, state, findings)
+	}
+	set(flagged, "flagged", `[{"kind":"us_ssn","count":2,"pages":[1]}]`)
+	set(held, "held", `[{"kind":"us_ssn","count":1,"pages":[]},{"kind":"payment_card","count":3,"pages":[]}]`)
+	set(dismissed, "dismissed", `[{"kind":"us_ssn","count":1,"pages":[]}]`)
+	set(theirs, "flagged", `[{"kind":"us_ssn","count":1,"pages":[]}]`)
+
+	res := f.collect(f.teamA, asOf, 365, 90, nil, nil)
+	s := res.signal(SignalPersonalData)
+	got := res.findings(SignalPersonalData)
+	if s.State != StateMeasured || s.Found != 2 || len(got) != 2 {
+		t.Fatalf("personal data = %+v %+v", s, got)
+	}
+	if got[0].DocumentID != held || got[0].Code != "held" || got[0].Detail != "payment_card,us_ssn" || got[0].Value != 4 {
+		t.Errorf("first finding %+v, want the held document", got[0])
+	}
+	if got[1].DocumentID != flagged || got[1].Code != "flagged" || got[1].Detail != "us_ssn" || got[1].Value != 2 {
+		t.Errorf("second finding %+v, want the flagged document", got[1])
+	}
+}
+
 // With nothing to measure, every signal says so instead of showing a healthy zero.
 func TestNothingToMeasureIsNotHealthy(t *testing.T) {
 	f := newFixture(t)

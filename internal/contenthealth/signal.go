@@ -16,6 +16,7 @@ const (
 	SignalDuplicate        = "duplicate"
 	SignalNeverCited       = "never_cited"
 	SignalIngestionFailure = "ingestion_failure"
+	SignalPersonalData     = "personal_data"
 )
 
 // What a signal's measurement is: it was made, it cannot apply to this scope, or it could not be made (with a reason).
@@ -200,5 +201,5 @@ type timeoutNoter interface {
 
 // Registry is the signals of a report, in order.
 func Registry() []Signal {
-	return []Signal{staleSignal{}, linkSignal{}, duplicateSignal{}, citedSignal{}, failureSignal{}}
+	return []Signal{staleSignal{}, linkSignal{}, duplicateSignal{}, citedSignal{}, failureSignal{}, personalDataSignal{}}
 }

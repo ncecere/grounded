@@ -2052,6 +2052,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/pii-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                documentId: components["parameters"]["DocumentIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss or approve a document flagged for possible personal data (editors)
+         * @description Records an editor's review of a document's possible personal data (docs/pii-scanning.md): dismiss keeps a flagged, indexed document as it is; approve indexes a held document (it is queued again, and stays approved while what is found in it is the same). Audited with the kinds and counts found. 409 not_reviewable when the document is not waiting for that review.
+         */
+        post: operations["reviewDocumentPii"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/refetch": {
         parameters: {
             query?: never;
@@ -2775,6 +2800,29 @@ export interface paths {
          * @description Queues a failed or skipped document again, or a partly scanned PDF indexed without its scanned pages (ready, needs_ocr), which is parsed again with OCR for those pages; that needs OCR to read the source (409 ocr_off, saying why). Other documents: 409 not_retryable.
          */
         post: operations["adminRetrySharedDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/pii-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+                documentId: components["parameters"]["DocumentIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss or approve a shared source's document flagged for possible personal data (platform admins)
+         * @description As reviewDocumentPii, for a shared source.
+         */
+        post: operations["adminReviewSharedDocumentPii"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4349,6 +4397,30 @@ export interface paths {
          * @description modelId null turns reranking off. 400 invalid_settings (details.problems lists every {field, problem}) for values out of range; 400 invalid_model when modelId is not a rerank model. Saving the settings already saved changes nothing (no new revision, no audit entry).
          */
         put: operations["adminPutRerank"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pii": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Personal data scanning at ingest (platform admins and auditors)
+         * @description On by default (docs/pii-scanning.md): documents with possible personal data are indexed and flagged for review. blockLevels are the classification levels whose flagged documents are held, not indexed, until an editor approves them. review counts the documents waiting for a review per team.
+         */
+        get: operations["adminGetPii"];
+        /**
+         * Replace the personal data scanning settings (platform admins; audited)
+         * @description Applies to documents processed from now on; documents already indexed keep their flags until they are processed again. 400 invalid_level, invalid_pattern (details.index) or too_many_patterns. The audit log keeps the patterns' names, not their expressions.
+         */
+        put: operations["adminPutPii"];
         post?: never;
         delete?: never;
         options?: never;
@@ -8842,6 +8914,11 @@ export interface components {
             bytes: number;
             /** Format: int64 */
             chunks: number;
+            /**
+             * Format: int64
+             * @description Documents waiting for a review of possible personal data (flagged or held)
+             */
+            piiReview: number;
         };
         DataSource: {
             /** Format: uuid */
@@ -9038,6 +9115,8 @@ export interface components {
             processedAt?: string | null;
             /** @description The pages read with OCR (null when none were) */
             ocr?: components["schemas"]["DocumentOcr"] | null;
+            /** @description Possible personal data found at ingest and its review (null when nothing was found or scanning is off) */
+            pii?: components["schemas"]["DocumentPii"] | null;
         };
         /**
          * @example {
@@ -9075,6 +9154,61 @@ export interface components {
          * @enum {string}
          */
         OcrBackend: "tesseract" | "tika" | "vision";
+        PiiPattern: {
+            /** @description The kind of data, as documents show it (e.g. Student ID) */
+            name: string;
+            /** @description An RE2 regular expression that does not match empty text */
+            pattern: string;
+        };
+        PiiSettingsInput: {
+            enabled: boolean;
+            /** @description Classification levels whose flagged documents are held until an editor approves them */
+            blockLevels: string[];
+            patterns: components["schemas"]["PiiPattern"][];
+        };
+        PiiSettings: {
+            enabled: boolean;
+            blockLevels: string[];
+            patterns: components["schemas"]["PiiPattern"][];
+            /** Format: int64 */
+            revision: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Teams with documents waiting for a review, most held first */
+            review: components["schemas"]["PiiReviewCount"][];
+        };
+        PiiReviewCount: {
+            /** @description Team slug */
+            team: string;
+            teamName: string;
+            /** Format: int64 */
+            held: number;
+            /** Format: int64 */
+            flagged: number;
+        };
+        /** @description Possible personal data found at ingest: the kind, how many matches and on which pages, never the matched text. flagged (indexed, waiting for review), held (not indexed until approved), dismissed or approved. */
+        DocumentPii: {
+            /** @enum {string} */
+            state: "flagged" | "held" | "dismissed" | "approved";
+            findings: components["schemas"]["PiiFinding"][];
+            /** Format: date-time */
+            reviewedAt: string | null;
+        };
+        PiiFinding: {
+            /** @description us_ssn, payment_card, or the name of a platform admin's pattern */
+            kind: string;
+            /** Format: int32 */
+            count: number;
+            /** @description 1-based pages, ascending (empty for a document without pages) */
+            pages: number[];
+        };
+        DocumentPiiReviewInput: {
+            /**
+             * @description dismiss: a flagged document; approve: a held one
+             * @enum {string}
+             */
+            action: "dismiss" | "approve";
+        };
         ParsingSettings: {
             /** @description Read pages without a text layer (and image uploads) with OCR */
             ocrEnabled: boolean;
@@ -12909,10 +13043,10 @@ export interface components {
             lastUsedAt: string | null;
         };
         /**
-         * @description stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+         * @description stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting; personal_data: documents with possible personal data waiting for a review (docs/pii-scanning.md).
          * @enum {string}
          */
-        ContentHealthSignalName: "stale" | "broken_link" | "duplicate" | "never_cited" | "ingestion_failure";
+        ContentHealthSignalName: "stale" | "broken_link" | "duplicate" | "never_cited" | "ingestion_failure" | "personal_data";
         ContentHealthSettings: {
             /** @description Off by default */
             enabled: boolean;
@@ -13157,13 +13291,13 @@ export interface components {
              * @description Duplicates: how many documents the group had when the report was made, which may be more than are listed
              */
             groupSize: number;
-            /** @description broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished */
+            /** @description broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished; personal_data: flagged (indexed) or held (not indexed until approved) */
             code: string;
-            /** @description ingestion_failure: the document's error code */
+            /** @description ingestion_failure: the document's error code; personal_data: the kinds found, comma-separated (never a match) */
             detail: string;
             /**
              * Format: int64
-             * @description stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable
+             * @description stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable; personal_data: how many matches were found
              */
             value: number;
             /**
@@ -13520,6 +13654,8 @@ export interface components {
         DocumentKindParam: "pdf" | "docx" | "pptx" | "html" | "markdown" | "text" | "image";
         /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
         DocumentErrorCodeParam: string;
+        /** @description pii: only documents waiting for a review of possible personal data (flagged or held) */
+        DocumentReviewParam: "pii";
         /** @description Only documents with this tag (case-insensitive) */
         DocumentTagParam: string;
         /** @description Case-insensitive substring match on the title, URL or file name */
@@ -17185,6 +17321,8 @@ export interface operations {
                 tag?: components["parameters"]["DocumentTagParam"];
                 /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
                 errorCode?: components["parameters"]["DocumentErrorCodeParam"];
+                /** @description pii: only documents waiting for a review of possible personal data (flagged or held) */
+                review?: components["parameters"]["DocumentReviewParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
@@ -17502,6 +17640,43 @@ export interface operations {
                     };
                 };
             };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    reviewDocumentPii: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                documentId: components["parameters"]["DocumentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentPiiReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Reviewed (approve also queues the document) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Document"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
@@ -18630,6 +18805,8 @@ export interface operations {
                 tag?: components["parameters"]["DocumentTagParam"];
                 /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
                 errorCode?: components["parameters"]["DocumentErrorCodeParam"];
+                /** @description pii: only documents waiting for a review of possible personal data (flagged or held) */
+                review?: components["parameters"]["DocumentReviewParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
@@ -18891,6 +19068,41 @@ export interface operations {
                     };
                 };
             };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminReviewSharedDocumentPii: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+                documentId: components["parameters"]["DocumentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentPiiReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Reviewed (approve also queues the document) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Document"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
@@ -21660,6 +21872,66 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["RerankSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetPii: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PiiSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutPii: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PiiSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PiiSettings"];
                     };
                 };
             };

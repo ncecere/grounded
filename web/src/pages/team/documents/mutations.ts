@@ -17,8 +17,12 @@ export function deleteWording(n: number, web: boolean): { description: string; c
 /** A partly scanned PDF: indexed, but its pages without text were skipped while OCR was off (docs/ocr.md §5). */
 export const isPartlyScanned = (doc: Pick<Doc, "status" | "errorCode">) => doc.status === "ready" && doc.errorCode === "needs_ocr";
 
-/** Documents that Retry applies to: failed or skipped ones, and partly scanned PDFs (read again with OCR). */
-export const canRetry = (doc: Pick<Doc, "status" | "errorCode">) => doc.status === "failed" || doc.status === "skipped" || isPartlyScanned(doc);
+/** A document held out of the index until an editor approves it: it may contain personal data (docs/pii-scanning.md). */
+export const isHeld = (doc: Pick<Doc, "status" | "errorCode">) => doc.status === "skipped" && doc.errorCode === "pii_review";
+
+/** Documents that Retry applies to: failed or skipped ones, and partly scanned PDFs (read again with OCR). A held document is
+ * approved instead: retrying it would only hold it again. */
+export const canRetry = (doc: Pick<Doc, "status" | "errorCode">) => (doc.status === "failed" || doc.status === "skipped" || isPartlyScanned(doc)) && !isHeld(doc);
 
 /** Retry's label: documents that need OCR are retried to read them with OCR. */
 export const retryLabel = (doc: Pick<Doc, "errorCode">) => (doc.errorCode === "needs_ocr" ? "Retry with OCR" : "Retry");
@@ -65,6 +69,15 @@ export function useDocumentMutations(sourceId: string) {
     onError: (err) => toast.error("Couldn't re-fetch the page", err instanceof Error ? err.message : undefined),
     onSettled: invalidate,
   });
+  // A review of possible personal data: dismiss keeps a flagged document as it is; approve indexes a held one.
+  const reviewPii = useMutation({
+    mutationFn: ({ doc, action }: { doc: Doc; action: "dismiss" | "approve" }) => owner.api.reviewPii(sourceId, doc.id, action),
+    onSuccess: (updated, { action }) => {
+      qc.setQueryData([...owner.keys.documents(sourceId), "one", updated.id], updated);
+      toast.success(action === "approve" ? `${docName(updated)} was approved and queued for indexing` : "The personal data flag was dismissed");
+    },
+    onSettled: invalidate,
+  });
   const setTags = useMutation({
     mutationFn: ({ doc, tags }: { doc: Doc; tags: string[] }) => owner.api.updateDocument(sourceId, doc.id, { tags }),
     onSuccess: (updated) => {
@@ -76,7 +89,7 @@ export function useDocumentMutations(sourceId: string) {
       qc.invalidateQueries({ queryKey: [...owner.keys.source(sourceId), "tags"] });
     },
   });
-  return { retry, retryNeedsOcr, refetch, remove, setTags };
+  return { retry, retryNeedsOcr, refetch, remove, reviewPii, setTags };
 }
 
 export type DocumentMutations = ReturnType<typeof useDocumentMutations>;

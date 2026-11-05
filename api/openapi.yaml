@@ -3216,6 +3216,7 @@ paths:
         - $ref: "#/components/parameters/DocumentKindParam"
         - $ref: "#/components/parameters/DocumentTagParam"
         - $ref: "#/components/parameters/DocumentErrorCodeParam"
+        - $ref: "#/components/parameters/DocumentReviewParam"
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -3530,6 +3531,43 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/Document" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/teams/{team}/sources/{sourceId}/documents/{documentId}/pii-review:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+      - $ref: "#/components/parameters/DocumentIdParam"
+    post:
+      tags: [sources]
+      operationId: reviewDocumentPii
+      summary: Dismiss or approve a document flagged for possible personal data (editors)
+      description: >-
+        Records an editor's review of a document's possible personal data
+        (docs/pii-scanning.md): dismiss keeps a flagged, indexed document as it
+        is; approve indexes a held document (it is queued again, and stays
+        approved while what is found in it is the same). Audited with the kinds
+        and counts found. 409 not_reviewable when the document is not waiting
+        for that review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentPiiReviewInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Reviewed (approve also queues the document)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
@@ -4469,6 +4507,7 @@ paths:
         - $ref: "#/components/parameters/DocumentKindParam"
         - $ref: "#/components/parameters/DocumentTagParam"
         - $ref: "#/components/parameters/DocumentErrorCodeParam"
+        - $ref: "#/components/parameters/DocumentReviewParam"
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -4683,6 +4722,36 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/Document" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/admin/shared-sources/{sourceId}/documents/{documentId}/pii-review:
+    parameters:
+      - $ref: "#/components/parameters/SourceIdParam"
+      - $ref: "#/components/parameters/DocumentIdParam"
+    post:
+      tags: [admin, sources]
+      operationId: adminReviewSharedDocumentPii
+      summary: Dismiss or approve a shared source's document flagged for possible personal data (platform admins)
+      description: As reviewDocumentPii, for a shared source.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentPiiReviewInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Reviewed (approve also queues the document)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
@@ -7190,6 +7259,64 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/RerankSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/pii:
+    get:
+      tags: [admin]
+      operationId: adminGetPii
+      summary: Personal data scanning at ingest (platform admins and auditors)
+      description: >-
+        On by default (docs/pii-scanning.md): documents with possible personal
+        data are indexed and flagged for review. blockLevels are the
+        classification levels whose flagged documents are held, not indexed,
+        until an editor approves them. review counts the documents waiting for
+        a review per team.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/PiiSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutPii
+      summary: Replace the personal data scanning settings (platform admins; audited)
+      description: >-
+        Applies to documents processed from now on; documents already indexed
+        keep their flags until they are processed again. 400 invalid_level,
+        invalid_pattern (details.index) or too_many_patterns. The audit log
+        keeps the patterns' names, not their expressions.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PiiSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/PiiSettings" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
@@ -9970,6 +10097,12 @@ components:
       required: false
       description: "Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready)"
       schema: { type: string, maxLength: 64, pattern: "^[a-z_]+$" }
+    DocumentReviewParam:
+      name: review
+      in: query
+      required: false
+      description: "pii: only documents waiting for a review of possible personal data (flagged or held)"
+      schema: { type: string, enum: [pii] }
     DocumentTagParam:
       name: tag
       in: query
@@ -12846,7 +12979,7 @@ components:
       enum: [pending, queued, processing, ready, failed, skipped]
     DocumentCounts:
       type: object
-      required: [total, pending, processing, ready, failed, skipped, bytes, chunks]
+      required: [total, pending, processing, ready, failed, skipped, bytes, chunks, piiReview]
       properties:
         total: { type: integer, format: int64 }
         pending: { type: integer, format: int64, description: Pending or queued }
@@ -12856,6 +12989,7 @@ components:
         skipped: { type: integer, format: int64 }
         bytes: { type: integer, format: int64 }
         chunks: { type: integer, format: int64 }
+        piiReview: { type: integer, format: int64, description: "Documents waiting for a review of possible personal data (flagged or held)" }
     DataSource:
       type: object
       required: [id, name, description, type, classification, embeddingProfileId, status, documents, revision, createdAt, updatedAt, web, lastSyncAt, nextSyncAt, activeCrawl, boilerplate, ocrEnabled]
@@ -12994,6 +13128,10 @@ components:
           description: The pages read with OCR (null when none were)
           nullable: true
           allOf: [{ $ref: "#/components/schemas/DocumentOcr" }]
+        pii:
+          description: Possible personal data found at ingest and its review (null when nothing was found or scanning is off)
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/DocumentPii" }]
     DocumentOcr:
       type: object
       required: [backend, pages]
@@ -13018,6 +13156,78 @@ components:
       type: string
       description: "tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model"
       enum: [tesseract, tika, vision]
+    PiiPattern:
+      type: object
+      required: [name, pattern]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60, description: "The kind of data, as documents show it (e.g. Student ID)" }
+        pattern: { type: string, minLength: 1, maxLength: 500, description: "An RE2 regular expression that does not match empty text" }
+    PiiSettingsInput:
+      type: object
+      required: [enabled, blockLevels, patterns]
+      properties:
+        enabled: { type: boolean }
+        blockLevels:
+          type: array
+          description: Classification levels whose flagged documents are held until an editor approves them
+          items: { type: string }
+        patterns:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/PiiPattern" }
+    PiiSettings:
+      type: object
+      required: [enabled, blockLevels, patterns, revision, updatedAt, review]
+      properties:
+        enabled: { type: boolean }
+        blockLevels:
+          type: array
+          items: { type: string }
+        patterns:
+          type: array
+          items: { $ref: "#/components/schemas/PiiPattern" }
+        revision: { type: integer, format: int64 }
+        updatedAt: { type: string, format: date-time }
+        review:
+          type: array
+          description: Teams with documents waiting for a review, most held first
+          items: { $ref: "#/components/schemas/PiiReviewCount" }
+    PiiReviewCount:
+      type: object
+      required: [team, teamName, held, flagged]
+      properties:
+        team: { type: string, description: Team slug }
+        teamName: { type: string }
+        held: { type: integer, format: int64 }
+        flagged: { type: integer, format: int64 }
+    DocumentPii:
+      type: object
+      required: [state, findings, reviewedAt]
+      description: >-
+        Possible personal data found at ingest: the kind, how many matches and
+        on which pages, never the matched text. flagged (indexed, waiting for
+        review), held (not indexed until approved), dismissed or approved.
+      properties:
+        state: { type: string, enum: [flagged, held, dismissed, approved] }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/PiiFinding" }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+    PiiFinding:
+      type: object
+      required: [kind, count, pages]
+      properties:
+        kind: { type: string, description: "us_ssn, payment_card, or the name of a platform admin's pattern" }
+        count: { type: integer, format: int32 }
+        pages:
+          type: array
+          description: 1-based pages, ascending (empty for a document without pages)
+          items: { type: integer, format: int32 }
+    DocumentPiiReviewInput:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [dismiss, approve], description: "dismiss: a flagged document; approve: a held one" }
     ParsingSettings:
       type: object
       required: [ocrEnabled, backend, visionModelId, languages, backends, maxPagesPerDocument, concurrency, needsOcr, revision, updatedAt]
@@ -16955,8 +17165,9 @@ components:
         duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope;
         never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a
         statement that it had a fair chance to be cited), among documents of sources a published agent reaches;
-        ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
-      enum: [stale, broken_link, duplicate, never_cited, ingestion_failure]
+        ingestion_failure: documents that failed, need OCR, or have not finished ingesting;
+        personal_data: documents with possible personal data waiting for a review (docs/pii-scanning.md).
+      enum: [stale, broken_link, duplicate, never_cited, ingestion_failure, personal_data]
     ContentHealthSettings:
       type: object
       required: [enabled, revision, updatedAt]
@@ -17099,9 +17310,9 @@ components:
         groupSize: { type: integer, format: int32, description: "Duplicates: how many documents the group had when the report was made, which may be more than are listed" }
         code:
           type: string
-          description: "broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished"
-        detail: { type: string, description: "ingestion_failure: the document's error code" }
-        value: { type: integer, format: int64, description: "stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable" }
+          description: "broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished; personal_data: flagged (indexed) or held (not indexed until approved)"
+        detail: { type: string, description: "ingestion_failure: the document's error code; personal_data: the kinds found, comma-separated (never a match)" }
+        value: { type: integer, format: int64, description: "stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable; personal_data: how many matches were found" }
         observedAt: { type: string, format: date-time, nullable: true, description: "When the fact was true: last processing (stale, duplicates), the crawl's end (broken_link), the document's creation (never_cited), the last change of a failed document" }
         confirmedAt: { type: string, format: date-time, nullable: true, description: "stale web pages: when a crawl last confirmed the page exists, if a crawl record is kept" }
         changedSinceReport: { type: boolean, description: The document changed after the report began }

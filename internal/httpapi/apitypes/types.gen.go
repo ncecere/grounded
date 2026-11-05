@@ -1254,25 +1254,28 @@ func (e ContentHealthSignalState) Valid() bool {
 
 // Defines values for ContentHealthSignalName.
 const (
-	BrokenLink       ContentHealthSignalName = "broken_link"
-	Duplicate        ContentHealthSignalName = "duplicate"
-	IngestionFailure ContentHealthSignalName = "ingestion_failure"
-	NeverCited       ContentHealthSignalName = "never_cited"
-	Stale            ContentHealthSignalName = "stale"
+	ContentHealthSignalNameBrokenLink       ContentHealthSignalName = "broken_link"
+	ContentHealthSignalNameDuplicate        ContentHealthSignalName = "duplicate"
+	ContentHealthSignalNameIngestionFailure ContentHealthSignalName = "ingestion_failure"
+	ContentHealthSignalNameNeverCited       ContentHealthSignalName = "never_cited"
+	ContentHealthSignalNamePersonalData     ContentHealthSignalName = "personal_data"
+	ContentHealthSignalNameStale            ContentHealthSignalName = "stale"
 )
 
 // Valid indicates whether the value is a known member of the ContentHealthSignalName enum.
 func (e ContentHealthSignalName) Valid() bool {
 	switch e {
-	case BrokenLink:
+	case ContentHealthSignalNameBrokenLink:
 		return true
-	case Duplicate:
+	case ContentHealthSignalNameDuplicate:
 		return true
-	case IngestionFailure:
+	case ContentHealthSignalNameIngestionFailure:
 		return true
-	case NeverCited:
+	case ContentHealthSignalNameNeverCited:
 		return true
-	case Stale:
+	case ContentHealthSignalNamePersonalData:
+		return true
+	case ContentHealthSignalNameStale:
 		return true
 	default:
 		return false
@@ -1675,6 +1678,48 @@ func (e DataSourceUpdateStatus) Valid() bool {
 	case DataSourceUpdateStatusActive:
 		return true
 	case DataSourceUpdateStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentPiiState.
+const (
+	DocumentPiiStateApproved  DocumentPiiState = "approved"
+	DocumentPiiStateDismissed DocumentPiiState = "dismissed"
+	DocumentPiiStateFlagged   DocumentPiiState = "flagged"
+	DocumentPiiStateHeld      DocumentPiiState = "held"
+)
+
+// Valid indicates whether the value is a known member of the DocumentPiiState enum.
+func (e DocumentPiiState) Valid() bool {
+	switch e {
+	case DocumentPiiStateApproved:
+		return true
+	case DocumentPiiStateDismissed:
+		return true
+	case DocumentPiiStateFlagged:
+		return true
+	case DocumentPiiStateHeld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentPiiReviewInputAction.
+const (
+	DocumentPiiReviewInputActionApprove DocumentPiiReviewInputAction = "approve"
+	DocumentPiiReviewInputActionDismiss DocumentPiiReviewInputAction = "dismiss"
+)
+
+// Valid indicates whether the value is a known member of the DocumentPiiReviewInputAction enum.
+func (e DocumentPiiReviewInputAction) Valid() bool {
+	switch e {
+	case DocumentPiiReviewInputActionApprove:
+		return true
+	case DocumentPiiReviewInputActionDismiss:
 		return true
 	default:
 		return false
@@ -2991,34 +3036,34 @@ func (e ModerationAction) Valid() bool {
 
 // Defines values for ModerationCategory.
 const (
-	HarassmentHate  ModerationCategory = "harassment_hate"
-	Illicit         ModerationCategory = "illicit"
-	PersonalData    ModerationCategory = "personal_data"
-	PromptInjection ModerationCategory = "prompt_injection"
-	SelfHarm        ModerationCategory = "self_harm"
-	Sexual          ModerationCategory = "sexual"
-	SexualMinors    ModerationCategory = "sexual_minors"
-	Violence        ModerationCategory = "violence"
+	ModerationCategoryHarassmentHate  ModerationCategory = "harassment_hate"
+	ModerationCategoryIllicit         ModerationCategory = "illicit"
+	ModerationCategoryPersonalData    ModerationCategory = "personal_data"
+	ModerationCategoryPromptInjection ModerationCategory = "prompt_injection"
+	ModerationCategorySelfHarm        ModerationCategory = "self_harm"
+	ModerationCategorySexual          ModerationCategory = "sexual"
+	ModerationCategorySexualMinors    ModerationCategory = "sexual_minors"
+	ModerationCategoryViolence        ModerationCategory = "violence"
 )
 
 // Valid indicates whether the value is a known member of the ModerationCategory enum.
 func (e ModerationCategory) Valid() bool {
 	switch e {
-	case HarassmentHate:
+	case ModerationCategoryHarassmentHate:
 		return true
-	case Illicit:
+	case ModerationCategoryIllicit:
 		return true
-	case PersonalData:
+	case ModerationCategoryPersonalData:
 		return true
-	case PromptInjection:
+	case ModerationCategoryPromptInjection:
 		return true
-	case SelfHarm:
+	case ModerationCategorySelfHarm:
 		return true
-	case Sexual:
+	case ModerationCategorySexual:
 		return true
-	case SexualMinors:
+	case ModerationCategorySexualMinors:
 		return true
-	case Violence:
+	case ModerationCategoryViolence:
 		return true
 	default:
 		return false
@@ -4591,6 +4636,21 @@ func (e DocumentKindParam) Valid() bool {
 	}
 }
 
+// Defines values for DocumentReviewParam.
+const (
+	DocumentReviewParamPii DocumentReviewParam = "pii"
+)
+
+// Valid indicates whether the value is a known member of the DocumentReviewParam enum.
+func (e DocumentReviewParam) Valid() bool {
+	switch e {
+	case DocumentReviewParamPii:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PublicChannelHeader.
 const (
 	PublicChannelHeaderPublic PublicChannelHeader = "public"
@@ -4822,6 +4882,21 @@ func (e AdminListSharedDocumentsParamsKind) Valid() bool {
 	}
 }
 
+// Defines values for AdminListSharedDocumentsParamsReview.
+const (
+	AdminListSharedDocumentsParamsReviewPii AdminListSharedDocumentsParamsReview = "pii"
+)
+
+// Valid indicates whether the value is a known member of the AdminListSharedDocumentsParamsReview enum.
+func (e AdminListSharedDocumentsParamsReview) Valid() bool {
+	switch e {
+	case AdminListSharedDocumentsParamsReviewPii:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminListTeamRequestsParamsStatus.
 const (
 	AdminListTeamRequestsParamsStatusApproved  AdminListTeamRequestsParamsStatus = "approved"
@@ -4948,6 +5023,21 @@ func (e ListDocumentsParamsKind) Valid() bool {
 	case ListDocumentsParamsKindPptx:
 		return true
 	case ListDocumentsParamsKindText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListDocumentsParamsReview.
+const (
+	ListDocumentsParamsReviewPii ListDocumentsParamsReview = "pii"
+)
+
+// Valid indicates whether the value is a known member of the ListDocumentsParamsReview enum.
+func (e ListDocumentsParamsReview) Valid() bool {
+	switch e {
+	case ListDocumentsParamsReviewPii:
 		return true
 	default:
 		return false
@@ -7123,13 +7213,13 @@ type ContentHealthFinding struct {
 	// ChangedSinceReport The document changed after the report began
 	ChangedSinceReport bool `json:"changedSinceReport"`
 
-	// Code broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished
+	// Code broken_link: not_found, http_error or network_error; ingestion_failure: needs_ocr, ocr_error, damaged, other or not_finished; personal_data: flagged (indexed) or held (not indexed until approved)
 	Code string `json:"code"`
 
 	// ConfirmedAt stale web pages: when a crawl last confirmed the page exists, if a crawl record is kept
 	ConfirmedAt *time.Time `json:"confirmedAt,omitempty"`
 
-	// Detail ingestion_failure: the document's error code
+	// Detail ingestion_failure: the document's error code; personal_data: the kinds found, comma-separated (never a match)
 	Detail string `json:"detail"`
 
 	// DocumentId Null for a failed link
@@ -7150,7 +7240,7 @@ type ContentHealthFinding struct {
 	// Ref A broken link: the URL the crawl failed to fetch, without credentials, query or fragment (its path can still be sensitive; it is stored only for the team's editors and hidden once the source or crawl changed)
 	Ref string `json:"ref"`
 
-	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting; personal_data: documents with possible personal data waiting for a review (docs/pii-scanning.md).
 	Signal   ContentHealthSignalName `json:"signal"`
 	SourceId openapi_types.UUID      `json:"sourceId"`
 
@@ -7164,7 +7254,7 @@ type ContentHealthFinding struct {
 	// Url A web document's address
 	Url string `json:"url"`
 
-	// Value stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable
+	// Value stale: age in days; broken_link: the HTTP status (0: a network error); never_cited: kept answers that could have cited something, of agents that reach the document's source, since it became reachable; personal_data: how many matches were found
 	Value int64 `json:"value"`
 }
 
@@ -7289,7 +7379,7 @@ type ContentHealthSignal struct {
 	// Reason Why it is not applicable or unavailable: no_sources, no_documents, one_source, no_web_sources, no_crawl_record, no_answers, too_few_answers, too_many_answers, too_many_agents, no_exposure or timed_out ('' when measured)
 	Reason string `json:"reason"`
 
-	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+	// Signal stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting; personal_data: documents with possible personal data waiting for a review (docs/pii-scanning.md).
 	Signal ContentHealthSignalName `json:"signal"`
 
 	// State measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
@@ -7302,7 +7392,7 @@ type ContentHealthSignal struct {
 // ContentHealthSignalState measured: it was measured (a zero is then a real zero); not_applicable: it cannot apply to this scope; unavailable: it could not be measured, see reason
 type ContentHealthSignalState string
 
-// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting.
+// ContentHealthSignalName stale: ready documents not processed for a long time (last successful processing, not last edit); broken_link: URLs the latest completed crawl of a web source failed to fetch (observed, never probed); duplicate: byte-identical files (raw SHA-256) in different sources of the report's scope; never_cited: no retained citation evidence for a ready document in a team-wide window (not "never cited", not a statement that it had a fair chance to be cited), among documents of sources a published agent reaches; ingestion_failure: documents that failed, need OCR, or have not finished ingesting; personal_data: documents with possible personal data waiting for a review (docs/pii-scanning.md).
 type ContentHealthSignalName string
 
 // ContentHealthSourceCoverage defines model for ContentHealthSourceCoverage.
@@ -8165,8 +8255,11 @@ type Document struct {
 	Kind string `json:"kind"`
 
 	// Ocr The pages read with OCR (null when none were)
-	Ocr         *DocumentOcr       `json:"ocr,omitempty"`
-	Pages       int32              `json:"pages"`
+	Ocr   *DocumentOcr `json:"ocr,omitempty"`
+	Pages int32        `json:"pages"`
+
+	// Pii Possible personal data found at ingest and its review (null when nothing was found or scanning is off)
+	Pii         *DocumentPii       `json:"pii,omitempty"`
 	ProcessedAt *time.Time         `json:"processedAt,omitempty"`
 	SizeBytes   int64              `json:"sizeBytes"`
 	SourceId    openapi_types.UUID `json:"sourceId"`
@@ -8189,7 +8282,10 @@ type DocumentCounts struct {
 	Failed int64 `json:"failed"`
 
 	// Pending Pending or queued
-	Pending    int64 `json:"pending"`
+	Pending int64 `json:"pending"`
+
+	// PiiReview Documents waiting for a review of possible personal data (flagged or held)
+	PiiReview  int64 `json:"piiReview"`
 	Processing int64 `json:"processing"`
 	Ready      int64 `json:"ready"`
 	Skipped    int64 `json:"skipped"`
@@ -8232,6 +8328,25 @@ type DocumentPassagePage struct {
 	// Total All passages of the document
 	Total int32 `json:"total"`
 }
+
+// DocumentPii Possible personal data found at ingest: the kind, how many matches and on which pages, never the matched text. flagged (indexed, waiting for review), held (not indexed until approved), dismissed or approved.
+type DocumentPii struct {
+	Findings   []PiiFinding     `json:"findings"`
+	ReviewedAt *time.Time       `json:"reviewedAt"`
+	State      DocumentPiiState `json:"state"`
+}
+
+// DocumentPiiState defines model for DocumentPii.State.
+type DocumentPiiState string
+
+// DocumentPiiReviewInput defines model for DocumentPiiReviewInput.
+type DocumentPiiReviewInput struct {
+	// Action dismiss: a flagged document; approve: a held one
+	Action DocumentPiiReviewInputAction `json:"action"`
+}
+
+// DocumentPiiReviewInputAction dismiss: a flagged document; approve: a held one
+type DocumentPiiReviewInputAction string
 
 // DocumentProblemAction defines model for DocumentProblemAction.
 type DocumentProblemAction struct {
@@ -10927,6 +11042,56 @@ type PickerHealth struct {
 // PickerHealthStatus defines model for PickerHealth.Status.
 type PickerHealthStatus string
 
+// PiiFinding defines model for PiiFinding.
+type PiiFinding struct {
+	Count int32 `json:"count"`
+
+	// Kind us_ssn, payment_card, or the name of a platform admin's pattern
+	Kind string `json:"kind"`
+
+	// Pages 1-based pages, ascending (empty for a document without pages)
+	Pages []int32 `json:"pages"`
+}
+
+// PiiPattern defines model for PiiPattern.
+type PiiPattern struct {
+	// Name The kind of data, as documents show it (e.g. Student ID)
+	Name string `json:"name"`
+
+	// Pattern An RE2 regular expression that does not match empty text
+	Pattern string `json:"pattern"`
+}
+
+// PiiReviewCount defines model for PiiReviewCount.
+type PiiReviewCount struct {
+	Flagged int64 `json:"flagged"`
+	Held    int64 `json:"held"`
+
+	// Team Team slug
+	Team     string `json:"team"`
+	TeamName string `json:"teamName"`
+}
+
+// PiiSettings defines model for PiiSettings.
+type PiiSettings struct {
+	BlockLevels []string     `json:"blockLevels"`
+	Enabled     bool         `json:"enabled"`
+	Patterns    []PiiPattern `json:"patterns"`
+
+	// Review Teams with documents waiting for a review, most held first
+	Review    []PiiReviewCount `json:"review"`
+	Revision  int64            `json:"revision"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+}
+
+// PiiSettingsInput defines model for PiiSettingsInput.
+type PiiSettingsInput struct {
+	// BlockLevels Classification levels whose flagged documents are held until an editor approves them
+	BlockLevels []string     `json:"blockLevels"`
+	Enabled     bool         `json:"enabled"`
+	Patterns    []PiiPattern `json:"patterns"`
+}
+
 // PlatformAnalytics defines model for PlatformAnalytics.
 type PlatformAnalytics struct {
 	// Audiences Answers by audience and their share of all answers, largest first
@@ -13101,6 +13266,9 @@ type DocumentIdParam = openapi_types.UUID
 // DocumentKindParam defines model for DocumentKindParam.
 type DocumentKindParam string
 
+// DocumentReviewParam defines model for DocumentReviewParam.
+type DocumentReviewParam string
+
 // DocumentSearchParam defines model for DocumentSearchParam.
 type DocumentSearchParam = string
 
@@ -13542,6 +13710,12 @@ type AdminPutParsingParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutPiiParams defines parameters for AdminPutPii.
+type AdminPutPiiParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListProfileMigrationsParams defines parameters for AdminListProfileMigrations.
 type AdminListProfileMigrationsParams struct {
 	// KbId Only this knowledge base's migrations
@@ -13699,6 +13873,9 @@ type AdminListSharedDocumentsParams struct {
 	// ErrorCode Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready)
 	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
 
+	// Review pii: only documents waiting for a review of possible personal data (flagged or held)
+	Review *AdminListSharedDocumentsParamsReview `form:"review,omitempty" json:"review,omitempty"`
+
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -13706,6 +13883,9 @@ type AdminListSharedDocumentsParams struct {
 
 // AdminListSharedDocumentsParamsKind defines parameters for AdminListSharedDocuments.
 type AdminListSharedDocumentsParamsKind string
+
+// AdminListSharedDocumentsParamsReview defines parameters for AdminListSharedDocuments.
+type AdminListSharedDocumentsParamsReview string
 
 // AdminUploadSharedDocumentsMultipartBody defines parameters for AdminUploadSharedDocuments.
 type AdminUploadSharedDocumentsMultipartBody struct {
@@ -14115,6 +14295,9 @@ type ListDocumentsParams struct {
 	// ErrorCode Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready)
 	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
 
+	// Review pii: only documents waiting for a review of possible personal data (flagged or held)
+	Review *ListDocumentsParamsReview `form:"review,omitempty" json:"review,omitempty"`
+
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -14122,6 +14305,9 @@ type ListDocumentsParams struct {
 
 // ListDocumentsParamsKind defines parameters for ListDocuments.
 type ListDocumentsParamsKind string
+
+// ListDocumentsParamsReview defines parameters for ListDocuments.
+type ListDocumentsParamsReview string
 
 // UploadDocumentsMultipartBody defines parameters for UploadDocuments.
 type UploadDocumentsMultipartBody struct {
@@ -14268,6 +14454,9 @@ type AdminRetryDocumentProblemsJSONRequestBody = DocumentProblemAction
 // AdminTestParsingJSONRequestBody defines body for AdminTestParsing for application/json ContentType.
 type AdminTestParsingJSONRequestBody = ParsingTestInput
 
+// AdminPutPiiJSONRequestBody defines body for AdminPutPii for application/json ContentType.
+type AdminPutPiiJSONRequestBody = PiiSettingsInput
+
 // AdminStartProfileMigrationJSONRequestBody defines body for AdminStartProfileMigration for application/json ContentType.
 type AdminStartProfileMigrationJSONRequestBody = ProfileMigrationStart
 
@@ -14333,6 +14522,9 @@ type AdminRetrySharedDocumentsJSONRequestBody = DocumentRetryInput
 
 // AdminUpdateSharedDocumentJSONRequestBody defines body for AdminUpdateSharedDocument for application/json ContentType.
 type AdminUpdateSharedDocumentJSONRequestBody = DocumentUpdate
+
+// AdminReviewSharedDocumentPiiJSONRequestBody defines body for AdminReviewSharedDocumentPii for application/json ContentType.
+type AdminReviewSharedDocumentPiiJSONRequestBody = DocumentPiiReviewInput
 
 // AdminPutSourceContextualJSONRequestBody defines body for AdminPutSourceContextual for application/json ContentType.
 type AdminPutSourceContextualJSONRequestBody = ContextualSettingsInput
@@ -14519,6 +14711,9 @@ type RetryDocumentsJSONRequestBody = DocumentRetryInput
 
 // UpdateDocumentJSONRequestBody defines body for UpdateDocument for application/json ContentType.
 type UpdateDocumentJSONRequestBody = DocumentUpdate
+
+// ReviewDocumentPiiJSONRequestBody defines body for ReviewDocumentPii for application/json ContentType.
+type ReviewDocumentPiiJSONRequestBody = DocumentPiiReviewInput
 
 // MapSiteJSONRequestBody defines body for MapSite for application/json ContentType.
 type MapSiteJSONRequestBody = MapRequest

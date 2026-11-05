@@ -13,6 +13,7 @@ func TestAuditorWritesAreForbiddenBeforeRevisionAndBody(t *testing.T) {
 		{"PUT", "/v1/admin/systemone"},
 		{"PUT", "/v1/admin/rerank"},
 		{"PUT", "/v1/admin/parsing"},
+		{"PUT", "/v1/admin/pii"},
 		{"PUT", "/v1/admin/limits"},
 		{"PUT", "/v1/admin/settings/mcp"},
 		{"PUT", "/v1/admin/settings/evaluations"},

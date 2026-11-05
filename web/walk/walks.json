@@ -135,6 +135,10 @@
   },
   {
    "persona": "admin",
+   "path": "/admin/personal-data"
+  },
+  {
+   "persona": "admin",
    "path": "/admin/public-access"
   },
   {

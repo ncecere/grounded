@@ -257,6 +257,12 @@ var adminPolicies = map[string]policy{
 	// Parsing (OCR, docs/ocr.md). The matrix configures no OCR backend: an
 	// admin's Test is refused as not configured, which counts as allowed.
 	"adminGetParsing": adminRead("/v1/admin/parsing"),
+	"adminGetPii":     adminRead("/v1/admin/pii"),
+	"adminPutPii": {own: padmin, build: func(c *mctx) request {
+		cur := c.current("/v1/admin/pii")
+		return put("/v1/admin/pii", map[string]any{"enabled": cur["enabled"], "blockLevels": cur["blockLevels"],
+			"patterns": cur["patterns"]}).h(c.rev("/v1/admin/pii"))
+	}},
 	"adminPutParsing": {own: padmin, build: func(c *mctx) request {
 		cur := c.current("/v1/admin/parsing")
 		return put("/v1/admin/parsing", map[string]any{"ocrEnabled": false, "backend": cur["backend"], "visionModelId": nil,

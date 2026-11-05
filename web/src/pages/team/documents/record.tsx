@@ -26,6 +26,7 @@ import { type Doc, formatBytes } from "../common";
 import { pageRange } from "../retrieve";
 import d from "./documents.module.css";
 import { canRetry, deleteWording, type DocumentMutations, isPartlyScanned, retryLabel } from "./mutations";
+import { PiiReview } from "./pii-review";
 import { DocStatusBadge, docKind, docName, documentError, isWaiting, kindLabel } from "./status";
 
 const previewSize = 5;
@@ -73,6 +74,7 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations, o
         sections={
           d0
             ? [
+                ...(d0.pii ? [{ title: "Possible personal data", content: <PiiReview doc={d0} mutations={mutations} canEdit={owner.canEdit} /> }] : []),
                 ...(failed || d0.warnings.length > 0 ? [{ title: failed ? "Why it wasn't indexed" : "Warnings", content: <DocumentProblems doc={d0} /> }] : []),
                 { title: terms.Passages, content: <PassagePreviews sourceId={sourceId} doc={d0} /> },
                 { title: "Tags", content: <DocumentTags doc={d0} mutations={mutations} canEdit={owner.canEdit} /> },

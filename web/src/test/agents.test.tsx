@@ -514,7 +514,7 @@ describe("existing screens", () => {
     classification: "open",
     embeddingProfileId: "p1",
     status: "active",
-    documents: { total: 1, pending: 0, processing: 0, ready: 1, failed: 0, skipped: 0, bytes: 10, chunks: 2 },
+    documents: { total: 1, pending: 0, processing: 0, ready: 1, failed: 0, skipped: 0, bytes: 10, chunks: 2, piiReview: 0 },
     revision: 3,
     createdAt: "",
     updatedAt: "",

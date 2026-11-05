@@ -58,7 +58,7 @@ const member = (id: string, name: string, role: string) => ({
 
 const draft = { id: "ag1", name: "Helper", slug: "helper", status: "active", published: null, draft: { kbs: [] }, disabledReason: "" };
 
-const counts = { total: 3, pending: 0, processing: 0, ready: 2, failed: 1, skipped: 0, bytes: 2048, chunks: 40 };
+const counts = { total: 3, pending: 0, processing: 0, ready: 2, failed: 1, skipped: 0, bytes: 2048, chunks: 40, piiReview: 0 };
 
 function routes(opts: { teamRole?: string; sources?: unknown[]; agents?: unknown[]; kbs?: unknown[] } = {}): Record<string, Handler> {
   return {

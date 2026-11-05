@@ -41,7 +41,7 @@ test("content health: an editor makes a report; unmeasurable signals say so; mem
     const signals = editor.getByRole("list", { name: "Signals" });
     await expect(signals).toBeVisible({ timeout: scaled(60_000) });
     const cards = signals.getByRole("listitem");
-    await expect(cards).toHaveCount(5);
+    await expect(cards).toHaveCount(6);
     // A new document is not stale, and with no answers kept nothing can be said about citations: unavailable, never a zero.
     const cited = cards.filter({ hasText: "No retained citation evidence" });
     await expect(cited.getByText("Unavailable")).toBeVisible();

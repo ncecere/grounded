@@ -409,3 +409,16 @@ WHERE c.report_id = @report_id AND r.team_id = @team_id
   AND (r.scope_kb_id IS NULL OR EXISTS (SELECT 1 FROM kb_sources k JOIN knowledge_bases b ON b.id = k.kb_id
                                         WHERE k.kb_id = r.scope_kb_id AND k.source_id = c.source_id AND b.team_id = r.team_id))
 ORDER BY s.name, c.source_id;
+
+-- Documents with possible personal data waiting for a review (flagged: indexed; held: not indexed until approved). The kinds
+-- found, never the matches (docs/pii-scanning.md).
+-- name: ContentHealthPersonalData :many
+SELECT d.id AS document_id, d.source_id, (d.metadata->'pii'->>'state')::text AS state,
+       coalesce((SELECT string_agg(f->>'kind', ',' ORDER BY f->>'kind') FROM jsonb_array_elements(d.metadata->'pii'->'findings') f), '')::text AS kinds,
+       coalesce((SELECT sum((f->>'count')::int) FROM jsonb_array_elements(d.metadata->'pii'->'findings') f), 0)::bigint AS matches,
+       d.updated_at::timestamptz AS updated_at,
+       (count(*) OVER ())::bigint AS total
+FROM documents d
+WHERE d.team_id = @team_id AND d.source_id = ANY(@source_ids::uuid[]) AND d.metadata->'pii'->>'state' IN ('flagged', 'held')
+ORDER BY (d.metadata->'pii'->>'state') = 'held' DESC, d.updated_at, d.id
+LIMIT @page_size;

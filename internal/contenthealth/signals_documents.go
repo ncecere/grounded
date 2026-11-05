@@ -2,6 +2,7 @@ package contenthealth
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -141,4 +142,42 @@ func (failureSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 	}
 	res.Truncated = res.Found > int64(len(res.Findings))
 	return res, nil
+}
+
+// personalDataSignal: documents with possible personal data waiting for a review (docs/pii-scanning.md). The code is the
+// review state (flagged or held), the detail the kinds found and the value how many matches; never a match itself.
+type personalDataSignal struct{}
+
+func (personalDataSignal) Name() string { return SignalPersonalData }
+
+func (personalDataSignal) Collect(ctx context.Context, env *Env) (Result, error) {
+	if _, all := env.readyDocuments(); all == 0 {
+		return notApplicable(ReasonNoDocuments), nil
+	}
+	rows, err := env.Q.ContentHealthPersonalData(ctx, dbgen.ContentHealthPersonalDataParams{
+		TeamID: nullID(env.TeamID), SourceIds: env.SourceIDs(), PageSize: MaxFindingsPerSignal,
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	res := Result{State: StateMeasured}
+	for _, r := range rows {
+		res.Found = r.Total
+		res.Findings = append(res.Findings, Finding{SourceID: r.SourceID, DocumentID: r.DocumentID, Code: r.State,
+			Detail: clipDetail(r.Kinds), Value: r.Matches, ObservedAt: r.UpdatedAt})
+	}
+	res.Truncated = res.Found > int64(len(res.Findings))
+	return res, nil
+}
+
+// clipDetail keeps a finding's detail within its column (64 characters), at a comma.
+func clipDetail(s string) string {
+	if len(s) <= 64 {
+		return s
+	}
+	s = s[:64]
+	if i := strings.LastIndexByte(s, ','); i > 0 {
+		return s[:i]
+	}
+	return s
 }

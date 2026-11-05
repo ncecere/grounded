@@ -151,7 +151,7 @@ describe("no layout shift as the overview loads (VI-14, VI-14b)", () => {
     const slow = new Promise<void>((r) => (release = r));
     mockApi({
       ...shellRoutes("none", "owner"),
-      "GET /v1/teams/registrar/sources": () => [{ id: "s1", name: "Policies", documents: { total: 3, pending: 0, processing: 0, ready: 3, failed: 0, skipped: 0, bytes: 1, chunks: 1 } }],
+      "GET /v1/teams/registrar/sources": () => [{ id: "s1", name: "Policies", documents: { total: 3, pending: 0, processing: 0, ready: 3, failed: 0, skipped: 0, bytes: 1, chunks: 1, piiReview: 0 } }],
       "GET /v1/teams/registrar/kbs": () => [],
       "GET /v1/teams/registrar/agents": () => [],
       "GET /v1/teams/registrar/limits": () => ({ items: [] }),

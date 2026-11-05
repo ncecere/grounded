@@ -10,7 +10,7 @@ func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
 	d.Sources, d.WebSources, d.KBs = s.Sources, s.Web, s.KBs
 	d.APIKeys, d.Limits, d.Costs = s.APIKeys, s.Limits, s.Costs
 	d.Agents, d.Notify, d.Moderation = s.Agents, s.Notify, s.Moderation
-	d.SystemOne, d.OCR, d.Public, d.Rerank = s.SystemOne, s.OCR, s.Public, s.Rerank
+	d.SystemOne, d.OCR, d.Public, d.Rerank, d.PII = s.SystemOne, s.OCR, s.Public, s.Rerank, s.PII
 	d.Retention, d.BreakGlass = s.Retention, s.BreakGlass
 	d.ProfileMigrations, d.Evaluations, d.MCP, d.OAuth = s.ProfileMigrations, s.Evaluations, s.MCP, s.OAuth
 	d.Contextual = s.Contextual

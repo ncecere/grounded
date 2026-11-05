@@ -59,7 +59,11 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		recs[i] = vectorstore.Record{ChunkID: ids[i], SourceID: doc.SourceID, Vector: res.vectors[i]}
 		total += c.Tokens
 	}
-	warnings, _ := json.Marshal(nonNil(res.parsed.Warnings))
+	warns := nonNil(res.parsed.Warnings)
+	if w := piiWarning(res.pii); w != "" {
+		warns = append(warns, w)
+	}
+	warnings, _ := json.Marshal(warns)
 	paused, err := p.paused(ctx)
 	if err != nil {
 		return err
@@ -103,6 +107,9 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 			return err
 		}
 		if err := setOCRRecord(ctx, q, doc, res.parsed.OCR); err != nil {
+			return err
+		}
+		if err := setPIIRecord(ctx, q, doc, res.pii); err != nil {
 			return err
 		}
 		if err := recordUsage(ctx, q, doc, res, n); err != nil {
@@ -184,6 +191,9 @@ func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document,
 			return err
 		}
 		if err := setOCRRecord(ctx, q, doc, nil); err != nil {
+			return err
+		}
+		if err := setPIIRecord(ctx, q, doc, o.pii); err != nil {
 			return err
 		}
 		if err := q.FinishDocument(ctx, dbgen.FinishDocumentParams{

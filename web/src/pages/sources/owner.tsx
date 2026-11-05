@@ -22,7 +22,7 @@ export type MapRequest = Schemas["MapRequest"];
 type MapResult = Schemas["MapResult"];
 export type ClassificationImpact = Schemas["ClassificationImpact"];
 type DocumentPage = Schemas["DocumentPage"];
-type DocQuery = { status?: Schemas["DocumentStatus"]; q?: string; kind?: DocKind; tag?: string; errorCode?: string; cursor?: string; limit?: number };
+type DocQuery = { status?: Schemas["DocumentStatus"]; q?: string; kind?: DocKind; tag?: string; errorCode?: string; review?: "pii"; cursor?: string; limit?: number };
 /** A document kind the documents list can filter on (?kind=). */
 export type DocKind = NonNullable<NonNullable<paths["/v1/teams/{team}/sources/{sourceId}/documents"]["get"]["parameters"]["query"]>["kind"]>;
 export type PassagePage = Schemas["DocumentPassagePage"];
@@ -42,6 +42,8 @@ export type SourceApi = {
   /** The tags a source's documents use (the documents filter). */
   tags(id: string): Promise<string[]>;
   retryDocument(id: string, documentId: string): Promise<unknown>;
+  /** An editor's review of a document's possible personal data: dismiss a flag, or approve a held document (docs/pii-scanning.md). */
+  reviewPii(id: string, documentId: string, action: "dismiss" | "approve"): Promise<Schemas["Document"]>;
   /** Queues every failed or skipped document with the error code again (needs_ocr). */
   retryDocuments(id: string, errorCode: "needs_ocr"): Promise<Schemas["DocumentRetryResult"]>;
   /** Fetches one page of a web source again now (a crawl run of just that URL, W3). */
@@ -132,6 +134,8 @@ function teamOwner(ctx: TeamCtx): SourceOwner {
       tags: async (id) => unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}/tags", { params: p(id) })),
       retryDocument: async (id, documentId) =>
         unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/retry", { params: { path: { team, sourceId: id, documentId } } })),
+      reviewPii: async (id, documentId, action) =>
+        unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/pii-review", { params: { path: { team, sourceId: id, documentId } }, body: { action } })),
       retryDocuments: async (id, errorCode) =>
         unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/documents/retry", { params: p(id), body: { errorCode } })),
       refetchDocument: async (id, documentId) =>
@@ -197,6 +201,8 @@ export function platformOwner(isAdmin: boolean): SourceOwner {
       tags: async (id) => unwrap(await api.GET("/v1/admin/shared-sources/{sourceId}/tags", { params: p(id) })),
       retryDocument: async (id, documentId) =>
         unwrap(await api.POST("/v1/admin/shared-sources/{sourceId}/documents/{documentId}/retry", { params: { path: { sourceId: id, documentId } } })),
+      reviewPii: async (id, documentId, action) =>
+        unwrap(await api.POST("/v1/admin/shared-sources/{sourceId}/documents/{documentId}/pii-review", { params: { path: { sourceId: id, documentId } }, body: { action } })),
       retryDocuments: async (id, errorCode) => unwrap(await api.POST("/v1/admin/shared-sources/{sourceId}/documents/retry", { params: p(id), body: { errorCode } })),
       refetchDocument: async (id, documentId) =>
         unwrap(await api.POST("/v1/admin/shared-sources/{sourceId}/documents/{documentId}/refetch", { params: { path: { sourceId: id, documentId } } })),

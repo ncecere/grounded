@@ -52,6 +52,10 @@ var sharedPolicies = map[string]policy{
 	"adminRetrySharedDocument": {own: padmin, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.shared("/documents/"+c.e.sharedDoc+"/retry"), nil)
 	}},
+	// The fixture's document has nothing to review: the owner reaches 409 not_reviewable.
+	"adminReviewSharedDocumentPii": {own: padmin, also: []string{"409"}, build: func(c *mctx) request {
+		return post(c.shared("/documents/"+c.e.sharedDoc+"/pii-review"), map[string]any{"action": "dismiss"})
+	}},
 	"adminRetrySharedDocuments": {own: padmin, build: func(c *mctx) request {
 		return post(c.shared("/documents/retry"), map[string]any{"errorCode": "needs_ocr"})
 	}},

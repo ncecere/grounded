@@ -9,7 +9,7 @@ It does not judge quality. Every signal is a *prompt to look*, with the evidence
 - Not a live scan. Opening the page reads a stored snapshot; it never computes, fetches or probes anything.
 - Not a link checker. It reports only failures **a crawl already observed** (below); it makes no request to any site.
 - Not a quality score. There is no overall "health" number and nothing is shown as healthy when it could not be measured.
-- Not a PII report. A hook is prepared for it (#37, [§ Extending](#extending-the-pii-report-37)); nothing is detected or invented now.
+- Not a scanner. The `personal_data` signal lists what scanning at ingest found and is waiting for a review ([pii-scanning.md](pii-scanning.md)); the report itself detects nothing.
 
 ## Who can use it
 
@@ -140,9 +140,13 @@ Every route authorizes again from the database on each request (role, team statu
 
 **Team → Content health** (sidebar, beside Gaps; editors, admins, owners). It opens with what the report is and is not, the report-making form (scope, the two thresholds with their meaning), the current or latest report with its as-of time, a card per signal (state, found, limits, "what this does not mean"), the findings of the chosen signal in a table that stacks on a phone, with *Load more*, and the per-source coverage. A running report shows its status with a Cancel button and refreshes itself every few seconds until it ends. Everything is reachable by keyboard, each table has a caption, state is never conveyed by colour alone, and a status change is announced politely.
 
-## Extending: the PII report (#37)
+## Personal data (#37)
 
-`internal/contenthealth` defines a `Signal` (name, how to collect, a typed `Result`) and a registry. The five signals above register in it. The PII report can register a sixth without a schema change: findings have a free-text `signal`, a `code` and a number. **Not done now:** no scanning, classification, pattern, or PII finding exists, no `pii` signal is in the registry or the API enum, and a test fails if one appears before its own decision. A future signal must keep the rule of this report: a finding is an ID and an enum (a class of pattern), **never the text that matched**.
+`internal/contenthealth` defines a `Signal` (name, how to collect, a typed `Result`) and a registry. Since v0.9.0 a sixth signal,
+`personal_data`, lists the documents that scanning at ingest ([pii-scanning.md](pii-scanning.md)) flagged or held and that are
+waiting for an editor's review, held first. It keeps the rule of this report: a finding is a document, its review state
+(`code`: flagged or held), the kinds found (`detail`) and the number of matches (`value`), **never the text that matched**.
+Reviewed documents are not listed. No schema change was needed: findings have a free-text `signal`.
 
 ## Compatibility
 

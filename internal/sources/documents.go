@@ -407,6 +407,8 @@ type DocumentFilter struct {
 	// Kind and Tag narrow to one document kind and one (normalised) tag.
 	Kind *string
 	Tag  *string
+	// PIIReview narrows to documents waiting for a review of possible personal data (flagged or held).
+	PIIReview bool
 }
 
 func (s *Service) ListDocuments(ctx context.Context, a authz.Actor, o Owner, sourceID uuid.UUID, f DocumentFilter, after *DocumentCursor, limit int32) (DocumentPage, error) {
@@ -441,11 +443,11 @@ func (s *Service) listDocuments(ctx context.Context, sourceID uuid.UUID, f Docum
 	if f.Search != nil {
 		return s.q.SearchDocuments(ctx, dbgen.SearchDocumentsParams{
 			SourceID: sourceID, Search: store.EscapeLike(*f.Search), Status: f.Status, Kind: f.Kind, Tag: f.Tag,
-			ErrorCode: f.ErrorCode, BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
+			ErrorCode: f.ErrorCode, PiiReview: f.PIIReview, BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
 		})
 	}
 	return s.q.ListDocuments(ctx, dbgen.ListDocumentsParams{
-		SourceID: sourceID, Status: f.Status, Kind: f.Kind, Tag: f.Tag, ErrorCode: f.ErrorCode,
+		SourceID: sourceID, Status: f.Status, Kind: f.Kind, Tag: f.Tag, ErrorCode: f.ErrorCode, PiiReview: f.PIIReview,
 		BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
 	})
 }
