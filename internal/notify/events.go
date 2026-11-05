@@ -228,11 +228,17 @@ type BudgetNotice struct {
 	Percent                int
 	ResetsAt               time.Time
 	Location               *time.Location
+	// AgentID and AgentName: an agent's own budget (docs/specs/agent-budgets/DESIGN.md); invalid for the team's.
+	AgentID   uuid.NullUUID
+	AgentName string
 }
 
 // BudgetEvent: a team reached its budget threshold or used up its budget
 // (once per team, month and level).
 func BudgetEvent(t TeamRef, n BudgetNotice) Event {
+	if n.AgentID.Valid {
+		return agentBudgetEvent(t, n)
+	}
 	month := n.Month.Format("2006-01")
 	loc := n.Location
 	if loc == nil {
@@ -252,6 +258,32 @@ func BudgetEvent(t TeamRef, n BudgetNotice) Event {
 		ev.Title = fmt.Sprintf("%s has used up its monthly budget", t.Name)
 		ev.Body = fmt.Sprintf("%s has spent %s %s of its %s %s budget for %s. Its chats, searches and ingestion are paused until a platform admin raises the budget or grants an extension, or the month ends on %s. Nothing is deleted.",
 			t.Name, n.Currency, n.Spent, n.Currency, n.Limit, n.Month.Format("January 2006"), resets)
+	}
+	return ev
+}
+
+// agentBudgetEvent: an agent reached its own budget's threshold or used it up (once per agent, month and level).
+func agentBudgetEvent(t TeamRef, n BudgetNotice) Event {
+	month := n.Month.Format("2006-01")
+	loc := n.Location
+	if loc == nil {
+		loc = time.UTC
+	}
+	resets := n.ResetsAt.In(loc).Format("2 January 2006")
+	id := n.AgentID.UUID.String()
+	ev := Event{
+		Type: BudgetWarning, TeamID: t.ID, Link: t.path("/settings?tab=usage"),
+		DedupeKey: "agent_budget_warning:" + id + ":" + month,
+		Title:     fmt.Sprintf("%s has used %d%% of its monthly budget", n.AgentName, n.Percent),
+		Body: fmt.Sprintf("The agent %s in %s has spent %s %s of its %s %s budget for %s. At 100%% its chats stop until you raise its budget, or the month ends on %s.",
+			n.AgentName, t.Name, n.Currency, n.Spent, n.Currency, n.Limit, n.Month.Format("January 2006"), resets),
+		Data: map[string]any{"team": t.Slug, "agentId": id, "month": month, "spent": n.Spent, "budget": n.Limit, "currency": n.Currency},
+	}
+	if n.Exhausted {
+		ev.Type, ev.DedupeKey = BudgetExhausted, "agent_budget_exhausted:"+id+":"+month
+		ev.Title = fmt.Sprintf("%s has used up its monthly budget", n.AgentName)
+		ev.Body = fmt.Sprintf("The agent %s in %s has spent %s %s of its %s %s budget for %s. Its chats are paused until you raise its budget under Team settings, Usage & spend, or the month ends on %s. The team's other agents are not affected.",
+			n.AgentName, t.Name, n.Currency, n.Spent, n.Currency, n.Limit, n.Month.Format("January 2006"), resets)
 	}
 	return ev
 }

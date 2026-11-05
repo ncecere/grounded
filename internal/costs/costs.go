@@ -74,6 +74,10 @@ const (
 // check: a team can overshoot its budget by about this much use.
 const CacheTTL = 30 * time.Second
 
+// NearCacheTTL is the cache's lifetime once a team or one of its agents is at its warning threshold or over: about 5 seconds
+// of overshoot instead of 30 (docs/specs/agent-budgets/DESIGN.md §4).
+const NearCacheTTL = 5 * time.Second
+
 // Service reads and changes cost settings, prices and budgets, reports
 // spend and checks budgets.
 type Service struct {

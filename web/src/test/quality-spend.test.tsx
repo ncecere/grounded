@@ -44,6 +44,7 @@ const spend: Schemas["TeamSpend"] = {
   status: status(), timeZone: "UTC", from: "2026-09-01", to: "2026-09-29",
   total: { spend: "0.240000", byKind, tokens: 5000, requests: 0, unpriced: false },
   agents: [{ key: "ag1", label: "Registrar helper", deleted: false, spend: "0.180000", byKind, tokens: 4000, requests: 2, unpriced: false }],
+  agentBudgets: [],
   models: [],
 };
 

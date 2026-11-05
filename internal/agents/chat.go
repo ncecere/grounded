@@ -469,6 +469,12 @@ func (ru *run) admit(ctx context.Context) (release func(), err error) {
 			}
 			return nil, err
 		}
+		if err := s.Limits.CheckAgent(ctx, ru.team.ID, ru.agent.ID); err != nil {
+			if ru.anon != nil && costs.IsAgentExhausted(err) {
+				return nil, errUnavailableNow // nor the agent's
+			}
+			return nil, err
+		}
 		principal := ru.a.UserID.String()
 		switch {
 		case ru.anon != nil:

@@ -111,8 +111,12 @@ func (a *api) getTeamSpend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, total := totals(sp.Total)
+	budgets, err := a.agentBudgets(r, sp)
+	if failed(w, r, err) {
+		return
+	}
 	httpx.JSON(w, http.StatusOK, apitypes.TeamSpend{Status: budgetState(sp.Status), TimeZone: sp.TimeZone, From: date(sp.From), To: date(sp.To),
-		Total: total, Agents: reportRows(sp.Agents), Models: reportRows(sp.Models)})
+		Total: total, Agents: reportRows(sp.Agents), Models: reportRows(sp.Models), AgentBudgets: budgets})
 }
 
 func (a *api) getTeamBudgetStatus(w http.ResponseWriter, r *http.Request) {

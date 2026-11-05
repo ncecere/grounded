@@ -74,7 +74,7 @@ export function TeamSettingsPage() {
             icon: <Gauge aria-hidden />,
             hidden: !canSeeUsage,
             crumb: usageCrumb,
-            content: <UsageTab team={slug} showSpend={isManager} />,
+            content: <UsageTab team={slug} showSpend={isManager} canEditBudgets={isManager} />,
           },
           { value: "api-keys", label: "API keys", icon: <KeyRound aria-hidden />, hidden: !role, content: <ApiKeysPage embedded /> },
           // Team admins and owners, while a platform admin has webhooks on (editors and members never see them).

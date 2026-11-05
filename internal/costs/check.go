@@ -50,7 +50,28 @@ type cached struct {
 	month      Day
 	loc        *time.Location
 	spent, ext *big.Rat
+	agents     map[uuid.UUID]*big.Rat // month-to-date spend per agent
 	at         time.Time
+	// near: the team or one of its agents is at its warning threshold or over, so the entry lives NearCacheTTL.
+	near bool
+}
+
+// ttl is how long the entry is used: shorter close to a limit, so a team overshoots less (docs/specs/agent-budgets).
+func (c cached) ttl() time.Duration {
+	if c.near {
+		return NearCacheTTL
+	}
+	return CacheTTL
+}
+
+// markNear shortens a team's cache entry once it is close to a limit.
+func (s *Service) markNear(teamID uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if c, ok := s.cache[teamID]; ok && !c.near {
+		c.near = true
+		s.cache[teamID] = c
+	}
 }
 
 // Recorded adds usage this process just wrote to the ledger to the team's
@@ -69,15 +90,27 @@ func (s *Service) Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams) {
 	}
 	today := DayOf(s.now(), c.loc)
 	spent := new(big.Rat).Set(c.spent)
+	agents := make(map[uuid.UUID]*big.Rat, len(c.agents))
+	for k, v := range c.agents {
+		agents[k] = v
+	}
 	for _, u := range usage {
 		if !u.ModelID.Valid {
 			continue
 		}
 		if p, ok := s.prices.book.At(u.ModelID.UUID, u.Kind, today); ok {
-			spent.Add(spent, Cost(u.Quantity, u.Kind, p.Price))
+			cost := Cost(u.Quantity, u.Kind, p.Price)
+			spent.Add(spent, cost)
+			if u.AgentID.Valid {
+				a := new(big.Rat)
+				if prev := agents[u.AgentID.UUID]; prev != nil {
+					a.Set(prev)
+				}
+				agents[u.AgentID.UUID] = a.Add(a, cost)
+			}
 		}
 	}
-	c.spent = spent
+	c.spent, c.agents = spent, agents
 	s.cache[teamID] = c
 }
 
@@ -98,7 +131,7 @@ func (s *Service) status(ctx context.Context, teamID uuid.UUID, fresh bool) (Sta
 	if st.Mode == ModeOff {
 		return st, nil
 	}
-	spent, ext, err := s.monthToDate(ctx, cfg, teamID, month, start, end, fresh)
+	spent, ext, _, err := s.monthToDate(ctx, cfg, teamID, month, start, end, fresh)
 	if err != nil {
 		return Status{}, err
 	}
@@ -113,6 +146,9 @@ func (s *Service) status(ctx context.Context, teamID uuid.UUID, fresh bool) (Sta
 	}
 	st.Limit = new(big.Rat).Add(st.Budget, ext)
 	st.State = stateOf(spent, st.Limit, st.WarnPercent)
+	if st.State == StateWarning || st.State == StateExhausted {
+		s.markNear(teamID)
+	}
 	return st, nil
 }
 
@@ -128,34 +164,52 @@ func stateOf(spent, limit *big.Rat, warnPercent int) string {
 	return StateOK
 }
 
-// monthToDate is the team's spend and extensions this month, cached.
+// monthToDate is the team's spend, extensions and spend per agent this month, cached (CacheTTL, or NearCacheTTL close to a
+// limit).
 func (s *Service) monthToDate(ctx context.Context, cfg dbgen.TeamCostConfigRow, teamID uuid.UUID, month Day, start, end time.Time,
-	fresh bool) (spent, ext *big.Rat, err error) {
+	fresh bool) (spent, ext *big.Rat, agents map[uuid.UUID]*big.Rat, err error) {
 	now := s.now()
 	s.mu.Lock()
 	c, ok := s.cache[teamID]
 	s.mu.Unlock()
-	if ok && !fresh && c.generation == cfg.Generation && c.month.Equal(month) && now.Sub(c.at) < CacheTTL {
-		return c.spent, c.ext, nil
+	if ok && !fresh && c.generation == cfg.Generation && c.month.Equal(month) && now.Sub(c.at) < c.ttl() {
+		return c.spent, c.ext, c.agents, nil
 	}
 	st := Settings{TimeZone: cfg.TimeZone, Generation: cfg.Generation}
-	by, err := s.teamSpend(ctx, st, start, end, uuid.NullUUID{UUID: teamID, Valid: true})
+	spent, agents, err = s.agentSpend(ctx, st, start, end, teamID)
 	if err != nil {
-		return nil, nil, err
-	}
-	spent = new(big.Rat)
-	if t := by[teamID]; t != nil {
-		spent = t.Spend
+		return nil, nil, nil, err
 	}
 	total, err := s.q.SumBudgetExtensions(ctx, dbgen.SumBudgetExtensionsParams{TeamID: teamID, Month: pgDate(month)})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	ext = mustRat(total)
 	s.mu.Lock()
-	s.cache[teamID] = cached{generation: cfg.Generation, month: month, loc: zone(cfg.TimeZone), spent: spent, ext: ext, at: now}
+	s.cache[teamID] = cached{generation: cfg.Generation, month: month, loc: zone(cfg.TimeZone), spent: spent, ext: ext, agents: agents, at: now,
+		near: ok && c.near && c.month.Equal(month)}
 	s.mu.Unlock()
-	return spent, ext, nil
+	return spent, ext, agents, nil
+}
+
+// agentSpend is one team's spend in [from, to), in total and per agent (usage without an agent counts in the total only).
+func (s *Service) agentSpend(ctx context.Context, st Settings, from, to time.Time, teamID uuid.UUID) (*big.Rat, map[uuid.UUID]*big.Rat, error) {
+	book, err := s.priceBook(ctx, st.Generation)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := s.usage(ctx, from, to, st.TimeZone, groupAgent, uuid.NullUUID{UUID: teamID, Valid: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	total, agents := new(big.Rat), map[uuid.UUID]*big.Rat{}
+	for agent, t := range Sum(book, rows, func(u usageRow) uuid.NullUUID { return u.Agent }) {
+		total.Add(total, t.Spend)
+		if agent.Valid {
+			agents[agent.UUID] = t.Spend
+		}
+	}
+	return total, agents, nil
 }
 
 // ErrCodeExhausted is the error code of a refusal at 100% of a budget.
@@ -266,6 +320,9 @@ type Notice struct {
 	WarnPercent int
 	ResetsAt    time.Time
 	TimeZone    *time.Location
+	// AgentID and AgentName name the agent whose own budget this is (invalid: the team's budget).
+	AgentID   uuid.NullUUID
+	AgentName string
 }
 
 // notice records a level once per team and month and runs OnNotice in the

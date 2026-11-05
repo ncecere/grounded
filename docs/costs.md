@@ -1,6 +1,6 @@
 # Costs and budgets (E2, v0.2)
 
-Status: **agreed** (owner, 2026-09-28), for M3 of [`v0.2.0.md`](v0.2.0.md) §3.3. The owner's decisions are in §9. **Implemented** (package `internal/costs`, [DESIGN §11.3](DESIGN.md#113-costs-and-budgets), runbook [`operations/costs.md`](operations/costs.md)); where the implementation settles details this design left open, §10 says so.
+Status: **agreed** (owner, 2026-09-28), for M3 of [`v0.2.0.md`](v0.2.0.md) §3.3. The owner's decisions are in §9. **Implemented** (package `internal/costs`, [DESIGN §11.3](DESIGN.md#113-costs-and-budgets), runbook [`operations/costs.md`](operations/costs.md)); where the implementation settles details this design left open, §10 says so. Per-agent budgets and the other budget follow-ups (E17, v0.9.0) are in [`specs/agent-budgets/DESIGN.md`](specs/agent-budgets/DESIGN.md).
 
 Grounded already meters every model call in the usage ledger (`usage_events`, DESIGN §11.2). E2 puts prices on that usage, reports spend, and optionally enforces a monthly budget per team. It is **off by default**: with the mode on *Off*, nothing on screen or in the API changes.
 

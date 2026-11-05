@@ -470,6 +470,8 @@ func (b *budgetAfter) Check(context.Context, uuid.UUID) error {
 
 func (b *budgetAfter) Recorded(uuid.UUID, []dbgen.InsertUsageParams) {}
 
+func (b *budgetAfter) CheckAgent(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+
 func TestMCPToolCeilingAndBudget(t *testing.T) {
 	env := newMCPEnv(t)
 	env.approve(t, "check_outage")

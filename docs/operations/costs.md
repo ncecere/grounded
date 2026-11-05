@@ -65,9 +65,22 @@ Figures come from an hourly rollup of the ledger plus the last hour or so read l
 - **At 100% (Enforce only):** everything that calls a model stops for the team:
   - chats in every channel (the app, the API, the OpenAI-compatible API, the widget and public pages) are refused with 429 `budget_exhausted` (`details: {budget, spent, currency, resetsAt}`); anonymous visitors of public agents see only "This assistant is unavailable right now";
   - searches (`/retrieve`, a knowledge base's Search tab) are refused the same way;
-  - new ingestion waits: pending documents stay queued and crawls pause with "Waiting: the team's monthly budget is used up".
+  - ingestion waits: pending documents stay queued, a document already queued waits before it is parsed, crawls pause, and a
+    profile migration's re-embedding waits, each with "Waiting: the team's monthly budget is used up".
 - Nothing is deleted or failed. The owners and admins are notified once a month, and the team appears in **Needs attention** on the admin Overview.
 - At the start of the next month (in the platform time zone) everything continues by itself.
+- From the threshold on, a team's spend is re-read every 5 seconds instead of every 30, so it overshoots its budget by at most
+  a few seconds of use.
+
+### Per-agent budgets
+
+A team's owners and admins can give each agent its own monthly budget (**Team settings → Usage & spend → Spend breakdown →
+Agent budgets**; platform admins can too, through the API). It applies only while the team's budget is **enforced**, and only
+to that agent: at 100% its chats are refused with 429 `agent_budget_exhausted` in every channel (anonymous visitors see
+"unavailable right now"), while the team's other agents, searches and ingestion continue. The team's budget still applies to
+every agent and stops them first. Owners and admins are notified at the threshold and at 100%, once per agent and month. There
+are no per-agent extensions: raise the agent's budget (audited as `costs.agent_budget_update`). Design:
+[specs/agent-budgets/DESIGN.md](../specs/agent-budgets/DESIGN.md).
 
 ## 5. Handling a team whose budget is used up
 

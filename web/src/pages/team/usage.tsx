@@ -85,12 +85,12 @@ function useRequestMoreHref() {
  * Team settings › Usage & limits: the page's one time-zone note (the budget month's zone, when the spend shows, and
  * the daily limits' midnight UTC), the spend for owners and admins, and the usage meters.
  */
-export function UsageTab({ team, showSpend }: { team: string; showSpend: boolean }) {
+export function UsageTab({ team, showSpend, canEditBudgets = false }: { team: string; showSpend: boolean; canEditBudgets?: boolean }) {
   const spend = useTeamSpend(team, showSpend);
   return (
     <Stack gap={6}>
       <p className={s.note}>{timeZoneNote(spend.data?.timeZone)}</p>
-      {showSpend && <TeamSpendCard team={team} />}
+      {showSpend && <TeamSpendCard team={team} canEditBudgets={canEditBudgets} />}
       <UsageCard team={team} />
     </Stack>
   );

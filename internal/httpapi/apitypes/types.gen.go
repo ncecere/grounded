@@ -5609,6 +5609,28 @@ type AgentAnswerCacheUpdate struct {
 	NearIdentical bool  `json:"nearIdentical"`
 }
 
+// AgentBudget defines model for AgentBudget.
+type AgentBudget struct {
+	AgentId openapi_types.UUID `json:"agentId"`
+
+	// Amount The monthly budget (null: none; the team's budget still applies)
+	Amount   *Money `json:"amount"`
+	Currency string `json:"currency"`
+
+	// Enforced true when the team's effective mode is Enforce and the agent has a budget
+	Enforced bool      `json:"enforced"`
+	ResetsAt time.Time `json:"resetsAt"`
+
+	// Revision For If-Match; 1 when the agent has no budget (a new budget starts at 2)
+	Revision int64 `json:"revision"`
+
+	// Spent Month to date (null while the team's cost mode is off)
+	Spent *Money `json:"spent"`
+
+	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
+	State BudgetState `json:"state"`
+}
+
 // AgentCard A published agent's public profile
 type AgentCard struct {
 	// About Published-version facts only. Omitted for disabled/inactive/policy-invalid agents and directory listings. Source identities are not disclosed. Not an outcome or conformance guarantee.
@@ -12873,13 +12895,15 @@ type TeamRole string
 
 // TeamSpend defines model for TeamSpend.
 type TeamSpend struct {
-	Agents   []CostReportRow    `json:"agents"`
-	From     openapi_types.Date `json:"from"`
-	Models   []CostReportRow    `json:"models"`
-	Status   TeamBudgetState    `json:"status"`
-	TimeZone string             `json:"timeZone"`
-	To       openapi_types.Date `json:"to"`
-	Total    CostTotals         `json:"total"`
+	// AgentBudgets The team's agents that have their own budget, with this month's state
+	AgentBudgets []AgentBudget      `json:"agentBudgets"`
+	Agents       []CostReportRow    `json:"agents"`
+	From         openapi_types.Date `json:"from"`
+	Models       []CostReportRow    `json:"models"`
+	Status       TeamBudgetState    `json:"status"`
+	TimeZone     string             `json:"timeZone"`
+	To           openapi_types.Date `json:"to"`
+	Total        CostTotals         `json:"total"`
 }
 
 // TeamStatus defines model for TeamStatus.
@@ -14172,6 +14196,17 @@ type UpdateAgentAnswerCacheParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// PutAgentBudgetJSONBody defines parameters for PutAgentBudget.
+type PutAgentBudgetJSONBody struct {
+	Amount *Money `json:"amount"`
+}
+
+// PutAgentBudgetParams defines parameters for PutAgentBudget.
+type PutAgentBudgetParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // UpdatePublishableKeyParams defines parameters for UpdatePublishableKey.
 type UpdatePublishableKeyParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -14666,6 +14701,9 @@ type UpdateAgentJSONRequestBody = AgentUpdate
 
 // UpdateAgentAnswerCacheJSONRequestBody defines body for UpdateAgentAnswerCache for application/json ContentType.
 type UpdateAgentAnswerCacheJSONRequestBody = AgentAnswerCacheUpdate
+
+// PutAgentBudgetJSONRequestBody defines body for PutAgentBudget for application/json ContentType.
+type PutAgentBudgetJSONRequestBody PutAgentBudgetJSONBody
 
 // PublishAgentJSONRequestBody defines body for PublishAgent for application/json ContentType.
 type PublishAgentJSONRequestBody = AgentPublish

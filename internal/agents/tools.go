@@ -25,6 +25,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/audit"
+	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/mcpclient"
@@ -183,9 +184,17 @@ func (ru *run) callTool(ref mcpclient.ToolRef) agentloop.ExecuteFunc {
 				callLimitReason(ru.mcp.max))
 		}
 		if ru.s.Limits != nil && ru.s.Limits.Budget != nil {
-			if err := ru.s.Limits.Budget.Check(ctx, ru.team.ID); err != nil {
+			err := ru.s.Limits.Budget.Check(ctx, ru.team.ID)
+			if err == nil {
+				err = ru.s.Limits.Budget.CheckAgent(ctx, ru.team.ID, ru.agent.ID)
+			}
+			if err != nil {
 				ru.refuseToolCall(ctx, ref, "budget")
-				return fail("Not called: the team's budget is used up. Answer with what you have.", "Not called: the team's budget is used up.")
+				who := "the team's"
+				if costs.IsAgentExhausted(err) {
+					who = "this agent's"
+				}
+				return fail("Not called: "+who+" budget is used up. Answer with what you have.", "Not called: "+who+" budget is used up.")
 			}
 		}
 		out, err := ru.s.MCP.Call(ctx, mcpclient.CallRequest{ServerID: ref.ServerID, Tool: ref.Name, Arguments: params, Rank: ru.rank})
