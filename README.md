@@ -202,7 +202,7 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.6.3** (2026-10-30): QA fixes for the API, chat, editors and team requests, and deny-all network egress for the OCR sidecar.
 - [x] **v0.7.0** (2026-11-01): six opt-in retrieval changes, judged with the index preview: near-duplicate repeated blocks, tables kept structured, structural boundaries, parent/child retrieval, the content health report and contextual chunks.
 - [x] **v0.8.0** (2026-11-04): adoption by other installs, first part: a Helm chart generated from the Kustomize base, an accessibility statement and an "About this assistant" card on every chat surface, and a polish pass over the interface.
-- [x] **v0.9.0** (2026-11-06): identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest, per-agent budgets, and configuration as code.
+- [x] **v0.9.0** (2026-11-05): identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest, per-agent budgets, and configuration as code.
 
 **Next:** v0.10.0 ([`docs/roadmap.md`](docs/roadmap.md)): private content: document permissions, then Microsoft 365, Google Drive and other connectors.
 

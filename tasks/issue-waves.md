@@ -2,9 +2,9 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-11-06 (v0.9.0)
+## Current execution status — 2026-11-05 (v0.9.0)
 
-- **v0.9.0 is being released** on the owner's go-ahead (2026-11-06). Every v0.9.0 issue is closed: #32, #33, #35, #36, #37, #38, #39, #40. Merged: PRs #218-#229 and #231-#234 (#230 replaced by #233 after GitHub refused pushes to its branch). Preparation in the v0.9.0 preparation PR; the published artifacts are verified in a follow-up docs PR. Next: v0.10.0 (#41-#44), starting with #41 document permissions. #19 still needs the owner's reference-install pages; #89 is unchanged.
+- **v0.9.0 is published** (2026-11-05, tag at `57bf9be`, PR #235); both images verified, the Helm chart to be republished signed (PR #237). Released on the owner's go-ahead. Every v0.9.0 issue is closed: #32, #33, #35, #36, #37, #38, #39, #40. Merged: PRs #218-#229 and #231-#234 (#230 replaced by #233 after GitHub refused pushes to its branch). Next: v0.10.0 (#41-#44), starting with #41 document permissions. #19 still needs the owner's reference-install pages; #89 is unchanged.
 
 ### Earlier status (2026-11-05)
 
