@@ -14,6 +14,8 @@ export const targetTypeLabels: Record<string, string> = {
   api_key: "API key",
   break_glass_session: "Break-glass session",
   break_glass_settings: "Break-glass settings",
+  scim_token: "SCIM token",
+  scim_group: "SCIM group",
   conversation: "Conversation",
   classification: "Classification",
   crawl_allowlist: "Allowed domain",

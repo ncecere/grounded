@@ -220,7 +220,7 @@ func (q *Queries) ListMembershipsForSSO(ctx context.Context, userID uuid.UUID) (
 }
 
 const listSSOCandidates = `-- name: ListSSOCandidates :many
-SELECT u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision, coalesce(g.groups, '{}')::text[] AS groups, g.seen_at AS groups_seen_at
+SELECT u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision, u.scim_external_id, u.scim_user_name, coalesce(g.groups, '{}')::text[] AS groups, g.seen_at AS groups_seen_at
 FROM users u
 LEFT JOIN sso_user_groups g ON g.user_id = u.id
 WHERE g.groups && $1::text[] OR u.id = ANY($2::uuid[])
@@ -262,6 +262,8 @@ func (q *Queries) ListSSOCandidates(ctx context.Context, arg ListSSOCandidatesPa
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
 			&i.User.Revision,
+			&i.User.ScimExternalID,
+			&i.User.ScimUserName,
 			&i.Groups,
 			&i.GroupsSeenAt,
 		); err != nil {

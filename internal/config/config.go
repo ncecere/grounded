@@ -204,7 +204,10 @@ type OIDC struct {
 	EmailClaim   string
 	// GroupsClaim is the claim holding the person's IdP groups, read for
 	// SSO group mapping (a list of strings; a single string is one group).
-	GroupsClaim           string
+	GroupsClaim string
+	// SCIMMatchClaim is the sign-in claim compared with a SCIM user's externalId to link a SCIM-created user at their first
+	// sign-in (docs/specs/scim/DESIGN.md): sub for Okta, oid for Entra ID. Never an email address.
+	SCIMMatchClaim        string
 	RequireVerifiedEmail  bool
 	AllowedEmailDomains   []string
 	BootstrapAdminSubject string
@@ -229,6 +232,7 @@ func Defaults() Config {
 			Scopes:               []string{"openid", "profile", "email"},
 			EmailClaim:           "email",
 			GroupsClaim:          "groups",
+			SCIMMatchClaim:       "sub",
 			RequireVerifiedEmail: true,
 		},
 		SMTP:                   SMTP{Port: 587, TLS: SMTPStartTLS},

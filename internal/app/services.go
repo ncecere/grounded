@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/auditexport"
+	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/blob"
 	"github.com/ncecere/grounded/internal/breakglass"
 	"github.com/ncecere/grounded/internal/captcha"
@@ -46,6 +47,7 @@ import (
 	"github.com/ncecere/grounded/internal/ratelimit"
 	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/retention"
+	"github.com/ncecere/grounded/internal/scim"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
@@ -111,6 +113,8 @@ type Services struct {
 	OCR *ocr.Service
 	// PII is Admin -> Personal data: the settings of scanning at ingest (docs/pii-scanning.md).
 	PII *pii.Service
+	// SCIM is SCIM provisioning (docs/specs/scim/DESIGN.md).
+	SCIM *scim.Service
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
@@ -259,6 +263,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Parser, s.builtin = NewParser(cfg, log)
 	tika, _ := s.Parser.Tika.(*parse.Tika)
 	s.PII = &pii.Service{Pool: pool}
+	s.SCIM = &scim.Service{Pool: pool, Issuer: scimIssuer(cfg), MatchClaim: cfg.OIDC.SCIMMatchClaim}
 	s.OCR = ocr.New(pool, s.Catalog, s.Limits, ocr.Config{
 		TesseractURL: cfg.OCR.TesseractURL, Timeout: cfg.OCR.Timeout, Tika: tika,
 		MaxPagesPerDocument: cfg.OCR.MaxPagesPerDocument, Concurrency: cfg.OCR.Concurrency,
@@ -377,4 +382,16 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			contenthealth.PrunePeriodic(),
 		}, healthPeriodic(cfg)...),
 	}, nil
+}
+
+// scimIssuer is the issuer SCIM users belong to: the OIDC issuer, or the development login's on a development install
+// without one (so SCIM can be tried and tested); empty otherwise, and SCIM is unavailable.
+func scimIssuer(cfg config.Config) string {
+	if cfg.OIDC.Enabled() {
+		return cfg.OIDC.Issuer
+	}
+	if cfg.DevAuth {
+		return auth.DevIssuer
+	}
+	return ""
 }

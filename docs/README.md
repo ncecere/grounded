@@ -66,6 +66,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/break-glass.md`](operations/break-glass.md) | Reading a team's content under a break-glass session |
 | [`operations/profile-migration.md`](operations/profile-migration.md) | Moving a knowledge base to a new embedding profile |
 | [`operations/sso-groups.md`](operations/sso-groups.md) | Mapping identity-provider groups to team roles (SSO group mapping) |
+| [`operations/scim.md`](operations/scim.md) | SCIM provisioning: tokens, the matching claim, setting up Entra ID and Okta, groups and the rules, what SCIM can't change |
 | [`operations/ocr.md`](operations/ocr.md) | OCR for scanned documents: deploying the sidecar, choosing a backend, languages, retrying scanned documents, costs |
 | [`pii-scanning.md`](pii-scanning.md) | Personal data scanning at ingest: what is found, flagged and held documents, reviews, the admin settings, API and storage |
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |
@@ -97,7 +98,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/tracing.md`](operations/tracing.md) | OpenTelemetry tracing: turning it on, sampling, what's recorded and never recorded, trace context through MCP and jobs, Tempo and Jaeger |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
-| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md), [`operations/rerank.md`](operations/rerank.md) | Runbooks shared with platform admins |
+| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/scim.md`](operations/scim.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md), [`operations/rerank.md`](operations/rerank.md) | Runbooks shared with platform admins |
 | [DESIGN §15](DESIGN.md#15-architecture-deployment-and-operations-adr-0001-adr-0013-adr-0014) | Architecture, availability target, backups and delivery |
 
 ## Security reviewers

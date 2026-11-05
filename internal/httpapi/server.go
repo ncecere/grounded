@@ -44,6 +44,7 @@ import (
 	"github.com/ncecere/grounded/internal/public"
 	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/retention"
+	"github.com/ncecere/grounded/internal/scim"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -89,6 +90,8 @@ type Deps struct {
 	OCR *ocr.Service
 	// PII stores the settings of personal data scanning at ingest (docs/pii-scanning.md).
 	PII *pii.Service
+	// SCIM is SCIM provisioning: /scim/v2 and Admin → SCIM provisioning (docs/specs/scim/DESIGN.md).
+	SCIM *scim.Service
 	// Public serves public agents to anonymous visitors and the widget.
 	Public *public.Service
 	// Retention administers retention periods, runs and legal holds.
@@ -179,7 +182,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.auditExportRoutes(), a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
+		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.scimAdminRoutes(), a.parsingRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)
@@ -447,7 +450,7 @@ func NewAPIHandler(d Deps) http.Handler {
 	if d.Web != nil {
 		fallback = spaHandler(d.Web, d.WebBuilt, d.spaOptions())
 	}
-	return build(d, append(append(apiRoutes(d), mcpRoutes(d)...), oauthRoutes(d)...), fallback)
+	return build(d, append(append(append(apiRoutes(d), mcpRoutes(d)...), oauthRoutes(d)...), scimRoutes(d)...), fallback)
 }
 
 // NewOpsHandler serves only health and metrics (worker mode).

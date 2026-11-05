@@ -1196,6 +1196,30 @@ type RetentionSetting struct {
 	UpdatedAt time.Time
 }
 
+type ScimGroup struct {
+	ID          uuid.UUID
+	DisplayName string
+	ExternalID  *string
+	Revision    int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ScimGroupMember struct {
+	GroupID uuid.UUID
+	UserID  uuid.UUID
+}
+
+type ScimToken struct {
+	ID         uuid.UUID
+	Name       string
+	Digest     []byte
+	CreatedBy  uuid.NullUUID
+	CreatedAt  time.Time
+	LastUsedAt *time.Time
+	RevokedAt  *time.Time
+}
+
 type Session struct {
 	ID          uuid.UUID
 	UserID      uuid.UUID
@@ -1444,18 +1468,20 @@ type UsageRollupState struct {
 }
 
 type User struct {
-	ID           uuid.UUID
-	OIDCIssuer   string
-	OIDCSubject  string
-	Email        string
-	DisplayName  string
-	PlatformRole string
-	Status       string
-	Claims       json.RawMessage
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	LastLoginAt  *time.Time
-	Revision     int64
+	ID             uuid.UUID
+	OIDCIssuer     string
+	OIDCSubject    string
+	Email          string
+	DisplayName    string
+	PlatformRole   string
+	Status         string
+	Claims         json.RawMessage
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	LastLoginAt    *time.Time
+	Revision       int64
+	ScimExternalID *string
+	ScimUserName   string
 }
 
 type WebCrawl struct {

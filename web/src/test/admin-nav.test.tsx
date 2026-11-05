@@ -1,6 +1,6 @@
 /*
  * The admin sidebar after the v0.2.1 regroup (docs/v0.2.1.md I1): Overview and
- * 7 groups of 27 items (MCP servers joined Models in v0.3, Reranking and Settings in v0.4.2, Agent templates and Webhooks in v0.6.0, Personal data in v0.9.0), remembered open groups from before the regroup, and ⌘K reaching
+ * 7 groups of 28 items (MCP servers joined Models in v0.3, Reranking and Settings in v0.4.2, Agent templates and Webhooks in v0.6.0, Personal data and SCIM provisioning in v0.9.0), remembered open groups from before the regroup, and ⌘K reaching
  * the pages that became tabs (Profile migrations, Legal holds).
  */
 import { screen, waitFor, within } from "@testing-library/react";
@@ -21,7 +21,7 @@ afterEach(() => {
 
 const expected: [string | undefined, string[]][] = [
   [undefined, ["Overview"]],
-  ["People", ["Users", "Teams", "SSO groups"]],
+  ["People", ["Users", "Teams", "SSO groups", "SCIM provisioning"]],
   ["Content", ["Shared sources", "Agents", "Agent templates", "Crawl domains", "Parsing & OCR", "Personal data"]],
   ["Models", ["Connections", "Models", "Embedding profiles", "MCP servers", "SystemOne", "Reranking"]],
   ["Usage & spend", ["Analytics", "Costs", "Limits"]],
@@ -39,9 +39,9 @@ const routes = () => ({
 });
 
 describe("admin sidebar groups (I1)", () => {
-  it("has Overview, then 7 groups with 27 items, in the agreed order", () => {
+  it("has Overview, then 7 groups with 28 items, in the agreed order", () => {
     expect(adminSections.map((s): [string | undefined, string[]] => [s.label, s.items.map((i) => i.label)])).toEqual(expected);
-    expect(adminNav).toHaveLength(1 + 27);
+    expect(adminNav).toHaveLength(1 + 28);
   });
 
   it("shows every group's items once opened, and opens only the current page's group by itself", async () => {

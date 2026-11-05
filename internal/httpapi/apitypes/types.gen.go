@@ -12140,6 +12140,42 @@ type RoutedTo struct {
 	TeamSlug string `json:"teamSlug"`
 }
 
+// ScimStatus defines model for ScimStatus.
+type ScimStatus struct {
+	// Available false without a sign-in provider (OIDC_ISSUER)
+	Available bool `json:"available"`
+
+	// BaseUrl The SCIM base URL to give the identity provider
+	BaseUrl string `json:"baseUrl"`
+	Groups  int64  `json:"groups"`
+
+	// MatchClaim SCIM_MATCH_CLAIM: the sign-in claim equal to a user's externalId
+	MatchClaim string `json:"matchClaim"`
+
+	// PendingUsers Created by SCIM and not signed in yet
+	PendingUsers int64       `json:"pendingUsers"`
+	Tokens       []ScimToken `json:"tokens"`
+	Users        int64       `json:"users"`
+}
+
+// ScimToken defines model for ScimToken.
+type ScimToken struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// CreatedBy The display name of the admin who created it ('' when they no longer exist)
+	CreatedBy  string             `json:"createdBy"`
+	Id         openapi_types.UUID `json:"id"`
+	LastUsedAt *time.Time         `json:"lastUsedAt"`
+	Name       string             `json:"name"`
+}
+
+// ScimTokenCreated defines model for ScimTokenCreated.
+type ScimTokenCreated struct {
+	// Secret The bearer token for the identity provider (scim_…). Shown once.
+	Secret string    `json:"secret"`
+	Token  ScimToken `json:"token"`
+}
+
 // ScopeTotals SystemOne scope checks over the range, from the content-free records (all zero when nothing was checked)
 type ScopeTotals struct {
 	// Checked Messages checked
@@ -12966,8 +13002,11 @@ type User struct {
 	PlatformRole PlatformRole       `json:"platformRole"`
 
 	// Revision Increases on every change. Send it back in If-Match.
-	Revision Revision   `json:"revision"`
-	Status   UserStatus `json:"status"`
+	Revision Revision `json:"revision"`
+
+	// Scim Present and true when the identity provider manages this user through SCIM (its name, email and active status; docs/operations/scim.md)
+	Scim   *bool      `json:"scim,omitempty"`
+	Status UserStatus `json:"status"`
 
 	// TeamCount Teams the user belongs to (admin user list only)
 	TeamCount *int64 `json:"teamCount,omitempty"`
@@ -13774,6 +13813,12 @@ type AdminListRetentionRunsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminCreateScimTokenJSONBody defines parameters for AdminCreateScimToken.
+type AdminCreateScimTokenJSONBody struct {
+	// Name For example the identity provider's name
+	Name string `json:"name"`
+}
+
 // AdminPutAccessibilitySettingsParams defines parameters for AdminPutAccessibilitySettings.
 type AdminPutAccessibilitySettingsParams struct {
 	IfMatch string `json:"If-Match"`
@@ -14477,6 +14522,9 @@ type AdminPutRetentionJSONRequestBody = RetentionUpdate
 
 // AdminStartRetentionRunJSONRequestBody defines body for AdminStartRetentionRun for application/json ContentType.
 type AdminStartRetentionRunJSONRequestBody = RetentionRunRequest
+
+// AdminCreateScimTokenJSONRequestBody defines body for AdminCreateScimToken for application/json ContentType.
+type AdminCreateScimTokenJSONRequestBody AdminCreateScimTokenJSONBody
 
 // AdminPutAccessibilitySettingsJSONRequestBody defines body for AdminPutAccessibilitySettings for application/json ContentType.
 type AdminPutAccessibilitySettingsJSONRequestBody = AccessibilitySettingsInput

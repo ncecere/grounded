@@ -1,4 +1,4 @@
-import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldAlert, ShieldCheck, Database, Gauge, Globe, HeartPulse, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet, Webhook } from "lucide-react";
+import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldAlert, ShieldCheck, Database, Gauge, Globe, HeartPulse, Home, LayoutDashboard, LayoutTemplate, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UserCog, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet, Webhook } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -10,6 +10,7 @@ export type AdminPath =
   | "/admin/users"
   | "/admin/teams"
   | "/admin/group-mapping"
+  | "/admin/scim"
   | "/admin/classifications"
   | "/admin/connections"
   | "/admin/models"
@@ -38,8 +39,8 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 27 items (MCP servers joined Models in v0.3, Reranking and
- * Settings in v0.4.2, Agent templates and Webhooks in v0.6.0, Personal data in v0.9.0).
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 28 items (MCP servers joined Models in v0.3, Reranking and
+ * Settings in v0.4.2, Agent templates and Webhooks in v0.6.0, Personal data and SCIM provisioning in v0.9.0).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -51,6 +52,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/users", label: "Users", icon: icon(Users) },
       { to: "/admin/teams", label: "Teams", icon: icon(UsersRound) },
       { to: "/admin/group-mapping", label: terms.groupMapping, icon: icon(Network) },
+      { to: "/admin/scim", label: "SCIM provisioning", icon: icon(UserCog) },
     ],
   },
   {
@@ -189,6 +191,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/models": ["health", "failing", "test model", "rerank model", "reranker"],
   "/admin/mcp-servers": ["mcp", "tools", "model context protocol", "remote tools", "approve tools", "tool approval", "integrations", "health", "failing"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
+  "/admin/scim": ["scim", "provisioning", "deprovisioning", "identity provider", "idp", "entra", "azure ad", "okta", "suspend", "leavers", "token"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
   "/admin/personal-data": ["pii", "personal data", "ssn", "social security", "credit card", "payment card", "privacy", "ferpa", "scan", "hold for review", "patterns", "student id"],

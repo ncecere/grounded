@@ -12,7 +12,13 @@ import (
 // database rows directly, so internal columns cannot leak by accident.
 
 func toAPIUser(u dbgen.User) apitypes.User {
+	var scim *bool
+	if u.ScimExternalID != nil {
+		managed := true
+		scim = &managed
+	}
 	return apitypes.User{
+		Scim:         scim,
 		Id:           u.ID,
 		Email:        u.Email,
 		DisplayName:  u.DisplayName,

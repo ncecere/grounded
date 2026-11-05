@@ -287,7 +287,7 @@ func (q *Queries) InsertTeam(ctx context.Context, arg InsertTeamParams) (Team, e
 }
 
 const listMembers = `-- name: ListMembers :many
-SELECT m.team_id, m.user_id, m.role, m.added_by, m.revision, m.created_at, m.updated_at, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision,
+SELECT m.team_id, m.user_id, m.role, m.added_by, m.revision, m.created_at, m.updated_at, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision, u.scim_external_id, u.scim_user_name,
        (s.user_id IS NOT NULL)::boolean AS sso, s.rule_id AS sso_rule_id, r.group_name AS sso_group
 FROM team_members m
 JOIN users u ON u.id = m.user_id
@@ -337,6 +337,8 @@ func (q *Queries) ListMembers(ctx context.Context, teamID uuid.UUID) ([]ListMemb
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
 			&i.User.Revision,
+			&i.User.ScimExternalID,
+			&i.User.ScimUserName,
 			&i.Sso,
 			&i.SsoRuleID,
 			&i.SsoGroup,

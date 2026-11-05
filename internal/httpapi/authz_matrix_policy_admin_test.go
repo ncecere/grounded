@@ -51,7 +51,16 @@ var adminPolicies = map[string]policy{
 
 	// SSO group mapping.
 	"adminGetGroupMapping": adminRead("/v1/admin/group-mapping"),
-	"adminListGroupRules":  adminRead("/v1/admin/group-mapping/rules"),
+	// SCIM provisioning: tokens are managed by a signed-in platform admin only, never with a key.
+	"adminGetScim": adminRead("/v1/admin/scim"),
+	"adminCreateScimToken": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/scim/tokens", map[string]any{"name": fmt.Sprintf("matrix-%d", c.e.next())})
+	}},
+	// No such token: the owner reaches 404, everyone else is refused first.
+	"adminRevokeScimToken": {own: padmin, also: []string{"404"}, build: func(*mctx) request {
+		return del("/v1/admin/scim/tokens/00000000-0000-4000-8000-000000000000")
+	}},
+	"adminListGroupRules": adminRead("/v1/admin/group-mapping/rules"),
 	"adminGetGroupRule": {own: platform, build: func(c *mctx) request {
 		return get("/v1/admin/group-mapping/rules/" + c.e.groupRule)
 	}},

@@ -341,6 +341,8 @@ func TestEveryEncryptedColumnIsRegistered(t *testing.T) {
 		"river_job.unique_key": true,
 		// A conversation link's secret is 32 random bytes; the table keeps their plain SHA-256 (nothing to pepper or rotate).
 		"conversation_shares.token_hash": true,
+		// A SCIM token is 32 random bytes too; the table keeps their plain SHA-256 (docs/specs/scim/DESIGN.md, "Tokens").
+		"scim_tokens.digest": true,
 		// MinHash sketches of a document's blocks (near-duplicate boilerplate matching, #23): a one-way digest of block text, not a credential.
 		"document_blocks.sketches": true,
 		// Contextual artifact identity is SHA-256 of bounded prompt/model inputs, not secrets.Box ciphertext (#21).

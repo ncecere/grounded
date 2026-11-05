@@ -117,7 +117,7 @@ kubectl -n $ns create secret generic grounded-s3 --from-literal=access_key=... -
 | `S3_BUCKET`, `S3_REGION`, `S3_FORCE_PATH_STYLE` | `grounded`, `us-east-1`, `true` | set bucket and region |
 | `SHUTDOWN_DELAY`, `SHUTDOWN_TIMEOUT` | `10s`, `90s` | raise together with `terminationGracePeriodSeconds` (120s) |
 
-Also commonly set: `OIDC_ALLOWED_EMAIL_DOMAINS`, `OIDC_SCOPES`, `OIDC_GROUPS_CLAIM` (default `groups`, for [SSO group mapping](../operations/sso-groups.md)), `INSTANCE_NAME`, `ORG_NAME`, `UI_LOGO_URL`, `SUPPORT_URL`, `TEAM_REQUEST_URL`, `CRAWL_ALLOWLIST_SEED`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_TLS`/`SMTP_FROM`, and `TRUSTED_PROXIES` (the ingress controller's pod CIDRs, so client IPs are logged and rate-limited correctly).
+Also commonly set: `OIDC_ALLOWED_EMAIL_DOMAINS`, `OIDC_SCOPES`, `OIDC_GROUPS_CLAIM` (default `groups`, for [SSO group mapping](../operations/sso-groups.md)), `SCIM_MATCH_CLAIM` (default `sub`; `oid` for Entra ID, for [SCIM provisioning](../operations/scim.md)), `INSTANCE_NAME`, `ORG_NAME`, `UI_LOGO_URL`, `SUPPORT_URL`, `TEAM_REQUEST_URL`, `CRAWL_ALLOWLIST_SEED`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_TLS`/`SMTP_FROM`, and `TRUSTED_PROXIES` (the ingress controller's pod CIDRs, so client IPs are logged and rate-limited correctly).
 
 `MIGRATE_ON_START` is pinned to `false` in the Deployments: migrations run in the `migrate` init container instead.
 

@@ -1,6 +1,7 @@
 /* Human-readable audit actions, action groups (areas) and actors. */
 import type { Schemas } from "../../api/client";
 import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
+import { scimActionLabels } from "./scim-labels";
 
 type AuditEntry = Schemas["AuditEntry"];
 
@@ -189,6 +190,7 @@ const actionLabels: Record<string, string> = {
   "team.invite_renew": "Renewed invite",
   "team.invite_revoke": "Revoked invite",
   "team.invite_accept": "Accepted invite",
+  ...scimActionLabels,
 };
 
 type Obj = Record<string, unknown>;
