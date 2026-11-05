@@ -120,6 +120,13 @@ const actionLabels: Record<string, string> = {
   "platform.systemone_settings_update": "Changed SystemOne settings",
   "platform.rerank_settings_update": "Changed reranking settings",
   "platform.parsing_settings_update": "Changed parsing settings",
+  "platform.audit_streaming": "Changed audit streaming",
+  "platform.audit_stream_create": "Added an audit streaming destination",
+  "platform.audit_stream_update": "Changed an audit streaming destination",
+  "platform.audit_stream_delete": "Deleted an audit streaming destination",
+  "platform.audit_stream_enable": "Turned an audit streaming destination on",
+  "platform.audit_stream_disable": "Turned an audit streaming destination off",
+  "platform.audit_stream_test": "Tested an audit streaming destination",
   "platform.pii": "Changed personal data scanning",
   "platform.documents_retry": "Retried failed documents (admin)",
   "platform.document_owners_notify": "Told owners about failed documents",
@@ -199,6 +206,7 @@ type Obj = Record<string, unknown>;
 const directedLabels: Record<string, (after: Obj, meta: Obj) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
+  "platform.audit_streaming": (a) => (typeof a.enabled === "boolean" ? `Turned audit streaming ${a.enabled ? "on" : "off"}` : undefined),
   "platform.answer_cache": (a) => (typeof a.enabled === "boolean" ? `Turned saved answers ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp_oauth": (a) => (typeof a.oauthEnabled === "boolean" ? `Turned OAuth sign-in for MCP clients ${a.oauthEnabled ? "on" : "off"}` : undefined),
 };

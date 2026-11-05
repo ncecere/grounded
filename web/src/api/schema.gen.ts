@@ -929,6 +929,133 @@ export interface paths {
         patch: operations["adminUpdateClassification"];
         trace?: never;
     };
+    "/v1/admin/audit-stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit streaming to a SIEM, its switch and destinations (signed-in platform admins and auditors)
+         * @description docs/specs/audit-streaming/DESIGN.md. Destinations never include their authorization header value (hasAuthHeader says whether one is set).
+         */
+        get: operations["adminGetAuditStream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-stream/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn audit streaming on or off for the platform (signed-in platform admins; audited)
+         * @description Off pauses every destination where it is; on resumes them. If-Match with the settings' revision.
+         */
+        put: operations["adminPutAuditStreamSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-stream/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a streaming destination, off (signed-in platform admins; audited without the header value)
+         * @description 409 streaming_off while the platform switch is off; 409 too_many_destinations past 5. 400 invalid_name, invalid_address, invalid_format, invalid_auth or invalid_ca.
+         */
+        post: operations["adminCreateAuditStreamDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-stream/destinations/{destinationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change a destination's settings (its kind stays; the stream continues where it is)
+         * @description authHeader absent keeps the stored value; "" removes it. If-Match with the destination's revision.
+         */
+        put: operations["adminPutAuditStreamDestination"];
+        post?: never;
+        /** Delete a destination (allowed while streaming is off) */
+        delete: operations["adminDeleteAuditStreamDestination"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-stream/destinations/{destinationId}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn a destination on or off
+         * @description The first time it is turned on it starts with the entries written from then on (history is in the signed daily exports). 409 streaming_off while the platform switch is off.
+         */
+        put: operations["adminSetAuditStreamDestinationEnabled"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/audit-stream/destinations/{destinationId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send one test entry to a destination and report the outcome (audited; the test entry isn't stored)
+         * @description A failed delivery is a result (delivered false, with its error class), not an error response.
+         */
+        post: operations["adminTestAuditStreamDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/audit-export-settings": {
         parameters: {
             query?: never;
@@ -7406,6 +7533,73 @@ export interface components {
              * @enum {string}
              */
             destination: "builtin";
+        };
+        AuditStreamSettings: {
+            enabled: boolean;
+            /** Format: int64 */
+            revision: number;
+        };
+        AuditStreamSettingsInput: {
+            enabled: boolean;
+        };
+        /** @description Why the last delivery failed: address (refused or invalid), connect, tls, timeout, http_3xx, http_4xx, http_5xx, internal; '' after a delivery */
+        AuditStreamErrorClass: string;
+        AuditStreamDestination: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "https" | "syslog";
+            /** @enum {string} */
+            format: "splunk_hec" | "ndjson" | "rfc5424";
+            /** @description https: the URL; syslog: host:port */
+            address: string;
+            hasAuthHeader: boolean;
+            caPem: string;
+            enabled: boolean;
+            /** @description Has been turned on at least once (it streams from then on) */
+            started: boolean;
+            /** Format: int64 */
+            sentTotal: number;
+            /** Format: date-time */
+            lastSentAt: string | null;
+            lastErrorClass: components["schemas"]["AuditStreamErrorClass"];
+            /** Format: date-time */
+            failingSince: string | null;
+            /** Format: date-time */
+            nextAttemptAt: string | null;
+            /**
+             * Format: int64
+             * @description How long the oldest entry not yet sent has waited (0: none waits)
+             */
+            lagSeconds: number;
+            /** Format: int64 */
+            revision: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AuditStreamDestinationInput: {
+            name: string;
+            /** @enum {string} */
+            kind: "https" | "syslog";
+            /**
+             * @description https: splunk_hec or ndjson; syslog: rfc5424
+             * @enum {string}
+             */
+            format: "splunk_hec" | "ndjson" | "rfc5424";
+            address: string;
+            /** @description The Authorization header value (e.g. Splunk <token>), stored encrypted and never shown. Absent: keep; '': remove. HTTPS only. */
+            authHeader?: string;
+            /** @description Extra CA certificate (PEM) for a private SIEM; '' for the system roots */
+            caPem: string;
+        };
+        AuditStream: {
+            settings: components["schemas"]["AuditStreamSettings"];
+            destinations: components["schemas"]["AuditStreamDestination"][];
+        };
+        AuditStreamTestResult: {
+            delivered: boolean;
+            errorClass: components["schemas"]["AuditStreamErrorClass"];
         };
         AuditExportSettings: components["schemas"]["AuditExportSettingsInput"] & {
             /** Format: int64 */
@@ -15468,6 +15662,223 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminGetAuditStream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStream"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutAuditStreamSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditStreamSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStreamSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminCreateAuditStreamDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditStreamDestinationInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStreamDestination"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutAuditStreamDestination: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditStreamDestinationInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStreamDestination"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminDeleteAuditStreamDestination: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminSetAuditStreamDestinationEnabled: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStreamDestination"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminTestAuditStreamDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditStreamTestResult"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

@@ -1,12 +1,13 @@
 /*
  * Admin → Settings › Features (AD-39): the platform's feature switches, moved here from the Overview's Features card
- * (which keeps their state with a link here). Evaluations, team requests, webhooks, content health reports, the MCP server, its OAuth sign-in for MCP clients and saved
+ * (which keeps their state with a link here). Evaluations, team requests, webhooks, audit streaming, content health reports, the MCP server, its OAuth sign-in for MCP clients and saved
  * answers; platform admins switch them (each confirms what turning it off does, If-Match, audited), auditors see them
  * read-only with the reason.
  */
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Cable, ClipboardCheck, DatabaseZap, HeartPulse, KeyRound, UsersRound, Webhook } from "lucide-react";
+import { BookOpen, Cable, ClipboardCheck, DatabaseZap, HeartPulse, KeyRound, RadioTower, UsersRound, Webhook } from "lucide-react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
+import { AuditStreamSwitch, auditStreamText, useAuditStreamSetting } from "../overview/audit-stream-switch";
 import { ContentHealthSwitch, contentHealthText, useContentHealthSetting } from "../overview/content-health-switch";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "../overview/answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "../overview/evaluations-switch";
@@ -25,6 +26,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   const teamRequests = useTeamRequestSettings();
   const webhooks = useWebhookSettings();
   const health = useContentHealthSetting();
+  const stream = useAuditStreamSetting();
   const rows: Row[] = [
     fromQuery(
       evaluations.settings,
@@ -61,6 +63,18 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
         link: <Link to="/admin/webhooks" />,
       },
       (d) => ({ state: d.enabled ? on : off, description: webhooksText(d.enabled) }),
+    ),
+    fromQuery(
+      stream.settings,
+      {
+        id: "audit-streaming",
+        icon: <RadioTower />,
+        title: "Audit streaming",
+        control: <AuditStreamSwitch setting={stream} isAdmin={isAdmin} />,
+        action: "Destinations",
+        link: <Link to="/admin/logs" search={{ tab: "streaming" }} />,
+      },
+      (d) => ({ state: d.enabled ? on : off, description: auditStreamText(d.enabled) }),
     ),
     fromQuery(
       health.settings,
@@ -110,6 +124,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
     [teamRequests.save.error, "Couldn't change team requests"],
     [webhooks.save.error, "Couldn't change webhooks"],
     [health.save.error, "Couldn't change content health reports"],
+    [stream.save.error, "Couldn't change audit streaming"],
     [mcp.save.error, "Couldn't change the MCP server"],
     [oauth.error, "Couldn't change OAuth sign-in"],
     [cache.save.error, "Couldn't change saved answers"],

@@ -259,6 +259,38 @@ type AuditLog struct {
 	Metadata    json.RawMessage
 	RequestID   string
 	ClientIP    string
+	Txid        pgtype.Uint64
+}
+
+type AuditStreamDestination struct {
+	ID             uuid.UUID
+	Name           string
+	Kind           string
+	Format         string
+	Address        string
+	AuthHeader     []byte
+	CaPem          string
+	Enabled        bool
+	CursorTxid     pgtype.Uint64
+	CursorID       *int64
+	SentTotal      int64
+	LastSentAt     *time.Time
+	LastErrorClass string
+	FailingSince   *time.Time
+	Failures       int32
+	NextAttemptAt  *time.Time
+	Revision       int64
+	CreatedBy      uuid.NullUUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type AuditStreamSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
 }
 
 type BootstrapState struct {

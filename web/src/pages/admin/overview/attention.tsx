@@ -5,7 +5,7 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert, UsersRound } from "lucide-react";
+import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, RadioTower, ShieldAlert, ShieldOff, TriangleAlert, UsersRound } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -16,6 +16,7 @@ import { formatMoney, formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
 import { failingCount, healthChecksQuery } from "../models/health";
 import { useIsPlatformAdmin } from "../hooks";
+import { auditStreamQuery, errorClassText, failingLong, lagText } from "../logs/streaming/queries";
 import { attentionQuery, featuresQuery, overviewQuery } from "./queries";
 import o from "./overview.module.css";
 
@@ -53,6 +54,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
   // Public access and the public moderation provider come with the Features card's request (AD-03).
   const features = useQuery(featuresQuery(useQueryClient()));
   const health = useQuery(healthChecksQuery());
+  const stream = useQuery(auditStreamQuery());
   const rows: Row[] = [];
   const pending = attention.data?.pendingDomainRequests ?? 0;
   if (pending > 0) {
@@ -193,6 +195,17 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       // The Budget card is on the team's Overview (v0.2.1 I7).
       link: <Link to="/admin/teams/$team" params={{ team: n.teamSlug }} />,
       tone: n.state === "exhausted" ? "danger" : "warning",
+    });
+  }
+  for (const d of (stream.data?.destinations ?? []).filter((x) => failingLong(x))) {
+    rows.push({
+      id: `audit-stream-${d.id}`,
+      icon: <RadioTower />,
+      title: `Audit streaming to ${d.name} is failing`,
+      description: `${errorClassText[d.lastErrorClass] ?? "It can't deliver"}; ${lagText(d.lagSeconds)} behind. It keeps retrying.`,
+      action: "Streaming",
+      link: <Link to="/admin/logs" search={{ tab: "streaming" } as never} />,
+      tone: "danger",
     });
   }
   return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || features.isLoading || health.isLoading };

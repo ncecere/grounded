@@ -67,6 +67,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/profile-migration.md`](operations/profile-migration.md) | Moving a knowledge base to a new embedding profile |
 | [`operations/sso-groups.md`](operations/sso-groups.md) | Mapping identity-provider groups to team roles (SSO group mapping) |
 | [`operations/scim.md`](operations/scim.md) | SCIM provisioning: tokens, the matching claim, setting up Entra ID and Okta, groups and the rules, what SCIM can't change |
+| [`operations/audit-streaming.md`](operations/audit-streaming.md) | Streaming audit entries to a SIEM: Splunk HEC, NDJSON (Elastic, Logstash, Vector), syslog over TLS; failures and retention |
 | [`operations/ocr.md`](operations/ocr.md) | OCR for scanned documents: deploying the sidecar, choosing a backend, languages, retrying scanned documents, costs |
 | [`pii-scanning.md`](pii-scanning.md) | Personal data scanning at ingest: what is found, flagged and held documents, reviews, the admin settings, API and storage |
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/auditexport"
+	"github.com/ncecere/grounded/internal/auditstream"
 	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/blob"
 	"github.com/ncecere/grounded/internal/breakglass"
@@ -62,16 +64,18 @@ import (
 // Services are the domain services shared by the API and worker.
 type Services struct {
 	AuditExports *auditexport.Service
-	Teams        *teams.Service
-	Platform     *platform.Service
-	Catalog      *catalog.Service
-	Sources      *sources.Service
-	Web          *web.Service
-	KBs          *kbs.Service
-	APIKeys      *apikeys.Service
-	Limits       *limits.Service
-	Agents       *agents.Service
-	Notify       *notify.Service
+	// AuditStream streams audit entries to a SIEM (docs/specs/audit-streaming/DESIGN.md).
+	AuditStream *auditstream.Service
+	Teams       *teams.Service
+	Platform    *platform.Service
+	Catalog     *catalog.Service
+	Sources     *sources.Service
+	Web         *web.Service
+	KBs         *kbs.Service
+	APIKeys     *apikeys.Service
+	Limits      *limits.Service
+	Agents      *agents.Service
+	Notify      *notify.Service
 	// Mail sends notification email (nil: SMTP_HOST unset).
 	Mail notify.Sender
 	// Moderation stores the moderation policies and runs checks (ADR-0019).
@@ -276,6 +280,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	}
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
+	s.AuditStream = &auditstream.Service{Pool: pool, Box: box, Sender: &auditstream.Sender{}, Instance: cfg.Instance.Name, Hostname: appHost(cfg.AppURL), Log: log}
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache
 	return s, nil
@@ -339,6 +344,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
 			profilemig.Register(w, s.ProfileMigrations, proc)
 			auditexport.Register(w, s.AuditExports)
+			auditstream.Register(w, s.AuditStream)
 			retention.Register(w, &retention.Runner{
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
@@ -376,6 +382,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			breakglass.Periodic(),
 			retention.Periodic(),
 			auditexport.Periodic(),
+			auditstream.Periodic(),
 			costs.RollupPeriodic(),
 			evals.Periodic(),
 			gaps.Periodic(),
@@ -394,4 +401,12 @@ func scimIssuer(cfg config.Config) string {
 		return auth.DevIssuer
 	}
 	return ""
+}
+
+// appHost is APP_URL's host (the syslog HOSTNAME of streamed audit entries).
+func appHost(appURL string) string {
+	if u, err := url.Parse(appURL); err == nil && u.Hostname() != "" {
+		return u.Hostname()
+	}
+	return "grounded"
 }

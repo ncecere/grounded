@@ -4,7 +4,7 @@ Written before implementation; built and reviewed on 2026-11-04 (#36, first part
 release that ships it. The review produced a real export from a fresh install and verified it with OpenSSL and an
 independently generated key exactly as "Offline standard signature procedure" below describes (signature, payload hash,
 line chain, ordinals, coverage; a one-byte change to the manifest or payload is detected), and confirmed that metadata
-and non-UUID targets are not exported. SIEM streaming and external destinations remain open on #36.
+and non-UUID targets are not exported. SIEM streaming is in [specs/audit-streaming/DESIGN.md](specs/audit-streaming/DESIGN.md) (v0.9.0); external S3 destinations for the exports remain open on #36.
 
 ## Working built-in path (Proposed; not owner acceptance)
 

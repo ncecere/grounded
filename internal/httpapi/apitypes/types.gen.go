@@ -568,6 +568,84 @@ func (e AuditParentType) Valid() bool {
 	}
 }
 
+// Defines values for AuditStreamDestinationFormat.
+const (
+	AuditStreamDestinationFormatNdjson    AuditStreamDestinationFormat = "ndjson"
+	AuditStreamDestinationFormatRfc5424   AuditStreamDestinationFormat = "rfc5424"
+	AuditStreamDestinationFormatSplunkHec AuditStreamDestinationFormat = "splunk_hec"
+)
+
+// Valid indicates whether the value is a known member of the AuditStreamDestinationFormat enum.
+func (e AuditStreamDestinationFormat) Valid() bool {
+	switch e {
+	case AuditStreamDestinationFormatNdjson:
+		return true
+	case AuditStreamDestinationFormatRfc5424:
+		return true
+	case AuditStreamDestinationFormatSplunkHec:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditStreamDestinationKind.
+const (
+	AuditStreamDestinationKindHttps  AuditStreamDestinationKind = "https"
+	AuditStreamDestinationKindSyslog AuditStreamDestinationKind = "syslog"
+)
+
+// Valid indicates whether the value is a known member of the AuditStreamDestinationKind enum.
+func (e AuditStreamDestinationKind) Valid() bool {
+	switch e {
+	case AuditStreamDestinationKindHttps:
+		return true
+	case AuditStreamDestinationKindSyslog:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditStreamDestinationInputFormat.
+const (
+	AuditStreamDestinationInputFormatNdjson    AuditStreamDestinationInputFormat = "ndjson"
+	AuditStreamDestinationInputFormatRfc5424   AuditStreamDestinationInputFormat = "rfc5424"
+	AuditStreamDestinationInputFormatSplunkHec AuditStreamDestinationInputFormat = "splunk_hec"
+)
+
+// Valid indicates whether the value is a known member of the AuditStreamDestinationInputFormat enum.
+func (e AuditStreamDestinationInputFormat) Valid() bool {
+	switch e {
+	case AuditStreamDestinationInputFormatNdjson:
+		return true
+	case AuditStreamDestinationInputFormatRfc5424:
+		return true
+	case AuditStreamDestinationInputFormatSplunkHec:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditStreamDestinationInputKind.
+const (
+	AuditStreamDestinationInputKindHttps  AuditStreamDestinationInputKind = "https"
+	AuditStreamDestinationInputKindSyslog AuditStreamDestinationInputKind = "syslog"
+)
+
+// Valid indicates whether the value is a known member of the AuditStreamDestinationInputKind enum.
+func (e AuditStreamDestinationInputKind) Valid() bool {
+	switch e {
+	case AuditStreamDestinationInputKindHttps:
+		return true
+	case AuditStreamDestinationInputKindSyslog:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditViaKind.
 const (
 	AuditViaKindApiKey  AuditViaKind = "api_key"
@@ -6260,6 +6338,90 @@ type AuditParent struct {
 
 // AuditParentType defines model for AuditParent.Type.
 type AuditParentType string
+
+// AuditStream defines model for AuditStream.
+type AuditStream struct {
+	Destinations []AuditStreamDestination `json:"destinations"`
+	Settings     AuditStreamSettings      `json:"settings"`
+}
+
+// AuditStreamDestination defines model for AuditStreamDestination.
+type AuditStreamDestination struct {
+	// Address https: the URL; syslog: host:port
+	Address       string                       `json:"address"`
+	CaPem         string                       `json:"caPem"`
+	CreatedAt     time.Time                    `json:"createdAt"`
+	Enabled       bool                         `json:"enabled"`
+	FailingSince  *time.Time                   `json:"failingSince"`
+	Format        AuditStreamDestinationFormat `json:"format"`
+	HasAuthHeader bool                         `json:"hasAuthHeader"`
+	Id            openapi_types.UUID           `json:"id"`
+	Kind          AuditStreamDestinationKind   `json:"kind"`
+
+	// LagSeconds How long the oldest entry not yet sent has waited (0: none waits)
+	LagSeconds int64 `json:"lagSeconds"`
+
+	// LastErrorClass Why the last delivery failed: address (refused or invalid), connect, tls, timeout, http_3xx, http_4xx, http_5xx, internal; '' after a delivery
+	LastErrorClass AuditStreamErrorClass `json:"lastErrorClass"`
+	LastSentAt     *time.Time            `json:"lastSentAt"`
+	Name           string                `json:"name"`
+	NextAttemptAt  *time.Time            `json:"nextAttemptAt"`
+	Revision       int64                 `json:"revision"`
+	SentTotal      int64                 `json:"sentTotal"`
+
+	// Started Has been turned on at least once (it streams from then on)
+	Started bool `json:"started"`
+}
+
+// AuditStreamDestinationFormat defines model for AuditStreamDestination.Format.
+type AuditStreamDestinationFormat string
+
+// AuditStreamDestinationKind defines model for AuditStreamDestination.Kind.
+type AuditStreamDestinationKind string
+
+// AuditStreamDestinationInput defines model for AuditStreamDestinationInput.
+type AuditStreamDestinationInput struct {
+	Address string `json:"address"`
+
+	// AuthHeader The Authorization header value (e.g. Splunk <token>), stored encrypted and never shown. Absent: keep; '': remove. HTTPS only.
+	AuthHeader *string `json:"authHeader,omitempty"`
+
+	// CaPem Extra CA certificate (PEM) for a private SIEM; '' for the system roots
+	CaPem string `json:"caPem"`
+
+	// Format https: splunk_hec or ndjson; syslog: rfc5424
+	Format AuditStreamDestinationInputFormat `json:"format"`
+	Kind   AuditStreamDestinationInputKind   `json:"kind"`
+	Name   string                            `json:"name"`
+}
+
+// AuditStreamDestinationInputFormat https: splunk_hec or ndjson; syslog: rfc5424
+type AuditStreamDestinationInputFormat string
+
+// AuditStreamDestinationInputKind defines model for AuditStreamDestinationInput.Kind.
+type AuditStreamDestinationInputKind string
+
+// AuditStreamErrorClass Why the last delivery failed: address (refused or invalid), connect, tls, timeout, http_3xx, http_4xx, http_5xx, internal; ” after a delivery
+type AuditStreamErrorClass = string
+
+// AuditStreamSettings defines model for AuditStreamSettings.
+type AuditStreamSettings struct {
+	Enabled  bool  `json:"enabled"`
+	Revision int64 `json:"revision"`
+}
+
+// AuditStreamSettingsInput defines model for AuditStreamSettingsInput.
+type AuditStreamSettingsInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+// AuditStreamTestResult defines model for AuditStreamTestResult.
+type AuditStreamTestResult struct {
+	Delivered bool `json:"delivered"`
+
+	// ErrorClass Why the last delivery failed: address (refused or invalid), connect, tls, timeout, http_3xx, http_4xx, http_5xx, internal; '' after a delivery
+	ErrorClass AuditStreamErrorClass `json:"errorClass"`
+}
 
 // AuditVia defines model for AuditVia.
 type AuditVia struct {
@@ -13622,6 +13784,35 @@ type AdminRetryAuditExportParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminDeleteAuditStreamDestinationParams defines parameters for AdminDeleteAuditStreamDestination.
+type AdminDeleteAuditStreamDestinationParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminPutAuditStreamDestinationParams defines parameters for AdminPutAuditStreamDestination.
+type AdminPutAuditStreamDestinationParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminSetAuditStreamDestinationEnabledJSONBody defines parameters for AdminSetAuditStreamDestinationEnabled.
+type AdminSetAuditStreamDestinationEnabledJSONBody struct {
+	Enabled bool `json:"enabled"`
+}
+
+// AdminSetAuditStreamDestinationEnabledParams defines parameters for AdminSetAuditStreamDestinationEnabled.
+type AdminSetAuditStreamDestinationEnabledParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminPutAuditStreamSettingsParams defines parameters for AdminPutAuditStreamSettings.
+type AdminPutAuditStreamSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListBreakGlassSessionsParams defines parameters for AdminListBreakGlassSessions.
 type AdminListBreakGlassSessionsParams struct {
 	// State open: pending and active; closed: every other status
@@ -14446,6 +14637,18 @@ type AdminPutAuditExportSettingsJSONRequestBody = AuditExportSettingsInput
 
 // AdminRequestAuditExportJSONRequestBody defines body for AdminRequestAuditExport for application/json ContentType.
 type AdminRequestAuditExportJSONRequestBody = AuditExportRequest
+
+// AdminCreateAuditStreamDestinationJSONRequestBody defines body for AdminCreateAuditStreamDestination for application/json ContentType.
+type AdminCreateAuditStreamDestinationJSONRequestBody = AuditStreamDestinationInput
+
+// AdminPutAuditStreamDestinationJSONRequestBody defines body for AdminPutAuditStreamDestination for application/json ContentType.
+type AdminPutAuditStreamDestinationJSONRequestBody = AuditStreamDestinationInput
+
+// AdminSetAuditStreamDestinationEnabledJSONRequestBody defines body for AdminSetAuditStreamDestinationEnabled for application/json ContentType.
+type AdminSetAuditStreamDestinationEnabledJSONRequestBody AdminSetAuditStreamDestinationEnabledJSONBody
+
+// AdminPutAuditStreamSettingsJSONRequestBody defines body for AdminPutAuditStreamSettings for application/json ContentType.
+type AdminPutAuditStreamSettingsJSONRequestBody = AuditStreamSettingsInput
 
 // AdminStartBreakGlassSessionJSONRequestBody defines body for AdminStartBreakGlassSession for application/json ContentType.
 type AdminStartBreakGlassSessionJSONRequestBody = BreakGlassStart

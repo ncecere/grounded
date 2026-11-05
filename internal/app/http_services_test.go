@@ -29,7 +29,7 @@ func TestHTTPServicesPreserveInfrastructureAndDomainIdentity(t *testing.T) {
 		{"Sources", "Sources"}, {"Web", "WebSources"}, {"KBs", "KBs"},
 		{"APIKeys", "APIKeys"}, {"Limits", "Limits"}, {"Costs", "Costs"},
 		{"Agents", "Agents"}, {"Notify", "Notify"}, {"Moderation", "Moderation"},
-		{"SystemOne", "SystemOne"}, {"OCR", "OCR"}, {"PII", "PII"}, {"SCIM", "SCIM"}, {"Public", "Public"}, {"Rerank", "Rerank"},
+		{"SystemOne", "SystemOne"}, {"OCR", "OCR"}, {"AuditStream", "AuditStream"}, {"PII", "PII"}, {"SCIM", "SCIM"}, {"Public", "Public"}, {"Rerank", "Rerank"},
 		{"Retention", "Retention"}, {"BreakGlass", "BreakGlass"},
 		{"ProfileMigrations", "ProfileMigrations"}, {"Evaluations", "Evaluations"}, {"MCP", "MCP"}, {"OAuth", "OAuth"},
 		{"Contextual", "Contextual"}, {"TeamRequests", "TeamRequests"}, {"Webhooks", "Webhooks"},
