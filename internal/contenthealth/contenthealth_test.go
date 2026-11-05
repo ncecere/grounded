@@ -67,17 +67,17 @@ func TestLinkCode(t *testing.T) {
 	}
 }
 
-// The registry is the five signals of the design. No PII signal exists until its own decision (#37): the hook is the Signal
-// interface and the free signal name in findings, not a detector.
-func TestRegistryIsTheFiveSignals(t *testing.T) {
+// The registry is the five signals of the design and personal_data (#37, docs/pii-scanning.md), whose findings are a
+// document, a review state and the kinds found: never the text that matched.
+func TestRegistryIsTheSixSignals(t *testing.T) {
 	var names []string
 	for _, s := range Registry() {
 		names = append(names, s.Name())
-		if len(s.Name()) == 0 || len(s.Name()) > 32 || strings.Contains(strings.ToLower(s.Name()), "pii") {
+		if len(s.Name()) == 0 || len(s.Name()) > 32 {
 			t.Errorf("unexpected signal name %q", s.Name())
 		}
 	}
-	want := []string{SignalStale, SignalBrokenLink, SignalDuplicate, SignalNeverCited, SignalIngestionFailure}
+	want := []string{SignalStale, SignalBrokenLink, SignalDuplicate, SignalNeverCited, SignalIngestionFailure, SignalPersonalData}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("registry = %v, want %v", names, want)
 	}
@@ -183,5 +183,15 @@ func TestMigrationOnlyCreates(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(up), "enabled    boolean     not null default false") {
 		t.Error("the switch is not off by default")
+	}
+}
+
+func TestClipDetail(t *testing.T) {
+	long := strings.Repeat("student_id_number,", 5)
+	if got := clipDetail(long); len(got) > 64 || strings.HasSuffix(got, ",") || !strings.HasPrefix(got, "student_id_number,") {
+		t.Errorf("clipDetail = %q", got)
+	}
+	if got := clipDetail("payment_card,us_ssn"); got != "payment_card,us_ssn" {
+		t.Errorf("short detail changed: %q", got)
 	}
 }

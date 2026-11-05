@@ -480,10 +480,11 @@ WHERE source_id = $1
   AND ($3::text IS NULL OR kind = $3::text)
   AND ($4::text IS NULL OR tags @> ARRAY[lower($4::text)])
   AND ($5::text IS NULL OR error_code = $5::text)
-  AND ($6::timestamptz IS NULL
-       OR (created_at, id) < ($6::timestamptz, $7::uuid))
+  AND (NOT $6::boolean OR metadata->'pii'->>'state' IN ('flagged', 'held'))
+  AND ($7::timestamptz IS NULL
+       OR (created_at, id) < ($7::timestamptz, $8::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $8
+LIMIT $9
 `
 
 type ListDocumentsParams struct {
@@ -492,6 +493,7 @@ type ListDocumentsParams struct {
 	Kind          *string
 	Tag           *string
 	ErrorCode     *string
+	PiiReview     bool
 	BeforeCreated *time.Time
 	BeforeID      uuid.NullUUID
 	PageSize      int32
@@ -504,6 +506,7 @@ func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([
 		arg.Kind,
 		arg.Tag,
 		arg.ErrorCode,
+		arg.PiiReview,
 		arg.BeforeCreated,
 		arg.BeforeID,
 		arg.PageSize,
@@ -873,10 +876,11 @@ WHERE source_id = $1
   AND ($4::text IS NULL OR kind = $4::text)
   AND ($5::text IS NULL OR tags @> ARRAY[lower($5::text)])
   AND ($6::text IS NULL OR error_code = $6::text)
-  AND ($7::timestamptz IS NULL
-       OR (created_at, id) < ($7::timestamptz, $8::uuid))
+  AND (NOT $7::boolean OR metadata->'pii'->>'state' IN ('flagged', 'held'))
+  AND ($8::timestamptz IS NULL
+       OR (created_at, id) < ($8::timestamptz, $9::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $9
+LIMIT $10
 `
 
 type SearchDocumentsParams struct {
@@ -886,6 +890,7 @@ type SearchDocumentsParams struct {
 	Kind          *string
 	Tag           *string
 	ErrorCode     *string
+	PiiReview     bool
 	BeforeCreated *time.Time
 	BeforeID      uuid.NullUUID
 	PageSize      int32
@@ -902,6 +907,7 @@ func (q *Queries) SearchDocuments(ctx context.Context, arg SearchDocumentsParams
 		arg.Kind,
 		arg.Tag,
 		arg.ErrorCode,
+		arg.PiiReview,
 		arg.BeforeCreated,
 		arg.BeforeID,
 		arg.PageSize,
@@ -1112,7 +1118,8 @@ func (q *Queries) SnoozeDocument(ctx context.Context, arg SnoozeDocumentParams) 
 const sourceDocumentStats = `-- name: SourceDocumentStats :many
 SELECT source_id, status, count(*)::bigint AS documents,
        coalesce(sum(size_bytes), 0)::bigint AS bytes,
-       coalesce(sum(chunk_count), 0)::bigint AS chunks
+       coalesce(sum(chunk_count), 0)::bigint AS chunks,
+       count(*) FILTER (WHERE metadata->'pii'->>'state' IN ('flagged', 'held'))::bigint AS pii_review
 FROM documents
 WHERE source_id = ANY($1::uuid[])
 GROUP BY source_id, status
@@ -1124,6 +1131,7 @@ type SourceDocumentStatsRow struct {
 	Documents int64
 	Bytes     int64
 	Chunks    int64
+	PiiReview int64
 }
 
 func (q *Queries) SourceDocumentStats(ctx context.Context, sourceIds []uuid.UUID) ([]SourceDocumentStatsRow, error) {
@@ -1141,6 +1149,7 @@ func (q *Queries) SourceDocumentStats(ctx context.Context, sourceIds []uuid.UUID
 			&i.Documents,
 			&i.Bytes,
 			&i.Chunks,
+			&i.PiiReview,
 		); err != nil {
 			return nil, err
 		}

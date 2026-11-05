@@ -26,6 +26,7 @@ import (
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/parse"
+	"github.com/ncecere/grounded/internal/pii"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -88,6 +89,7 @@ type outcome struct {
 	status, code, message string
 	kind                  parse.Kind // when parsing got that far (a skipped scan is still a PDF)
 	retry                 bool
+	pii                   *pii.Record // a held document's findings (nil: none recorded)
 }
 
 func classify(err error) outcome {
@@ -96,6 +98,8 @@ func classify(err error) outcome {
 	}
 	var ge *gateway.Error
 	switch {
+	case heldRecord(err) != nil:
+		return outcome{status: StatusSkipped, code: pii.ErrorCode, message: heldMessage(heldRecord(err)), pii: heldRecord(err)}
 	case errors.Is(err, parse.ErrNeedsOCR):
 		return outcome{status: StatusSkipped, code: ErrorNeedsOCR, message: err.Error()}
 	case errors.Is(err, parse.ErrEmpty):
@@ -272,6 +276,7 @@ type result struct {
 	target  catalog.EmbedTarget
 	usage   EmbedUsage
 	mark    *ctxMark // how contextual chunks applied (nil: not at all)
+	pii     *pii.Record
 }
 
 func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, error) {
@@ -291,6 +296,9 @@ func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, er
 	}
 	res.parsed, res.kind, err = p.parse(ctx, src, doc, data)
 	if err != nil {
+		return res, err
+	}
+	if res.pii, err = p.scanPII(ctx, q, src, doc, res.parsed); err != nil {
 		return res, err
 	}
 	if key := parsedKey(doc.BlobKey); key != "" {

@@ -180,6 +180,8 @@ type Stats struct {
 	ByStatus map[string]int64
 	Bytes    int64
 	Chunks   int64
+	// PIIReview counts the documents waiting for a review of possible personal data.
+	PIIReview int64
 }
 
 // Summary is a source with its document statistics and active crawl.
@@ -208,6 +210,7 @@ func (s *Service) summaries(ctx context.Context, srcs []dbgen.DataSource, withCr
 		st.ByStatus[r.Status] = r.Documents
 		st.Bytes += r.Bytes
 		st.Chunks += r.Chunks
+		st.PIIReview += r.PiiReview
 		stats[r.SourceID] = st
 	}
 	active := map[uuid.UUID]dbgen.WebCrawl{}

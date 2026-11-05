@@ -1094,6 +1094,16 @@ type ParsingSetting struct {
 	UpdatedAt     time.Time
 }
 
+type PiiSetting struct {
+	Singleton   bool
+	Enabled     bool
+	BlockLevels []string
+	Patterns    json.RawMessage
+	Revision    int64
+	UpdatedBy   uuid.NullUUID
+	UpdatedAt   time.Time
+}
+
 type PlatformBootstrap struct {
 	OIDCIssuer  string
 	OIDCSubject string

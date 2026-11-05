@@ -225,7 +225,7 @@ func TestReportEndToEnd(t *testing.T) {
 	src := f.source(f.teamA, "Handbook", "upload")
 	d := f.addDoc(f.teamA, src, doc{title: "Parking policy", processed: at(time.Now().AddDate(-3, 0, 0))})
 	rep := f.make(CreateInput{})
-	if rep.Status != StatusCompleted || rep.AsOf == nil || rep.ExpiresAt == nil || len(rep.Signals) != 5 {
+	if rep.Status != StatusCompleted || rep.AsOf == nil || rep.ExpiresAt == nil || len(rep.Signals) != 6 {
 		t.Fatalf("report = %+v", rep)
 	}
 	var stale SignalView
@@ -429,8 +429,8 @@ func TestSlowSignalTimesOut(t *testing.T) {
 	f.svc.Signals = append([]Signal{slowSignal{}}, Registry()...)
 	f.svc.SignalLimit = 400 * time.Millisecond
 	rep := f.make(CreateInput{})
-	if rep.Status != StatusCompleted || len(rep.Signals) != 6 {
-		t.Fatalf("report = %s with %d signals, want completed with 6", rep.Status, len(rep.Signals))
+	if rep.Status != StatusCompleted || len(rep.Signals) != 7 {
+		t.Fatalf("report = %s with %d signals, want completed with 7", rep.Status, len(rep.Signals))
 	}
 	if s := rep.Signals[0]; s.Signal != "slow" || s.State != StateUnavailable || s.Reason != ReasonTimedOut {
 		t.Errorf("the slow signal = %+v, want unavailable (timed out)", s)

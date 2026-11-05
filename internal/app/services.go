@@ -38,6 +38,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/oauth"
 	"github.com/ncecere/grounded/internal/ocr"
+	"github.com/ncecere/grounded/internal/pii"
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/profilemig"
@@ -108,6 +109,8 @@ type Services struct {
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
 	OCR *ocr.Service
+	// PII is Admin -> Personal data: the settings of scanning at ingest (docs/pii-scanning.md).
+	PII *pii.Service
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
@@ -255,6 +258,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.RetentionMetrics = retention.NewMetrics()
 	s.Parser, s.builtin = NewParser(cfg, log)
 	tika, _ := s.Parser.Tika.(*parse.Tika)
+	s.PII = &pii.Service{Pool: pool}
 	s.OCR = ocr.New(pool, s.Catalog, s.Limits, ocr.Config{
 		TesseractURL: cfg.OCR.TesseractURL, Timeout: cfg.OCR.Timeout, Tika: tika,
 		MaxPagesPerDocument: cfg.OCR.MaxPagesPerDocument, Concurrency: cfg.OCR.Concurrency,

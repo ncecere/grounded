@@ -37,7 +37,7 @@ func toAPICounts(st sources.Stats) apitypes.DocumentCounts {
 	by := st.ByStatus
 	c := apitypes.DocumentCounts{
 		Pending: by["pending"] + by["queued"], Processing: by["processing"], Ready: by["ready"],
-		Failed: by["failed"], Skipped: by["skipped"], Bytes: st.Bytes, Chunks: st.Chunks,
+		Failed: by["failed"], Skipped: by["skipped"], Bytes: st.Bytes, Chunks: st.Chunks, PiiReview: st.PIIReview,
 	}
 	c.Total = c.Pending + c.Processing + c.Ready + c.Failed + c.Skipped
 	return c

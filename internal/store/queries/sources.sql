@@ -33,7 +33,8 @@ DELETE FROM data_sources WHERE id = $1;
 -- name: SourceDocumentStats :many
 SELECT source_id, status, count(*)::bigint AS documents,
        coalesce(sum(size_bytes), 0)::bigint AS bytes,
-       coalesce(sum(chunk_count), 0)::bigint AS chunks
+       coalesce(sum(chunk_count), 0)::bigint AS chunks,
+       count(*) FILTER (WHERE metadata->'pii'->>'state' IN ('flagged', 'held'))::bigint AS pii_review
 FROM documents
 WHERE source_id = ANY(@source_ids::uuid[])
 GROUP BY source_id, status;
@@ -100,6 +101,7 @@ WHERE source_id = @source_id
   AND (sqlc.narg(kind)::text IS NULL OR kind = sqlc.narg(kind)::text)
   AND (sqlc.narg(tag)::text IS NULL OR tags @> ARRAY[lower(sqlc.narg(tag)::text)])
   AND (sqlc.narg(error_code)::text IS NULL OR error_code = sqlc.narg(error_code)::text)
+  AND (NOT @pii_review::boolean OR metadata->'pii'->>'state' IN ('flagged', 'held'))
   AND (sqlc.narg(before_created)::timestamptz IS NULL
        OR (created_at, id) < (sqlc.narg(before_created)::timestamptz, sqlc.narg(before_id)::uuid))
 ORDER BY created_at DESC, id DESC
@@ -116,6 +118,7 @@ WHERE source_id = @source_id
   AND (sqlc.narg(kind)::text IS NULL OR kind = sqlc.narg(kind)::text)
   AND (sqlc.narg(tag)::text IS NULL OR tags @> ARRAY[lower(sqlc.narg(tag)::text)])
   AND (sqlc.narg(error_code)::text IS NULL OR error_code = sqlc.narg(error_code)::text)
+  AND (NOT @pii_review::boolean OR metadata->'pii'->>'state' IN ('flagged', 'held'))
   AND (sqlc.narg(before_created)::timestamptz IS NULL
        OR (created_at, id) < (sqlc.narg(before_created)::timestamptz, sqlc.narg(before_id)::uuid))
 ORDER BY created_at DESC, id DESC

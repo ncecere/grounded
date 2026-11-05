@@ -105,6 +105,10 @@ var teamPolicies = map[string]policy{
 	"retryDocument": {own: editors, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.src("/documents/"+c.tf.doc+"/retry"), nil)
 	}},
+	// The fixture's document has nothing to review: editors reach 409 not_reviewable.
+	"reviewDocumentPii": {own: editors, also: []string{"409"}, build: func(c *mctx) request {
+		return post(c.src("/documents/"+c.tf.doc+"/pii-review"), map[string]any{"action": "dismiss"})
+	}},
 	"retryDocuments": {own: editors, build: func(c *mctx) request {
 		return post(c.src("/documents/retry"), map[string]any{"errorCode": "needs_ocr"})
 	}},

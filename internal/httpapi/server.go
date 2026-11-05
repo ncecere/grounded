@@ -38,6 +38,7 @@ import (
 	"github.com/ncecere/grounded/internal/oauth"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/ocr"
+	"github.com/ncecere/grounded/internal/pii"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/profilemig"
 	"github.com/ncecere/grounded/internal/public"
@@ -86,6 +87,8 @@ type Deps struct {
 	Rerank *rerank.Service
 	// OCR stores the parsing settings and tests OCR backends (docs/ocr.md).
 	OCR *ocr.Service
+	// PII stores the settings of personal data scanning at ingest (docs/pii-scanning.md).
+	PII *pii.Service
 	// Public serves public agents to anonymous visitors and the widget.
 	Public *public.Service
 	// Retention administers retention periods, runs and legal holds.
@@ -176,7 +179,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.auditExportRoutes(), a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
+		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)
@@ -257,6 +260,7 @@ func (a *api) sourceRoutes() []route {
 		{"DELETE", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}", a.session(a.deleteDocument(teamOwner))},
 		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/retry", a.session(a.retryDocuments(teamOwner))},
 		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/retry", a.session(a.retryDocument(teamOwner))},
+		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/pii-review", a.session(a.reviewDocumentPii(teamOwner))},
 		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/refetch", a.session(a.refetchDocument(teamOwner))},
 		{"GET", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/passages", a.either(a.listDocumentPassages(teamOwner))},
 		{"GET", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text", a.either(a.getDocumentText(teamOwner))},
@@ -402,6 +406,7 @@ func (a *api) sharedSourceAdminRoutes() []route {
 		{"DELETE", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}", a.admin(a.deleteDocument(platformOwner))},
 		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/retry", a.admin(a.retryDocuments(platformOwner))},
 		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/retry", a.admin(a.retryDocument(platformOwner))},
+		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/pii-review", a.admin(a.reviewDocumentPii(platformOwner))},
 		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/refetch", a.admin(a.refetchDocument(platformOwner))},
 		{"GET", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/passages", a.admin(a.listDocumentPassages(platformOwner))},
 		{"GET", "/v1/admin/shared-sources/{sourceId}/tags", a.admin(a.listSourceTags(platformOwner))},

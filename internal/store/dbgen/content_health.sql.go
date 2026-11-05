@@ -580,6 +580,64 @@ func (q *Queries) ContentHealthPacing(ctx context.Context, teamID uuid.UUID) (ti
 	return last_at, err
 }
 
+const contentHealthPersonalData = `-- name: ContentHealthPersonalData :many
+SELECT d.id AS document_id, d.source_id, (d.metadata->'pii'->>'state')::text AS state,
+       coalesce((SELECT string_agg(f->>'kind', ',' ORDER BY f->>'kind') FROM jsonb_array_elements(d.metadata->'pii'->'findings') f), '')::text AS kinds,
+       coalesce((SELECT sum((f->>'count')::int) FROM jsonb_array_elements(d.metadata->'pii'->'findings') f), 0)::bigint AS matches,
+       d.updated_at::timestamptz AS updated_at,
+       (count(*) OVER ())::bigint AS total
+FROM documents d
+WHERE d.team_id = $1 AND d.source_id = ANY($2::uuid[]) AND d.metadata->'pii'->>'state' IN ('flagged', 'held')
+ORDER BY (d.metadata->'pii'->>'state') = 'held' DESC, d.updated_at, d.id
+LIMIT $3
+`
+
+type ContentHealthPersonalDataParams struct {
+	TeamID    uuid.NullUUID
+	SourceIds []uuid.UUID
+	PageSize  int32
+}
+
+type ContentHealthPersonalDataRow struct {
+	DocumentID uuid.UUID
+	SourceID   uuid.UUID
+	State      string
+	Kinds      string
+	Matches    int64
+	UpdatedAt  time.Time
+	Total      int64
+}
+
+// Documents with possible personal data waiting for a review (flagged: indexed; held: not indexed until approved). The kinds
+// found, never the matches (docs/pii-scanning.md).
+func (q *Queries) ContentHealthPersonalData(ctx context.Context, arg ContentHealthPersonalDataParams) ([]ContentHealthPersonalDataRow, error) {
+	rows, err := q.db.Query(ctx, contentHealthPersonalData, arg.TeamID, arg.SourceIds, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ContentHealthPersonalDataRow{}
+	for rows.Next() {
+		var i ContentHealthPersonalDataRow
+		if err := rows.Scan(
+			&i.DocumentID,
+			&i.SourceID,
+			&i.State,
+			&i.Kinds,
+			&i.Matches,
+			&i.UpdatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const contentHealthReportStatus = `-- name: ContentHealthReportStatus :one
 SELECT status FROM content_health_reports WHERE id = $1
 `
