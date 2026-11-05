@@ -103,6 +103,8 @@ CROSS JOIN LATERAL (
         WHEN 'rerank_settings' THEN 'Reranking settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
         WHEN 'pii_settings' THEN 'Personal data scanning'
+        WHEN 'scim_token' THEN (SELECT 'SCIM token ' || st.name FROM scim_tokens st WHERE st.id = ids.target_uuid)
+        WHEN 'scim_group' THEN (SELECT 'SCIM group ' || sg.display_name FROM scim_groups sg WHERE sg.id = ids.target_uuid)
         WHEN 'retention_settings' THEN 'Retention settings'
         WHEN 'retention' THEN 'Retention run'
         WHEN 'legal_hold' THEN (SELECT 'Legal hold on ' || lh.scope_type || ' ' || lh.scope_label FROM legal_holds lh WHERE lh.id = ids.target_uuid)
