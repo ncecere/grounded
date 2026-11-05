@@ -62,6 +62,24 @@ hasn't signed in since `oid` was added to the token is linked at their next sign
 3. Provisioning → To App: enable Create Users, Update User Attributes and Deactivate Users.
 4. Keep `SCIM_MATCH_CLAIM=sub`.
 
+### authentik
+
+Tested end to end with authentik 2025.10 (creation, linking an existing user, a pending user's first sign-in, a group
+driving a rule, and suspension).
+
+1. **Sign-in:** an OAuth2/OpenID provider for Grounded with **Subject mode: Based on the User's hashed ID** (the default).
+   Keep `SCIM_MATCH_CLAIM=sub`: authentik sends a user's `uid` (that hashed ID) as SCIM `externalId` whenever the user
+   mapping doesn't set one, which its default mapping doesn't. With another subject mode, either set `externalId` in a
+   custom user mapping to the same value as `sub`, or change the claim; never use the email.
+2. **Provisioning:** a SCIM provider with the base URL and the token. Limit it with **User filtering → Group**, and to push
+   only some groups, a group property mapping that raises `SkipObject` for the others.
+3. **Assign the SCIM provider to the application** as a backchannel provider (Applications → your app → Backchannel
+   providers) **before** it syncs: unassigned, authentik's sync finishes "successfully" without sending anything (its task
+   log says "No provider found. Is it assigned to an application?"). After assigning it, save the provider again to sync.
+4. authentik's default `email` scope reports `email_verified: false`. That doesn't affect SCIM or matching (which use the
+   subject), only accepting team invites by email; set `OIDC_REQUIRE_VERIFIED_EMAIL=false` or add a mapping that reports
+   verified addresses if you rely on invites.
+
 ## Groups and the rules
 
 A SCIM group counts for the rules under its **name** and under its **externalId** (Entra puts the object ID in a `groups`
