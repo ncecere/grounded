@@ -1,6 +1,6 @@
 # ADR-0034: Signed daily audit exports
 
-- Status: Proposed
+- Status: Accepted (v0.9.0, 2026-11-06: shipped with SIEM streaming and external S3 copies; see "Accepted" below)
 - Date: 2026-10-31
 
 ## Context
@@ -30,3 +30,12 @@ Frozen facts consume additional database space. Hard record, byte and duration l
 only visible projected facts, not every original field nor pre-approval retention losses. Late commits are carried forward within the declared coverage range. Operators
 must retain exports and trusted public-key fingerprints outside this system to
 detect rollback or deletion of the newest exports. Scheduling is gated by explicit revised settings approval; API, UI and job integration require independent owner acceptance.
+
+## Accepted (v0.9.0)
+
+Accepted as built in v0.9.0. The integration this proposal left open is complete: the API, the Admin → Logs → Signed exports
+page and the River jobs (PR #220), streaming to a SIEM as a separate path that sends audit facts only (PR #228,
+[design](../specs/audit-streaming/DESIGN.md)), and the external destination the proposal held back: an operator-configured S3
+bucket, preferably with Object Lock, that receives each day's payload and envelope after its hash is checked against the
+signed manifest, read back after writing (PR #231). Acceptance records the decision; it does not certify compliance with any
+framework.

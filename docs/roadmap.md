@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-11-04. **v0.8.0 is released** (2026-11-04: a Helm chart generated from the Kustomize base, an accessibility statement and "About this assistant" cards, and a UI polish pass), after **v0.7.0** (2026-11-01, six opt-in retrieval changes), **v0.6.3** (2026-10-30), **v0.6.2** (2026-10-29), **v0.6.1** (2026-10-17), **v0.6.0** (2026-10-16), **v0.5.0** (2026-10-15), **v0.4.4** (2026-10-14), **v0.4.3** (2026-10-11) and **v0.4.2** (2026-10-04). Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15), v0.6.0 (2026-10-16), v0.6.1 (2026-10-17), v0.6.2 (2026-10-29), v0.6.3 (2026-10-30), v0.7.0 (2026-11-01), v0.8.0 (2026-11-04); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** v0.9.0 (identity and compliance, with configuration as code and the bitop-ui docs site carried from v0.8.0) is built: every item is merged except external copies of the signed exports, in review except external S3 destinations for the signed exports ([`v0.9.0.md`](v0.9.0.md), "Progress"). Measuring the opt-in retrieval changes on a real knowledge base (#19's mixed-procedure pages) still needs the reference install.
+Status: refreshed 2026-11-06. **v0.9.0 is released** (2026-11-06: identity and compliance, with configuration as code and the published bitop-ui registry), after **v0.8.0** (2026-11-04: a Helm chart generated from the Kustomize base, an accessibility statement and "About this assistant" cards, and a UI polish pass), **v0.7.0** (2026-11-01, six opt-in retrieval changes), **v0.6.3** (2026-10-30), **v0.6.2** (2026-10-29), **v0.6.1** (2026-10-17), **v0.6.0** (2026-10-16), **v0.5.0** (2026-10-15), **v0.4.4** (2026-10-14), **v0.4.3** (2026-10-11) and **v0.4.2** (2026-10-04). Releases so far: v0.1.0 (2026-09-28), v0.2.0–v0.2.2 (2026-09-29/30), v0.3.0 and v0.3.1 (2026-09-30), v0.4.0 and v0.4.1 (2026-10-02), v0.4.2 (2026-10-04), v0.4.3 (2026-10-11), v0.4.4 (2026-10-14), v0.5.0 (2026-10-15), v0.6.0 (2026-10-16), v0.6.1 (2026-10-17), v0.6.2 (2026-10-29), v0.6.3 (2026-10-30), v0.7.0 (2026-11-01), v0.8.0 (2026-11-04), v0.9.0 (2026-11-06); each has a "Done in" section below and notes under [`releases/`](releases/). Grounded stays one MIT project named Grounded (ADR-0025 rejected). **Next:** v0.10.0, private content: B6 document permissions first, then B1 Microsoft 365, B2 Google Drive and B3 connectors (tentative; its decisions are written before building). Measuring the opt-in retrieval changes on a real knowledge base (#19's mixed-procedure pages) still needs the reference install.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -214,6 +214,27 @@ The first release of "better knowledge in" ([`releases/v0.5.0.md`](releases/v0.5
 | E8 | **Accessibility statement and "About this assistant"** ([#34](https://github.com/ncecere/grounded/issues/34)): a settings-derived card on every chat surface, a versioned ownership note, and `/accessibility` with admin-set contact links. | [`about-accessibility.md`](about-accessibility.md), [ADR-0030](adr/0030-assistant-disclosures.md) |
 | — | **UI polish** (bitop-ui#6, #213): one radius rule, quieter controls at 3:1, one focus ring, segmented filter tracks, a cleaner sidebar, flat cards, no card in a card. | [`CHANGELOG.md`](../CHANGELOG.md) |
 
+## Done in v0.9.0 (released 2026-11-06)
+
+"Identity and compliance", with configuration as code (D4) and the bitop-ui docs site (F11) carried from v0.8.0
+([`releases/v0.9.0.md`](releases/v0.9.0.md)). Seven additive migrations (schema 67). Personal data scanning is on by
+default and only flags; everything else is off until set up.
+
+| ID | What shipped | Docs |
+|---|---|---|
+| E4 | **SCIM provisioning** ([#35](https://github.com/ncecere/grounded/issues/35)): people created before sign-in, suspended when they leave, matched by the identity provider's object ID (never email); SCIM groups feed the SSO group rules. | [`operations/scim.md`](operations/scim.md), [design](specs/scim/DESIGN.md) |
+| E5 | **Signed daily audit exports, external S3 copies and SIEM streaming** ([#36](https://github.com/ncecere/grounded/issues/36)): hash-chained, Ed25519-signed daily files; verified copies to an operator bucket; Splunk HEC, NDJSON or syslog over TLS in commit order. | [`signed-daily-audit-export.md`](signed-daily-audit-export.md), [ADR-0034](adr/0034-signed-daily-audit-exports.md), [`operations/audit-streaming.md`](operations/audit-streaming.md) |
+| B7 | **Personal data scanning at ingest** ([#37](https://github.com/ncecere/grounded/issues/37)): flag by default, hold at chosen classification levels; only kind, count and pages are kept. | [`pii-scanning.md`](pii-scanning.md) |
+| E17 | **Per-agent budgets and the budget follow-ups** ([#38](https://github.com/ncecere/grounded/issues/38)). | [design](specs/agent-budgets/DESIGN.md) |
+| E13 | **Usage by where it was used** ([#39](https://github.com/ncecere/grounded/issues/39)). | [`CHANGELOG.md`](../CHANGELOG.md) |
+| E16 | **Auditors see admin team settings as read-only facts** ([#40](https://github.com/ncecere/grounded/issues/40)). | [`CHANGELOG.md`](../CHANGELOG.md) |
+| D4 | **Configuration as code** ([#32](https://github.com/ncecere/grounded/issues/32)): export, a full plan before import, all-or-nothing apply that never deletes or starts work. | [ADR-0033](adr/0033-team-configuration-as-code.md), [design](specs/config-as-code-import/DESIGN.md) |
+| F11 | **bitop-ui docs site and registry** ([#33](https://github.com/ncecere/grounded/issues/33)): published at https://ncecere.github.io/bitop-ui/; Grounded installs from it. | [`CHANGELOG.md`](../CHANGELOG.md) |
+
+**Open follow-ups:** a live Entra ID or Okta tenant for SCIM (tested with authentik); streaming against a production
+Splunk or Elastic; signed exports in the Helm chart (it cannot mount the signing key yet); built-in personal-data
+patterns beyond US identifiers.
+
 ## L. Release plan (owner, 2026-10-04)
 
 | Version | Theme | Items |
@@ -224,7 +245,7 @@ The first release of "better knowledge in" ([`releases/v0.5.0.md`](releases/v0.5
 | **v0.6.0** | **Service desk building blocks** (released 2026-10-16; [`v0.6.0.md`](v0.6.0.md), [`releases/v0.6.0.md`](releases/v0.6.0.md)) | **Webhooks** (F3); **agent templates** (C4); a **router agent** (C5); **conversation sharing** (C12); **in-app team requests** (E3), optional: off until a platform admin turns them on |
 | **v0.7.0** | **Better knowledge in, continued** (retrieval; renumbered 2026-11-01, see [`releases/v0.7.0.md`](releases/v0.7.0.md)) | **Fuzzy boilerplate** (A11); **tables kept structured** (A10, first half); **parent/child retrieval** (A5); **content health report** (B8); **contextual chunks** (A4); **structural chunker v4** (A9/C15, first part). All opt-in; none measured on a real knowledge base yet |
 | **v0.8.0** | **Adoption by other installs, first part** (released 2026-11-04; [`v0.8.0.md`](v0.8.0.md), [`releases/v0.8.0.md`](releases/v0.8.0.md)) | **Helm chart** (F5); **accessibility statement and model cards** (E8); a UI polish pass. D4 and F11 moved to v0.9.0 |
-| **v0.9.0** | **Configuration as code, then identity and compliance** ([`v0.9.0.md`](v0.9.0.md); planned as v0.8.0 until 2026-11-01; built 2026-11-05, not yet released) | **Configuration as code** (D4); **bitop-ui docs site and registry** (F11, published); E4 SCIM, E5 signed audit export with external copies and SIEM streaming, B7 PII scanning at ingest, E17 per-agent budgets, E13 audience in usage, E16 auditors see read-only facts |
+| **v0.9.0** | **Configuration as code, then identity and compliance** (released 2026-11-06; [`v0.9.0.md`](v0.9.0.md), [`releases/v0.9.0.md`](releases/v0.9.0.md); planned as v0.8.0 until 2026-11-01) | **Configuration as code** (D4); **bitop-ui docs site and registry** (F11, published); E4 SCIM, E5 signed audit export with external copies and SIEM streaming, B7 PII scanning at ingest, E17 per-agent budgets, E13 audience in usage, E16 auditors see read-only facts |
 | v0.10.0 (tentative) | Private content | B6 document permissions, B1 Microsoft 365, then B2 Google Drive and B3 connectors |
 
 After v1.0.0: **D1 Microsoft Teams and Slack bots** (owner, 2026-10-04). Not planned yet: **C3 human handoff and ticketing** (owner, 2026-10-04: no ticketing integration for now); **D2 client SDKs and CLI** (owner: no SDKs; a CLI may come back later); E9 translated UI; D3 email-to-agent; C6 voice, C7 image input, C10 structured outputs, C11 version A/B tests (if the beta asks for them).
