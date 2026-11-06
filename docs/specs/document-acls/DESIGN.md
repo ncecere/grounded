@@ -1,7 +1,7 @@
 # Document permissions (B6, #41)
 
-Status: **design, 2026-11-05.** The decisions are recommendations awaiting the owner ([`../../v0.10.0.md`](../../v0.10.0.md)).
-Nothing here is built yet.
+Status: **design, 2026-11-05; being built.** The decisions are recommendations the owner let stand ("keep going",
+2026-11-05; [`../../v0.10.0.md`](../../v0.10.0.md)); any of them can still change before v0.10.0 is released.
 
 ## Goal
 
