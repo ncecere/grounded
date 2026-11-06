@@ -224,7 +224,9 @@ ORDER BY h.idx, h.created_at, h.id;
 -- stopwords only has no words to look for and counts as found.
 -- name: PhrasesInSources :many
 SELECT p.phrase::text AS phrase, (numnode(phraseto_tsquery('english', p.phrase)) = 0 OR EXISTS (
-    SELECT 1 FROM chunks c WHERE c.source_id = ANY(@source_ids::uuid[]) AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
+    -- Evaluations read unrestricted documents only (docs/specs/document-acls/DESIGN.md): a phrase in a restricted one is not found.
+    SELECT 1 FROM chunks c JOIN documents d ON d.id = c.document_id
+    WHERE c.source_id = ANY(@source_ids::uuid[]) AND d.acl_principals IS NULL AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
 ))::boolean AS found
 FROM unnest(@phrases::text[]) AS p(phrase);
 

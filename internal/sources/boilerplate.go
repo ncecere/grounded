@@ -157,7 +157,12 @@ func (s *Service) TopBoilerplate(ctx context.Context, a authz.Actor, o Owner, id
 	if limit <= 0 || limit > maxTopBlocks {
 		limit = maxTopBlocks
 	}
-	rows, err := s.q.TopBoilerplateBlocks(ctx, dbgen.TopBoilerplateBlocksParams{SourceID: id, MaxRows: limit})
+	view, err := s.viewerParams(ctx, a, sc, uuid.Nil)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.q.TopBoilerplateBlocks(ctx, dbgen.TopBoilerplateBlocksParams{SourceID: id, MaxRows: limit,
+		EveryDocument: view.EveryDocument, Principals: view.Principals})
 	if err != nil {
 		return nil, err
 	}

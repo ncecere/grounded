@@ -83,7 +83,14 @@ FROM documents d
 JOIN data_sources s ON s.id = d.source_id
 LEFT JOIN teams t ON t.id = s.team_id
 WHERE d.id = $1
+  AND ($2::boolean OR d.acl_principals IS NULL OR d.acl_principals && $3::text[])
 `
+
+type GetViewerDocumentParams struct {
+	ID            uuid.UUID
+	EveryDocument bool
+	Principals    []string
+}
 
 type GetViewerDocumentRow struct {
 	ID         uuid.UUID
@@ -98,8 +105,11 @@ type GetViewerDocumentRow struct {
 }
 
 // A document for the viewer, with its source's team (NULL: platform-shared).
-func (q *Queries) GetViewerDocument(ctx context.Context, id uuid.UUID) (GetViewerDocumentRow, error) {
-	row := q.db.QueryRow(ctx, getViewerDocument, id)
+// The gate of every viewer read (docs/specs/document-acls/DESIGN.md): a document the reader may not read is not found, and
+// its passages are only ever listed for a document this returned. every_document is a break-glass read, which document
+// permissions do not limit.
+func (q *Queries) GetViewerDocument(ctx context.Context, arg GetViewerDocumentParams) (GetViewerDocumentRow, error) {
+	row := q.db.QueryRow(ctx, getViewerDocument, arg.ID, arg.EveryDocument, arg.Principals)
 	var i GetViewerDocumentRow
 	err := row.Scan(
 		&i.ID,

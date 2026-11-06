@@ -486,17 +486,6 @@ func (s *Service) GetDocument(ctx context.Context, a authz.Actor, o Owner, sourc
 	return s.readDocument(ctx, a, o, sourceID, docID, breakglass.ReadDocument)
 }
 
-// DocumentPassages returns a document's first passages (chunks) in order,
-// with the document for the total count. Readers of the source may see them.
-func (s *Service) DocumentPassages(ctx context.Context, a authz.Actor, o Owner, sourceID, docID uuid.UUID, limit int32) (dbgen.Document, []dbgen.ListDocumentChunksRow, error) {
-	doc, err := s.readDocument(ctx, a, o, sourceID, docID, breakglass.ReadPassages)
-	if err != nil {
-		return doc, nil, err
-	}
-	rows, err := s.q.ListDocumentChunks(ctx, dbgen.ListDocumentChunksParams{DocumentID: docID, PageSize: limit})
-	return doc, rows, err
-}
-
 // SourceTags lists the tags a source's documents use (at most 200), for filters.
 func (s *Service) SourceTags(ctx context.Context, a authz.Actor, o Owner, sourceID uuid.UUID) ([]string, error) {
 	sc, err := s.readAccess(ctx, a, o, sourceRead(breakglass.ReadTags, sourceID))

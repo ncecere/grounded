@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -97,8 +98,11 @@ func (s *Service) collapseParents(ctx context.Context, profileID uuid.UUID, maxT
 // ExpandParents builds the text of each hit's parent (hits from a search of kb that collapsed parents), at most one query for all of them. A
 // hit whose parent cannot be used keeps no Text and gets the reason in Skipped; the caller then gives the model the passage, as without parents.
 // It reads only rows of the hit's own document, source and profile, and only for sources the search may read (kb's, narrowed by filter), while
-// the document is ready. It writes nothing and checks no permission: the caller holds the grant (an agent).
-func (s *Service) ExpandParents(ctx context.Context, kb KB, filter MetadataFilter, hits []*Hit) error {
+// the document is ready and the caller may read it. It writes nothing and checks no other permission: the caller holds the grant (an agent).
+func (s *Service) ExpandParents(ctx context.Context, kb KB, filter MetadataFilter, caller access.Caller, hits []*Hit) error {
+	if !caller.Set() {
+		return access.ErrNoCaller
+	}
 	var ids []uuid.UUID
 	byID := map[uuid.UUID]*Hit{}
 	for _, h := range hits {
@@ -120,7 +124,8 @@ func (s *Service) ExpandParents(ctx context.Context, kb KB, filter MetadataFilte
 		}
 		return nil
 	}
-	rows, err := s.q.LoadParentPassages(ctx, dbgen.LoadParentPassagesParams{HitIds: ids, ProfileID: kb.EmbeddingProfileID, SourceIds: sourceIDs})
+	rows, err := s.q.LoadParentPassages(ctx, dbgen.LoadParentPassagesParams{HitIds: ids, ProfileID: kb.EmbeddingProfileID, SourceIds: sourceIDs,
+		Principals: caller.Principals()})
 	if err != nil {
 		return err
 	}

@@ -68,6 +68,16 @@ widget, webhooks, evaluation runs and background jobs. Such a caller sees restri
 **One rule:** text from a restricted document reaches a reader only through a query that has the reader's principal
 set in its `WHERE`. A restricted document's text is never loaded first and filtered in Go.
 
+Two places apply this rule through a gate rather than in every query:
+
+- **The viewers.** `GetViewerDocument` takes the reader's principals and returns no row for a document they may not
+  read. Its passages (`ListViewerChunks`) are only listed for a document it returned.
+- **Ingest.** It reads chunks to rechunk and re-embed. That isn't a read by a person, so it doesn't apply permissions.
+
+`TestEveryPassageTextQueryChecksPermissions` reads every query in `internal/store/queries`. Any query that selects chunk
+content must check `acl_principals` or be listed with its reason, so a new query fails the test until its author
+decides.
+
 ### Retrieval
 
 `vectorstore.DocFilter` gains `Principals []string` and `Restricted bool`. These come from the asker, never from a
@@ -77,10 +87,17 @@ request field. Its SQL adds:
 AND (d.acl_principals IS NULL OR d.acl_principals && $principals)
 ```
 
-This goes in the vector, keyword, parent-collapse and `loadHits` queries, all of which already join `documents`
-through the filter. A GIN index on `acl_principals` covers the overlap. `kbs.Search` refuses to run without a
-principal decision: a `Caller` value must be set explicitly, either `Anyone` (no principals) or a person's set. That
-way, a new call site that forgets to set it fails a test instead of leaking.
+Where the condition goes:
+
+- **Vector and keyword candidate queries:** only when a searched source has restricted documents. This keeps the
+  query plans of an install that restricts nothing. `data_sources.restricted_documents` is set by a trigger the moment
+  any of the source's documents is restricted, and nothing ever clears it.
+- **`LoadChunks` and `LoadParentPassages`, which read the text:** always, whatever the candidate stage did. If a
+  document is restricted during a search, it can only drop out of the results; its text never leaks.
+
+A GIN index on `acl_principals` covers the overlap. `kbs.Search` and `ExpandParents` refuse to run without a decision
+about the caller (`access.ErrNoCaller`): a `Caller` must be set explicitly, either `Anyone` (no principals) or a
+person's set. A new call site that forgets to set it fails a test instead of leaking.
 
 Parent expansion reads the parent of a matched passage. The parent comes from the same document, so it carries the
 same permissions, and its query re-applies the filter anyway.
@@ -142,9 +159,18 @@ any document is restricted, so an install can't silently fall back to showing re
 
 ## Tests
 
-- **A leak matrix:** for every surface in the table above, three callers (a principal, a non-principal person, and an
-  API key) each ask for a restricted document's text. Only the principal gets it. The test enumerates surfaces from a
-  list that a guard test checks against the routes that return passage text, so a new route can't miss it.
+- **A leak test:** a principal, a non-principal person (an editor, and the team's owner), an API key and an anonymous
+  public visitor each ask for a restricted document through:
+  - knowledge base search;
+  - an agent's answer;
+  - the viewer;
+  - whole-document text;
+  - document passages;
+  - sharing.
+
+  Only the principal gets it. The check is for the document's text itself, so a leak through any field fails. The
+  test fails when the permission check is taken out of search.
+- **The query guard** above, for every query that reads chunk content.
 - **Search:** hybrid search returns a restricted passage only to a principal, including when it would rank first;
   parent collapse doesn't pull a restricted parent into an unrestricted hit.
 - **Revocation:** remove a group from `sso_user_groups` and from SCIM, and the next request no longer sees the
@@ -153,6 +179,15 @@ any document is restricted, so an install can't silently fall back to showing re
   neither the answer nor a cache hit.
 - **Performance:** a knowledge base where 90% of documents are restricted from the asker still returns the top k
   (iterative scan), measured with the retrieval benchmark.
+
+## Built so far
+
+- **Part 1:** migration 00068, `internal/access`, and enforcement on every surface in the table. Nothing can set a
+  restriction yet, so nothing changes for an install.
+  - **Evaluation runs** are marked explicitly (`run.evaluation`) and read as Anyone.
+  - **Repeated-block samples** are hidden when their canonical document is restricted from the reader. If that
+  document is gone, they're hidden whenever the source ever had a restricted document.
+- **Part 2:** the Document permissions switch and the source Access API and page.
 
 ## Open questions for the connectors (B1, B2)
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/kbs"
@@ -20,7 +21,7 @@ func (env *parentEnv) search(t *testing.T, kbID uuid.UUID, q string, k int, coll
 	if err != nil || len(resolved) != 1 {
 		t.Fatalf("resolve = %v %v", resolved, err)
 	}
-	res, err := env.app.Svc.KBs.Search(context.Background(), resolved[0], kbs.SearchParams{Text: q, TopK: k, Filter: f, User: "test", CollapseParents: collapse})
+	res, err := env.app.Svc.KBs.Search(context.Background(), resolved[0], kbs.SearchParams{Text: q, TopK: k, Filter: f, User: "test", CollapseParents: collapse, Caller: access.Anyone()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestExpansionNeverWidensTheSearch(t *testing.T) {
 	ctx := context.Background()
 	expand := func(kb kbs.KB, f kbs.MetadataFilter, hits []kbs.Hit) {
 		t.Helper()
-		if err := env.app.Svc.KBs.ExpandParents(ctx, kb, f, hitPtrs(hits)); err != nil {
+		if err := env.app.Svc.KBs.ExpandParents(ctx, kb, f, access.Anyone(), hitPtrs(hits)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -389,7 +390,7 @@ func TestExpansionAfterTheDocumentChanged(t *testing.T) {
 	}
 	// The same document with a different second passage onwards: new rows, so the hit's passage is gone.
 	env.uploadHandbook(t, env.source.Id, "handbook.md", strings.ReplaceAll(parentDoc(6), "parking", "driving"))
-	if err := env.app.Svc.KBs.ExpandParents(context.Background(), kb, kbs.MetadataFilter{}, hitPtrs(hits)); err != nil {
+	if err := env.app.Svc.KBs.ExpandParents(context.Background(), kb, kbs.MetadataFilter{}, access.Anyone(), hitPtrs(hits)); err != nil {
 		t.Fatal(err)
 	}
 	for _, h := range hits {
@@ -404,7 +405,7 @@ func TestExpansionAfterTheDocumentChanged(t *testing.T) {
 		t.Fatalf("hits = %+v", hits)
 	}
 	env.deleteFrom(t, env.source.Id, "handbook.md")
-	if err := env.app.Svc.KBs.ExpandParents(context.Background(), kb, kbs.MetadataFilter{}, hitPtrs(hits)); err != nil {
+	if err := env.app.Svc.KBs.ExpandParents(context.Background(), kb, kbs.MetadataFilter{}, access.Anyone(), hitPtrs(hits)); err != nil {
 		t.Fatal(err)
 	}
 	for _, h := range hits {

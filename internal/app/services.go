@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
@@ -221,6 +222,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.KBs.Limits = s.Limits
 	s.KBs.Weights = kbs.Weights{Vector: cfg.RetrievalVectorWeight, Keyword: cfg.RetrievalKeywordWeight}
 	s.KBs.ParentExpansionOff = !cfg.ParentExpansion
+	wireDocumentAccess(s, cfg, pool)
 	peppers, err := NewPeppers(cfg)
 	if err != nil {
 		return nil, err
@@ -439,4 +441,10 @@ func newExportCopier(ctx context.Context, cfg config.Config, pool *pgxpool.Pool,
 		return nil, fmt.Errorf("audit export copy bucket: %w", err)
 	}
 	return &auditexport.Copier{Pool: pool, Store: store, Dest: dest, Log: log}, nil
+}
+
+// wireDocumentAccess gives search and the viewers the same document-permission resolver (docs/specs/document-acls/DESIGN.md).
+func wireDocumentAccess(s *Services, cfg config.Config, pool *pgxpool.Pool) {
+	r := &access.Resolver{Q: dbgen.New(pool), MatchClaim: cfg.OIDC.SCIMMatchClaim}
+	s.Sources.Access, s.KBs.Access = r, r
 }

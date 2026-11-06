@@ -313,7 +313,7 @@ func (q *Queries) DeleteUnseenDocuments(ctx context.Context, arg DeleteUnseenDoc
 
 const dueWebSources = `-- name: DueWebSources :many
 
-SELECT id, team_id, name, description, type, config, classification, embedding_profile_id, status, revision, created_by, created_at, updated_at, last_sync_at, next_sync_at, ocr_enabled FROM data_sources
+SELECT id, team_id, name, description, type, config, classification, embedding_profile_id, status, revision, created_by, created_at, updated_at, last_sync_at, next_sync_at, ocr_enabled, acl_principals, restricted_documents FROM data_sources
 WHERE type = 'web' AND status = 'active' AND next_sync_at IS NOT NULL AND next_sync_at <= now()
 ORDER BY next_sync_at
 LIMIT 100
@@ -347,6 +347,8 @@ func (q *Queries) DueWebSources(ctx context.Context) ([]DataSource, error) {
 			&i.LastSyncAt,
 			&i.NextSyncAt,
 			&i.OcrEnabled,
+			&i.AclPrincipals,
+			&i.RestrictedDocuments,
 		); err != nil {
 			return nil, err
 		}
@@ -1211,7 +1213,7 @@ SET url = EXCLUDED.url, tags = EXCLUDED.tags, content_type = EXCLUDED.content_ty
     http_last_modified = EXCLUDED.http_last_modified, last_seen_crawl_id = EXCLUDED.last_seen_crawl_id,
     version = documents.version + 1, status = 'pending', error_code = '', error_message = '',
     attempts = 0, waiting_until = NULL, updated_at = now()
-RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until
+RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
 `
 
 type UpsertWebDocumentParams struct {
@@ -1282,6 +1284,7 @@ func (q *Queries) UpsertWebDocument(ctx context.Context, arg UpsertWebDocumentPa
 		&i.HttpLastModified,
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
+		&i.AclPrincipals,
 	)
 	return i, err
 }

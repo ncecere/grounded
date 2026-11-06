@@ -774,15 +774,25 @@ func (q *Queries) StaleDocumentBlocks(ctx context.Context, arg StaleDocumentBloc
 }
 
 const topBoilerplateBlocks = `-- name: TopBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample, variants FROM source_boilerplate_blocks
-WHERE source_id = $1 AND member_of IS NULL
-ORDER BY doc_count DESC, sample
-LIMIT $2
+SELECT b.block_hash, b.doc_count,
+       (CASE WHEN $1::boolean
+              OR (d.id IS NOT NULL AND (d.acl_principals IS NULL OR d.acl_principals && $2::text[]))
+              OR (d.id IS NULL AND NOT s.restricted_documents)
+             THEN b.sample ELSE '' END)::text AS sample,
+       b.variants
+FROM source_boilerplate_blocks b
+JOIN data_sources s ON s.id = b.source_id
+LEFT JOIN documents d ON d.id = b.canonical_document_id
+WHERE b.source_id = $3 AND b.member_of IS NULL
+ORDER BY b.doc_count DESC, b.sample
+LIMIT $4
 `
 
 type TopBoilerplateBlocksParams struct {
-	SourceID uuid.UUID
-	MaxRows  int32
+	EveryDocument bool
+	Principals    []string
+	SourceID      uuid.UUID
+	MaxRows       int32
 }
 
 type TopBoilerplateBlocksRow struct {
@@ -792,8 +802,16 @@ type TopBoilerplateBlocksRow struct {
 	Variants  int32
 }
 
+// A sample is text from its canonical document, so it is shown only to a reader who may read that document
+// (docs/specs/document-acls/DESIGN.md), or under break-glass (every_document); otherwise it is empty. With the canonical
+// document gone, it is shown only if the source never had a restricted document.
 func (q *Queries) TopBoilerplateBlocks(ctx context.Context, arg TopBoilerplateBlocksParams) ([]TopBoilerplateBlocksRow, error) {
-	rows, err := q.db.Query(ctx, topBoilerplateBlocks, arg.SourceID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, topBoilerplateBlocks,
+		arg.EveryDocument,
+		arg.Principals,
+		arg.SourceID,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

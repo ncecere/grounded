@@ -76,5 +76,5 @@ func (s *Service) breakGlassScope(ctx context.Context, a authz.Actor, acc teams.
 	if g == nil {
 		return scope{}, errTeam
 	}
-	return scope{team: &acc.Team}, nil
+	return scope{team: &acc.Team, breakGlass: true}, nil
 }

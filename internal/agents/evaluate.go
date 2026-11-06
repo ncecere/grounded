@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/limits"
@@ -105,7 +106,9 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 		cfg.ContextTokenBudget = math.MaxInt32
 		cfg.RerankTopN = depth
 	}
-	r := newRetriever(s.KBs, resolved, cfg, llm.UserTag(t.Team.Slug, t.Agent.Slug))
+	// An evaluation reads unrestricted documents only (docs/specs/document-acls/DESIGN.md): its results are the team's,
+	// not one person's.
+	r := newRetriever(s.KBs, resolved, cfg, llm.UserTag(t.Team.Slug, t.Agent.Slug), access.Anyone())
 	r.planRerank(ctx, cfg)
 	r.noExpand = true // a retrieval check reads ranks, not the text a model would be given
 	found, _, err := r.search(ctx, question, depth)
@@ -165,7 +168,7 @@ func (s *Service) EvalAnswer(ctx context.Context, a authz.Actor, t EvalTarget, q
 		}
 	}
 	ru := &run{s: s, a: a, team: t.Team, agent: t.Agent, version: t.Version, cfg: t.Config, grant: grant, rank: pol.Rank,
-		channel: ChannelTest, question: question, usageMeta: meta}
+		channel: ChannelTest, question: question, usageMeta: meta, evaluation: true}
 	ans, err = ru.execute(ctx, nil)
 	return ans, ru.citeRec, err
 }

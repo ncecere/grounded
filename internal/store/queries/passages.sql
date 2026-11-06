@@ -13,11 +13,15 @@ WHERE m.id = $1 AND c.deleted_at IS NULL;
 
 -- A document for the viewer, with its source's team (NULL: platform-shared).
 -- name: GetViewerDocument :one
+-- The gate of every viewer read (docs/specs/document-acls/DESIGN.md): a document the reader may not read is not found, and
+-- its passages are only ever listed for a document this returned. every_document is a break-glass read, which document
+-- permissions do not limit.
 SELECT d.id, d.source_id, d.title, d.filename, d.url, d.kind, d.chunk_count, s.team_id, coalesce(t.slug, '')::text AS team_slug
 FROM documents d
 JOIN data_sources s ON s.id = d.source_id
 LEFT JOIN teams t ON t.id = s.team_id
-WHERE d.id = $1;
+WHERE d.id = @id
+  AND (sqlc.arg(every_document)::boolean OR d.acl_principals IS NULL OR d.acl_principals && sqlc.arg(principals)::text[]);
 
 -- A passage's position, when it is still one of its document's current
 -- passages (its source's embedding profile).

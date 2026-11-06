@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/llm"
@@ -64,7 +65,11 @@ func (s *Service) CitedPassage(ctx context.Context, a authz.Actor, messageID uui
 	if ok, err := s.keyReaches(ctx, a, m.AgentID); err != nil || !ok {
 		return CitedPassage{}, notFoundAs(err, errNoCitedMessage)
 	}
-	out, doc, err := s.citedPassage(ctx, m, n)
+	caller, err := s.KBs.CallerFor(ctx, a)
+	if err != nil {
+		return CitedPassage{}, err
+	}
+	out, doc, err := s.citedPassage(ctx, m, n, caller)
 	if err != nil || !doc.TeamID.Valid {
 		return out, err
 	}
@@ -86,12 +91,13 @@ func (s *Service) PublicCitedPassage(ctx context.Context, sessionID, agentID, me
 	} else if err != nil {
 		return CitedPassage{}, err
 	}
-	out, _, err := s.citedPassage(ctx, m, n)
+	out, _, err := s.citedPassage(ctx, m, n, access.Anyone()) // an anonymous visitor reads unrestricted documents only
 	return out, err
 }
 
-// citedPassage loads source n of an answer the caller may read.
-func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, n int) (CitedPassage, dbgen.GetViewerDocumentRow, error) {
+// citedPassage loads source n of an answer the caller may read. A document the caller may no longer read (its permissions,
+// docs/specs/document-acls/DESIGN.md) is shown as no longer available, like a deleted one, and none of its text is read.
+func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, n int, caller access.Caller) (CitedPassage, dbgen.GetViewerDocumentRow, error) {
 	var doc dbgen.GetViewerDocumentRow
 	if m.Role != "assistant" {
 		return CitedPassage{}, doc, errNoCitedMessage
@@ -113,7 +119,7 @@ func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, 
 	}
 	out := CitedPassage{Status: PassageAvailable, Citation: *c, HeadingPath: c.HeadingPath, Claims: claimsCiting(m, n),
 		Passages: []sources.ContextPassage{}}
-	doc, err := s.q.GetViewerDocument(ctx, c.DocumentID)
+	doc, err := s.q.GetViewerDocument(ctx, sources.ViewerDocument(c.DocumentID, caller))
 	if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && doc.SourceID != c.SourceID) {
 		out.Status = PassageDocumentDeleted
 		return out, dbgen.GetViewerDocumentRow{}, nil

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
@@ -45,7 +46,10 @@ type Service struct {
 	// ParentExpansionOff turns parent/child retrieval off for every profile (RETRIEVAL_PARENT_EXPANSION=false): searches neither collapse
 	// siblings nor expand parents, and the parent columns are ignored. The zero value leaves it on for profiles that have parents.
 	ParentExpansionOff bool
-	q                  *dbgen.Queries
+	// Access computes a person's document permissions (docs/specs/document-acls/DESIGN.md). Nil: every caller reads
+	// unrestricted documents only.
+	Access *access.Resolver
+	q      *dbgen.Queries
 
 	countMu sync.Mutex
 	counts  map[uuid.UUID]cachedCount
@@ -53,6 +57,15 @@ type Service struct {
 
 func New(pool *pgxpool.Pool, t *teams.Service, c *catalog.Service, v vectorstore.Store) *Service {
 	return &Service{Pool: pool, Teams: t, Catalog: c, Vectors: v, q: dbgen.New(pool)}
+}
+
+// CallerFor is whose document permissions a request by the actor reads with: a person signed in, or on their own
+// connected app; Anyone for an API key, or when permissions are not wired (Access nil).
+func (s *Service) CallerFor(ctx context.Context, a authz.Actor) (access.Caller, error) {
+	if s.Access == nil {
+		return access.Anyone(), nil
+	}
+	return s.Access.For(ctx, a)
 }
 
 var errNoKB = apperr.NotFound("kb_not_found", "Knowledge base not found")
@@ -579,4 +592,9 @@ func joinMigration(ctx context.Context, q *dbgen.Queries, kbID uuid.UUID, src db
 	}
 	_, err = q.InsertEmbeddingSet(ctx, dbgen.InsertEmbeddingSetParams{SourceID: src.ID, ProfileID: m.ToProfileID, Status: "building"})
 	return err
+}
+
+// SourcesHaveRestricted reports whether any of the sources has (or had) a restricted document.
+func (s *Service) SourcesHaveRestricted(ctx context.Context, ids []uuid.UUID) (bool, error) {
+	return s.q.SourcesHaveRestricted(ctx, ids)
 }
