@@ -1,6 +1,6 @@
 # ADR-0034: Signed daily audit exports
 
-- Status: Accepted (v0.9.0, 2026-11-06: shipped with SIEM streaming and external S3 copies; see "Accepted" below)
+- Status: Accepted (v0.9.0, 2026-11-05: shipped with SIEM streaming and external S3 copies; see "Accepted" below)
 - Date: 2026-10-31
 
 ## Context

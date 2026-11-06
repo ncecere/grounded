@@ -136,14 +136,16 @@ Development-only tools (Vite, Vitest, TypeScript, `oapi-codegen`, `sqlc`, linter
 
 ## Scan results
 
-### v0.9.0 preparation — 2026-11-06
+### v0.9.0 preparation — 2026-11-05
 
 No dependency changed since v0.8.0, and `make deps-inventory` produced no change. `govulncheck` reports **no
 vulnerabilities** (Go 1.26.10). Both npm audits, runtime and full, report **0**. The `minimatch` entry (GHSA-g3hv-75wg-m249)
 listed for v0.7.0 and v0.8.0 no longer applies: the advisory's affected range is now `>= 7.0.0, < 11.0.1`, and the
 lockfile has `minimatch` 5.1.9. Nothing in Grounded changed for this. Trivy reports **0 secrets** and the same **71 IaC
 findings** (43 LOW, 25 MEDIUM, 3 HIGH: `Dockerfile.ci` running as root, and the kind S3 fixture twice) as the reviewed
-set. The published images are scanned after the tag ([v0.9.0 validation record](validation/v0.9.0.md)).
+set. Published v0.9.0 digests (both platforms): 0 Go findings and 0 fixable HIGH/CRITICAL. The app keeps its 4 UNKNOWN
+Debian advisories, and the OCR image has 376 Debian findings without a published fix
+([v0.9.0 validation record](validation/v0.9.0.md)).
 
 ### v0.8.0 preparation — 2026-11-04
 
