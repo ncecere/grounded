@@ -1399,7 +1399,9 @@ func (q *Queries) PendingEvalCases(ctx context.Context, arg PendingEvalCasesPara
 
 const phrasesInSources = `-- name: PhrasesInSources :many
 SELECT p.phrase::text AS phrase, (numnode(phraseto_tsquery('english', p.phrase)) = 0 OR EXISTS (
-    SELECT 1 FROM chunks c WHERE c.source_id = ANY($1::uuid[]) AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
+    -- Evaluations read unrestricted documents only (docs/specs/document-acls/DESIGN.md): a phrase in a restricted one is not found.
+    SELECT 1 FROM chunks c JOIN documents d ON d.id = c.document_id
+    WHERE c.source_id = ANY($1::uuid[]) AND d.acl_principals IS NULL AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
 ))::boolean AS found
 FROM unnest($2::text[]) AS p(phrase)
 `

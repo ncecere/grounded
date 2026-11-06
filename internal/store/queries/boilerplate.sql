@@ -148,9 +148,20 @@ FROM source_boilerplate sb
 WHERE sb.source_id = ANY(@source_ids::uuid[]);
 
 -- name: TopBoilerplateBlocks :many
-SELECT block_hash, doc_count, sample, variants FROM source_boilerplate_blocks
-WHERE source_id = @source_id AND member_of IS NULL
-ORDER BY doc_count DESC, sample
+-- A sample is text from its canonical document, so it is shown only to a reader who may read that document
+-- (docs/specs/document-acls/DESIGN.md), or under break-glass (every_document); otherwise it is empty. With the canonical
+-- document gone, it is shown only if the source never had a restricted document.
+SELECT b.block_hash, b.doc_count,
+       (CASE WHEN sqlc.arg(every_document)::boolean
+              OR (d.id IS NOT NULL AND (d.acl_principals IS NULL OR d.acl_principals && sqlc.arg(principals)::text[]))
+              OR (d.id IS NULL AND NOT s.restricted_documents)
+             THEN b.sample ELSE '' END)::text AS sample,
+       b.variants
+FROM source_boilerplate_blocks b
+JOIN data_sources s ON s.id = b.source_id
+LEFT JOIN documents d ON d.id = b.canonical_document_id
+WHERE b.source_id = @source_id AND b.member_of IS NULL
+ORDER BY b.doc_count DESC, b.sample
 LIMIT @max_rows;
 
 -- A ready document without stored parsed text is processed again from its

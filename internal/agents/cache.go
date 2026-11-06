@@ -5,7 +5,8 @@
 //
 // Nothing that depends on who asks enters an answer: the system prompt
 // names the agent, its team and today's date (never the person), retrieval
-// is the agent's (its knowledge bases and filters, not the user's), and
+// is the agent's (its knowledge bases and filters, not the user's; an agent whose knowledge has restricted documents,
+// whose retrieval depends on who asks, never uses the cache: cacheCandidate), and
 // MCP tools, which could act for the person, keep an answer out of the
 // cache. The date is in the key of questions about relative dates.
 
@@ -79,7 +80,9 @@ func (ru *run) cacheHitNow() bool { return ru.cache != nil && ru.cache.hit != ni
 // with knowledge bases, while the platform switch is on.
 func (ru *run) cacheCandidate(ctx context.Context) bool {
 	s := ru.s
-	return s.Cache != nil && ru.version != nil && ru.channel != ChannelTest && ru.usageMeta == nil &&
+	// Knowledge with restricted documents answers differently for each person (docs/specs/document-acls/DESIGN.md): such an
+	// agent neither reads nor writes the cache, so nobody gets an answer built from another person's permissions.
+	return s.Cache != nil && ru.version != nil && ru.channel != ChannelTest && ru.usageMeta == nil && !ru.restricted &&
 		ru.cfg.RetrievalMode == ModeAlways && len(ru.cfg.KBs) > 0 && s.Cache.Enabled(ctx)
 }
 

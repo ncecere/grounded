@@ -254,7 +254,12 @@ func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieva
 			fetch = rp.Fetch(r.k)
 		}
 	}
-	res, err := s.Search(ctx, kb, SearchParams{Text: r.text, TopK: fetch, Filter: r.filter, User: "grounded-query:" + kb.TeamID.String()})
+	caller, err := s.CallerFor(ctx, a)
+	if err != nil {
+		return Result{}, err
+	}
+	res, err := s.Search(ctx, kb, SearchParams{Text: r.text, TopK: fetch, Filter: r.filter, User: "grounded-query:" + kb.TeamID.String(),
+		Caller: caller})
 	if err != nil {
 		return Result{}, err
 	}

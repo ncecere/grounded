@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"testing"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/kbs"
 )
 
@@ -28,7 +29,7 @@ func TestParentReviewExpansionRejectsRangeOutsideHit(t *testing.T) {
 	if len(hits) != 1 || hits[0].ChunkID != before[0].ChunkID || hits[0].Parent == nil {
 		t.Fatal("fixture did not retain its best child")
 	}
-	if err := env.app.Svc.KBs.ExpandParents(t.Context(), kb, kbs.MetadataFilter{}, hitPtrs(hits)); err != nil {
+	if err := env.app.Svc.KBs.ExpandParents(t.Context(), kb, kbs.MetadataFilter{}, access.Anyone(), hitPtrs(hits)); err != nil {
 		t.Fatal(err)
 	}
 	if hits[0].Parent.Text != "" || hits[0].Parent.Skipped != kbs.SkipStale {

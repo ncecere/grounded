@@ -47,7 +47,7 @@ func (r *retriever) expandParents(ctx context.Context, span trace.Span, lists ..
 		if len(hits) == 0 {
 			continue
 		}
-		if err := r.svc.ExpandParents(ctx, kb, r.filter, hits); err != nil {
+		if err := r.svc.ExpandParents(ctx, kb, r.filter, r.caller, hits); err != nil {
 			span.RecordError(err)
 		}
 		for _, h := range hits {

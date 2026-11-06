@@ -37,14 +37,15 @@ const (
 const shareTokenLen = 43
 
 var (
-	errNoShare        = apperr.NotFound("share_not_found", "Shared conversation not found")
-	errNothingToShare = apperr.Conflict("nothing_to_share", "This conversation has no finished answer to share yet")
-	errRoutedShare    = apperr.Conflict("not_shareable", "This conversation holds answers from other agents, sent by a router, whose audience may differ, so it can't be shared. Open the agent's own conversation (Continue there) and share that.")
-	errTooManyShares  = apperr.Conflict("too_many_shares", "This conversation has as many links as allowed: revoke one first")
-	errShareNeedsUser = apperr.Forbidden("Only people signed in can share a conversation, and not through an API key")
-	errAgentNotShared = apperr.Conflict("agent_unavailable", "This agent is not available now, so its conversations can't be shared")
-	errPublicShare    = apperr.Conflict("public_share_unavailable", "A link open to anyone needs a public agent and public access turned on")
-	errBadAudience    = apperr.Invalid("invalid_audience", "Audience must be agent_users or anyone")
+	errNoShare         = apperr.NotFound("share_not_found", "Shared conversation not found")
+	errNothingToShare  = apperr.Conflict("nothing_to_share", "This conversation has no finished answer to share yet")
+	errRoutedShare     = apperr.Conflict("not_shareable", "This conversation holds answers from other agents, sent by a router, whose audience may differ, so it can't be shared. Open the agent's own conversation (Continue there) and share that.")
+	errRestrictedShare = apperr.Conflict("not_shareable", "This conversation cites restricted documents, which only some people may read, so it can't be shared.")
+	errTooManyShares   = apperr.Conflict("too_many_shares", "This conversation has as many links as allowed: revoke one first")
+	errShareNeedsUser  = apperr.Forbidden("Only people signed in can share a conversation, and not through an API key")
+	errAgentNotShared  = apperr.Conflict("agent_unavailable", "This agent is not available now, so its conversations can't be shared")
+	errPublicShare     = apperr.Conflict("public_share_unavailable", "A link open to anyone needs a public agent and public access turned on")
+	errBadAudience     = apperr.Invalid("invalid_audience", "Audience must be agent_users or anyone")
 )
 
 // newShareToken makes a link's secret and the hash that is kept.
@@ -154,17 +155,9 @@ func (s *Service) CreateShare(ctx context.Context, a authz.Actor, conversationID
 		if _, err := q.LockConversation(ctx, conversationID); err != nil {
 			return notFoundAs(store.NotFound(err), errNoConversation)
 		}
-		seq, err := q.LastCompleteAnswerSeq(ctx, conversationID)
+		seq, err := s.shareableAnswers(ctx, q, conversationID)
 		if err != nil {
 			return err
-		}
-		if seq == 0 {
-			return errNothingToShare
-		}
-		if routed, err := s.hasRoutedAnswers(ctx, conversationID, seq); err != nil {
-			return err
-		} else if routed {
-			return errRoutedShare
 		}
 		if n, err := q.CountConversationShares(ctx, conversationID); err != nil {
 			return err
@@ -253,4 +246,27 @@ func (s *Service) RevokeShare(ctx context.Context, a authz.Actor, conversationID
 		}
 		return audit.Record(ctx, q, shareAudit(a, "conversation_share.revoke", shareID, audience, showName))
 	})
+}
+
+// shareableAnswers is the last complete answer a new link would share, or why the conversation can't be shared: nothing
+// answered yet, answers routed from other agents, or answers citing restricted documents (docs/specs/document-acls/DESIGN.md).
+func (s *Service) shareableAnswers(ctx context.Context, q *dbgen.Queries, conversationID uuid.UUID) (int32, error) {
+	seq, err := q.LastCompleteAnswerSeq(ctx, conversationID)
+	if err != nil {
+		return 0, err
+	}
+	if seq == 0 {
+		return 0, errNothingToShare
+	}
+	if routed, err := s.hasRoutedAnswers(ctx, conversationID, seq); err != nil {
+		return 0, err
+	} else if routed {
+		return 0, errRoutedShare
+	}
+	if restricted, err := q.ConversationCitesRestricted(ctx, dbgen.ConversationCitesRestrictedParams{ConversationID: conversationID, UpToSeq: seq}); err != nil {
+		return 0, err
+	} else if restricted {
+		return 0, errRestrictedShare
+	}
+	return seq, nil
 }

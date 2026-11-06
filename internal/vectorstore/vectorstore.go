@@ -52,11 +52,17 @@ type DocFilter struct {
 	URLPrefixes   []string
 	UpdatedAfter  *time.Time
 	UpdatedBefore *time.Time
+	// Restricted adds the document permission check (docs/specs/document-acls/DESIGN.md): only unrestricted documents and
+	// those restricted to one of Principals (none: unrestricted only). Search sets it when a searched source has
+	// restricted documents; reading passage text checks permissions separately, always.
+	Restricted bool
+	Principals []string
 }
 
 // IsZero reports whether the filter matches every document.
 func (f DocFilter) IsZero() bool {
-	return len(f.Kinds) == 0 && len(f.Tags) == 0 && len(f.URLPrefixes) == 0 && f.UpdatedAfter == nil && f.UpdatedBefore == nil
+	return len(f.Kinds) == 0 && len(f.Tags) == 0 && len(f.URLPrefixes) == 0 && f.UpdatedAfter == nil && f.UpdatedBefore == nil &&
+		!f.Restricted
 }
 
 // SQL renders the filter as a boolean expression over the documents table
@@ -84,6 +90,13 @@ func (f DocFilter) SQL(alias string, next int) (string, []any) {
 	}
 	if f.UpdatedBefore != nil {
 		add("%s.updated_at < $%d", *f.UpdatedBefore)
+	}
+	if f.Restricted {
+		principals := f.Principals
+		if principals == nil {
+			principals = []string{}
+		}
+		add("(%[1]s.acl_principals IS NULL OR %[1]s.acl_principals && $%[2]d::text[])", principals)
 	}
 	if len(conds) == 0 {
 		return "true", nil

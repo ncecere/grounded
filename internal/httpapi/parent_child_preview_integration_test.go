@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/kbs"
 )
@@ -40,7 +41,7 @@ func (env *migEnv) searchAs(t *testing.T, kbID uuid.UUID, q string) []kbs.Hit {
 	if err != nil || len(resolved) != 1 {
 		t.Fatalf("resolve = %v %v", resolved, err)
 	}
-	res, err := env.app.Svc.KBs.Search(context.Background(), resolved[0], kbs.SearchParams{Text: q, TopK: 4, User: "test", CollapseParents: true})
+	res, err := env.app.Svc.KBs.Search(context.Background(), resolved[0], kbs.SearchParams{Text: q, TopK: 4, User: "test", CollapseParents: true, Caller: access.Anyone()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ func TestPreviewOfParentsEqualsIngestingWithThem(t *testing.T) {
 		t.Fatalf("after the switch the first hit has parent %+v", hits)
 	}
 	resolved, _ := env.app.Svc.KBs.ResolveKBs(context.Background(), []uuid.UUID{kb.Id})
-	if err := env.app.Svc.KBs.ExpandParents(context.Background(), resolved[0], kbs.MetadataFilter{}, hitPtrs(hits)); err != nil || hits[0].Parent.Text == "" {
+	if err := env.app.Svc.KBs.ExpandParents(context.Background(), resolved[0], kbs.MetadataFilter{}, access.Anyone(), hitPtrs(hits)); err != nil || hits[0].Parent.Text == "" {
 		t.Errorf("expand after the switch: %v, %+v", err, hits[0].Parent)
 	}
 	if n := env.chunks(t, src.Id, env.from.Id); n != int64(len(liveShape)) {

@@ -196,9 +196,15 @@ func (s *Service) DocumentText(ctx context.Context, a authz.Actor, o Owner, sour
 	if _, _, _, err := s.lookupDocument(ctx, sc, sourceID, docID); err != nil {
 		return DocumentText{}, err
 	}
-	doc, err := s.q.GetViewerDocument(ctx, docID)
+	view, err := s.viewerParams(ctx, a, sc, docID)
 	if err != nil {
-		return DocumentText{}, store.NotFound(err)
+		return DocumentText{}, err
+	}
+	doc, err := s.q.GetViewerDocument(ctx, view)
+	if errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return DocumentText{}, errNoDocument // gone, or restricted from the reader: the same 404
+	} else if err != nil {
+		return DocumentText{}, err
 	}
 	out := DocumentText{Document: doc}
 	if tq.Parent != nil {

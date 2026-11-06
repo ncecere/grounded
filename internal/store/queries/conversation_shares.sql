@@ -50,3 +50,13 @@ FROM messages m
 JOIN conversations c ON c.id = m.conversation_id
 LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.id = @message_id AND m.conversation_id = @conversation_id AND m.seq <= @up_to_seq AND c.deleted_at IS NULL;
+
+-- name: ConversationCitesRestricted :one
+-- Whether an answer of the conversation, up to seq, cited a document that is restricted now (docs/specs/document-acls/DESIGN.md):
+-- such a conversation can't be shared, and a link made before the restriction stops working.
+SELECT EXISTS (
+    SELECT 1 FROM messages m
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.citations) = 'array' THEN m.citations ELSE '[]'::jsonb END) AS c(cite)
+    JOIN documents d ON d.id = (c.cite->>'documentId')::uuid
+    WHERE m.conversation_id = @conversation_id AND m.seq <= @up_to_seq AND m.role = 'assistant' AND d.acl_principals IS NOT NULL
+)::boolean;

@@ -548,22 +548,24 @@ type CrawlDomainRequest struct {
 }
 
 type DataSource struct {
-	ID                 uuid.UUID
-	TeamID             uuid.NullUUID
-	Name               string
-	Description        string
-	Type               string
-	Config             json.RawMessage
-	Classification     string
-	EmbeddingProfileID uuid.UUID
-	Status             string
-	Revision           int64
-	CreatedBy          uuid.NullUUID
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	LastSyncAt         *time.Time
-	NextSyncAt         *time.Time
-	OcrEnabled         bool
+	ID                  uuid.UUID
+	TeamID              uuid.NullUUID
+	Name                string
+	Description         string
+	Type                string
+	Config              json.RawMessage
+	Classification      string
+	EmbeddingProfileID  uuid.UUID
+	Status              string
+	Revision            int64
+	CreatedBy           uuid.NullUUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	LastSyncAt          *time.Time
+	NextSyncAt          *time.Time
+	OcrEnabled          bool
+	AclPrincipals       []string
+	RestrictedDocuments bool
 }
 
 type DeletedFile struct {
@@ -610,6 +612,15 @@ type Document struct {
 	HttpLastModified string
 	LastSeenCrawlID  uuid.NullUUID
 	WaitingUntil     *time.Time
+	AclPrincipals    []string
+}
+
+type DocumentAccessSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
 }
 
 type DocumentBlock struct {
@@ -1355,6 +1366,12 @@ type SourceEmbeddingSet struct {
 	CreatedAt time.Time
 	ReadyAt   *time.Time
 	UpdatedAt time.Time
+}
+
+type SourceGroupMember struct {
+	SourceID  uuid.UUID
+	GroupID   string
+	Principal string
 }
 
 type SsoGroupRule struct {

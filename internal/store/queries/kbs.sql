@@ -67,10 +67,12 @@ JOIN chunks s ON s.document_id = h.document_id AND s.profile_id = h.profile_id A
              AND s.ordinal BETWEEN h.parent_first AND h.parent_last
 WHERE h.id = ANY(@hit_ids::uuid[]) AND h.profile_id = @profile_id AND h.source_id = ANY(@source_ids::uuid[])
   AND h.parent_first IS NOT NULL AND h.parent_last IS NOT NULL AND h.parent_last - h.parent_first < 64
+  AND (d.acl_principals IS NULL OR d.acl_principals && @principals::text[])
 ORDER BY h.id, s.ordinal;
 
 -- name: LoadChunks :many
 SELECT c.id, c.document_id, c.source_id, c.ordinal, c.content, c.heading_path, c.page_start, c.page_end,
        d.title, d.filename, d.url, d.external_id
 FROM chunks c JOIN documents d ON d.id = c.document_id
-WHERE c.id = ANY(@ids::uuid[]);
+-- Passage text is only read with the reader's permissions (docs/specs/document-acls/DESIGN.md), whatever the search did.
+WHERE c.id = ANY(@ids::uuid[]) AND (d.acl_principals IS NULL OR d.acl_principals && @principals::text[]);

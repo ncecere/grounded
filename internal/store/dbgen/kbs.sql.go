@@ -257,7 +257,7 @@ func (q *Queries) KBSourceRows(ctx context.Context, kbIds []uuid.UUID) ([]KBSour
 }
 
 const kBSources = `-- name: KBSources :many
-SELECT s.id, s.team_id, s.name, s.description, s.type, s.config, s.classification, s.embedding_profile_id, s.status, s.revision, s.created_by, s.created_at, s.updated_at, s.last_sync_at, s.next_sync_at, s.ocr_enabled FROM kb_sources ks JOIN data_sources s ON s.id = ks.source_id
+SELECT s.id, s.team_id, s.name, s.description, s.type, s.config, s.classification, s.embedding_profile_id, s.status, s.revision, s.created_by, s.created_at, s.updated_at, s.last_sync_at, s.next_sync_at, s.ocr_enabled, s.acl_principals, s.restricted_documents FROM kb_sources ks JOIN data_sources s ON s.id = ks.source_id
 WHERE ks.kb_id = $1 ORDER BY lower(s.name)
 `
 
@@ -287,6 +287,8 @@ func (q *Queries) KBSources(ctx context.Context, kbID uuid.UUID) ([]DataSource, 
 			&i.LastSyncAt,
 			&i.NextSyncAt,
 			&i.OcrEnabled,
+			&i.AclPrincipals,
+			&i.RestrictedDocuments,
 		); err != nil {
 			return nil, err
 		}
@@ -340,8 +342,13 @@ const loadChunks = `-- name: LoadChunks :many
 SELECT c.id, c.document_id, c.source_id, c.ordinal, c.content, c.heading_path, c.page_start, c.page_end,
        d.title, d.filename, d.url, d.external_id
 FROM chunks c JOIN documents d ON d.id = c.document_id
-WHERE c.id = ANY($1::uuid[])
+WHERE c.id = ANY($1::uuid[]) AND (d.acl_principals IS NULL OR d.acl_principals && $2::text[])
 `
+
+type LoadChunksParams struct {
+	Ids        []uuid.UUID
+	Principals []string
+}
 
 type LoadChunksRow struct {
 	ID          uuid.UUID
@@ -358,8 +365,9 @@ type LoadChunksRow struct {
 	ExternalID  string
 }
 
-func (q *Queries) LoadChunks(ctx context.Context, ids []uuid.UUID) ([]LoadChunksRow, error) {
-	rows, err := q.db.Query(ctx, loadChunks, ids)
+// Passage text is only read with the reader's permissions (docs/specs/document-acls/DESIGN.md), whatever the search did.
+func (q *Queries) LoadChunks(ctx context.Context, arg LoadChunksParams) ([]LoadChunksRow, error) {
+	rows, err := q.db.Query(ctx, loadChunks, arg.Ids, arg.Principals)
 	if err != nil {
 		return nil, err
 	}
@@ -400,13 +408,15 @@ JOIN chunks s ON s.document_id = h.document_id AND s.profile_id = h.profile_id A
              AND s.ordinal BETWEEN h.parent_first AND h.parent_last
 WHERE h.id = ANY($1::uuid[]) AND h.profile_id = $2 AND h.source_id = ANY($3::uuid[])
   AND h.parent_first IS NOT NULL AND h.parent_last IS NOT NULL AND h.parent_last - h.parent_first < 64
+  AND (d.acl_principals IS NULL OR d.acl_principals && $4::text[])
 ORDER BY h.id, s.ordinal
 `
 
 type LoadParentPassagesParams struct {
-	HitIds    []uuid.UUID
-	ProfileID uuid.UUID
-	SourceIds []uuid.UUID
+	HitIds     []uuid.UUID
+	ProfileID  uuid.UUID
+	SourceIds  []uuid.UUID
+	Principals []string
 }
 
 type LoadParentPassagesRow struct {
@@ -427,7 +437,12 @@ type LoadParentPassagesRow struct {
 // The passages of each hit's parent: rows of the same document, source and profile as the hit (never another), in ordinal order, only while
 // the document is ready and the hit's source is one the search may read. The caller checks that the rows are the whole range.
 func (q *Queries) LoadParentPassages(ctx context.Context, arg LoadParentPassagesParams) ([]LoadParentPassagesRow, error) {
-	rows, err := q.db.Query(ctx, loadParentPassages, arg.HitIds, arg.ProfileID, arg.SourceIds)
+	rows, err := q.db.Query(ctx, loadParentPassages,
+		arg.HitIds,
+		arg.ProfileID,
+		arg.SourceIds,
+		arg.Principals,
+	)
 	if err != nil {
 		return nil, err
 	}

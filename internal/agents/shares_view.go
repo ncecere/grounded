@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store"
@@ -58,6 +59,12 @@ func (s *Service) openShare(ctx context.Context, a authz.Actor, token string) (s
 	if ok, err := s.ownerStanding(ctx, row, grant); err != nil {
 		return shareAccess{}, err
 	} else if !ok {
+		return shareAccess{}, refuse
+	}
+	// A link never shows what a restricted document said, even one made before the document was restricted.
+	if restricted, err := s.q.ConversationCitesRestricted(ctx, dbgen.ConversationCitesRestrictedParams{ConversationID: row.ConversationID, UpToSeq: row.UpToSeq}); err != nil {
+		return shareAccess{}, err
+	} else if restricted {
 		return shareAccess{}, refuse
 	}
 	if anonymous {
@@ -219,7 +226,8 @@ func (s *Service) SharedCitedPassage(ctx context.Context, a authz.Actor, token s
 	} else if err != nil {
 		return CitedPassage{}, err
 	}
-	out, _, err := s.citedPassage(ctx, dbgen.GetCitedMessageRow(m), n)
+	// A share's readers read unrestricted documents only: a share is never a grant to anyone's permissions.
+	out, _, err := s.citedPassage(ctx, dbgen.GetCitedMessageRow(m), n, access.Anyone())
 	if err != nil {
 		return CitedPassage{}, err
 	}

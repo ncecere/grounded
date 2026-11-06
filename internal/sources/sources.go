@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
@@ -49,6 +50,8 @@ const (
 )
 
 type Service struct {
+	// Access computes a person's document permissions (nil: every reader reads unrestricted documents only).
+	Access         *access.Resolver
 	Pool           *pgxpool.Pool
 	Teams          *teams.Service
 	Catalog        *catalog.Service
@@ -109,6 +112,8 @@ type scope struct {
 	// key is the API key acting, if any: one restricted to some knowledge
 	// bases reaches only the sources those use.
 	key *authz.KeyGrant
+	// breakGlass: a platform admin's read under a break-glass session, which document permissions do not limit.
+	breakGlass bool
 }
 
 func (sc scope) teamID() uuid.NullUUID {

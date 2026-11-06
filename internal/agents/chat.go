@@ -196,6 +196,11 @@ type run struct {
 	scopeRec *ScopeRecord
 
 	anon *AnonCaller // an anonymous visitor (public and widget channels)
+	// restricted: the agent's knowledge has restricted documents, so its answers depend on who asks and skip the answer
+	// cache (docs/specs/document-acls/DESIGN.md).
+	restricted bool
+	// evaluation: an evaluation run's answer, which reads unrestricted documents only (its results are the team's).
+	evaluation bool
 
 	// usageMeta is added to the usage events' metadata (evaluation runs
 	// tag theirs with source: evaluation).
@@ -380,7 +385,9 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	if err != nil {
 		return Answer{}, err
 	}
-	ru.retr = newRetriever(s.KBs, resolvedKBs, ru.cfg, ru.userTag())
+	if err := ru.newRetriever(ctx, resolvedKBs); err != nil {
+		return Answer{}, err
+	}
 	ru.lookupCache(ctx) // the answer cache (cache.go); never for a router, which has no knowledge bases (cacheCandidate)
 	if !ru.cacheHitNow() {
 		ru.retr.planRerank(ctx, ru.cfg)

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
@@ -90,6 +91,9 @@ type SearchParams struct {
 	// CollapseParents merges the hits that share a parent (profiles with parents, docs/parent-child-retrieval.md) into the best-ranked one
 	// before the best TopK are kept, and sets each hit's Parent. Agents set it; retrieval for people and callers returns passages as before.
 	CollapseParents bool
+	// Caller is whose document permissions apply (docs/specs/document-acls/DESIGN.md). Required: a search with an undecided
+	// caller fails (access.ErrNoCaller), so a new call site must choose access.Anyone() or a person's caller.
+	Caller access.Caller
 }
 
 // SearchResult is an internal search result. EmbedTokens is 0 when the query
@@ -118,6 +122,9 @@ func (s *Service) Search(ctx context.Context, kb KB, p SearchParams) (res Search
 
 func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResult, error) {
 	var res SearchResult
+	if !p.Caller.Set() {
+		return res, access.ErrNoCaller
+	}
 	sourceIDs := searchSources(kb, p.Filter)
 	if len(sourceIDs) == 0 {
 		res.Hits = []Hit{}
@@ -141,6 +148,15 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 		return res, err
 	}
 	docs := p.Filter.docs()
+	// Candidates skip documents the caller may not read only where some exist, so an install that restricts nothing keeps
+	// its plans; loadHits checks permissions on every read of passage text regardless.
+	restricted, err := s.q.SourcesHaveRestricted(ctx, sourceIDs)
+	if err != nil {
+		return res, err
+	}
+	if restricted {
+		docs.Restricted, docs.Principals = true, p.Caller.Principals()
+	}
 	vhits, err := s.vectorSearch(ctx, prof, vec, vectorstore.Filter{SourceIDs: sourceIDs, Estimated: estimated, Docs: docs}, candidates)
 	if err != nil {
 		return res, err
@@ -169,7 +185,7 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 	if err := s.fillDistances(ctx, prof, vec, ranked); err != nil {
 		return res, err
 	}
-	res.Hits, err = s.loadHits(ctx, ranked)
+	res.Hits, err = s.loadHits(ctx, ranked, p.Caller)
 	return res, err
 }
 
@@ -297,12 +313,12 @@ func (s *Service) fillDistances(ctx context.Context, prof vectorstore.Profile, v
 
 // loadHits adds the chunks' content and document details, in rank order.
 // Chunks deleted since the search are dropped.
-func (s *Service) loadHits(ctx context.Context, ranked []*Hit) ([]Hit, error) {
+func (s *Service) loadHits(ctx context.Context, ranked []*Hit, caller access.Caller) ([]Hit, error) {
 	ids := make([]uuid.UUID, len(ranked))
 	for i, h := range ranked {
 		ids[i] = h.ChunkID
 	}
-	chunks, err := s.q.LoadChunks(ctx, ids)
+	chunks, err := s.q.LoadChunks(ctx, dbgen.LoadChunksParams{Ids: ids, Principals: caller.Principals()})
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +330,7 @@ func (s *Service) loadHits(ctx context.Context, ranked []*Hit) ([]Hit, error) {
 	for _, h := range ranked {
 		c, ok := byID[h.ChunkID]
 		if !ok {
-			continue // deleted between search and load
+			continue // deleted between search and load, or not readable by the caller
 		}
 		h.DocumentID, h.SourceID, h.Content, h.HeadingPath = c.DocumentID, c.SourceID, c.Content, c.HeadingPath
 		h.PageStart, h.PageEnd, h.Title, h.Filename, h.URL = c.PageStart, c.PageEnd, c.Title, c.Filename, c.URL

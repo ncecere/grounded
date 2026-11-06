@@ -183,9 +183,11 @@ WHERE status IN ('queued', 'processing') AND updated_at < now() - make_interval(
 
 -- The first passages of a document, in order (the document sheet's previews).
 -- name: ListDocumentChunks :many
+-- Only for a reader who may read the document (docs/specs/document-acls/DESIGN.md) or under break-glass (every_document).
 SELECT c.ordinal, c.content, c.heading_path, c.page_start, c.page_end, c.token_count
-FROM chunks c JOIN data_sources s ON s.id = c.source_id
+FROM chunks c JOIN data_sources s ON s.id = c.source_id JOIN documents d ON d.id = c.document_id
 WHERE c.document_id = @document_id AND c.profile_id = s.embedding_profile_id
+  AND (sqlc.arg(every_document)::boolean OR d.acl_principals IS NULL OR d.acl_principals && sqlc.arg(principals)::text[])
 ORDER BY c.ordinal
 LIMIT @page_size;
 

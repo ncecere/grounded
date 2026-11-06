@@ -13,6 +13,29 @@ import (
 	"github.com/google/uuid"
 )
 
+const conversationCitesRestricted = `-- name: ConversationCitesRestricted :one
+SELECT EXISTS (
+    SELECT 1 FROM messages m
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.citations) = 'array' THEN m.citations ELSE '[]'::jsonb END) AS c(cite)
+    JOIN documents d ON d.id = (c.cite->>'documentId')::uuid
+    WHERE m.conversation_id = $1 AND m.seq <= $2 AND m.role = 'assistant' AND d.acl_principals IS NOT NULL
+)::boolean
+`
+
+type ConversationCitesRestrictedParams struct {
+	ConversationID uuid.UUID
+	UpToSeq        int32
+}
+
+// Whether an answer of the conversation, up to seq, cited a document that is restricted now (docs/specs/document-acls/DESIGN.md):
+// such a conversation can't be shared, and a link made before the restriction stops working.
+func (q *Queries) ConversationCitesRestricted(ctx context.Context, arg ConversationCitesRestrictedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, conversationCitesRestricted, arg.ConversationID, arg.UpToSeq)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countConversationShares = `-- name: CountConversationShares :one
 SELECT count(*) FROM conversation_shares WHERE conversation_id = $1
 `

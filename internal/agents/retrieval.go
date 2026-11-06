@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/rerank"
@@ -71,10 +72,12 @@ type retriever struct {
 
 	// noExpand leaves parents unexpanded: the evaluation's retrieval check reads ranks, not text (evaluate.go).
 	noExpand bool
+	// caller is whose document permissions the searches read with (docs/specs/document-acls/DESIGN.md).
+	caller access.Caller
 }
 
-func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string) *retriever {
-	r := &retriever{svc: svc, kbs: resolved, refs: map[uuid.UUID]KBRef{}, minSim: c.MinSimilarity, user: user,
+func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string, caller access.Caller) *retriever {
+	r := &retriever{svc: svc, kbs: resolved, refs: map[uuid.UUID]KBRef{}, minSim: c.MinSimilarity, user: user, caller: caller,
 		budget: c.ContextTokenBudget, byChunk: map[uuid.UUID]*numberedHit{}, byParent: map[kbs.ParentKey]*numberedHit{}, embedTokens: map[uuid.UUID]int{}}
 	if c.Filters != nil {
 		r.filter = *c.Filters
@@ -196,7 +199,7 @@ func (r *retriever) searchKBs(ctx context.Context, query string) ([]kbResult, in
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache, CollapseParents: !r.noExpand})
+			res, err := r.svc.Search(ctx, kb, kbs.SearchParams{Text: query, TopK: topK, Filter: r.filter, User: r.user, Cache: &r.cache, CollapseParents: !r.noExpand, Caller: r.caller})
 			results[i] = kbResult{res, err}
 		}()
 	}
@@ -381,4 +384,18 @@ func (ru *run) searchTool() agentloop.Tool {
 			return agentloop.ToolResult{Content: formatSources(hits), Details: d}, nil
 		},
 	}
+}
+
+// restrictedKnowledge reports whether any source of the retriever's knowledge bases has restricted documents.
+func (r *retriever) restrictedKnowledge(ctx context.Context) (bool, error) {
+	var ids []uuid.UUID
+	for _, kb := range r.kbs {
+		for _, src := range kb.Sources {
+			ids = append(ids, src.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return false, nil
+	}
+	return r.svc.SourcesHaveRestricted(ctx, ids)
 }
