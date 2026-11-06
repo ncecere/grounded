@@ -106,6 +106,7 @@ func toAPISource(s sources.Summary) apitypes.DataSource {
 	}
 	out.Boilerplate = toAPIBoilerplate(s.Boilerplate)
 	out.OcrEnabled = src.OcrEnabled
+	out.Access = toAPISourceAccess(src)
 	return out
 }
 

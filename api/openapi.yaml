@@ -1489,6 +1489,58 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/AuditStream" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/document-access:
+    get:
+      tags: [admin]
+      operationId: adminGetDocumentAccess
+      summary: The Document permissions switch and how many documents are restricted (signed-in platform admins and auditors)
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentAccessSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutDocumentAccess
+      summary: Turn document permissions on or off (signed-in platform admins; audited as platform.document_permissions)
+      description: >-
+        Off by default: a server of the previous release ignores restrictions, so turn it on once every server runs
+        this release. 409 documents_restricted turning it off while any document is restricted. If-Match with the
+        settings' revision.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentAccessSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentAccessSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/audit-stream/settings:
     put:
       tags: [admin]
@@ -3897,6 +3949,76 @@ paths:
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/CrawlInProgressReply" }
         "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/teams/{team}/sources/{sourceId}/access:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: sourceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [sources]
+      operationId: putSourceAccess
+      summary: Restrict a source to groups and people, or make it unrestricted (team editors, admins and owners; audited as source.access_update)
+      description: >-
+        principals null makes the source and its documents unrestricted; a list restricts them to those groups
+        (group:name, as the identity provider names them), email addresses (email:address, matched only when
+        verified) and people (user:id), at most 50. Every document of the source follows at once, and new ones get
+        it. 409 document_permissions_off while a platform admin hasn't turned document permissions on; 400
+        invalid_access. If-Match with the source's revision.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceAccessInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DataSource" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/access/groups:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [sources]
+      operationId: listKnownGroups
+      summary: Group names seen at sign-in or provisioned by SCIM, for restricting a source (team editors, admins and owners)
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          schema: { type: string, maxLength: 256 }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { type: string }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/sources/{sourceId}/boilerplate:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -11979,6 +12101,37 @@ components:
         enabled: { type: boolean }
         coverageStart: { type: string, format: date, description: Immutable first covered UTC day once requests exist }
         destination: { type: string, enum: [builtin], description: External destinations are unsupported and fail closed }
+    DocumentAccessSettings:
+      type: object
+      required: [enabled, revision, restrictedDocuments]
+      properties:
+        enabled: { type: boolean }
+        revision: { type: integer, format: int64 }
+        restrictedDocuments: { type: integer, format: int64, description: Documents restricted now (turning permissions off needs none) }
+    DocumentAccessSettingsInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    SourceAccess:
+      type: object
+      description: Who may read the source's documents (docs/document-permissions.md). Unrestricted unless restricted is true.
+      required: [restricted, principals]
+      properties:
+        restricted: { type: boolean }
+        principals:
+          type: array
+          items: { type: string }
+          description: "group:name, email:address or user:id; empty when unrestricted"
+    SourceAccessInput:
+      type: object
+      required: [principals]
+      properties:
+        principals:
+          type: array
+          nullable: true
+          maxItems: 50
+          items: { type: string, maxLength: 300 }
     AuditStreamSettings:
       type: object
       required: [enabled, revision]
@@ -13465,6 +13618,7 @@ components:
         status: { type: string, enum: [active, paused] }
         documents: { $ref: "#/components/schemas/DocumentCounts" }
         revision: { $ref: "#/components/schemas/Revision" }
+        access: { $ref: "#/components/schemas/SourceAccess" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         web:
@@ -13563,6 +13717,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         sourceId: { type: string, format: uuid }
+        restricted: { type: boolean, description: Restricted to some people and groups (its text is shown only to them) }
         title: { type: string }
         filename: { type: string }
         url: { type: string }

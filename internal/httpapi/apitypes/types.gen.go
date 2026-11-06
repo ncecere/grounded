@@ -8328,6 +8328,9 @@ type CrawlStatus string
 
 // DataSource defines model for DataSource.
 type DataSource struct {
+	// Access Who may read the source's documents (docs/document-permissions.md). Unrestricted unless restricted is true.
+	Access *SourceAccess `json:"access,omitempty"`
+
 	// ActiveCrawl The queued or running crawl, if any
 	ActiveCrawl *Crawl `json:"activeCrawl"`
 
@@ -8458,11 +8461,14 @@ type Document struct {
 	Pages int32        `json:"pages"`
 
 	// Pii Possible personal data found at ingest and its review (null when nothing was found or scanning is off)
-	Pii         *DocumentPii       `json:"pii,omitempty"`
-	ProcessedAt *time.Time         `json:"processedAt,omitempty"`
-	SizeBytes   int64              `json:"sizeBytes"`
-	SourceId    openapi_types.UUID `json:"sourceId"`
-	Status      DocumentStatus     `json:"status"`
+	Pii         *DocumentPii `json:"pii,omitempty"`
+	ProcessedAt *time.Time   `json:"processedAt,omitempty"`
+
+	// Restricted Restricted to some people and groups (its text is shown only to them)
+	Restricted *bool              `json:"restricted,omitempty"`
+	SizeBytes  int64              `json:"sizeBytes"`
+	SourceId   openapi_types.UUID `json:"sourceId"`
+	Status     DocumentStatus     `json:"status"`
 
 	// Tags Used by metadata filters. Set on upload (tags field), by PATCH, or by a web source's tags setting.
 	Tags       []string  `json:"tags"`
@@ -8472,6 +8478,20 @@ type Document struct {
 	Url        string    `json:"url"`
 	Version    int32     `json:"version"`
 	Warnings   []string  `json:"warnings"`
+}
+
+// DocumentAccessSettings defines model for DocumentAccessSettings.
+type DocumentAccessSettings struct {
+	Enabled bool `json:"enabled"`
+
+	// RestrictedDocuments Documents restricted now (turning permissions off needs none)
+	RestrictedDocuments int64 `json:"restrictedDocuments"`
+	Revision            int64 `json:"revision"`
+}
+
+// DocumentAccessSettingsInput defines model for DocumentAccessSettingsInput.
+type DocumentAccessSettingsInput struct {
+	Enabled bool `json:"enabled"`
 }
 
 // DocumentCounts defines model for DocumentCounts.
@@ -12534,6 +12554,18 @@ type ShortNameUpdate struct {
 	ShortName *string `json:"shortName"`
 }
 
+// SourceAccess Who may read the source's documents (docs/document-permissions.md). Unrestricted unless restricted is true.
+type SourceAccess struct {
+	// Principals group:name, email:address or user:id; empty when unrestricted
+	Principals []string `json:"principals"`
+	Restricted bool     `json:"restricted"`
+}
+
+// SourceAccessInput defines model for SourceAccessInput.
+type SourceAccessInput struct {
+	Principals *[]string `json:"principals"`
+}
+
 // SourceBoilerplate Repeated-boilerplate suppression for a source: the settings in force and what they remove. A block is repeated when at least max(minDocs, ceil(ratio x documents)) documents contain it; one copy stays in the document with the shortest URL.
 type SourceBoilerplate struct {
 	// DocumentsCounted Documents counted at the last refresh
@@ -13901,6 +13933,12 @@ type AdminUpdateCostSettingsParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutDocumentAccessParams defines parameters for AdminPutDocumentAccess.
+type AdminPutDocumentAccessParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListDomainRequestsParams defines parameters for AdminListDomainRequests.
 type AdminListDomainRequestsParams struct {
 	Status *DomainRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -14381,6 +14419,11 @@ type SearchObjectsParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListKnownGroupsParams defines parameters for ListKnownGroups.
+type ListKnownGroupsParams struct {
+	Prefix *string `form:"prefix,omitempty" json:"prefix,omitempty"`
+}
+
 // UpdateAgentParams defines parameters for UpdateAgent.
 type UpdateAgentParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -14555,6 +14598,12 @@ type UpdateSourceParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// PutSourceAccessParams defines parameters for PutSourceAccess.
+type PutSourceAccessParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // ListBoilerplateBlocksParams defines parameters for ListBoilerplateBlocks.
 type ListBoilerplateBlocksParams struct {
 	Limit *BoilerplateLimitParam `form:"limit,omitempty" json:"limit,omitempty"`
@@ -14688,6 +14737,9 @@ type AdminUpdateCostSettingsJSONRequestBody = CostSettingsUpdate
 
 // AdminAddCrawlAllowlistJSONRequestBody defines body for AdminAddCrawlAllowlist for application/json ContentType.
 type AdminAddCrawlAllowlistJSONRequestBody = AllowlistCreate
+
+// AdminPutDocumentAccessJSONRequestBody defines body for AdminPutDocumentAccess for application/json ContentType.
+type AdminPutDocumentAccessJSONRequestBody = DocumentAccessSettingsInput
 
 // AdminReviewDomainRequestJSONRequestBody defines body for AdminReviewDomainRequest for application/json ContentType.
 type AdminReviewDomainRequestJSONRequestBody = DomainReview
@@ -15006,6 +15058,9 @@ type CreateSourceJSONRequestBody = DataSourceCreate
 
 // UpdateSourceJSONRequestBody defines body for UpdateSource for application/json ContentType.
 type UpdateSourceJSONRequestBody = DataSourceUpdate
+
+// PutSourceAccessJSONRequestBody defines body for PutSourceAccess for application/json ContentType.
+type PutSourceAccessJSONRequestBody = SourceAccessInput
 
 // UploadDocumentsMultipartRequestBody defines body for UploadDocuments for multipart/form-data ContentType.
 type UploadDocumentsMultipartRequestBody UploadDocumentsMultipartBody

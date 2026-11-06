@@ -187,7 +187,14 @@ any document is restricted, so an install can't silently fall back to showing re
   - **Evaluation runs** are marked explicitly (`run.evaluation`) and read as Anyone.
   - **Repeated-block samples** are hidden when their canonical document is restricted from the reader. If that
   document is gone, they're hidden whenever the source ever had a restricted document.
-- **Part 2:** the Document permissions switch and the source Access API and page.
+- **Part 2:** the Document permissions switch, the source **Access** tab and `PUT …/sources/{id}/access`, and the list
+  of groups seen at sign-in and through SCIM (`GET …/access/groups`). Documents show a **Restricted** badge.
+  - A new document of a restricted source gets the restriction through an insert trigger. The trigger reads the
+    source `FOR SHARE`, so an insert made while the restriction changes waits for the change and gets the new list.
+  - Restricting is refused while the switch is off. Turning the switch off is refused while any document is
+    restricted.
+  - Shared (platform) sources can't be restricted yet.
+  - Guide: [`../../document-permissions.md`](../../document-permissions.md).
 
 ## Open questions for the connectors (B1, B2)
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
@@ -91,6 +92,8 @@ type Deps struct {
 	OCR *ocr.Service
 	// AuditStream streams audit entries to a SIEM (docs/specs/audit-streaming/DESIGN.md).
 	AuditStream *auditstream.Service
+	// DocumentAccess is the Document permissions switch (docs/document-permissions.md).
+	DocumentAccess *access.Service
 	// PII stores the settings of personal data scanning at ingest (docs/pii-scanning.md).
 	PII *pii.Service
 	// SCIM is SCIM provisioning: /scim/v2 and Admin → SCIM provisioning (docs/specs/scim/DESIGN.md).
@@ -185,7 +188,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.auditExportRoutes(), a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.scimAdminRoutes(), a.parsingRoutes(), a.auditStreamRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
+		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.scimAdminRoutes(), a.parsingRoutes(), a.auditStreamRoutes(), a.documentAccessRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)

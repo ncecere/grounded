@@ -8,7 +8,8 @@
  * record page (?record=).
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Eye, FileText, Globe, RotateCcw, ShieldAlert, Tags, Trash2, Upload } from "lucide-react";
+import { Eye, FileText, Globe, Lock, RotateCcw, ShieldAlert, Tags, Trash2, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge/badge";
 import { useEffect, useId, useState } from "react";
 import { ListPage, RelativeTime, timeColumn, useListFilters } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
@@ -80,6 +81,11 @@ function columns(web: boolean): DataTableColumn<Doc>[] {
         <span className={d.status}>
           <DocStatusBadge status={doc.status} waiting={isWaiting(doc)} />
           <PiiBadge pii={doc.pii} />
+          {doc.restricted && (
+            <Badge tone="neutral" title="Restricted: only some groups and people can read its text (the source's Access)">
+              <Lock aria-hidden size={12} /> Restricted
+            </Badge>
+          )}
           {(canRetry(doc) || isWaiting(doc) || isHeld(doc)) && documentError(doc) && (
             // In the badge's tone: a failure is an error; a skipped, waiting or partly scanned (Ready) document a warning.
             <span className={d.statusNote} data-tone={doc.status === "failed" ? "danger" : "warning"} title={documentError(doc)}>

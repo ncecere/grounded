@@ -6,12 +6,13 @@
  * Settings. Documents open as record pages (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
-import { FileText, History, LayoutDashboard, Network, Settings2, Upload } from "lucide-react";
+import { FileText, History, LayoutDashboard, Lock, Network, Settings2, Upload } from "lucide-react";
 import { useId, useState } from "react";
 import { useUrlTab } from "@/components/page-tabs";
 import { DetailPage } from "@/components/templates/detail-page";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
+import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { sourceTabs } from "@/lib/tabs";
@@ -20,6 +21,7 @@ import { ClassificationBadge, useClassificationLevels } from "../team/common";
 import { DocumentsTable } from "../team/documents/table";
 import { UploadDialog } from "../team/documents/upload";
 import { PageSkeleton } from "../team/layout";
+import { accessSummary, SourceAccess } from "./access";
 import { type SourceActions, useSourceActions } from "./actions";
 import { BoilerplateCard } from "./boilerplate";
 import { ContextualCard } from "./contextual";
@@ -77,6 +79,11 @@ function SourcePage({ source: src }: { source: DataSource }) {
           <>
             <ClassificationBadge levels={levels.data} value={src.classification} />
             <SourceStatusBadge status={src.status} />
+            {src.access?.restricted && (
+              <Badge tone="warning" title={`Restricted to ${accessSummary(src.access.principals)}`}>
+                <Lock aria-hidden size={12} /> Restricted
+              </Badge>
+            )}
           </>
         }
         facts={facts}
@@ -135,6 +142,13 @@ function SourcePage({ source: src }: { source: DataSource }) {
             icon: <Network aria-hidden />,
             hidden: owner.kind !== "platform",
             content: <SharedUsageTab sourceId={src.id} />,
+          },
+          {
+            value: "access",
+            label: "Access",
+            icon: <Lock aria-hidden />,
+            hidden: owner.kind !== "team" || !owner.canEdit,
+            content: owner.team ? <SourceAccess source={src} team={owner.team} /> : null,
           },
           {
             value: "settings",

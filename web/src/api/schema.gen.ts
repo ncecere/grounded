@@ -949,6 +949,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/document-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Document permissions switch and how many documents are restricted (signed-in platform admins and auditors) */
+        get: operations["adminGetDocumentAccess"];
+        /**
+         * Turn document permissions on or off (signed-in platform admins; audited as platform.document_permissions)
+         * @description Off by default: a server of the previous release ignores restrictions, so turn it on once every server runs this release. 409 documents_restricted turning it off while any document is restricted. If-Match with the settings' revision.
+         */
+        put: operations["adminPutDocumentAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/audit-stream/settings": {
         parameters: {
             query?: never;
@@ -2303,6 +2324,50 @@ export interface paths {
         put?: never;
         /** Start a crawl of a web source (editors and above, or an API key with the ingest scope) */
         post: operations["syncSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Restrict a source to groups and people, or make it unrestricted (team editors, admins and owners; audited as source.access_update)
+         * @description principals null makes the source and its documents unrestricted; a list restricts them to those groups (group:name, as the identity provider names them), email addresses (email:address, matched only when verified) and people (user:id), at most 50. Every document of the source follows at once, and new ones get it. 409 document_permissions_off while a platform admin hasn't turned document permissions on; 400 invalid_access. If-Match with the source's revision.
+         */
+        put: operations["putSourceAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/access/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /** Group names seen at sign-in or provisioned by SCIM, for restricting a source (team editors, admins and owners) */
+        get: operations["listKnownGroups"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7534,6 +7599,28 @@ export interface components {
              */
             destination: "builtin";
         };
+        DocumentAccessSettings: {
+            enabled: boolean;
+            /** Format: int64 */
+            revision: number;
+            /**
+             * Format: int64
+             * @description Documents restricted now (turning permissions off needs none)
+             */
+            restrictedDocuments: number;
+        };
+        DocumentAccessSettingsInput: {
+            enabled: boolean;
+        };
+        /** @description Who may read the source's documents (docs/document-permissions.md). Unrestricted unless restricted is true. */
+        SourceAccess: {
+            restricted: boolean;
+            /** @description group:name, email:address or user:id; empty when unrestricted */
+            principals: string[];
+        };
+        SourceAccessInput: {
+            principals: string[] | null;
+        };
         AuditStreamSettings: {
             enabled: boolean;
             /** Format: int64 */
@@ -9286,6 +9373,7 @@ export interface components {
             status: "active" | "paused";
             documents: components["schemas"]["DocumentCounts"];
             revision: components["schemas"]["Revision"];
+            access?: components["schemas"]["SourceAccess"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -9435,6 +9523,8 @@ export interface components {
             id: string;
             /** Format: uuid */
             sourceId: string;
+            /** @description Restricted to some people and groups (its text is shown only to them) */
+            restricted?: boolean;
             title: string;
             filename: string;
             url: string;
@@ -15703,6 +15793,67 @@ export interface operations {
             default: components["responses"]["DefaultErrorReply"];
         };
     };
+    adminGetDocumentAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentAccessSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutDocumentAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentAccessSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentAccessSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
     adminPutAuditStreamSettings: {
         parameters: {
             query?: never;
@@ -18389,6 +18540,77 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    putSourceAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceAccessInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DataSource"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    listKnownGroups: {
+        parameters: {
+            query?: {
+                prefix?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: string[];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

@@ -2,6 +2,7 @@
 import type { Schemas } from "../../api/client";
 import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
 import { auditStreamActionLabels } from "./audit-stream-labels";
+import { documentAccessActionLabels } from "./document-access-labels";
 import { scimActionLabels } from "./scim-labels";
 
 type AuditEntry = Schemas["AuditEntry"];
@@ -193,6 +194,7 @@ const actionLabels: Record<string, string> = {
   "team.invite_accept": "Accepted invite",
   ...scimActionLabels,
   ...auditStreamActionLabels,
+  ...documentAccessActionLabels,
 };
 
 type Obj = Record<string, unknown>;

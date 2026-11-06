@@ -51,6 +51,162 @@ func (q *Queries) CallerIdentity(ctx context.Context, id uuid.UUID) (CallerIdent
 	return i, err
 }
 
+const countRestrictedDocuments = `-- name: CountRestrictedDocuments :one
+SELECT count(*) FROM documents WHERE acl_principals IS NOT NULL
+`
+
+func (q *Queries) CountRestrictedDocuments(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countRestrictedDocuments)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getDocumentAccessSettings = `-- name: GetDocumentAccessSettings :one
+SELECT singleton, enabled, revision, updated_by, updated_at FROM document_access_settings WHERE singleton
+`
+
+func (q *Queries) GetDocumentAccessSettings(ctx context.Context) (DocumentAccessSetting, error) {
+	row := q.db.QueryRow(ctx, getDocumentAccessSettings)
+	var i DocumentAccessSetting
+	err := row.Scan(
+		&i.Singleton,
+		&i.Enabled,
+		&i.Revision,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const knownGroups = `-- name: KnownGroups :many
+SELECT DISTINCT g::text AS name FROM (
+    SELECT unnest(groups) AS g FROM sso_user_groups
+    UNION
+    SELECT lower(display_name) FROM scim_groups
+) x
+WHERE g <> '' AND ($1::text = '' OR g LIKE $1::text || '%')
+ORDER BY 1
+LIMIT 500
+`
+
+// Group names seen at sign-in or provisioned by SCIM, for the access picker (names only, lower-cased, at most 500).
+func (q *Queries) KnownGroups(ctx context.Context, prefix string) ([]string, error) {
+	rows, err := q.db.Query(ctx, knownGroups, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockDocumentAccessSettings = `-- name: LockDocumentAccessSettings :one
+SELECT singleton, enabled, revision, updated_by, updated_at FROM document_access_settings WHERE singleton FOR UPDATE
+`
+
+func (q *Queries) LockDocumentAccessSettings(ctx context.Context) (DocumentAccessSetting, error) {
+	row := q.db.QueryRow(ctx, lockDocumentAccessSettings)
+	var i DocumentAccessSetting
+	err := row.Scan(
+		&i.Singleton,
+		&i.Enabled,
+		&i.Revision,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setDocumentAccessSettings = `-- name: SetDocumentAccessSettings :one
+UPDATE document_access_settings SET enabled = $1, revision = revision + 1, updated_by = $2, updated_at = now()
+WHERE singleton RETURNING singleton, enabled, revision, updated_by, updated_at
+`
+
+type SetDocumentAccessSettingsParams struct {
+	Enabled   bool
+	UpdatedBy uuid.NullUUID
+}
+
+func (q *Queries) SetDocumentAccessSettings(ctx context.Context, arg SetDocumentAccessSettingsParams) (DocumentAccessSetting, error) {
+	row := q.db.QueryRow(ctx, setDocumentAccessSettings, arg.Enabled, arg.UpdatedBy)
+	var i DocumentAccessSetting
+	err := row.Scan(
+		&i.Singleton,
+		&i.Enabled,
+		&i.Revision,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setSourceAccess = `-- name: SetSourceAccess :one
+UPDATE data_sources SET acl_principals = $1::text[], revision = revision + 1, updated_at = now()
+WHERE id = $2 RETURNING id, team_id, name, description, type, config, classification, embedding_profile_id, status, revision, created_by, created_at, updated_at, last_sync_at, next_sync_at, ocr_enabled, acl_principals, restricted_documents
+`
+
+type SetSourceAccessParams struct {
+	Principals []string
+	ID         uuid.UUID
+}
+
+// A source's restriction set by hand (NULL: unrestricted). The source row is locked by the caller; its documents follow
+// in the same transaction (SetSourceDocumentsAccess), and a document inserted meanwhile waits for the row (the trigger).
+func (q *Queries) SetSourceAccess(ctx context.Context, arg SetSourceAccessParams) (DataSource, error) {
+	row := q.db.QueryRow(ctx, setSourceAccess, arg.Principals, arg.ID)
+	var i DataSource
+	err := row.Scan(
+		&i.ID,
+		&i.TeamID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Config,
+		&i.Classification,
+		&i.EmbeddingProfileID,
+		&i.Status,
+		&i.Revision,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSyncAt,
+		&i.NextSyncAt,
+		&i.OcrEnabled,
+		&i.AclPrincipals,
+		&i.RestrictedDocuments,
+	)
+	return i, err
+}
+
+const setSourceDocumentsAccess = `-- name: SetSourceDocumentsAccess :execrows
+UPDATE documents SET acl_principals = $1::text[], updated_at = now()
+WHERE source_id = $2 AND acl_principals IS DISTINCT FROM $1::text[]
+`
+
+type SetSourceDocumentsAccessParams struct {
+	Principals []string
+	SourceID   uuid.UUID
+}
+
+func (q *Queries) SetSourceDocumentsAccess(ctx context.Context, arg SetSourceDocumentsAccessParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setSourceDocumentsAccess, arg.Principals, arg.SourceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const sourceGroupsOf = `-- name: SourceGroupsOf :many
 SELECT DISTINCT source_id, group_id FROM source_group_members WHERE principal = ANY($1::text[])
 `

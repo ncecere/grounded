@@ -67,16 +67,18 @@ type Services struct {
 	AuditExports *auditexport.Service
 	// AuditStream streams audit entries to a SIEM (docs/specs/audit-streaming/DESIGN.md).
 	AuditStream *auditstream.Service
-	Teams       *teams.Service
-	Platform    *platform.Service
-	Catalog     *catalog.Service
-	Sources     *sources.Service
-	Web         *web.Service
-	KBs         *kbs.Service
-	APIKeys     *apikeys.Service
-	Limits      *limits.Service
-	Agents      *agents.Service
-	Notify      *notify.Service
+	// DocumentAccess is the Document permissions switch (docs/document-permissions.md).
+	DocumentAccess *access.Service
+	Teams          *teams.Service
+	Platform       *platform.Service
+	Catalog        *catalog.Service
+	Sources        *sources.Service
+	Web            *web.Service
+	KBs            *kbs.Service
+	APIKeys        *apikeys.Service
+	Limits         *limits.Service
+	Agents         *agents.Service
+	Notify         *notify.Service
 	// Mail sends notification email (nil: SMTP_HOST unset).
 	Mail notify.Sender
 	// Moderation stores the moderation policies and runs checks (ADR-0019).
@@ -447,4 +449,5 @@ func newExportCopier(ctx context.Context, cfg config.Config, pool *pgxpool.Pool,
 func wireDocumentAccess(s *Services, cfg config.Config, pool *pgxpool.Pool) {
 	r := &access.Resolver{Q: dbgen.New(pool), MatchClaim: cfg.OIDC.SCIMMatchClaim}
 	s.Sources.Access, s.KBs.Access = r, r
+	s.DocumentAccess = &access.Service{Pool: pool}
 }
