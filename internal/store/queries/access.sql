@@ -18,3 +18,37 @@ SELECT DISTINCT source_id, group_id FROM source_group_members WHERE principal = 
 -- name: SourcesHaveRestricted :one
 -- Whether any of the sources has (or had) a restricted document: search then adds the permission condition to candidates.
 SELECT COALESCE(bool_or(restricted_documents), false)::boolean FROM data_sources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: GetDocumentAccessSettings :one
+SELECT * FROM document_access_settings WHERE singleton;
+
+-- name: LockDocumentAccessSettings :one
+SELECT * FROM document_access_settings WHERE singleton FOR UPDATE;
+
+-- name: SetDocumentAccessSettings :one
+UPDATE document_access_settings SET enabled = @enabled, revision = revision + 1, updated_by = @updated_by, updated_at = now()
+WHERE singleton RETURNING *;
+
+-- name: CountRestrictedDocuments :one
+SELECT count(*) FROM documents WHERE acl_principals IS NOT NULL;
+
+-- name: SetSourceAccess :one
+-- A source's restriction set by hand (NULL: unrestricted). The source row is locked by the caller; its documents follow
+-- in the same transaction (SetSourceDocumentsAccess), and a document inserted meanwhile waits for the row (the trigger).
+UPDATE data_sources SET acl_principals = sqlc.narg(principals)::text[], revision = revision + 1, updated_at = now()
+WHERE id = @id RETURNING *;
+
+-- name: SetSourceDocumentsAccess :execrows
+UPDATE documents SET acl_principals = sqlc.narg(principals)::text[], updated_at = now()
+WHERE source_id = @source_id AND acl_principals IS DISTINCT FROM sqlc.narg(principals)::text[];
+
+-- name: KnownGroups :many
+-- Group names seen at sign-in or provisioned by SCIM, for the access picker (names only, lower-cased, at most 500).
+SELECT DISTINCT g::text AS name FROM (
+    SELECT unnest(groups) AS g FROM sso_user_groups
+    UNION
+    SELECT lower(display_name) FROM scim_groups
+) x
+WHERE g <> '' AND (sqlc.arg(prefix)::text = '' OR g LIKE sqlc.arg(prefix)::text || '%')
+ORDER BY 1
+LIMIT 500;

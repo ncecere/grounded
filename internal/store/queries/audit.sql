@@ -103,6 +103,7 @@ CROSS JOIN LATERAL (
         WHEN 'rerank_settings' THEN 'Reranking settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
         WHEN 'audit_stream_settings' THEN 'Audit streaming'
+        WHEN 'document_access_settings' THEN 'Document permissions'
         WHEN 'audit_stream_destination' THEN (SELECT 'Streaming destination ' || asd.name FROM audit_stream_destinations asd WHERE asd.id = ids.target_uuid)
         WHEN 'pii_settings' THEN 'Personal data scanning'
         WHEN 'scim_token' THEN (SELECT 'SCIM token ' || st.name FROM scim_tokens st WHERE st.id = ids.target_uuid)

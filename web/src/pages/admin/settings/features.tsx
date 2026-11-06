@@ -1,13 +1,14 @@
 /*
  * Admin → Settings › Features (AD-39): the platform's feature switches, moved here from the Overview's Features card
- * (which keeps their state with a link here). Evaluations, team requests, webhooks, audit streaming, content health reports, the MCP server, its OAuth sign-in for MCP clients and saved
+ * (which keeps their state with a link here). Evaluations, team requests, webhooks, audit streaming, document permissions, content health reports, the MCP server, its OAuth sign-in for MCP clients and saved
  * answers; platform admins switch them (each confirms what turning it off does, If-Match, audited), auditors see them
  * read-only with the reason.
  */
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Cable, ClipboardCheck, DatabaseZap, HeartPulse, KeyRound, RadioTower, UsersRound, Webhook } from "lucide-react";
+import { BookOpen, Cable, ClipboardCheck, DatabaseZap, HeartPulse, KeyRound, Lock, RadioTower, UsersRound, Webhook } from "lucide-react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { AuditStreamSwitch, auditStreamText, useAuditStreamSetting } from "../overview/audit-stream-switch";
+import { DocumentAccessSwitch, documentAccessText, useDocumentAccessSetting } from "../overview/document-access-switch";
 import { ContentHealthSwitch, contentHealthText, useContentHealthSetting } from "../overview/content-health-switch";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "../overview/answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "../overview/evaluations-switch";
@@ -27,6 +28,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
   const webhooks = useWebhookSettings();
   const health = useContentHealthSetting();
   const stream = useAuditStreamSetting();
+  const documents = useDocumentAccessSetting();
   const rows: Row[] = [
     fromQuery(
       evaluations.settings,
@@ -77,6 +79,16 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
       (d) => ({ state: d.enabled ? on : off, description: auditStreamText(d.enabled) }),
     ),
     fromQuery(
+      documents.settings,
+      {
+        id: "document-permissions",
+        icon: <Lock />,
+        title: "Document permissions",
+        control: <DocumentAccessSwitch setting={documents} isAdmin={isAdmin} />,
+      },
+      (d) => ({ state: d.enabled ? on : off, description: documentAccessText(d.enabled, d.restrictedDocuments) }),
+    ),
+    fromQuery(
       health.settings,
       {
         id: "content-health",
@@ -125,6 +137,7 @@ export function FeatureSwitches({ isAdmin }: { isAdmin: boolean }) {
     [webhooks.save.error, "Couldn't change webhooks"],
     [health.save.error, "Couldn't change content health reports"],
     [stream.save.error, "Couldn't change audit streaming"],
+    [documents.save.error, "Couldn't change document permissions"],
     [mcp.save.error, "Couldn't change the MCP server"],
     [oauth.error, "Couldn't change OAuth sign-in"],
     [cache.save.error, "Couldn't change saved answers"],

@@ -34,6 +34,7 @@ func toAPIDocument(d dbgen.Document) apitypes.Document {
 		ErrorCode: d.ErrorCode, ErrorMessage: msg, ErrorDetail: detail, Pages: d.Pages, ChunkCount: d.ChunkCount,
 		TokenCount: d.TokenCount, Warnings: warnings, Tags: nonNilStrings(d.Tags), CreatedAt: d.CreatedAt, UpdatedAt: d.UpdatedAt,
 		ProcessedAt: d.ProcessedAt, Ocr: documentOCR(d.Metadata), Pii: documentPII(d.Metadata),
+		Restricted: optBool(d.AclPrincipals != nil),
 	}
 }
 
