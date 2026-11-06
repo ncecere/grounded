@@ -3,7 +3,7 @@
 --
 -- documents.acl_principals: NULL is unrestricted (every document before this release); a list restricts the document to
 -- those principals (namespaced, lower-case strings: user:, subject:, email:, group:, source:); an empty list is nobody.
--- data_sources.acl_principals is a restriction set by hand on a whole source; ingest copies it to the source's documents.
+-- data_sources.acl_principals is a restriction set by hand on a whole source; a new document gets it (the trigger below).
 -- data_sources.restricted_documents is set by a trigger as soon as any of the source's documents is restricted and is never
 -- cleared by the application: search adds the permission condition to candidate retrieval only for such sources, and always
 -- applies it where passage text is read. A pod of the previous release ignores these columns, so restrictions stay behind
@@ -15,9 +15,15 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS acl_principals text[];
 ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS acl_principals text[];
 ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS restricted_documents boolean NOT NULL DEFAULT false;
 
+-- A new document of a source restricted by hand gets the source's restriction (a connector's document brings its own). The
+-- source row is read FOR SHARE: an insert during a change of the source's restriction waits for it and gets the new list,
+-- so no document of a restricted source is ever unrestricted.
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION documents_mark_restricted_source() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+    IF TG_OP = 'INSERT' AND NEW.acl_principals IS NULL THEN
+        SELECT s.acl_principals INTO NEW.acl_principals FROM data_sources s WHERE s.id = NEW.source_id FOR SHARE;
+    END IF;
     IF NEW.acl_principals IS NOT NULL THEN
         UPDATE data_sources SET restricted_documents = true WHERE id = NEW.source_id AND NOT restricted_documents;
     END IF;
