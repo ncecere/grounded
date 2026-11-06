@@ -2,7 +2,12 @@
 
 Baseline: `8e61890` (v0.6.1). Inventory: all 29 open issues and all 10 comments read on 2026-10-28, plus the three open Dependabot PRs (#165–167). The roadmap remains the scope source of truth; this file orders execution, not a replacement roadmap. Owner authorizes implementation, testing, improvements and pre-1.0 releases; **v1.0.0 requires the owner's explicit decision**.
 
-## Current execution status — 2026-11-05 (v0.9.0)
+## Current execution status — 2026-11-05 (v0.10.0)
+
+- **v0.10.0 is in progress.** #41 document permissions is done: design #236, enforcement on every read of document text #239, the switch and a source's Access tab #240 (`docs/document-permissions.md`). Next: #42 Microsoft 365 and #43 Google Drive, which need a Microsoft 365 developer tenant and a Google Workspace test domain from the owner (docs/v0.10.0.md, decision 8); #44 after them.
+- **v0.9.0 is published** (tag at `57bf9be`): both images verified; Helm chart 0.9.0 was pushed unsigned when signing failed and must be deleted in GHCR before the tag's chart job can republish it (#237 makes this recoverable from the next tag).
+
+### Earlier status — 2026-11-05 (v0.9.0)
 
 - **v0.9.0 is published** (2026-11-05, tag at `57bf9be`, PR #235); both images verified, the Helm chart to be republished signed (PR #237). Released on the owner's go-ahead. Every v0.9.0 issue is closed: #32, #33, #35, #36, #37, #38, #39, #40. Merged: PRs #218-#229 and #231-#234 (#230 replaced by #233 after GitHub refused pushes to its branch). Next: v0.10.0 (#41-#44), starting with #41 document permissions. #19 still needs the owner's reference-install pages; #89 is unchanged.
 
