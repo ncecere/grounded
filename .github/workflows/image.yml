@@ -116,7 +116,14 @@ jobs:
       - name: Sign (cosign keyless)
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        # Keyless signing fetches a GitHub Actions OIDC token, and that request can fail transiently (v0.9.0's OCR image:
+        # "fetching ambient OIDC credentials: invalid character 'u'"). Retry; never skip.
+        run: |
+          for n in 1 2 3 4; do
+            cosign sign --yes "${IMAGE}@${DIGEST}" && exit 0
+            [ "$n" -lt 4 ] && sleep $((n * 20))
+          done
+          exit 1
 
       - name: Job summary
         if: always() && steps.build.outputs.digest != ''
@@ -249,7 +256,14 @@ jobs:
       - name: Sign (cosign keyless)
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        # Keyless signing fetches a GitHub Actions OIDC token, and that request can fail transiently (v0.9.0's OCR image:
+        # "fetching ambient OIDC credentials: invalid character 'u'"). Retry; never skip.
+        run: |
+          for n in 1 2 3 4; do
+            cosign sign --yes "${IMAGE}@${DIGEST}" && exit 0
+            [ "$n" -lt 4 ] && sleep $((n * 20))
+          done
+          exit 1
 
       - name: Job summary
         if: always() && steps.build.outputs.digest != ''
