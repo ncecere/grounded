@@ -97,7 +97,7 @@ func (s *Service) SetAnswerCache(ctx context.Context, a authz.Actor, teamRef str
 			return err
 		}
 		var before answercache.AgentSettings
-		before, after, err = answercache.PutAgentSettings(ctx, tx, id, in, expectedRevision, nullUser(a))
+		before, after, err = answercache.PutAgentSettings(ctx, tx, id, in, expectedRevision, a.NullUser())
 		if err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (s *Service) ClearAnswerCache(ctx context.Context, a authz.Actor, teamRef s
 		}
 		e := a.Audit("agent.answer_cache_clear", "agent", id.String())
 		e.TeamID = acc.Team.ID
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"cleared": n})
+		e.Metadata = audit.MergeMeta(e.Metadata, map[string]any{"cleared": n})
 		return audit.Record(ctx, q, e)
 	})
 	return n, err

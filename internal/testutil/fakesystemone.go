@@ -59,14 +59,6 @@ import (
 // FakeUnsafeSeverity is the fake severity of a text with an UNSAFE- marker.
 const FakeUnsafeSeverity = 2.4
 
-// FailJudgingWith makes passage-judging requests answer status (0
-// restores).
-func (p *FakeProxy) FailJudgingWith(status int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.judgeFail = status
-}
-
 // SetJudgingDelay delays every passage-judging answer by d.
 func (p *FakeProxy) SetJudgingDelay(d time.Duration) { p.SetJudgingDelays(d) }
 
@@ -105,24 +97,16 @@ func (p *FakeProxy) JudgingRequests() int {
 	return p.judgeCalls
 }
 
-// admitJudging applies injected judging failures and delays.
-func (p *FakeProxy) admitJudging(w http.ResponseWriter, r *http.Request) bool {
+// admitJudging applies the injected judging delays.
+func (p *FakeProxy) admitJudging(r *http.Request) bool {
 	p.mu.Lock()
 	var delay time.Duration
 	if len(p.judgeDelays) > 0 {
 		delay = p.judgeDelays[p.judgeCalls%len(p.judgeDelays)]
 	}
 	p.judgeCalls++
-	fail := p.judgeFail
 	p.mu.Unlock()
-	if !wait(r, delay) {
-		return false
-	}
-	if fail != 0 {
-		writeErr(w, fail, "judging failure (test)")
-		return false
-	}
-	return true
+	return wait(r, delay)
 }
 
 type fakeQuestion struct {
@@ -298,7 +282,7 @@ func FakeJudgment(passage string) map[string]float64 {
 func (p *FakeProxy) admitSystemOne(w http.ResponseWriter, r *http.Request, st fakeS1State) bool {
 	switch {
 	case st.Query != nil && (st.Passage != nil || st.Passages != nil):
-		return p.admitJudging(w, r)
+		return p.admitJudging(r)
 	case st.Claim != nil:
 		return p.admitCitations(w, r)
 	case st.Message != nil && st.Agent != nil:

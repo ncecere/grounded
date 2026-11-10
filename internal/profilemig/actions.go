@@ -92,7 +92,7 @@ func (s *Service) Start(ctx context.Context, a authz.Actor, in StartInput) (Migr
 			return err
 		}
 		e := a.Audit("kb.profile_migration_start", "knowledge_base", kb.ID.String())
-		e.TeamID, e.Metadata = kb.TeamID, mergeMeta(e.Metadata, s.meta(m, map[string]any{
+		e.TeamID, e.Metadata = kb.TeamID, audit.MergeMeta(e.Metadata, s.meta(m, map[string]any{
 			"sources": len(pf.Sources), "documents": pf.Estimate.Documents, "passages": pf.Estimate.Passages,
 			"embeddingCalls": pf.Estimate.EmbeddingCalls, "rechunk": pf.Estimate.Rechunk, "graceDays": grace, "hold": in.Hold,
 		}))
@@ -143,16 +143,6 @@ func (s *Service) meta(m dbgen.ProfileMigration, extra map[string]any) map[strin
 	return out
 }
 
-func mergeMeta(a, b map[string]any) map[string]any {
-	if a == nil {
-		return b
-	}
-	for k, v := range b {
-		a[k] = v
-	}
-	return a
-}
-
 // change runs an admin action on a migration at its expected revision.
 func (s *Service) change(ctx context.Context, a authz.Actor, id uuid.UUID, rev int64, fn func(q *dbgen.Queries, tx pgx.Tx, m dbgen.ProfileMigration) error) (Migration, error) {
 	if !a.IsPlatformAdmin() {
@@ -181,7 +171,7 @@ func (s *Service) change(ctx context.Context, a authz.Actor, id uuid.UUID, rev i
 
 func (s *Service) record(ctx context.Context, q *dbgen.Queries, a authz.Actor, action string, m dbgen.ProfileMigration, extra map[string]any) error {
 	e := a.Audit(action, "knowledge_base", m.KBID.String())
-	e.TeamID, e.Metadata = m.TeamID, mergeMeta(e.Metadata, s.meta(m, extra))
+	e.TeamID, e.Metadata = m.TeamID, audit.MergeMeta(e.Metadata, s.meta(m, extra))
 	return audit.Record(ctx, q, e)
 }
 

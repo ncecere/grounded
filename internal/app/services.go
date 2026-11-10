@@ -51,6 +51,7 @@ import (
 	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/scim"
+	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
@@ -207,23 +208,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		HealthChecks: healthcheck.New(pool),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
-	if kvs != nil {
-		s.Catalog.Pacer = &ratelimit.Pacer{KV: kvs}
-	}
-	s.Catalog.Log = log
-	s.Limits = limits.New(pool, s.Teams, kvs, limits.Options{IngestJobsDefault: cfg.IngestMaxInflightTeam})
-	s.Web = web.New(pool, s.Teams, jobsClient, store, NewFetcher(cfg, kvs), cfg.Crawl.MaxPages, cfg.Crawl.MaxBodyBytes, log)
-	s.Web.Limits = s.Limits
-	s.Limits.OnChange = s.limitsChanged // a raised limit wakes waiting crawls and documents
-	s.Web.Maintenance = s.Platform.Gate
-	s.Sources = sources.New(pool, s.Teams, s.Catalog, store, jobsClient, s.Web, cfg.MaxUploadBytes, log)
-	s.Sources.Limits = s.Limits
-	s.Sources.Boilerplate = cfg.Boilerplate
-	s.Sources.Maintenance = s.Platform.Gate
-	s.KBs = kbs.New(pool, s.Teams, s.Catalog, s.Vectors)
-	s.KBs.Limits = s.Limits
-	s.KBs.Weights = kbs.Weights{Vector: cfg.RetrievalVectorWeight, Keyword: cfg.RetrievalKeywordWeight}
-	s.KBs.ParentExpansionOff = !cfg.ParentExpansion
+	wireContent(s, cfg, pool, jobsClient, kvs, store, log)
 	wireDocumentAccess(s, cfg, pool)
 	peppers, err := NewPeppers(cfg)
 	if err != nil {
@@ -253,18 +238,9 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.BreakGlass = breakglass.New(pool, s.Teams, s.Notify, log)
 	s.Sources.BreakGlass, s.Agents.BreakGlass = s.BreakGlass, s.BreakGlass
 	wireNotify(s)
-	s.Agents.Moderation = s.Moderation
-	s.SystemOne = systemone.New(pool, s.Catalog, log)
-	s.Agents.SystemOne, s.KBs.SystemOne = s.SystemOne, s.SystemOne
-	s.Rerank = rerank.New(pool, s.Catalog, log)
-	s.KBs.Rerank = s.Rerank
+	wireModelServices(s, pool, log)
 	s.Agents.PublicEnabled = s.Platform.PublicAgentsEnabled
-	guard := &public.Guard{}
-	if kvs != nil {
-		guard.Counters = public.ValkeyCounters{KV: kvs}
-	}
-	s.Public = public.New(pool, s.Agents, s.Teams, s.Limits, guard, captcha.New(cfg.Public), pepper, cfg.Public.AnonSessionTTL, log)
-	s.Public.PreviousPepper = peppers.Previous
+	wirePublic(s, cfg, pool, kvs, peppers, log)
 	wireCosts(s, pool, jobsClient, log)
 	s.Retention = retention.New(pool, jobsClient, cfg.Retention, log)
 	s.RetentionMetrics = retention.NewMetrics()
@@ -288,6 +264,49 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache
 	return s, nil
+}
+
+// wireContent builds the limits, the web crawler, the sources and the knowledge bases, in that order: each takes the
+// ones before it, and the hooks between them are set once both ends exist.
+func wireContent(s *Services, cfg config.Config, pool *pgxpool.Pool, jobsClient *jobs.Client, kvs *kv.Store, store blob.Store, log *slog.Logger) {
+	if kvs != nil {
+		s.Catalog.Pacer = &ratelimit.Pacer{KV: kvs}
+	}
+	s.Catalog.Log = log
+	s.Limits = limits.New(pool, s.Teams, kvs, limits.Options{IngestJobsDefault: cfg.IngestMaxInflightTeam})
+	s.Web = web.New(pool, s.Teams, jobsClient, store, NewFetcher(cfg, kvs), cfg.Crawl.MaxPages, cfg.Crawl.MaxBodyBytes, log)
+	s.Web.Limits = s.Limits
+	s.Limits.OnChange = s.limitsChanged // a raised limit wakes waiting crawls and documents
+	s.Web.Maintenance = s.Platform.Gate
+	s.Sources = sources.New(pool, s.Teams, s.Catalog, store, jobsClient, s.Web, cfg.MaxUploadBytes, log)
+	s.Sources.Limits = s.Limits
+	s.Sources.Boilerplate = cfg.Boilerplate
+	s.Sources.Maintenance = s.Platform.Gate
+	s.KBs = kbs.New(pool, s.Teams, s.Catalog, s.Vectors)
+	s.KBs.Limits = s.Limits
+	s.KBs.Weights = kbs.Weights{Vector: cfg.RetrievalVectorWeight, Keyword: cfg.RetrievalKeywordWeight}
+	s.KBs.ParentExpansionOff = !cfg.ParentExpansion
+}
+
+// wireModelServices gives the agents their moderation, and builds SystemOne and the rerank model for the agents and
+// the knowledge bases.
+func wireModelServices(s *Services, pool *pgxpool.Pool, log *slog.Logger) {
+	s.Agents.Moderation = s.Moderation
+	s.SystemOne = systemone.New(pool, s.Catalog, log)
+	s.Agents.SystemOne, s.KBs.SystemOne = s.SystemOne, s.SystemOne
+	s.Rerank = rerank.New(pool, s.Catalog, log)
+	s.KBs.Rerank = s.Rerank
+}
+
+// wirePublic builds the service for anonymous visitors and the widget, with its abuse guard (counters in Valkey when
+// there is one).
+func wirePublic(s *Services, cfg config.Config, pool *pgxpool.Pool, kvs *kv.Store, peppers secrets.Peppers, log *slog.Logger) {
+	guard := &public.Guard{}
+	if kvs != nil {
+		guard.Counters = public.ValkeyCounters{KV: kvs}
+	}
+	s.Public = public.New(pool, s.Agents, s.Teams, s.Limits, guard, captcha.New(cfg.Public), peppers.Current, cfg.Public.AnonSessionTTL, log)
+	s.Public.PreviousPepper = peppers.Previous
 }
 
 // limitsChanged is the limits service's OnChange hook: crawls and documents
@@ -322,19 +341,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 	if err != nil {
 		return jobs.Registration{}, err
 	}
-	proc := &ingest.Processor{
-		Pool: pool, Blob: s.Blob, Parser: s.Parser, Counter: counter, Catalog: s.Catalog,
-		Vectors: s.Vectors, EmbedBatch: cfg.EmbedBatchSize, MaxBytes: cfg.MaxUploadBytes, Log: log,
-		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR, ContextualOff: !cfg.ContextualChunks, Budget: s.Costs,
-		Contextual: &contextual.Generator{
-			Store: &contextual.PGStore{Pool: pool, Recorded: s.Limits.Recorded}, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider,
-			Counter: counter, Gate: contextGate(s.Costs, s.Limits), Concurrency: cfg.ContextualConcurrency, Log: log,
-		},
-		Batcher: &ingest.Batcher{
-			MaxInputs: cfg.EmbedBatchSize, MaxTokens: cfg.EmbedBatchTokens, Linger: cfg.EmbedBatchWait,
-			Counter: counter, Log: log,
-		},
-	}
+	proc := newProcessor(cfg, pool, s, counter, log)
 	dispatch := &ingest.DispatchWorker{Pool: pool, Log: log, Team: s.Limits, Maintenance: s.Platform.Gate, Budget: s.Costs, Limits: ingest.Limits{
 		MaxInflight: cfg.IngestMaxInflight, MaxInflightTeam: cfg.IngestMaxInflightTeam,
 	}}
@@ -375,32 +382,54 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			contenthealth.Queue: {MaxWorkers: 1},
 			auditexport.Queue:   {MaxWorkers: 1},
 		},
-		Periodic: append([]*river.PeriodicJob{
-			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
-				func() (river.JobArgs, *river.InsertOpts) { return ingest.DispatchArgs{}, nil },
-				&river.PeriodicJobOpts{RunOnStart: true}),
-			river.NewPeriodicJob(river.PeriodicInterval(10*time.Minute),
-				func() (river.JobArgs, *river.InsertOpts) { return ingest.RecoverArgs{}, nil }, nil),
-			river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
-				func() (river.JobArgs, *river.InsertOpts) { return ingest.SweepArgs{}, nil },
-				&river.PeriodicJobOpts{RunOnStart: true}),
-			river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
-				func() (river.JobArgs, *river.InsertOpts) { return web.ScheduleArgs{}, nil },
-				&river.PeriodicJobOpts{RunOnStart: true}),
-			profilemig.SweepPeriodic(),
-			profilemig.CleanupPeriodic(),
-			notifyPeriodic(),
-			webhooks.PrunePeriodic(),
-			breakglass.Periodic(),
-			retention.Periodic(),
-			auditexport.Periodic(),
-			auditstream.Periodic(),
-			costs.RollupPeriodic(),
-			evals.Periodic(),
-			gaps.Periodic(),
-			contenthealth.PrunePeriodic(),
-		}, append(healthPeriodic(cfg), exportCopyPeriodic(copier)...)...),
+		Periodic: ingestPeriodic(cfg, copier),
 	}, nil
+}
+
+// newProcessor builds the document processor the ingestion workers share.
+func newProcessor(cfg config.Config, pool *pgxpool.Pool, s *Services, counter chunk.TokenCounter, log *slog.Logger) *ingest.Processor {
+	return &ingest.Processor{
+		Pool: pool, Blob: s.Blob, Parser: s.Parser, Counter: counter, Catalog: s.Catalog,
+		Vectors: s.Vectors, EmbedBatch: cfg.EmbedBatchSize, MaxBytes: cfg.MaxUploadBytes, Log: log,
+		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR, ContextualOff: !cfg.ContextualChunks, Budget: s.Costs,
+		Contextual: &contextual.Generator{
+			Store: &contextual.PGStore{Pool: pool, Recorded: s.Limits.Recorded}, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider,
+			Counter: counter, Gate: contextGate(s.Costs, s.Limits), Concurrency: cfg.ContextualConcurrency, Log: log,
+		},
+		Batcher: &ingest.Batcher{
+			MaxInputs: cfg.EmbedBatchSize, MaxTokens: cfg.EmbedBatchTokens, Linger: cfg.EmbedBatchWait,
+			Counter: counter, Log: log,
+		},
+	}
+}
+
+// ingestPeriodic lists the worker's periodic jobs.
+func ingestPeriodic(cfg config.Config, copier *auditexport.Copier) []*river.PeriodicJob {
+	return append([]*river.PeriodicJob{
+		river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
+			func() (river.JobArgs, *river.InsertOpts) { return ingest.DispatchArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(10*time.Minute),
+			func() (river.JobArgs, *river.InsertOpts) { return ingest.RecoverArgs{}, nil }, nil),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
+			func() (river.JobArgs, *river.InsertOpts) { return ingest.SweepArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
+			func() (river.JobArgs, *river.InsertOpts) { return web.ScheduleArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		profilemig.SweepPeriodic(),
+		profilemig.CleanupPeriodic(),
+		notifyPeriodic(),
+		webhooks.PrunePeriodic(),
+		breakglass.Periodic(),
+		retention.Periodic(),
+		auditexport.Periodic(),
+		auditstream.Periodic(),
+		costs.RollupPeriodic(),
+		evals.Periodic(),
+		gaps.Periodic(),
+		contenthealth.PrunePeriodic(),
+	}, append(healthPeriodic(cfg), exportCopyPeriodic(copier)...)...)
 }
 
 // scimIssuer is the issuer SCIM users belong to: the OIDC issuer, or the development login's on a development install

@@ -81,3 +81,14 @@ func snapshot(v any) (json.RawMessage, error) {
 func nullable(id uuid.UUID) uuid.NullUUID {
 	return uuid.NullUUID{UUID: id, Valid: id != uuid.Nil}
 }
+
+// MergeMeta adds b's keys to audit metadata a (b itself when a is nil).
+func MergeMeta(a, b map[string]any) map[string]any {
+	if a == nil {
+		return b
+	}
+	for k, v := range b {
+		a[k] = v
+	}
+	return a
+}

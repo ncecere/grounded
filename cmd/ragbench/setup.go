@@ -81,7 +81,18 @@ func cmdSetup(args []string) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.ensureTeam(*team); err != nil {
+	if err := s.ensureTeamContent(*team, *topK); err != nil {
+		return err
+	}
+	fmt.Printf("ready: team=%s source=%s kb=%s (state in %s)\n", st.Team, st.SourceID, st.KBID, c.state)
+	return saveState(c.state, st)
+}
+
+// ensureTeamContent creates the team, its upload source and its KB, and
+// attaches the source to the KB.
+func (s *setupRun) ensureTeamContent(team string, topK int) error {
+	st := s.st
+	if err := s.ensureTeam(team); err != nil {
 		return err
 	}
 	if err := s.ensure(&st.SourceID, "source", "source", "/v1/teams/"+st.Team+"/sources", map[string]any{
@@ -90,15 +101,14 @@ func cmdSetup(args []string) error {
 		return err
 	}
 	if err := s.ensure(&st.KBID, "kb", "KB", "/v1/teams/"+st.Team+"/kbs", map[string]any{
-		"name": "FiQA-2018", "embeddingProfileId": st.ProfileID, "topK": *topK,
+		"name": "FiQA-2018", "embeddingProfileId": st.ProfileID, "topK": topK,
 	}); err != nil {
 		return err
 	}
-	if err := cl.do("PUT", "/v1/teams/"+st.Team+"/kbs/"+st.KBID+"/sources/"+st.SourceID, nil, nil); err != nil {
+	if err := s.cl.do("PUT", "/v1/teams/"+st.Team+"/kbs/"+st.KBID+"/sources/"+st.SourceID, nil, nil); err != nil {
 		return fmt.Errorf("attach source: %w", err)
 	}
-	fmt.Printf("ready: team=%s source=%s kb=%s (state in %s)\n", st.Team, st.SourceID, st.KBID, c.state)
-	return saveState(c.state, st)
+	return nil
 }
 
 // setupRun creates the benchmark's resources once, saving the state after

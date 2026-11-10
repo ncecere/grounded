@@ -111,7 +111,7 @@ func (s *Service) startComparison(ctx context.Context, id uuid.UUID, by *authz.A
 		if by != nil {
 			e = by.Audit("kb.profile_preview_evaluate", "knowledge_base", m.KBID.String())
 		}
-		e.TeamID, e.Metadata = m.TeamID, mergeMeta(e.Metadata, s.meta(m, map[string]any{"evaluationSets": started}))
+		e.TeamID, e.Metadata = m.TeamID, audit.MergeMeta(e.Metadata, s.meta(m, map[string]any{"evaluationSets": started}))
 		return audit.Record(ctx, q, e)
 	})
 	return started, err
@@ -148,7 +148,7 @@ func (s *Service) doSwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, m d
 	if by != nil {
 		who = by.UserID
 		e = by.Audit("kb.profile_switch", "knowledge_base", kb.ID.String())
-		e.TeamID, e.Metadata = kb.TeamID, mergeMeta(e.Metadata, s.meta(m, extra))
+		e.TeamID, e.Metadata = kb.TeamID, audit.MergeMeta(e.Metadata, s.meta(m, extra))
 	}
 	if err := audit.Record(ctx, q, e); err != nil {
 		return err

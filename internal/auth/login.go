@@ -67,24 +67,8 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 				Metadata: map[string]any{"method": li.Method, "reason": "suspended"}, RequestID: reqID, ClientIP: ip,
 			})
 		}
-		if li.BootstrapRole != "" {
-			n, err := q.InsertBootstrapMarker(ctx, dbgen.InsertBootstrapMarkerParams{OIDCIssuer: li.Issuer, OIDCSubject: li.Subject})
-			if err != nil {
-				return err
-			}
-			if n == 1 {
-				before := user.PlatformRole
-				if user, err = q.SetPlatformRole(ctx, dbgen.SetPlatformRoleParams{ID: user.ID, PlatformRole: li.BootstrapRole}); err != nil {
-					return err
-				}
-				if err := audit.Record(ctx, q, audit.Entry{
-					ActorKind: audit.ActorSystem, Action: "platform.bootstrap_role", TargetType: "user", TargetID: user.ID.String(),
-					Before: map[string]string{"platformRole": before}, After: map[string]string{"platformRole": user.PlatformRole},
-					RequestID: reqID, ClientIP: ip,
-				}); err != nil {
-					return err
-				}
-			}
+		if user, err = s.applyBootstrapRole(ctx, q, li, user, reqID, ip); err != nil {
+			return err
 		}
 		if li.EmailVerified {
 			if err := teams.AcceptInvites(ctx, q, user, reqID, ip); err != nil {
@@ -122,6 +106,32 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	s.setSessionCookie(w, secret)
 	s.rotateVisit(w)
+	return user, nil
+}
+
+// applyBootstrapRole grants li.BootstrapRole the first time this subject signs in (the marker makes it once: a later
+// demotion is never undone by signing in again) and audits it. It returns the user as it now is.
+func (s *Service) applyBootstrapRole(ctx context.Context, q *dbgen.Queries, li loginIdentity, user dbgen.User, reqID, ip string) (dbgen.User, error) {
+	if li.BootstrapRole == "" {
+		return user, nil
+	}
+	n, err := q.InsertBootstrapMarker(ctx, dbgen.InsertBootstrapMarkerParams{OIDCIssuer: li.Issuer, OIDCSubject: li.Subject})
+	if err != nil {
+		return user, err
+	}
+	if n == 1 {
+		before := user.PlatformRole
+		if user, err = q.SetPlatformRole(ctx, dbgen.SetPlatformRoleParams{ID: user.ID, PlatformRole: li.BootstrapRole}); err != nil {
+			return user, err
+		}
+		if err := audit.Record(ctx, q, audit.Entry{
+			ActorKind: audit.ActorSystem, Action: "platform.bootstrap_role", TargetType: "user", TargetID: user.ID.String(),
+			Before: map[string]string{"platformRole": before}, After: map[string]string{"platformRole": user.PlatformRole},
+			RequestID: reqID, ClientIP: ip,
+		}); err != nil {
+			return user, err
+		}
+	}
 	return user, nil
 }
 

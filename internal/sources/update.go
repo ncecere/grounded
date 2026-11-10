@@ -423,7 +423,7 @@ func (s *Service) recordUpdate(ctx context.Context, q *dbgen.Queries, tx pgx.Tx,
 		action = "source.classification_change"
 	}
 	e := a.Audit(action, "data_source", out.ID.String())
-	e.TeamID, e.Before, e.After, e.Metadata = sc.auditTeam(), sourceSnapshot(cur), sourceSnapshot(out), mergeMeta(e.Metadata, meta)
+	e.TeamID, e.Before, e.After, e.Metadata = sc.auditTeam(), sourceSnapshot(cur), sourceSnapshot(out), audit.MergeMeta(e.Metadata, meta)
 	if err := audit.Record(ctx, q, e); err != nil {
 		return err
 	}

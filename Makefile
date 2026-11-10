@@ -118,7 +118,7 @@ lint: ## gofmt, vet, staticcheck, govulncheck, complexity and size guards
 	$(GO) run honnef.co/go/tools/cmd/staticcheck@latest ./...
 	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
 	$(GO) run github.com/fzipp/gocyclo/cmd/gocyclo@v0.6.0 -over $(GOCYCLO_MAX) -ignore '$(GOCYCLO_IGNORE)' cmd internal tools
-	$(GO) run ./tools/checksize -file 600 -testfile 1200 -func 100 cmd internal tools
+	$(GO) run ./tools/checksize -file 500 -testfile 1200 -func 80 cmd internal tools
 
 fmt: ## Format Go code
 	gofmt -w cmd internal migrations tools

@@ -322,17 +322,6 @@ func (s *Service) view(ctx context.Context, ag dbgen.Agent, team dbgen.Team, war
 	return v, nil
 }
 
-// mergeMeta adds b's keys to audit metadata a.
-func mergeMeta(a, b map[string]any) map[string]any {
-	if a == nil {
-		return b
-	}
-	for k, v := range b {
-		a[k] = v
-	}
-	return a
-}
-
 // ---- pseudonyms ------------------------------------------------------------------
 
 // pseudonym is HMAC-SHA256(user ID) with a per-team key derived from the

@@ -3,7 +3,7 @@
 // oversized, tangled files and functions out of the tree. Generated files
 // (with a "Code generated ... DO NOT EDIT." header) are skipped.
 //
-//	go run ./tools/checksize [-file 600] [-testfile 1200] [-func 100] dir...
+//	go run ./tools/checksize [-file 500] [-testfile 1200] [-func 80] dir...
 package main
 
 import (
@@ -32,9 +32,9 @@ type violation struct {
 
 func main() {
 	var l limits
-	flag.IntVar(&l.file, "file", 600, "maximum lines in a non-test .go file")
+	flag.IntVar(&l.file, "file", 500, "maximum lines in a non-test .go file")
 	flag.IntVar(&l.testFile, "testfile", 1200, "maximum lines in a _test.go file")
-	flag.IntVar(&l.fn, "func", 100, "maximum lines in a non-test function or method")
+	flag.IntVar(&l.fn, "func", 80, "maximum lines in a non-test function or method")
 	flag.Parse()
 	roots := flag.Args()
 	if len(roots) == 0 {
