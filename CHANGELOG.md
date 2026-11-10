@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **The Go test suite runs in under a quarter of the time** (759 s to 169 s on a 12-core machine, without `-race`). An integration test's database is now copied from a template migrated once per set of migrations instead of running every migration again, and the API tests in `internal/httpapi` run in parallel. No product change.
+
 ## [0.9.0] - 2026-11-05
 
 Identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest and per-agent budgets, with configuration as code and the published bitop-ui registry carried from v0.8.0. Release notes: [`docs/releases/v0.9.0.md`](docs/releases/v0.9.0.md). Schema 67, expand only. Personal data scanning is on by default and only flags.

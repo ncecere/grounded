@@ -55,7 +55,8 @@ func newTestApp(t *testing.T, mutate func(*config.Config)) *testApp {
 // processed end to end.
 func newTestAppWith(t *testing.T, mutate func(*config.Config), worker bool) *testApp {
 	t.Helper()
-	_, dbURL := testutil.NewDB(t)
+	runInParallel(t)
+	dbURL := testutil.NewDBURL(t)
 	cfg, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +71,29 @@ func newTestAppWith(t *testing.T, mutate func(*config.Config), worker bool) *tes
 	app := newTestAppOn(t, pool, mutate, worker)
 	app.queries = trace
 	return app
+}
+
+// parallelTests holds the tests runInParallel has already marked.
+var parallelTests sync.Map
+
+// runInParallel marks a test parallel the first time it builds an app. Every app has its own database, Valkey prefix,
+// blob directory and server, so tests share nothing; a test that builds several apps is marked once (t.Parallel panics
+// the second time). A test that changes something the whole process shares calls serial first.
+func runInParallel(t *testing.T) {
+	if _, marked := parallelTests.LoadOrStore(t, true); marked {
+		return
+	}
+	t.Cleanup(func() { parallelTests.Delete(t) })
+	t.Parallel()
+}
+
+// serial keeps a test out of the parallel ones: it runs alone, before they start. For a test that replaces
+// process-wide state (the tracer provider, http.DefaultTransport), called before the test builds its app.
+func serial(t *testing.T) {
+	if _, marked := parallelTests.LoadOrStore(t, true); marked {
+		t.Fatal("serial must be called before the test builds an app")
+	}
+	t.Cleanup(func() { parallelTests.Delete(t) })
 }
 
 // newTestAppOn serves an app over an existing database (for example a

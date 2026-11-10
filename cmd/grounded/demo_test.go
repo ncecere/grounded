@@ -85,7 +85,7 @@ func demoEnv(t *testing.T) {
 	t.Helper()
 	clearEnv(t)
 	clearDemoEnv(t)
-	_, dbURL := testutil.NewDB(t)
+	dbURL := testutil.NewDBURL(t)
 	testutil.NewKV(t) // skips the test without Valkey
 	t.Setenv("DATABASE_URL", dbURL)
 	t.Setenv("VALKEY_URL", os.Getenv("GROUNDED_TEST_VALKEY_URL"))

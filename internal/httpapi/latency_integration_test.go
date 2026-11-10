@@ -126,6 +126,7 @@ func answerSteps(trace []sdktrace.ReadOnlySpan) string {
 // 300-2500 ms, the model's first token 500 ms, a reasoning model's query
 // rewrite 3 s), and logs the answers' traces.
 func TestAnswerLatency(t *testing.T) {
+	serial(t) // the span recorder is process-wide
 	spans := tracingtest.RecordSpans(t)
 	env := newSystemOneEnv(t)
 	env.putSettings(t, map[string]any{"candidates": 10})
@@ -222,6 +223,7 @@ func TestSearchOverlapsTheScopeCheck(t *testing.T) {
 // requests still running are cancelled and their passages kept unjudged
 // (skipped), counted in the record and on the search's span.
 func TestJudgingTimeLimit(t *testing.T) {
+	serial(t) // the span recorder is process-wide
 	spans := tracingtest.RecordSpans(t)
 	env := newSystemOneEnv(t)
 	st := env.putSettings(t, nil)

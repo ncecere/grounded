@@ -77,6 +77,7 @@ func attr(sp sdktrace.ReadOnlySpan, key string) string {
 }
 
 func TestTracing(t *testing.T) {
+	serial(t) // the span recorder is process-wide
 	spans := tracingtest.RecordSpans(t)
 	env := newSystemOneEnv(t)
 	env.putSettings(t, nil)
