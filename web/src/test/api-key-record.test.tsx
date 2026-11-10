@@ -5,11 +5,6 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const revoked: Schemas["APIKey"] = {
   id: "key9",
   name: "Old loader",

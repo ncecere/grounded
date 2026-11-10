@@ -12,11 +12,6 @@ import { connectionProblems } from "../pages/admin/models/connection-record";
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const conn = { id: "c1", name: "Gateway", baseUrl: "http://gateway.example.edu/v1", enabled: true, modelCount: 0, revision: 1, timeoutSeconds: 60, maxConcurrentRequests: 8 };
 const later = <T,>(value: T, ms = 150) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
 

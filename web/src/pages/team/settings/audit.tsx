@@ -20,7 +20,7 @@ import { AuditTarget } from "../../../components/audit/target";
 import { rangeWindow } from "../../admin/logs/common";
 import { ListPage, RelativeTime, useListFilters } from "../../../components/templates/list-page";
 import { RecordPage, useRecordParam } from "../../../components/templates/record-page";
-import { membersKey } from "../../../components/members";
+import { membersQuery } from "../../../api/queries";
 import { terms } from "../../../lib/terms";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet, FilterValue } from "@/components/ui/filter-bar/filter-bar";
@@ -40,10 +40,7 @@ function who(e: Entry) {
 const first = (v: FilterValue | undefined) => (Array.isArray(v) ? v[0] : undefined);
 
 function useFacets(team: string, hideCosts: boolean): Facet<Entry>[] {
-  const members = useQuery({
-    queryKey: membersKey(team),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
-  });
+  const members = useQuery(membersQuery(team));
   return [
     {
       id: "action",

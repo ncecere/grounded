@@ -8,11 +8,6 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const request = {
   id: "r1",
   teamId: "t1",

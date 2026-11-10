@@ -14,11 +14,6 @@ import { BudgetBanner } from "../pages/team/budget-banner";
 import { TeamSpendCard } from "../pages/team/spend";
 import { Reply, meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const settings = (mode: Schemas["CostMode"]): Schemas["CostSettings"] => ({
   mode, currency: "USD", timeZone: "America/New_York", warnPercent: 80, defaultBudget: null, revision: 4, updatedAt: "2026-09-20T10:00:00Z",
 });
@@ -404,7 +399,6 @@ describe("the team's spend and banner", () => {
       expect(screen.getAllByRole("button", { name: "Columns" })).toHaveLength(2);
       expect(await axe(container)).toHaveNoViolations();
     } finally {
-      vi.unstubAllGlobals();
     }
   });
 

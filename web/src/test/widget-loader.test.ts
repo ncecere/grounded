@@ -19,7 +19,6 @@ async function load(reply: unknown, status = 200) {
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 

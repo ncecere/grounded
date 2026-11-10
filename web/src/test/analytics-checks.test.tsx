@@ -10,11 +10,7 @@ import type { Schemas } from "../api/client";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

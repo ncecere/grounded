@@ -13,11 +13,7 @@ import { type Handler, meFor, mockApi, renderApp, renderBare, shellRoutes } from
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();

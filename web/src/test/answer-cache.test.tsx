@@ -1,16 +1,15 @@
 /* Saved answers (the answer cache, docs/answer-cache.md): Agent → Settings › Saved answers, and the platform switch in Admin → Overview › Features. */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "../pages/admin/overview/answer-cache-switch";
 import { AnswerCacheSection, cacheSummary, expiryLabel } from "../pages/agents/answer-cache";
 import { mockApi } from "./harness";
-
-afterEach(() => vi.unstubAllGlobals());
+import { testQueryClient } from "./query-client";
 
 const cache = (extra: Partial<Schemas["AgentAnswerCache"]> = {}): Schemas["AgentAnswerCache"] => ({
   enabled: null,
@@ -28,7 +27,7 @@ const cache = (extra: Partial<Schemas["AgentAnswerCache"]> = {}): Schemas["Agent
 });
 
 function wrap(ui: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 

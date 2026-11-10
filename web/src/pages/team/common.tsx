@@ -7,6 +7,7 @@ import { formatStorage } from "@/lib/format";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
+import { classificationsQuery } from "../../api/queries";
 import type { TeamRole } from "../../components/roles";
 import { Badge } from "@/components/ui/badge/badge";
 
@@ -90,8 +91,7 @@ export const agentQuery = (team: string, agentId: string) =>
 /** Classification levels, least to most sensitive. */
 export function useClassificationLevels() {
   return useQuery({
-    queryKey: ["classifications"],
-    queryFn: async () => unwrap(await api.GET("/v1/classifications")),
+    ...classificationsQuery(),
     select: (list) => [...list].sort((a, b) => a.rank - b.rank),
     staleTime: 60_000,
   });
@@ -121,11 +121,15 @@ export function useSharedSources() {
   });
 }
 
-export function useKBs(team: string) {
-  return useQuery({
+/** A team's knowledge bases: the one definition, for every page that lists them. */
+export const kbsQuery = (team: string) =>
+  queryOptions({
     queryKey: kbsKey(team),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs", { params: { path: { team } } })),
   });
+
+export function useKBs(team: string) {
+  return useQuery(kbsQuery(team));
 }
 
 /** A function naming a classification level ("Sensitive" for "sensitive"); the key until the levels load. */
@@ -164,7 +168,7 @@ export function profileName(profiles: ProfileOption[] | undefined, id: string) {
 /** A size in IEC units, as everywhere (lib/format.ts formatStorage). */
 export const formatBytes = (n: number) => formatStorage(n);
 
-export const plural = (n: number, one: string, many = one + "s") => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+export { plural } from "@/lib/plural";
 
 /** The save bar's text while fields are invalid: "Not saved: fix the highlighted field", or "… the 4 highlighted fields" (BU-16). */
 export const notSavedText = (invalidFields: number) =>

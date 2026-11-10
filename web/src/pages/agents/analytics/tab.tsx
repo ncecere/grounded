@@ -23,6 +23,7 @@ import { GapsView } from "./gaps";
 import { AgentSpendCard } from "./spend";
 import { ChecksView, ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
 import an from "./analytics.module.css";
+import { plural } from "@/lib/plural";
 
 // Icons like every other pill tab row (VI-08).
 const views: readonly { value: "usage" | "quality" | "moderation" | "content" | "checks" | "gaps"; label: string; icon: ReactNode }[] = [
@@ -51,7 +52,6 @@ function useView(systemOne: boolean): [View, (v: View) => void, (typeof views)[n
   return [view, set, shown];
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
 
 export function AnalyticsTab({ agent }: { agent: Agent }) {
   const { slug } = useTeam();

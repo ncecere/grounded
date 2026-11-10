@@ -12,11 +12,6 @@ import { type ViewerAccess } from "../pages/chat/viewer/data";
 import { Reply, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const stamp = { revision: 3, createdAt: "2026-10-30T10:00:00Z", updatedAt: "2026-10-30T10:00:00Z" };
 const embed = {
   id: "m2", connectionId: "c1", key: "embed", upstreamModel: "embed-1", displayName: "Embeddings", description: "", kind: "embedding",

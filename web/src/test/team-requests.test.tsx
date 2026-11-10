@@ -7,11 +7,6 @@ import { areaOf, entryTitle } from "../components/audit/labels";
 import { type Handler, Reply, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const req = (extra: Partial<Schemas["TeamRequest"]> = {}): Schemas["TeamRequest"] => ({
   id: "r1",
   name: "Library tech",

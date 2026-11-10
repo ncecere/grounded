@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { FlaskConical } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
+import { kbsQuery } from "../../team/common";
 import { ApiErrorAlert } from "@/components/errors";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -64,11 +65,7 @@ export function RerankTestCard({ on }: { on: boolean }) {
   const me = useCurrentUser();
   const teams = me.teams.filter((t) => t.status === "active");
   const [team, setTeam] = useState(teams[0]?.slug ?? "");
-  const kbs = useQuery({
-    queryKey: ["teams", team, "kbs"],
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs", { params: { path: { team } } })),
-    enabled: on && team !== "",
-  });
+  const kbs = useQuery({ ...kbsQuery(team), enabled: on && team !== "" });
   const [kbId, setKbId] = useState("");
   const [query, setQuery] = useState("");
   const kb = kbId || kbs.data?.[0]?.id || "";

@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap } from "../../api/client";
+import { membersQuery } from "../../api/queries";
 import { useDebounced } from "../../pages/admin/hooks";
 import { Button } from "@/components/ui/button/button";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox/combobox";
@@ -39,11 +40,7 @@ export function toAuditFilters(f: AuditFilterState): AuditFilters {
 /** People to filter by: the team's members, or users matching the typed text (platform log). */
 function usePeople(scope: AuditScope, search: string): ComboboxOption[] {
   const q = useDebounced(search.trim(), 250);
-  const members = useQuery({
-    queryKey: ["team", scope.kind === "team" ? scope.team : "", "members"],
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team: scope.kind === "team" ? scope.team : "" } } })),
-    enabled: scope.kind === "team",
-  });
+  const members = useQuery({ ...membersQuery(scope.kind === "team" ? scope.team : ""), enabled: scope.kind === "team" });
   const users = useQuery({
     queryKey: ["admin", "users", "audit-filter", q],
     queryFn: async () => unwrap(await api.GET("/v1/admin/users", { params: { query: { q: q || undefined, limit: 20 } } })),

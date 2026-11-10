@@ -11,12 +11,6 @@ import { ApiError } from "../api/client";
 import { validateHostPattern } from "../pages/team/domains";
 import { ApiFailure, common, counts, crawl, mockApi, renderWith, team, webRoutes, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 /* ---------- helpers ---------- */
 
 /** The sources list's "New data source" button and what it opens. */

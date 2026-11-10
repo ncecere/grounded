@@ -121,13 +121,6 @@ const routes = (current: Schemas["Agent"], extra: Record<string, Handler> = {}):
   ...extra,
 });
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("a router's editor", () => {
   it("has Routing instead of Knowledge, Tools and Answering, and lists the agents it can reach", async () => {
     // Below 1100 px the test chat is a drawer opened from the header.

@@ -10,9 +10,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut, UserMinus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "../api/client";
+import { membersQuery } from "../api/queries";
 import s from "../pages/shared.module.css";
 import { ConfirmMutationDialog } from "./confirm-dialog";
-import { leaveBlockedReason, membersKey } from "./members";
+import { leaveBlockedReason } from "./members";
 import { RoleBadge } from "./role-badge";
 import { canManage, roleLabels, teamRoles, type TeamRole } from "./roles";
 import { ActionMenu } from "./templates/action-menu";
@@ -76,10 +77,7 @@ export function soleOwnerHint(list: Member[], owner: Member) {
 }
 
 export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: TeamRole; myUserId: string }) {
-  const members = useQuery({
-    queryKey: membersKey(team),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
-  });
+  const members = useQuery(membersQuery(team));
   const [removing, setRemoving] = useState<Member | null>(null);
   const [filter, setFilter] = useState("");
   const { changeRole, remove } = useMemberMutations(team, myUserId, () => setRemoving(null));

@@ -13,7 +13,7 @@ import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { toast } from "@/components/ui/toast/toast";
-import { useTeam } from "../common";
+import { kbsQuery, useTeam } from "../common";
 import { type ReportList, healthKey } from "./queries";
 
 type Limits = ReportList["limits"];
@@ -21,10 +21,6 @@ type Limits = ReportList["limits"];
 const sourcesQuery = (team: string) => ({
   queryKey: ["team", team, "sources"],
   queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/sources", { params: { path: { team } } })),
-});
-const kbsQuery = (team: string) => ({
-  queryKey: ["team", team, "kbs"],
-  queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs", { params: { path: { team } } })),
 });
 
 export function MakeReport({ team, limits, active, onMade }: { team: string; limits: Limits; active: boolean; onMade: (id: string) => void }) {

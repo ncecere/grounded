@@ -3,7 +3,7 @@
  * characters) is shown collapsed to its first lines with "Show more", so the
  * answer isn't pushed far down the page.
  */
-import { useId, useState } from "react";
+import { memo, useId, useState } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Message, MessageContent } from "@/components/ui/message/message";
 import a from "./answer.module.css";
@@ -15,7 +15,8 @@ const LONG_LINES = 10;
 
 export const isLongMessage = (text: string) => text.length > LONG_CHARS || text.split("\n").length > LONG_LINES;
 
-export function UserMessage({ text }: { text: string }) {
+/** Memoised: a question never changes, so the tokens of the answers after it don't render it again. */
+export const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   const long = isLongMessage(text);
   const [expanded, setExpanded] = useState(false);
   const id = useId();
@@ -33,4 +34,4 @@ export function UserMessage({ text }: { text: string }) {
       </MessageContent>
     </Message>
   );
-}
+});

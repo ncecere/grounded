@@ -11,6 +11,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/app.tsbuildinfo",
     "paths": { "@/*": ["./src/*"] },
     "isolatedModules": true,
     "verbatimModuleSyntax": true,

@@ -5,12 +5,12 @@ import { api, unwrap } from "@/api/client";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox/combobox";
 import { useDebounced } from "./hooks";
 
-/** Teams matching the typed text (their slug is the value), at most 20. */
-function useTeamOptions(text: string): ComboboxOption[] {
+/** Teams matching the typed text (their slug is the value), at most 20; `status` keeps to the active ones. */
+export function useTeamOptions(text: string, status?: "active"): ComboboxOption[] {
   const q = useDebounced(text.trim(), 250);
   const teams = useQuery({
-    queryKey: ["admin", "teams", "picker", q],
-    queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { q: q || undefined, limit: 20 } } })),
+    queryKey: ["admin", "teams", "picker", status ?? "any", q],
+    queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { q: q || undefined, status, limit: 20 } } })),
   });
   return (teams.data?.items ?? []).map(({ team: t }) => ({ value: t.slug, label: t.name, hint: t.slug }));
 }

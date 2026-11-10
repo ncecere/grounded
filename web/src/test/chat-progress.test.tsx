@@ -24,11 +24,6 @@ function liveStream() {
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 describe("progress labels", () => {
   it("names each step, ignores unknown ones and falls back for servers without status events", () => {
     let item = pendingAssistant();

@@ -8,11 +8,7 @@ import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();

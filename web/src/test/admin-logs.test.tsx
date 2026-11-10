@@ -7,11 +7,6 @@ import { csvField, toCSV } from "../pages/admin/logs/common";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const entry = (id: number, action: string, extra: Partial<Schemas["AuditEntry"]> = {}): Schemas["AuditEntry"] => ({
   id,
   occurredAt: "2026-09-26T10:00:00Z",

@@ -11,11 +11,6 @@ import { rerankFeature } from "../pages/admin/overview/feature-text";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const reranker = {
   id: "r1", connectionId: "c1", key: "bge-reranker", upstreamModel: "bge-reranker-v2-m3", displayName: "BGE reranker", description: "", kind: "rerank",
   maxClassification: "sensitive", enabled: true, supportsTools: false, supportsVision: false, compat: {}, revision: 1, createdAt: "", updatedAt: "",

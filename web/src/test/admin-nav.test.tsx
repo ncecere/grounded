@@ -10,11 +10,7 @@ import { currentGroups } from "../components/layout/admin-groups";
 import { adminNav, adminSections } from "../components/layout/nav";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
 });

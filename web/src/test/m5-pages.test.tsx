@@ -17,11 +17,6 @@ import { Input } from "@/components/ui/input/input";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const connection = {
   id: "c1",
   name: "Campus gateway",

@@ -10,27 +10,6 @@ export const overviewQuery = () => ({
   staleTime: 30_000,
 });
 
-export const attentionQuery = () => ({
-  queryKey: ["admin", "attention"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/attention")),
-  staleTime: 60_000,
-});
-
-export const publicAccessQuery = () => ({
-  queryKey: ["admin", "public-access"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/public-access")),
-});
-
-export const publicPolicyQuery = () => ({
-  queryKey: ["admin", "moderation", "policy", "public"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/moderation/policies/{audience}", { params: { path: { audience: "public" } } })),
-});
-
-export const profilesQuery = () => ({
-  queryKey: ["admin", "embedding-profiles"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/embedding-profiles")),
-});
-
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 /** The last 14 UTC days of platform analytics (the answers sparkline and the 7-day delta). */
@@ -70,21 +49,6 @@ export const mcpSettingsQuery = () => ({
   queryKey: ["admin", "mcp"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/mcp")),
   staleTime: 30_000,
-});
-
-export const parsingSettingsQuery = () => ({
-  queryKey: ["admin", "parsing"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/parsing")),
-});
-
-export const systemOneSettingsQuery = () => ({
-  queryKey: ["admin", "systemone"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/systemone")),
-});
-
-export const maintenanceSettingsQuery = () => ({
-  queryKey: ["admin", "maintenance"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/maintenance")),
 });
 
 /*

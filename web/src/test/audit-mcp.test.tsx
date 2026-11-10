@@ -6,11 +6,6 @@ import { actedHow, actedVia, areaOf, areaOptions } from "../components/audit/lab
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const entry = (id: number, action: string, extra: Partial<Schemas["AuditEntry"]> = {}): Schemas["AuditEntry"] => ({
   id, occurredAt: "2026-09-26T10:00:00Z", actorKind: "user", actor: { kind: "user", userId: "u2", email: "alex@example.edu", displayName: "Alex" },
   actorUserId: "u2", teamId: null, action, targetType: "agent", targetId: "a1", targetLabel: "Helper", targetExists: true, parent: null,

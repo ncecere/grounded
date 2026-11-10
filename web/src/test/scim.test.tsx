@@ -6,10 +6,6 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const token: Schemas["ScimToken"] = { id: "t1", name: "Okta", createdAt: "2026-11-01T10:00:00Z", lastUsedAt: null, createdBy: "Dev Platform Admin" };
 
 const status = (extra: Partial<Schemas["ScimStatus"]> = {}): Schemas["ScimStatus"] => ({

@@ -1,5 +1,5 @@
 /* Fixtures and render helpers for the Phase 2 web source tests (web-sources.test.tsx, web-admin.test.tsx). */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -7,6 +7,7 @@ import type { Schemas } from "../api/client";
 import type { TeamRole } from "../components/roles";
 import { TeamContext, teamCtx, type Team } from "../pages/team/common";
 import { Toaster } from "@/components/ui/toast/toast";
+import { testQueryClient } from "./query-client";
 
 /* ---------- fixtures ---------- */
 
@@ -183,7 +184,7 @@ export function mockApi(routes: Record<string, Handler>) {
 }
 
 export function renderWith(ui: ReactNode, { role, platformRole = "none" }: { role?: TeamRole; platformRole?: "none" | "platform_admin" | "platform_auditor" } = {}) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   qc.setQueryData(["me"], me(platformRole));
   const root = createRootRoute({
     component: () =>

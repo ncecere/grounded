@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -7,9 +7,10 @@ import { AddMemberDialog, MemberList } from "../components/members";
 import { soleOwnerHint } from "../components/member-list";
 import { canManage } from "../components/roles";
 import { SignInPage } from "../session";
+import { testQueryClient } from "./query-client";
 
 function withQuery(ui: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
 }
 
@@ -30,8 +31,6 @@ function mockApi(routes: Record<string, Handler>) {
   });
   return calls;
 }
-
-afterEach(() => vi.unstubAllGlobals());
 
 const member = (id: string, name: string, role: "owner" | "admin" | "editor" | "member") => ({
   user: { id, email: `${id}@example.edu`, displayName: name, status: "active" },

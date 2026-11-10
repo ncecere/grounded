@@ -10,11 +10,7 @@ import type { Me } from "../session";
 import { meFor, mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 type Session = Schemas["BreakGlassSessionDetail"];
@@ -140,7 +136,6 @@ describe("Admin → Break-glass", () => {
     expect(calls.find((c) => c.method === "PUT")!.headers.get("If-Match")).toBe('"1"');
 
     first.unmount();
-    vi.unstubAllGlobals();
     mockApi({ ...adminRoutes([]), ...shellRoutes("platform_auditor") });
     renderApp("/admin/break-glass?tab=settings");
     expect(await screen.findByRole("switch", { name: "Require a second admin's approval" })).toHaveAttribute("aria-disabled", "true");
@@ -192,7 +187,6 @@ describe("team pages under break-glass", () => {
     expect(await screen.findByText("Only team members can see this.")).toBeInTheDocument();
     locked.unmount();
 
-    vi.unstubAllGlobals();
     mockApi({ ...routes, "GET /v1/me/break-glass": () => [session()] });
     const { container } = renderApp("/teams/registrar/sources");
     expect(await screen.findByText(/reading this team's data sources under break-glass/)).toBeInTheDocument();

@@ -7,11 +7,6 @@ import { durationText, graceText, percent } from "../pages/admin/profile-migrati
 import { mockApi, Reply, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 type Migration = Schemas["ProfileMigration"];
 const estimate: Schemas["ProfileMigrationEstimate"] = { documents: 40, passages: 320, tokens: 51200, embeddingCalls: 5, requestsPerMinute: 110, minutes: 0.05, rechunk: true };
 const base: Migration = {

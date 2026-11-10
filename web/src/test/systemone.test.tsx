@@ -11,11 +11,6 @@ import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 
 /* SystemOne (ADR-0020, docs/systemone.md): the admin page and its form helpers, the playground's judgments, the chat's "checked, used" line and analytics. */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const defaults: Schemas["SystemOneSettings"] = {
   modelId: null,
   judging: {

@@ -56,10 +56,6 @@ const fromCited = (p: Schemas["CitedPassage"]): ViewerData => ({
 
 const snippetOnly = (c: Citation): ViewerData => ({ status: "snippet", passages: [], headingPath: c.headingPath, parent: c.parent });
 
-/** The document text endpoint's path. */
-export const documentTextPath = (team: string, c: Pick<Citation, "sourceId" | "documentId">) =>
-  `/v1/teams/${encodeURIComponent(team)}/sources/${c.sourceId}/documents/${c.documentId}/text`;
-
 async function aroundPassage(team: string, c: Citation): Promise<ViewerData> {
   try {
     const t = unwrap(

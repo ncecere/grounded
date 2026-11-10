@@ -19,7 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Crawling pages with many links is far cheaper.** Checking a page's links against a source's exclude patterns compiled every pattern for every link; they are compiled once (28 times faster in the benchmark, 96% less memory).
 - **The assistants directory** reads its agents' settings in one query instead of one per agent.
 - Deleting documents, expired anonymous sessions and their conversations no longer scans whole tables: migration 00069 adds five indexes for those deletes and one for a team's audit page. Indexes only, built without blocking writes; it changes no row. Schema 69.
-
+- **The chat stays fast in long conversations.** While an answer streams in, or while you type, the earlier answers are no longer drawn again for every word, and an open citation card stays open instead of closing mid-answer.
+- **Pages ask the server less often.** What a page has just loaded counts as fresh for 15 seconds, so opening a dialog or returning to a list doesn't fetch it again; changes you make still show at once. Opening a conversation by its link loads the conversation and the assistant together instead of one after the other.
+- **A lighter first load.** The sign-in and public pages no longer download the calendar, and the app's entry script is 18% smaller (51.6 kB to 42.1 kB compressed), in 37 fewer files.
+- For contributors: `npm run build` in `web/` no longer type-checks (`npm run typecheck` and `make web-test` do, and a second type-check takes 4 s instead of 26 s); the eight admin feature switches share one component.
 - **The Go test suite runs in under a quarter of the time** (759 s to 169 s on a 12-core machine, without `-race`). An integration test's database is now copied from a template migrated once per set of migrations instead of running every migration again, and the API tests in `internal/httpapi` run in parallel.
 - The PDF engine's compiled code is kept for the life of the process, so a second parser in the same process starts at once instead of compiling it again.
 

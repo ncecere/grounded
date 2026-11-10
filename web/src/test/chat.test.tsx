@@ -67,12 +67,8 @@ const routes = (extra: Record<string, Parameters<typeof mockApi>[0][string]> = {
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 describe("chat stream reducer", () => {

@@ -16,7 +16,7 @@ import { Table, TableActions, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import { canManage, roleLabels, teamRoles, type TeamRole } from "./roles";
 
-export const membersKey = (team: string) => ["team", team, "members"];
+export { membersKey } from "../api/queries";
 
 /** Why a member can't leave (P-04): the last owner has to hand the team over first. */
 export function leaveBlockedReason(list: { role: string }[] | undefined, myRole?: string) {

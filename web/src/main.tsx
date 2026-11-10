@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api/client";
+import { defaultStaleTime } from "./lib/query-defaults";
 import { isMaintenanceError, maintenanceKey } from "./lib/maintenance";
 import { appRetryDelay, shouldRetry } from "./lib/retry";
 import { router } from "./router";
@@ -32,6 +33,8 @@ const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      // Fresh for 15 s: opening a dialog or coming back to a list doesn't ask again (lib/query-defaults.ts).
+      staleTime: defaultStaleTime,
       // Client errors (4xx) will not fix themselves: retry server and network errors, and a rate limit after its Retry-After.
       retry: shouldRetry,
       // Also tells the shell's rate-limit banner when the next try is (AD2-09).

@@ -4,10 +4,10 @@
  * runs this release (If-Match, audited as platform.document_permissions); auditors see it read-only. It can't be turned
  * off while any document is restricted (409 documents_restricted), so the switch is shown locked then.
  */
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { Switch } from "@/components/ui/switch/switch";
-import { toast } from "@/components/ui/toast/toast";
+import { useFeatureSave } from "./feature-switch";
 import { lockedSwitch } from "./locked-switch";
 
 export const documentAccessQuery = () =>
@@ -17,16 +17,13 @@ export const documentAccessQuery = () =>
   });
 
 export function useDocumentAccessSetting() {
-  const qc = useQueryClient();
   const settings = useQuery(documentAccessQuery());
-  const save = useMutation({
-    mutationFn: async (enabled: boolean) =>
-      unwrap(await api.PUT("/v1/admin/document-access", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
-    onSuccess: (st) => {
-      void qc.invalidateQueries({ queryKey: documentAccessQuery().queryKey });
-      toast.success(st.enabled ? "Document permissions are on" : "Document permissions are off");
-    },
-    onError: () => void qc.invalidateQueries({ queryKey: documentAccessQuery().queryKey }),
+  const save = useFeatureSave({
+    put: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/document-access", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
+    queryKey: documentAccessQuery().queryKey,
+    // Reloaded, as before: the count of restricted documents comes with it.
+    store: "invalidate",
+    saved: (st) => (st.enabled ? "Document permissions are on" : "Document permissions are off"),
   });
   return { settings, save };
 }

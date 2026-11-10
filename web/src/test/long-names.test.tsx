@@ -4,11 +4,6 @@ import { screen, within } from "@testing-library/react";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const long = `qa-long-${"W".repeat(92)}`;
 const longModel = `qa-model-${"M".repeat(91)}`;
 

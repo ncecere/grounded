@@ -9,11 +9,6 @@ import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness"
 import { type Store, catalogRoutes, delivery, destinations, hook, webhookRoutes, webhookSettings } from "./webhooks-fixtures";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const slow = { timeout: scaled(5000) };
 const base = "/v1/admin/webhooks";
 const url = "https://hooks.example.edu/platform";

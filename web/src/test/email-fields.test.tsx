@@ -9,11 +9,6 @@ import { emailProblem } from "../lib/validation";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const accepted = [
   "name@localhost",
   "a@b",

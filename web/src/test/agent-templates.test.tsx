@@ -7,11 +7,6 @@ import { areaOf, entryTitle, targetTypeLabel } from "../components/audit/labels"
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const baseConfig: Schemas["AgentConfig"] = {
   instructions: "",
   chatModelId: null,

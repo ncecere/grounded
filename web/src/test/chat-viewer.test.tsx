@@ -60,7 +60,6 @@ async function openSource(n: number, title = `Fees ${n}`) {
 
 const scrollIntoView = Element.prototype.scrollIntoView;
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   Element.prototype.scrollIntoView = scrollIntoView;
 });

@@ -1,16 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { SignedExports, copyText } from "../pages/admin/logs/signed-exports";
 import { mockApi } from "./harness";
+import { testQueryClient } from "./query-client";
 
 const role=vi.hoisted(()=>({admin:true}));
 vi.mock("../pages/admin/hooks",()=>({useIsPlatformAdmin:()=>role.admin}));
-afterEach(()=>{vi.unstubAllGlobals();role.admin=true;});
+afterEach(()=>{role.admin=true;});
 const cfg={enabled:false,coverageStart:"2026-01-01",destination:"builtin",revision:3,keyReady:false,keyId:"",externalCopy:{configured:false,bucket:"",prefix:""}};
-function view(){return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><SignedExports/></QueryClientProvider>);}
+function view(){return render(<QueryClientProvider client={testQueryClient()}><SignedExports/></QueryClientProvider>);}
 it("cannot approve without the operator's signing key",async()=>{
  mockApi({"GET /v1/admin/audit-export-settings":()=>cfg,"GET /v1/admin/audit-exports":()=>[]});
  view();

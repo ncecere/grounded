@@ -12,11 +12,7 @@ import { isRateLimited, retryDelay, shouldRetry, shouldRetrySession } from "../l
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.useRealTimers();
   localStorage.clear();
 });

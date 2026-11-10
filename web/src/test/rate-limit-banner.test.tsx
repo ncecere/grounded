@@ -12,11 +12,7 @@ import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   act(() => clearRateLimit());
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const limited = (retryAfter = 30) => new ApiError(429, "rate_limited", "Too many requests.", undefined, retryAfter);

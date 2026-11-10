@@ -1,5 +1,5 @@
 /* The instance identity (ADR-0018): names, theme, logo and help link come from GET /v1/auth/config. */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -8,6 +8,7 @@ import { axe } from "vitest-axe";
 import { applyInstance, defaultInstance, instanceOf, tagline, type Instance } from "../lib/instance";
 import { routeTree } from "../router";
 import { SignInPage } from "../session";
+import { testQueryClient } from "./query-client";
 
 const campus: Instance = {
   name: "Campus Assistant",
@@ -38,7 +39,7 @@ function mockApi(routes: Record<string, () => unknown>) {
 }
 
 function withQuery(ui: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
 }
 
@@ -54,11 +55,7 @@ const me = {
   capabilities: { platformAdmin: false, platformAuditor: false },
 };
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   document.documentElement.dataset.brand = "neutral";
   document.title = "";
 });

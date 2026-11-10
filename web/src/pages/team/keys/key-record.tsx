@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
-import { membersKey } from "@/components/members";
+import { membersQuery } from "@/api/queries";
 import { RecordPage } from "@/components/templates/record-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -150,11 +150,7 @@ function ContactField({ k }: { k: APIKey }) {
   const { slug, isManager, archived } = useTeam();
   const qc = useQueryClient();
   const [value, setValue] = useState(k.contact?.userId ?? "");
-  const members = useQuery({
-    queryKey: membersKey(slug),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team: slug } } })),
-    enabled: isManager && !archived,
-  });
+  const members = useQuery({ ...membersQuery(slug), enabled: isManager && !archived });
   const save = useMutation({
     mutationFn: async () =>
       unwrap(

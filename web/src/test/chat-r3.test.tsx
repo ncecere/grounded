@@ -15,9 +15,6 @@ import { relevanceBars } from "../pages/team/retrieve";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => sessionStorage.clear());
 
 const cite = (n: number, heading: string[], extra: Partial<Schemas["Citation"]> = {}): Schemas["Citation"] => ({

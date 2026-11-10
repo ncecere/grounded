@@ -6,9 +6,7 @@ import type { Schemas } from "../api/client";
 import { humanize, initialRevisionState, isOwnSave, rebase, reconcile, serverChanges } from "../components/templates/revision-form";
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
-  window.scrollTo = () => {};
   // Browsers' scrollIntoView may return a promise (smooth scrolling): an effect returning it broke the page.
   Element.prototype.scrollIntoView = () => Promise.resolve() as unknown as void;
 });

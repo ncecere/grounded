@@ -6,11 +6,6 @@ import type { Schemas } from "../api/client";
 import { problemOcrBlock, retryDescription } from "../lib/document-problems";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const parsing: Schemas["ParsingSettings"] = {
   ocrEnabled: false, backend: "tesseract", visionModelId: null, languages: "eng", maxPagesPerDocument: 200, concurrency: 2, needsOcr: [],
   backends: [{ backend: "tesseract", configured: true, configuredBy: "OCR_TESSERACT_URL" }], revision: 1, updatedAt: null,

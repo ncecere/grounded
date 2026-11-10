@@ -5,11 +5,6 @@ import type { Schemas } from "../api/client";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const req = (extra: Partial<Schemas["TeamRequest"]> = {}): Schemas["TeamRequest"] => ({
   id: "r1", name: "Library tech", purpose: "Run library technology together.", ownerEmail: "", classification: "open", approvedClassification: "", status: "pending",
   decisionReason: "", decidedAt: null, teamSlug: "", teamName: "", revision: 1, createdAt: "2026-10-15T09:00:00Z", ...extra,

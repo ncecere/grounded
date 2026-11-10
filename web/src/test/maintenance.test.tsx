@@ -10,11 +10,7 @@ import { meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { common, crawl, mockApi as mockWebApi, renderWith, webRoutes, webSource } from "./web-harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const reason = "Moving to a new embedding model";
@@ -118,7 +114,6 @@ describe("the maintenance banner", () => {
     expect(container).toBeEmptyDOMElement();
     expect(calls).toHaveLength(0);
 
-    vi.unstubAllGlobals();
     mockApi({ "GET /v1/maintenance": () => off });
     const editor = renderBare(<MaintenanceBanner me={member("editor")} />);
     await new Promise((r) => setTimeout(r, 50));

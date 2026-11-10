@@ -7,11 +7,6 @@ import { type Call, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 
 /* The bell and its popover, the inbox (/notifications) and the settings page (docs/phase4-publishing.md §8). */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 type Note = Schemas["Notification"];
 
 const note = (id: string, title: string, over: Partial<Note> = {}): Note => ({

@@ -8,11 +8,7 @@ import { changedPeriods, conversationIdOf, formOf, periodError, periodText, rang
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 type Period = Schemas["RetentionPeriod"];

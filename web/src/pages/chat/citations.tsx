@@ -29,7 +29,7 @@
  * on its line (remarkChipPunctuation).
  */
 import type { ComponentPropsWithRef, ReactNode } from "react";
-import { useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { Components, ExtraProps } from "react-markdown";
 import { type CitationSourceAction, InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { verificationLabel, worstVerification } from "@/lib/systemone";
@@ -288,8 +288,41 @@ type SpanProps = ComponentPropsWithRef<"span"> & ExtraProps;
 const plugins = [remarkMarkerOccurrences, remarkUncitedMarks, remarkChipPunctuation];
 
 /**
- * Response props for an answer: marker chips with the verdicts of their claims (or, for answers without claims,
- * per-marker verdicts), and "Uncited" marks. `onActivate(n)` is the card's action, labelled by `actionLabel`.
+ * What the chips of one answer draw from. It changes with every streamed token (the text numbers the sources), so it
+ * reaches the chips through context: the renderers below keep one identity for the life of the page. New renderer
+ * functions would be new component types to React, which remounts every chip and closes an open card mid-stream.
+ */
+const MarkerContext = createContext<ChipProps | null>(null);
+
+/** Gives the answer inside it its chips: `<AnswerMarkers value={useAnswerMarkers(…)}>` around its Response. */
+export const AnswerMarkers = MarkerContext.Provider;
+
+function MarkerSup({ node: _node, children, ...rest }: SupProps) {
+  const props = useContext(MarkerContext);
+  const data = rest as Record<string, unknown>;
+  if (typeof data["data-citation"] !== "string") return <sup {...rest}>{children}</sup>;
+  const indices = data["data-citation"].split(",").map(Number);
+  const occurrences = String(data["data-occurrence"] ?? "").split(",").map((k) => (k === "" ? undefined : Number(k)));
+  return <>{(props && chip(props, indices, occurrences as number[])) ?? children}</>;
+}
+
+function MarkerSpan({ node: _node, ...rest }: SpanProps) {
+  if ("data-uncited" in rest) return <UncitedMark />;
+  return "data-chip-tail" in rest ? <span className={a.chipTail}>{rest.children}</span> : <span {...rest} />;
+}
+
+const components: Components = { sup: MarkerSup, span: MarkerSpan };
+
+/**
+ * Response props for an answer inside <AnswerMarkers>: the same objects for every answer and every render, so the
+ * memoised Response re-renders only when its text does. renderCitation turns marker parsing on; MarkerSup (which
+ * replaces Response's own sup renderer) draws the chips, so it is never called.
+ */
+export const markerProps = { components, renderCitation: () => null, remarkPlugins: plugins } as const;
+
+/**
+ * The chips of an answer, for <AnswerMarkers>: marker chips with the verdicts of their claims (or, for answers without
+ * claims, per-marker verdicts). `onActivate(n)` is the card's action, labelled by `actionLabel`.
  */
 export function useAnswerMarkers(
   citations: Citation[],
@@ -299,24 +332,9 @@ export function useAnswerMarkers(
   actionLabel: ChipProps["actionLabel"] = jumpBelow,
   /** The answer's text: sources are numbered by their first citation in it. */
   text = "",
-) {
-  return useMemo(() => {
-    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, actionLabel, sourceProps, claims, num: displayNumbers(citations, text) };
-    const components: Components = {
-      sup({ node: _node, children, ...rest }: SupProps) {
-        const data = rest as Record<string, unknown>;
-        if (typeof data["data-citation"] !== "string") return <sup {...rest}>{children}</sup>;
-        const indices = data["data-citation"].split(",").map(Number);
-        const occurrences = String(data["data-occurrence"] ?? "").split(",").map((k) => (k === "" ? undefined : Number(k)));
-        return <>{chip(props, indices, occurrences as number[]) ?? children}</>;
-      },
-      span({ node: _node, ...rest }: SpanProps) {
-        if ("data-uncited" in rest) return <UncitedMark />;
-        return "data-chip-tail" in rest ? <span className={a.chipTail}>{rest.children}</span> : <span {...rest} />;
-      },
-    };
-    // renderCitation turns marker parsing on; the sup renderer above draws the chips.
-    const renderCitation = (indices: number[]) => chip(props, indices, []);
-    return { components, renderCitation, remarkPlugins: plugins };
-  }, [citations, onActivate, actionLabel, sourceProps, claims, text]);
+): ChipProps {
+  return useMemo(
+    () => ({ byN: new Map(citations.map((s) => [s.n, s])), onActivate, actionLabel, sourceProps, claims, num: displayNumbers(citations, text) }),
+    [citations, onActivate, actionLabel, sourceProps, claims, text],
+  );
 }

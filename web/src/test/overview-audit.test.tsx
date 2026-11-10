@@ -9,11 +9,6 @@ import { describeWeights, fusionErrors, fusionFormOf, fusionPatch } from "../pag
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 type Entry = Schemas["AuditEntry"];
 const entry = (id: number, over: Partial<Entry>): Entry => ({
   id,

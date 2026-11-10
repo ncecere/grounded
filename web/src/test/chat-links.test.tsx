@@ -21,11 +21,6 @@ const card = {
 const chatPath = "/a/registrar/registrar-assistant";
 const missing = "00000000-0000-4000-8000-000000000000";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 describe("a link to a conversation that isn't there (US-01)", () => {
   it("asks once, says the conversation isn't available, and doesn't loop", async () => {
     const calls = mockApi({
@@ -74,5 +69,30 @@ describe("a link to a conversation that isn't there (US-01)", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Start a new chat" }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     expect(await screen.findByText("Hi! Ask me about registration.")).toBeInTheDocument();
+  });
+});
+
+describe("a link to a stored conversation", () => {
+  it("asks for the conversation while the agent's profile loads, and only once", async () => {
+    let answerProfile = (_: unknown) => {};
+    const calls = mockApi({
+      ...shellRoutes(),
+      "GET /v1/agents/registrar/registrar-assistant": () => new Promise((resolve) => (answerProfile = resolve)),
+      "GET /v1/conversations/c1": () => ({
+        conversation: { id: "c1", agentId: "ag1", agentName: card.name, agentSlug: card.slug, teamSlug: "registrar", agentDeleted: false, title: "Dropping", createdAt: "2026-09-26T10:00:00Z", updatedAt: "2026-09-26T10:00:00Z" },
+        messages: [
+          { id: "q1", seq: 1, role: "user", text: "How do I drop a class?", createdAt: "2026-09-26T10:00:00Z" },
+          { id: "m1", seq: 2, role: "assistant", text: "Use the student portal.", citations: [], stopReason: "stop", toolCalls: [], createdAt: "2026-09-26T10:00:01Z" },
+        ],
+      }),
+    });
+    renderApp(`${chatPath}?c=c1`);
+    // The profile hasn't answered: the conversation is already asked for (it used to wait for the profile).
+    await waitFor(() => expect(calls.filter((c) => c.url === "/v1/conversations/c1")).toHaveLength(1));
+    expect(screen.queryByText("Use the student portal.")).toBeNull();
+    answerProfile(card);
+    expect(await screen.findByText("Use the student portal.")).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 200));
+    expect(calls.filter((c) => c.url === "/v1/conversations/c1")).toHaveLength(1);
   });
 });

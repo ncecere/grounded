@@ -14,7 +14,7 @@
  * "Thinking…" while the model thinks, never its reasoning.
  */
 import { Check, ClipboardPlus } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Message, MessageActions, MessageContent, MessageCopyAction } from "@/components/ui/message/message";
@@ -25,7 +25,7 @@ import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui
 import { headingText, plainSnippet } from "@/lib/plain-text";
 import { verificationLabel } from "@/lib/systemone";
 import { citedSoFar, copyText, displayText } from "./answer-text";
-import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
+import { AnswerMarkers, displayNumbers, jumpBelow, markerProps, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
 import { AnsweredBy } from "./answered-by";
 import { Feedback, FollowUps, Notes, Steps, isAnswer } from "./notes";
@@ -128,15 +128,21 @@ type AssistantProps = {
   feedback: boolean;
   showThinking: boolean;
   onPatch?: ChatMessagesProps["onPatch"];
-  onAdd?: () => void;
+  /** "Add to evaluations", with the question and this answer; absent where it isn't offered. */
+  onAdd?: (question: string, item: AssistantItem) => void;
   added?: boolean;
-  onRetry?: () => void;
+  /** Ask the question again; absent except under the last answer. */
+  onRetry?: (question: string) => void;
   onStarter?: (q: string) => void;
   /** The question it answers (a joined search query reads as it, US-09). */
   question?: string;
 };
 
-function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter, question }: AssistantProps) {
+/**
+ * One answer. Memoised, and ChatMessages gives it the same props until its own item changes: a streamed token or a
+ * typed character re-renders the answer it belongs to, not every answer above it (src/test/chat-renders.test.tsx).
+ */
+const AssistantMessage = memo(function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter, question }: AssistantProps) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const streaming = item.status === "streaming";
 
@@ -188,13 +194,15 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
         ) : (
           item.text && (
             // Answers quote team documents: never fetch image URLs from them.
-            <LazyResponse streaming={streaming} images="alt" {...markers}>
-              {displayText(withUncited(item.text, uncited), streaming)}
-            </LazyResponse>
+            <AnswerMarkers value={markers}>
+              <LazyResponse streaming={streaming} images="alt" {...markerProps}>
+                {displayText(withUncited(item.text, uncited), streaming)}
+              </LazyResponse>
+            </AnswerMarkers>
           )
         )}
         {item.routedTo && <AnsweredBy routed={item.routedTo} canContinue={viewer?.access.kind === "message"} />}
-        <Notes item={item} onRetry={onRetry} starters={agent.starterQuestions} onStarter={onStarter} />
+        <Notes item={item} onRetry={onRetry && question ? () => onRetry(question) : undefined} starters={agent.starterQuestions} onStarter={onStarter} />
         {streaming && item.ended && item.citations.length > 0 && (
           <p className={c.waiting}>
             <Shimmer>Checking the citations…</Shimmer>
@@ -238,7 +246,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                 <Check aria-hidden /> Added to evaluations
               </Badge>
             ) : (
-              <Button variant="ghost" size="sm" onClick={onAdd}>
+              <Button variant="ghost" size="sm" onClick={() => onAdd(question ?? "", item)}>
                 <ClipboardPlus aria-hidden /> Add to evaluations
               </Button>
             ))}
@@ -246,7 +254,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
       )}
     </Message>
   );
-}
+});
 
 type ChatMessagesProps = {
   items: ChatItem[];
@@ -283,10 +291,14 @@ export function ChatMessages({ items, agent, feedback = false, showThinking = fa
     if (item.role === "user") last = item.text;
     else asked.set(item.key, last);
   }
-  const addFor = (item: AssistantItem) => {
-    const q = asked.get(item.key);
-    return onAddToEvaluations && q && (!canAdd || canAdd(item)) ? () => onAddToEvaluations(q, item) : undefined;
-  };
+  // The callers' handlers are new functions on most renders (they close over the composer and the page's state).
+  // The answers get these three instead, which never change and call the latest ones, so an answer whose item
+  // didn't change isn't rendered again.
+  const latest = useRef({ onAddToEvaluations, onRetry, onStarter });
+  latest.current = { onAddToEvaluations, onRetry, onStarter };
+  const add = useCallback((question: string, item: AssistantItem) => latest.current.onAddToEvaluations?.(question, item), []);
+  const retry = useCallback((question: string) => latest.current.onRetry?.(question), []);
+  const starter = useCallback((question: string) => latest.current.onStarter?.(question), []);
   const lastKey = items[items.length - 1]?.key;
   return (
     <>
@@ -301,10 +313,10 @@ export function ChatMessages({ items, agent, feedback = false, showThinking = fa
             feedback={feedback}
             showThinking={showThinking}
             onPatch={onPatch}
-            onAdd={addFor(item)}
+            onAdd={onAddToEvaluations && asked.get(item.key) && (!canAdd || canAdd(item)) ? add : undefined}
             added={added?.(item)}
-            onRetry={item.key === lastKey && onRetry && asked.get(item.key) ? () => onRetry(asked.get(item.key)!) : undefined}
-            onStarter={item.key === lastKey ? onStarter : undefined}
+            onRetry={item.key === lastKey && onRetry && asked.get(item.key) ? retry : undefined}
+            onStarter={item.key === lastKey && onStarter ? starter : undefined}
             question={asked.get(item.key)}
           />
         ),

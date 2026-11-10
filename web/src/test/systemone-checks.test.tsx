@@ -9,11 +9,6 @@ import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 
 /* SystemOne citation checks and scope check (docs/systemone.md §3-§4): the admin cards, the chat's citation marks and notes, and analytics. */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const saved: Schemas["SystemOneSettings"] = {
   modelId: "s1",
   judging: { enabled: false, candidates: 10, mode: "per_passage", timeoutMs: 5000, timeLimitMs: 1500, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.3 } },

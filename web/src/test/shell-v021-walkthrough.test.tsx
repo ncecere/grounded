@@ -14,11 +14,7 @@ import { PageTabs, useUrlTab } from "../components/page-tabs";
 import { tabSearch } from "../lib/tabs";
 import { meFor, mockApi, renderApp, shellRoutes, team } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
 });

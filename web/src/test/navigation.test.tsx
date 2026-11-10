@@ -5,11 +5,7 @@ import { axe } from "vitest-axe";
 import { groupByDay } from "../lib/group-by-day";
 import { Reply, meFor, mockApi, renderApp, shellRoutes, team } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
 });

@@ -6,27 +6,18 @@
  * admins change it (If-Match, audited as platform.answer_cache), confirming
  * before they turn it off; auditors see it disabled, with the reason.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ifMatch, unwrap } from "@/api/client";
-import { AlertDialog } from "@/components/ui/dialog/dialog";
-import { Switch } from "@/components/ui/switch/switch";
-import { toast } from "@/components/ui/toast/toast";
-import { lockedSwitch } from "./locked-switch";
+import { FeatureSwitch, useFeatureSave } from "./feature-switch";
 import { answerCacheSettingsQuery } from "./queries";
 
 /** The answer cache switch and its save. */
 export function useAnswerCacheSetting() {
-  const qc = useQueryClient();
   const settings = useQuery(answerCacheSettingsQuery());
-  const save = useMutation({
-    mutationFn: async (enabled: boolean) =>
-      unwrap(await api.PUT("/v1/admin/settings/answer-cache", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
-    onSuccess: (st) => {
-      qc.setQueryData(answerCacheSettingsQuery().queryKey, st);
-      toast.success(st.enabled ? "Saved answers are on" : "Saved answers are off");
-    },
-    onError: () => void qc.invalidateQueries({ queryKey: answerCacheSettingsQuery().queryKey }),
+  const save = useFeatureSave({
+    put: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/settings/answer-cache", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
+    queryKey: answerCacheSettingsQuery().queryKey,
+    saved: (st) => (st.enabled ? "Saved answers are on" : "Saved answers are off"),
   });
   return { settings, save };
 }
@@ -44,28 +35,13 @@ const offConsequences =
 /** The switch: platform admins confirm before turning it off; others see it read-only, with the reason. */
 export function AnswerCacheSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useAnswerCacheSetting>; isAdmin: boolean }) {
   const { settings, save } = setting;
-  const [confirming, setConfirming] = useState(false);
-  if (!settings.data) return null;
   return (
-    <>
-      <Switch
-        label="Allow saved answers"
-        labelPosition="start"
-        checked={settings.data.enabled}
-        disabled={save.isPending}
-        {...lockedSwitch(isAdmin)}
-        onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
-      />
-      <AlertDialog
-        open={confirming}
-        onOpenChange={(o) => !o && setConfirming(false)}
-        title="Turn saved answers off for every agent?"
-        description={offConsequences}
-        confirmLabel="Turn saved answers off"
-        busy={save.isPending}
-        error={save.error}
-        onConfirm={() => save.mutate(false, { onSuccess: () => setConfirming(false) })}
-      />
-    </>
+    <FeatureSwitch
+      label="Allow saved answers"
+      enabled={settings.data?.enabled}
+      save={save}
+      isAdmin={isAdmin}
+      off={{ title: "Turn saved answers off for every agent?", description: offConsequences, confirmLabel: "Turn saved answers off" }}
+    />
   );
 }

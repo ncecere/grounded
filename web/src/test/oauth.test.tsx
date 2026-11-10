@@ -7,12 +7,8 @@ import { redirectTo } from "../pages/oauth/consent";
 import { type Handler, meFor, mockApi, renderApp, Reply, shellRoutes } from "./harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const query =
@@ -184,7 +180,6 @@ describe("Connected apps", () => {
         await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/v1/admin/users/u2/oauth-grants/g1")).toBe(true));
       }
       unmount();
-      vi.unstubAllGlobals();
     }
   });
 });

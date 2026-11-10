@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
+import { anyMembers } from "@/api/queries";
 import { FormDialog } from "@/components/form-dialog";
 import { roleLabels, teamRoles, type TeamRole } from "@/components/roles";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -13,28 +14,9 @@ import { Combobox, type ComboboxOption } from "@/components/ui/combobox/combobox
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { useDebounced } from "../hooks";
+import { useTeamOptions } from "../team-picker";
 import { RulePreview } from "./preview";
 import { groupMappingStatusQuery, groupRulesQuery, groupRulesRoot, type GroupRule, type PreviewRequest } from "./queries";
-
-/** Active teams matching the typed text, for a new rule's team. */
-function useTeamOptions(text: string): ComboboxOption[] {
-  const q = useDebounced(text.trim(), 250);
-  const teams = useQuery({
-    queryKey: ["admin", "teams", "rule-picker", q],
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/v1/admin/teams", {
-          params: { query: { q: q || undefined, status: "active", limit: 20 } },
-        }),
-      ),
-  });
-  return (teams.data?.items ?? []).map((t) => ({
-    value: t.team.slug,
-    label: t.team.name,
-    hint: t.team.slug,
-  }));
-}
 
 type Props = {
   /** The rule to change; absent for a new rule. */
@@ -51,7 +33,8 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
   const [team, setTeam] = useState<string | null>(rule?.team.slug ?? fixedTeam?.slug ?? null);
   const [teamText, setTeamText] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const teamOptions = useTeamOptions(teamText);
+  // Active teams only: a rule maps a group to a team people can use.
+  const teamOptions = useTeamOptions(teamText, "active");
   const seen = useQuery(groupMappingStatusQuery());
   const teamRules = useQuery({ ...groupRulesQuery(team ?? ""), enabled: Boolean(team) });
   const trimmed = group.trim();
@@ -91,6 +74,8 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: groupRulesRoot });
       void qc.invalidateQueries({ queryKey: ["admin", "team"] });
+      // A rule moves people in and out of teams: the member lists (the team's own key, not under "admin").
+      void qc.invalidateQueries(anyMembers);
     },
   });
 

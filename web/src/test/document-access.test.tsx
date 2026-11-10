@@ -9,10 +9,6 @@ import { SourceDetail } from "../pages/sources/detail";
 import { mockApi as mockAppApi, renderApp, shellRoutes } from "./harness";
 import { ApiFailure, common, mockApi, renderWith, webSource } from "./web-harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const source = (access?: Schemas["SourceAccess"]) =>
   webSource({ type: "upload", web: null, name: "HR policies", lastSyncAt: null, nextSyncAt: null, revision: 4, access });
 

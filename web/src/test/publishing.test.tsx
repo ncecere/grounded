@@ -9,11 +9,7 @@ import { type Handler, Reply, findParagraph, mockApi, renderApp, shellRoutes, ss
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   document.head.querySelectorAll('meta[name="grounded-embed-error"]').forEach((m) => m.remove());
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const card = (id: string, name: string, group: Schemas["AgentCard"]["group"], audience: Schemas["Audience"]): Schemas["AgentCard"] => ({

@@ -11,9 +11,7 @@ import { choiceFormat, serverChanges } from "../components/templates/revision-fo
 import { type Handler, meFor, mockApi, renderApp, Reply, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
-  window.scrollTo = () => {};
   Element.prototype.scrollIntoView = () => {};
 });
 

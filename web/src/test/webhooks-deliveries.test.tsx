@@ -6,11 +6,6 @@ import { Reply, mockApi, renderApp } from "./harness";
 import { type Store, delivery, hook, teamSettingsRoutes, webhookRoutes } from "./webhooks-fixtures";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const base = "/v1/teams/registrar/webhooks";
 const url = "https://hooks.example.edu/grounded";
 const slow = { timeout: scaled(5000) };

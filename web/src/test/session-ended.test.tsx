@@ -3,7 +3,6 @@ import { fireEvent, screen } from "@testing-library/react";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
 });
 

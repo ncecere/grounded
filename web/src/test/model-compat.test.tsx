@@ -11,11 +11,6 @@ import { scaled } from "../../test-scale";
 
 /* Self-hosted model compatibility (DESIGN.md §6, §10): chat compat fields (tool choice, extra request fields), embedding output dimensions, profile fusion defaults and where a knowledge base's weights come from. */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const stamp = { revision: 3, createdAt: "2026-09-26T10:00:00Z", updatedAt: "2026-09-26T10:00:00Z" };
 const connection = { id: "c1", name: "Self-hosted", description: "", baseUrl: "https://llm.example.edu/v1", hasApiKey: true, timeoutSeconds: 60, enabled: true, modelCount: 2, maxConcurrentRequests: 2, ...stamp };
 const chat = {

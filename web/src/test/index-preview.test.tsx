@@ -6,11 +6,6 @@ import type { Schemas } from "../api/client";
 import { mockApi, Reply, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 type Migration = Schemas["ProfileMigration"];
 type Comparison = Schemas["ProfileMigrationComparison"];
 

@@ -8,10 +8,6 @@ import { type AssistantItem, type ChatItem, applyChatEvent, pendingAssistant } f
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const narration = "I'll check the outage tool. For your visitor, use EU-Guest [1].";
 const answer = "The VPN is working [2]. For your visitor, use EU-Guest [1].";
 

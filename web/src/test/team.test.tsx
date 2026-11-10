@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -15,6 +15,7 @@ import { allowedScopes } from "../pages/team/keys/scopes";
 import { RetrievePlayground, pageRange } from "../pages/team/retrieve";
 import { SourceDetail } from "../pages/team/sources";
 import { boilerplate } from "./web-harness";
+import { testQueryClient } from "./query-client";
 
 /* ---------- fixtures ---------- */
 
@@ -136,18 +137,12 @@ function mockApi(routes: Record<string, Handler>) {
   return calls;
 }
 
-afterEach(() => vi.unstubAllGlobals());
-// The router restores scroll position on navigation; jsdom doesn't implement it.
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 /** Renders a team page inside a router, the query client and the team context. */
 /** Opens a page tab by its name (the pill tabs of the source and KB pages). */
 const openTab = async (name: RegExp | string) => userEvent.click(await screen.findByRole("tab", { name }));
 
 function renderTeam(ui: ReactNode, role: TeamRole = "editor") {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   qc.setQueryData(["me"], me);
   const root = createRootRoute({
     component: () => <TeamContext.Provider value={teamCtx(team, role)}>{ui}</TeamContext.Provider>,

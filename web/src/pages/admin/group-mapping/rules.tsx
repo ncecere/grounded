@@ -8,6 +8,7 @@ import { Link } from "@tanstack/react-router";
 import { Network, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { api, unwrap } from "@/api/client";
+import { anyMembers } from "@/api/queries";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { roleLabels } from "@/components/roles";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -22,8 +23,8 @@ import { RulePreview } from "./preview";
 import { groupRulesQuery, groupRulesRoot, type GroupRule } from "./queries";
 import { RuleDialog } from "./rule-dialog";
 import g from "./group-mapping.module.css";
+import { plural } from "@/lib/plural";
 
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 function columns(showTeam: boolean): DataTableColumn<GroupRule>[] {
   const cols: DataTableColumn<GroupRule>[] = [
@@ -98,6 +99,8 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: groupRulesRoot });
       void qc.invalidateQueries({ queryKey: ["admin", "team"] });
+      // A rule moves people in and out of teams: the member lists (the team's own key, not under "admin").
+      void qc.invalidateQueries(anyMembers);
     },
   });
   const addButton = isAdmin ? <AddRuleButton onClick={() => setEditing("new")} /> : undefined;

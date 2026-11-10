@@ -5,11 +5,6 @@ import { axe } from "vitest-axe";
 import { settingsDescription } from "../pages/team/settings/page";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes, team } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const member = (id: string, name: string, role: string) => ({
   user: { id, email: `${id}@example.edu`, displayName: name, status: "active" },
   role,

@@ -6,8 +6,6 @@ import { adminAgent } from "./admin-fixtures";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-
 const adminRoutes = (role: "platform_admin" | "platform_auditor", extra: Record<string, Handler> = {}) => ({
   ...shellRoutes(role),
   "GET /v1/admin/agents": () => [

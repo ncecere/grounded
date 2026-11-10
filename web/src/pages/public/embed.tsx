@@ -18,6 +18,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { ChatPanel } from "../chat/panel";
 import { chatErrorText, historyOf } from "../chat/stream";
 import { useChat } from "../chat/useChat";
+import type { AgentLook } from "../chat/welcome";
 import { sharingQuery } from "../agents/share/sharing";
 import { agentQuery } from "../team/common";
 import { PublicChat } from "./public-chat";
@@ -102,7 +103,6 @@ function EmbedPreview({ team, agentId, input }: { team: string; agentId: string;
   const agent = useQuery({ ...agentQuery(team, agentId), enabled: Boolean(me.data) });
   // The real public message limit, so the preview composer matches the widget (P-14).
   const sharing = useQuery({ ...sharingQuery(team, agentId), enabled: Boolean(me.data) });
-  const [text, setText] = useState("");
   const viewer = useMemo(() => ({ kind: "team" as const, team }), [team]);
   const chat = useChat({
     path: `/v1/teams/${encodeURIComponent(team)}/agents/${agentId}/test`,
@@ -113,7 +113,23 @@ function EmbedPreview({ team, agentId, input }: { team: string; agentId: string;
     return <EmptyState className={p.unavailable} icon={<Bot />} title="Sign in to preview this agent" description="The preview answers as you, with the draft. Sign in, then reload this page." />;
   }
   if (!agent.data) return <EmbedError code="agent_not_found" />;
-  const a = agent.data;
+  return <PreviewChat agent={agent.data} chat={chat} viewer={viewer} input={input} maxLength={sharing.data?.widget.maxMessageChars} />;
+}
+
+type PreviewProps = {
+  agent: AgentLook;
+  chat: ReturnType<typeof useChat>;
+  viewer: { kind: "team"; team: string };
+  input: React.RefObject<HTMLTextAreaElement | null>;
+  maxLength?: number;
+};
+
+function PreviewChat({ agent: a, chat, viewer, input, maxLength }: PreviewProps) {
+  // The same object while the agent is: the answers are memoised on it (chat/thread.tsx).
+  const look = useMemo(
+    () => ({ name: a.name, accentColor: a.accentColor, welcomeMessage: a.welcomeMessage, starterQuestions: a.starterQuestions, description: a.description }),
+    [a],
+  );
   return (
     <section className={p.chat} aria-labelledby="preview-title">
       <header className={p.compactHead}>
@@ -124,14 +140,12 @@ function EmbedPreview({ team, agentId, input }: { team: string; agentId: string;
       </header>
       <ChatPanel
         chat={chat}
-        agent={{ name: a.name, accentColor: a.accentColor, welcomeMessage: a.welcomeMessage, starterQuestions: a.starterQuestions, description: a.description }}
-        text={text}
-        onTextChange={setText}
+        agent={look}
         fullPage
         viewer={viewer}
         inputRef={input}
         label={`Preview conversation with ${a.name}`}
-        maxLength={sharing.data?.widget.maxMessageChars}
+        maxLength={maxLength}
       />
     </section>
   );

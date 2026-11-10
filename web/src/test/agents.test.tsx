@@ -116,12 +116,8 @@ const analytics = {
 };
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 describe("team agents list", () => {

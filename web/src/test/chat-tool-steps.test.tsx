@@ -11,10 +11,6 @@ import { type AssistantItem, type ChatItem, applyChatEvent, itemsFromConversatio
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const toolHit = { n: 1, title: "Service status · check_outage", snippet: "Service email: operating normally.", kind: "tool", server: "Service status", tool: "check_outage" };
 
 function live(): ChatItem[] {

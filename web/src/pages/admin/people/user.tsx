@@ -8,7 +8,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Boxes, UserCheck, UserX } from "lucide-react";
 import { useRef, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
-import { adminUserQuery } from "@/api/queries";
+import { adminUserQuery, anyMembers } from "@/api/queries";
 import { ActionMenu } from "@/components/templates/action-menu";
 import { Time } from "@/components/ui/time/time";
 import { isNotFound, NotFoundState } from "@/components/not-found";
@@ -47,6 +47,8 @@ function useUserUpdate(userId: string, revision: number | undefined, onDone: () 
     onSuccess: (_, body) => {
       onDone();
       qc.invalidateQueries({ queryKey: ["admin"] });
+      // The admin's view of a team's members reads the team's own list (not under "admin").
+      qc.invalidateQueries(anyMembers);
       if (userId === me.user.id) qc.invalidateQueries({ queryKey: ["me"] });
       if (body.status === "suspended") toast.success("User suspended");
       else if (body.status === "active") toast.success("User reactivated");
