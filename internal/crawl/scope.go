@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 // Reasons returned by Scope.Allows and TrapReason. They form a closed
@@ -142,9 +144,33 @@ func matchExclude(pattern, p string) bool {
 	return re != nil && re.MatchString(p)
 }
 
-// globRegexp compiles a path glob; results are not cached because scopes are
-// small and Allows is not a hot loop compared with fetching.
+// globs keeps compiled exclude patterns. Every link of a page is checked
+// against every pattern of its source (up to 20,000 links and 50 patterns), and
+// compiling a pattern for each check cost far more than the match itself. The
+// patterns come from sources' settings, so the cache is bounded: past
+// maxCachedGlobs a pattern is compiled each time, as before.
+var (
+	globs      sync.Map // pattern -> *regexp.Regexp (nil: does not compile)
+	globsCount atomic.Int64
+)
+
+const maxCachedGlobs = 4096
+
+// globRegexp returns the compiled form of a path glob (nil when it does not compile).
 func globRegexp(pattern string) *regexp.Regexp {
+	if re, ok := globs.Load(pattern); ok {
+		return re.(*regexp.Regexp)
+	}
+	re := compileGlob(pattern)
+	if globsCount.Load() < maxCachedGlobs {
+		if _, loaded := globs.LoadOrStore(pattern, re); !loaded {
+			globsCount.Add(1)
+		}
+	}
+	return re
+}
+
+func compileGlob(pattern string) *regexp.Regexp {
 	if pattern[0] != '/' && !strings.HasPrefix(pattern, "**") {
 		pattern = "/" + pattern
 	}
