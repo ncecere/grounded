@@ -109,6 +109,36 @@ func (s *Service) UsageToday(ctx context.Context, q *dbgen.Queries, teamID uuid.
 	})
 }
 
+// dayUsage is a team's usage since UTC midnight for the kinds one admission
+// needs, read in one statement the first time a check asks (a check whose
+// limit is off never asks).
+type dayUsage struct {
+	kinds  []string
+	loaded bool
+	used   map[string]int64
+}
+
+func (s *Service) usage(ctx context.Context, teamID uuid.UUID, day *dayUsage, kinds ...string) (int64, error) {
+	if !day.loaded {
+		rows, err := s.q.TeamUsageByKindSince(ctx, dbgen.TeamUsageByKindSinceParams{
+			TeamID: uuid.NullUUID{UUID: teamID, Valid: true}, Kinds: day.kinds, Since: StartOfDay(s.Now()),
+		})
+		if err != nil {
+			return 0, err
+		}
+		day.used = make(map[string]int64, len(rows))
+		for _, r := range rows {
+			day.used[r.Kind] = r.Quantity
+		}
+		day.loaded = true
+	}
+	var total int64
+	for _, k := range kinds {
+		total += day.used[k]
+	}
+	return total, nil
+}
+
 // CheckQuery admits one retrieval query for a team, in this order: the
 // team's monthly budget (429 budget_exhausted, when enforced), the daily
 // team cap (from the usage ledger), then the per-minute team, API key and
@@ -116,6 +146,10 @@ func (s *Service) UsageToday(ctx context.Context, q *dbgen.Queries, teamID uuid.
 // Retry-After) when a limit is reached. When Valkey is unavailable the
 // per-minute checks fail open.
 func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Actor) error {
+	return s.checkQuery(ctx, teamID, a, &dayUsage{kinds: []string{UsageQuery}})
+}
+
+func (s *Service) checkQuery(ctx context.Context, teamID uuid.UUID, a authz.Actor, day *dayUsage) error {
 	if s.Budget != nil {
 		if err := s.Budget.Check(ctx, teamID); err != nil {
 			return err
@@ -131,7 +165,7 @@ func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Acto
 		if *max == 0 {
 			return rateLimited(d, 0, 0, NextDay(now).Sub(now))
 		}
-		used, err := s.UsageToday(ctx, nil, teamID, UsageQuery)
+		used, err := s.usage(ctx, teamID, day, UsageQuery)
 		if err != nil {
 			return err
 		}
@@ -140,6 +174,11 @@ func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Acto
 			return rateLimited(d, *max, used, NextDay(now).Sub(now))
 		}
 	}
+	return s.checkQueryRates(ctx, teamID, a, set)
+}
+
+// checkQueryRates applies the per-minute team, API key and user rates.
+func (s *Service) checkQueryRates(ctx context.Context, teamID uuid.UUID, a authz.Actor, set Set) error {
 	type rate struct {
 		key     Key
 		counter string
@@ -180,28 +219,24 @@ func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Acto
 	return nil
 }
 
-func (s *Service) chatTokensToday(ctx context.Context, teamID uuid.UUID) (int64, error) {
-	in, err := s.UsageToday(ctx, nil, teamID, UsageChatIn)
-	if err != nil {
-		return 0, err
-	}
-	out, err := s.UsageToday(ctx, nil, teamID, UsageChatOut)
-	return in + out, err
-}
-
 // CheckChat admits one chat answer: the team's daily chat token quota (429
 // quota_exceeded, from the usage ledger), then the query limits
-// (CheckQuery: chat counts as a query).
+// (CheckQuery: chat counts as a query). The day's usage is read once for both.
 func (s *Service) CheckChat(ctx context.Context, teamID uuid.UUID, a authz.Actor) error {
-	if err := s.CheckChatQuota(ctx, teamID); err != nil {
+	day := &dayUsage{kinds: []string{UsageChatIn, UsageChatOut, UsageQuery}}
+	if err := s.checkChatQuota(ctx, teamID, day); err != nil {
 		return err
 	}
-	return s.CheckQuery(ctx, teamID, a)
+	return s.checkQuery(ctx, teamID, a, day)
 }
 
 // CheckChatQuota is the daily chat token quota alone: 429 quota_exceeded when the team has used it up today. Background model work
 // (contextual chunks) asks it before spending tokens that count in it.
 func (s *Service) CheckChatQuota(ctx context.Context, teamID uuid.UUID) error {
+	return s.checkChatQuota(ctx, teamID, &dayUsage{kinds: []string{UsageChatIn, UsageChatOut}})
+}
+
+func (s *Service) checkChatQuota(ctx context.Context, teamID uuid.UUID, day *dayUsage) error {
 	set, err := s.Effective(ctx, nil, teamID)
 	if err != nil {
 		return err
@@ -210,7 +245,7 @@ func (s *Service) CheckChatQuota(ctx context.Context, teamID uuid.UUID) error {
 		now := s.Now()
 		used := int64(0)
 		if *max > 0 {
-			if used, err = s.chatTokensToday(ctx, teamID); err != nil {
+			if used, err = s.usage(ctx, teamID, day, UsageChatIn, UsageChatOut); err != nil {
 				return err
 			}
 		}

@@ -332,7 +332,9 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 		{KnowledgeBases, func() (int64, error) { return s.q.CountTeamKBs(ctx, teamID) }},
 		{Agents, func() (int64, error) { return s.q.CountTeamAgents(ctx, teamID) }},
 		{EvaluationSets, func() (int64, error) { return s.q.CountTeamEvalSets(ctx, teamID) }},
-		{ChatTokensPerDay, func() (int64, error) { return s.chatTokensToday(ctx, teamID) }},
+		{ChatTokensPerDay, func() (int64, error) {
+			return s.usage(ctx, teamID, &dayUsage{kinds: []string{UsageChatIn, UsageChatOut}}, UsageChatIn, UsageChatOut)
+		}},
 		{CrawlPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsagePageCrawled) }},
 		{OCRPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsageOCRPages) }},
 		{QueriesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsageQuery) }},

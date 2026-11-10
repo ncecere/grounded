@@ -46,7 +46,7 @@ type Service struct {
 	q      *dbgen.Queries
 
 	countMu sync.Mutex
-	counts  map[uuid.UUID]cachedCount
+	counts  map[countKey]cachedCount
 }
 
 func New(pool *pgxpool.Pool, t *teams.Service, c *catalog.Service, v vectorstore.Store) *Service {

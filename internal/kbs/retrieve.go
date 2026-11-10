@@ -14,7 +14,9 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/rerank"
+	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/tags"
@@ -186,6 +188,7 @@ func isURLPrefix(p string) bool {
 // scope limited to this KB, with team query limits and usage.
 func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, kbID uuid.UUID, in Query) (Result, error) {
 	start := time.Now()
+	ctx = requestcache.With(ctx) // the limits and cost settings are read once for the search
 	if a.Key != nil && !a.Key.HasScope(authz.ScopeQuery) {
 		return Result{}, apperr.Forbidden("This API key does not have the query scope")
 	}
@@ -311,16 +314,17 @@ func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb K
 func (s *Service) recordUsage(ctx context.Context, a authz.Actor, kb KB, hits int, extra []dbgen.InsertUsageParams, meta map[string]any) error {
 	query, _ := json.Marshal(map[string]any{"hits": hits})
 	usage := append([]dbgen.InsertUsageParams{{Kind: "query", Quantity: 1, Metadata: query}}, extra...)
-	for _, u := range usage {
+	for i := range usage {
+		u := &usage[i]
 		u.TeamID, u.KBID = uuid.NullUUID{UUID: kb.TeamID, Valid: true}, uuid.NullUUID{UUID: kb.ID, Valid: true}
 		u.UserID = uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
 		if a.Key != nil {
 			u.APIKeyID = uuid.NullUUID{UUID: a.Key.ID, Valid: true}
 		}
 		u.Metadata = TagMetadata(u.Metadata, meta)
-		if err := s.q.InsertUsage(ctx, u); err != nil {
-			return err
-		}
+	}
+	if err := store.InsertUsage(ctx, s.Pool, usage); err != nil {
+		return err
 	}
 	s.Limits.Recorded(kb.TeamID, usage)
 	return nil
@@ -360,12 +364,15 @@ func (s *Service) ResolveKBs(ctx context.Context, ids []uuid.UUID) ([]KB, error)
 }
 
 // vectorCount estimates how many vectors a KB's sources hold (from document
-// chunk counts), cached briefly so each query does not re-aggregate.
+// chunk counts), cached briefly so each query does not re-aggregate. A search
+// filtered to some of the sources has its own entry, so filtered and
+// unfiltered searches do not replace each other's or read each other's.
 func (s *Service) vectorCount(ctx context.Context, kbID uuid.UUID, sourceIDs []uuid.UUID) (int64, error) {
+	key := countKey{kb: kbID, sources: sourceSet(sourceIDs)}
 	s.countMu.Lock()
-	c, ok := s.counts[kbID]
+	c, ok := s.counts[key]
 	s.countMu.Unlock()
-	if ok && time.Since(c.at) < time.Minute && c.sources == len(sourceIDs) {
+	if ok && time.Since(c.at) < time.Minute {
 		return c.n, nil
 	}
 	rows, err := s.q.SourceDocumentStats(ctx, sourceIDs)
@@ -378,17 +385,22 @@ func (s *Service) vectorCount(ctx context.Context, kbID uuid.UUID, sourceIDs []u
 	}
 	s.countMu.Lock()
 	if s.counts == nil {
-		s.counts = map[uuid.UUID]cachedCount{}
+		s.counts = map[countKey]cachedCount{}
 	}
-	s.counts[kbID] = cachedCount{n: n, at: time.Now(), sources: len(sourceIDs)}
+	s.counts[key] = cachedCount{n: n, at: time.Now()}
 	s.countMu.Unlock()
 	return n, nil
 }
 
+// countKey is a KB and the sources a search covers (sourceSet).
+type countKey struct {
+	kb      uuid.UUID
+	sources string
+}
+
 type cachedCount struct {
-	n       int64
-	at      time.Time
-	sources int
+	n  int64
+	at time.Time
 }
 
 // CheckDirectRetrieve is checkDirectRetrieve for callers that list what a

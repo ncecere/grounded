@@ -103,6 +103,7 @@ func (ru *run) blockInput(ctx context.Context) (Answer, error) {
 	ans.Text, ans.StopReason, ans.Moderation, ans.storedCode = ev.Notice, string(llm.StopReasonStop), &ev, storedModerationCode(ev, codeModerationBlocked)
 	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: ev.Notice}}, StopReason: llm.StopReasonStop}
 	ru.record(ctx, &ans, &msg, nil)
+	ru.recordGap(ctx, &ans)
 	ru.sendEnd(ans)
 	return ans, nil
 }

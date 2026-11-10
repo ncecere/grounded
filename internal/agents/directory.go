@@ -69,17 +69,40 @@ func (s *Service) Directory(ctx context.Context, a authz.Actor, f DirectoryFilte
 	if err != nil {
 		return nil, err
 	}
+	versions := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		versions[i] = r.PublishedVersionID.UUID
+	}
+	configs := s.publishedConfigs(ctx, versions)
 	out := make([]Card, 0, len(rows))
 	for _, r := range rows {
 		c := Card{Agent: agentFromDirectoryRow(r), TeamSlug: r.TeamSlug, TeamName: r.TeamName, CitationMode: CitationSnippetLink,
 			Audience: r.Audience, Group: r.GroupKey, ShortName: r.ShortName}
-		if v, err := s.q.GetAgentVersion(ctx, r.PublishedVersionID.UUID); err == nil {
-			cfg := DecodeConfig(v.Config)
+		if cfg, ok := configs[r.PublishedVersionID.UUID]; ok {
 			c.CitationMode, c.Routable, c.Router, c.Subject = cfg.CitationMode, cfg.Routable, cfg.Router, systemone.Summary(cfg.Instructions)
 		}
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// publishedConfigs reads the configurations of the given versions in one
+// query (the directory lists every agent a person may use: one query per
+// agent was one round trip per card). A version that cannot be read is left
+// out, and its card keeps the defaults.
+func (s *Service) publishedConfigs(ctx context.Context, versions []uuid.UUID) map[uuid.UUID]Config {
+	out := make(map[uuid.UUID]Config, len(versions))
+	if len(versions) == 0 {
+		return out
+	}
+	rows, err := s.q.VersionsByIDs(ctx, versions)
+	if err != nil {
+		return out
+	}
+	for _, v := range rows {
+		out[v.ID] = DecodeConfig(v.Config)
+	}
+	return out
 }
 
 // keyDirectory is an API key's directory: its team's agents within its KBs.
@@ -92,6 +115,11 @@ func (s *Service) keyDirectory(ctx context.Context, a authz.Actor, f DirectoryFi
 		return nil, err
 	}
 	search := strings.ToLower(strings.TrimSpace(f.Search))
+	versions := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		versions[i] = r.PublishedVersionID.UUID
+	}
+	configs := s.publishedConfigs(ctx, versions)
 	out := make([]Card, 0, len(rows))
 	for _, r := range rows {
 		text := r.Name + " " + r.Description + " " + r.TeamName
@@ -109,8 +137,7 @@ func (s *Service) keyDirectory(ctx context.Context, a authz.Actor, f DirectoryFi
 		if g, err := s.q.GetAudienceGrant(ctx, r.ID); err == nil {
 			c.Audience = g.PrincipalType
 		}
-		if v, err := s.q.GetAgentVersion(ctx, r.PublishedVersionID.UUID); err == nil {
-			cfg := DecodeConfig(v.Config)
+		if cfg, ok := configs[r.PublishedVersionID.UUID]; ok {
 			c.CitationMode = cfg.CitationMode
 			if !keyAllowsKBs(a.Key, cfg.KBIDs()) {
 				continue

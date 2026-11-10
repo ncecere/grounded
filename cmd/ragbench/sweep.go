@@ -61,7 +61,7 @@ type kwVariant struct{ name, sql string }
 
 func keywordVariants() []kwVariant {
 	return []kwVariant{
-		{"grounded", fmt.Sprintf(kbs.LexicalSQL, "true")},
+		{"grounded", kbs.LexicalSQL("true")},
 		{"or-cd1", orVariant("ts_rank_cd(c.content_tsv, q.query, 1)")},
 		{"or-cd0", orVariant("ts_rank_cd(c.content_tsv, q.query)")},
 		{"or-cd2", orVariant("ts_rank_cd(c.content_tsv, q.query, 2)")},

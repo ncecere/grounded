@@ -77,7 +77,10 @@ func parseHTML(in Input, lim Limits) (Document, error) {
 			opts.BaseURL = u
 		}
 	}
-	res, err := htmlmd.Convert([]byte(decodeText(in.Data)), opts)
+	// The bytes as they came: htmlmd reads the page in its own character set (a BOM or <meta charset>). Decoding them
+	// here first, as text files are, turned every page that is not UTF-8 into windows-1252 before its declared charset was
+	// applied to the result, which garbled pages in any other encoding (and copied the page twice).
+	res, err := htmlmd.Convert(in.Data, opts)
 	if err != nil {
 		return Document{}, fmt.Errorf("%w: %v", ErrTooLarge, err)
 	}

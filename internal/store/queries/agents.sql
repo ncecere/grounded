@@ -231,6 +231,17 @@ FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
 ORDER BY m.seq;
 
+-- The latest turns of a conversation for the model's history, newest first:
+-- questions and answers only (tool results hold whole passages and are not
+-- sent back), and only the columns the history is built from. A long
+-- conversation is not read in full for every new question.
+-- name: RecentTurns :many
+SELECT role, content, stop_reason, error_code
+FROM messages
+WHERE conversation_id = $1 AND role IN ('user', 'assistant')
+ORDER BY seq DESC
+LIMIT $2;
+
 -- name: GetMessageOwner :one
 SELECT m.id, m.role, c.user_id, c.agent_id
 FROM messages m JOIN conversations c ON c.id = m.conversation_id

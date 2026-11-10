@@ -6,6 +6,7 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -33,10 +34,11 @@ func (ru *run) prepareConversation(ctx context.Context) error {
 		return nil
 	}
 	if ru.conv != nil {
-		rows, err := s.q.ListMessages(ctx, ru.conv.ID)
+		rows, err := s.q.RecentTurns(ctx, dbgen.RecentTurnsParams{ConversationID: ru.conv.ID, Limit: historyRows})
 		if err != nil {
 			return err
 		}
+		slices.Reverse(rows) // oldest first
 		ru.history = historyFromRows(rows)
 		ru.trimHistory()
 	}
@@ -103,11 +105,16 @@ func titleFrom(q string) string {
 	return truncateRunes(title, 80)
 }
 
+// historyRows is how many of a conversation's latest questions and answers
+// are read for the history: maxHistory are kept, and the rest is room for the
+// turns that are left out (moderated ones, answers that did not finish).
+const historyRows = 4 * maxHistory
+
 // historyFromRows rebuilds the model history: user questions and the final
 // text of completed answers. Sources, thinking and tool calls are not
 // replayed, nor are turns moderation replaced with a notice (neither the
 // question nor the notice).
-func historyFromRows(rows []dbgen.ListMessagesRow) []llm.Message {
+func historyFromRows(rows []dbgen.RecentTurnsRow) []llm.Message {
 	var out []llm.Message
 	for _, r := range rows {
 		if r.Role == "assistant" && isModerationCode(r.ErrorCode) {

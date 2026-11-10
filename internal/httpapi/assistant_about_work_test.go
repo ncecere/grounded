@@ -33,7 +33,23 @@ func (q *aboutQueryTrace) TraceQueryStart(ctx context.Context, _ *pgx.Conn, d pg
 	return ctx
 }
 func (*aboutQueryTrace) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
-func (q *aboutQueryTrace) start()                                                        { q.mu.Lock(); defer q.mu.Unlock(); q.sql = nil; q.active = true }
+
+// A batch is one round trip, whatever it holds: it counts once, as its statements joined.
+func (q *aboutQueryTrace) TraceBatchStart(ctx context.Context, _ *pgx.Conn, d pgx.TraceBatchStartData) context.Context {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.active {
+		parts := make([]string, 0, d.Batch.Len())
+		for _, queued := range d.Batch.QueuedQueries {
+			parts = append(parts, queued.SQL)
+		}
+		q.sql = append(q.sql, "batch: "+strings.Join(parts, "; "))
+	}
+	return ctx
+}
+func (*aboutQueryTrace) TraceBatchQuery(context.Context, *pgx.Conn, pgx.TraceBatchQueryData) {}
+func (*aboutQueryTrace) TraceBatchEnd(context.Context, *pgx.Conn, pgx.TraceBatchEndData)     {}
+func (q *aboutQueryTrace) start()                                                            { q.mu.Lock(); defer q.mu.Unlock(); q.sql = nil; q.active = true }
 func (q *aboutQueryTrace) stop() []string {
 	q.mu.Lock()
 	defer q.mu.Unlock()

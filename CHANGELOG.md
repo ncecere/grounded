@@ -6,7 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Web pages in other character sets were garbled.** A page that declares an encoding other than UTF-8 or windows-1252 (Cyrillic windows-1251, Central European ISO-8859-2, Japanese Shift_JIS and so on) was decoded as windows-1252 before its own character set was applied, so its text was indexed as nonsense. Pages are now read in the character set they declare. Pages indexed before the fix are corrected the next time they change or are fetched again.
+
 ### Changed
+
+- **Answers start sooner.** Before the first model call, one question made dozens of database round trips, one after another. A follow-up question in the app now makes 51 instead of 64, a question on a public agent 52 instead of 95, and a knowledge base search 19 instead of 24: settings a request needs several times are read once, the day's usage is one query instead of three, an answer's usage rows are written in one statement, and a public question no longer builds the assistant's About card twice just to discard it. A test keeps these counts from growing.
+- **Keyword and vector search run side by side** instead of one after the other, as the design says, and the keyword search skips a lookup of every matching passage's document when nothing filters on documents.
+- **Long conversations stay quick.** A new question reads the conversation's latest 200 questions and answers instead of every message with its stored sources.
+- **Fewer reconnections to the model gateway.** Grounded keeps up to 32 idle connections per gateway instead of 2, so the burst of calls an answer makes reuses connections on an HTTP/1.1 gateway.
+- **Crawling pages with many links is far cheaper.** Checking a page's links against a source's exclude patterns compiled every pattern for every link; they are compiled once (28 times faster in the benchmark, 96% less memory).
+- **The assistants directory** reads its agents' settings in one query instead of one per agent.
+- Deleting documents, expired anonymous sessions and their conversations no longer scans whole tables: migration 00069 adds five indexes for those deletes and one for a team's audit page. Indexes only, built without blocking writes; it changes no row. Schema 69.
 
 - **The Go test suite runs in under a quarter of the time** (759 s to 169 s on a 12-core machine, without `-race`). An integration test's database is now copied from a template migrated once per set of migrations instead of running every migration again, and the API tests in `internal/httpapi` run in parallel.
 - The PDF engine's compiled code is kept for the life of the process, so a second parser in the same process starts at once instead of compiling it again.

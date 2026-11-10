@@ -244,6 +244,45 @@ func (q *Queries) TeamLimitConfig(ctx context.Context, teamID uuid.UUID) (TeamLi
 	return i, err
 }
 
+const teamUsageByKindSince = `-- name: TeamUsageByKindSince :many
+SELECT kind, coalesce(sum(quantity), 0)::bigint AS quantity
+FROM usage_events WHERE team_id = $1 AND kind = ANY($2::text[]) AND occurred_at >= $3
+GROUP BY kind
+`
+
+type TeamUsageByKindSinceParams struct {
+	TeamID uuid.NullUUID
+	Kinds  []string
+	Since  time.Time
+}
+
+type TeamUsageByKindSinceRow struct {
+	Kind     string
+	Quantity int64
+}
+
+// TeamUsageSince for several kinds in one statement (a chat answer checks three).
+// A kind with no usage has no row.
+func (q *Queries) TeamUsageByKindSince(ctx context.Context, arg TeamUsageByKindSinceParams) ([]TeamUsageByKindSinceRow, error) {
+	rows, err := q.db.Query(ctx, teamUsageByKindSince, arg.TeamID, arg.Kinds, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TeamUsageByKindSinceRow{}
+	for rows.Next() {
+		var i TeamUsageByKindSinceRow
+		if err := rows.Scan(&i.Kind, &i.Quantity); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const teamUsageSince = `-- name: TeamUsageSince :one
 SELECT coalesce(sum(quantity), 0)::bigint
 FROM usage_events WHERE team_id = $1 AND kind = $2 AND occurred_at >= $3

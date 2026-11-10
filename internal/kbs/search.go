@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/catalog"
@@ -33,16 +34,29 @@ import (
 // (docs/benchmarks/scale-10k.md, "Fusion tuning").
 // Only the KB's profile's chunks count ($4): during a profile migration a
 // document also has chunks for the other profile (ADR-0007). Metadata
-// filters join documents (%s is the document condition).
-const LexicalSQL = `
+// filters join documents (the second %s is the document condition); the first
+// %s is that join, left out when nothing filters on documents so that every
+// matching chunk is not looked up in documents before the sort.
+const lexicalSQL = `
 WITH q AS (
     SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS query
     FROM unnest(to_tsvector('english', $1))
 )
-SELECT c.id FROM chunks c JOIN documents d ON d.id = c.document_id, q
+SELECT c.id FROM chunks c%s, q
 WHERE q.query IS NOT NULL AND c.source_id = ANY($2::uuid[]) AND c.profile_id = $4 AND c.content_tsv @@ q.query AND %s
 ORDER BY ts_rank(c.content_tsv, q.query, 1) DESC, c.id
 LIMIT $3`
+
+// LexicalSQL is the full-text query for a document condition over documents d
+// ("true": no condition, and no join). Its parameters are the question, the
+// source IDs, the limit and the profile ID, then the condition's own.
+func LexicalSQL(docSQL string) string {
+	join := " JOIN documents d ON d.id = c.document_id"
+	if docSQL == "true" {
+		join = ""
+	}
+	return fmt.Sprintf(lexicalSQL, join, docSQL)
+}
 
 // EmbedCache reuses query embeddings within one request (several KBs may
 // share a profile). The zero value is ready to use; it is safe for
@@ -137,39 +151,48 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 	}
 	res.EmbedModelID = target.Model.ID
 	candidates := max(k*4, 20)
-	vec, tokens, err := queryVector(ctx, target, kb.EmbeddingProfileID, p)
-	if err != nil {
-		return res, err
-	}
-	res.EmbedTokens = tokens
 	prof := vectorstore.Profile{ID: target.Profile.ID, Dimensions: int(target.Profile.Dimensions), StorageType: target.Profile.StorageType}
-	estimated, err := s.vectorCount(ctx, kb.ID, sourceIDs)
-	if err != nil {
-		return res, err
-	}
 	docs := p.Filter.docs()
 	// Candidates skip documents the caller may not read only where some exist, so an install that restricts nothing keeps
 	// its plans; loadHits checks permissions on every read of passage text regardless.
-	restricted, err := s.q.SourcesHaveRestricted(ctx, sourceIDs)
+	restricted, err := s.SourcesHaveRestricted(ctx, sourceIDs)
 	if err != nil {
 		return res, err
 	}
 	if restricted {
 		docs.Restricted, docs.Principals = true, p.Caller.Principals()
 	}
-	vhits, err := s.vectorSearch(ctx, prof, vec, vectorstore.Filter{SourceIDs: sourceIDs, Estimated: estimated, Docs: docs}, candidates)
-	if err != nil {
-		return res, err
-	}
 	// The profile's default weights as loaded with the target, so a change
 	// applies at once.
 	kb.ProfileWeights = storedWeights(target.Profile.DefaultVectorWeight, target.Profile.DefaultKeywordWeight)
 	weights, _ := kb.Weights(s.Weights)
-	var lexical []uuid.UUID
-	if weights.Keyword > 0 {
-		if lexical, err = s.lexicalSearch(ctx, p.Text, sourceIDs, prof.ID, candidates, docs); err != nil {
-			return res, err
+	// The two searches run together (DESIGN.md §6): the full-text one needs
+	// only the question, so it does not wait for the embedding call.
+	var (
+		vec     []float32
+		vhits   []vectorstore.Hit
+		lexical []uuid.UUID
+	)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		if vec, res.EmbedTokens, err = queryVector(gctx, target, kb.EmbeddingProfileID, p); err != nil {
+			return err
 		}
+		estimated, err := s.vectorCount(gctx, kb.ID, sourceIDs)
+		if err != nil {
+			return err
+		}
+		vhits, err = s.vectorSearch(gctx, prof, vec, vectorstore.Filter{SourceIDs: sourceIDs, Estimated: estimated, Docs: docs}, candidates)
+		return err
+	})
+	if weights.Keyword > 0 {
+		g.Go(func() (err error) {
+			lexical, err = s.lexicalSearch(gctx, p.Text, sourceIDs, prof.ID, candidates, docs)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return res, err
 	}
 	collapse := p.CollapseParents && target.Profile.ParentTokens > 0 && !s.ParentExpansionOff
 	keep := k
@@ -263,7 +286,7 @@ func (s *Service) lexicalSearch(ctx context.Context, text string, sourceIDs []uu
 		tracing.End(span, err)
 	}()
 	docSQL, docArgs := docs.SQL("d", 5)
-	rows, err := s.Pool.Query(ctx, fmt.Sprintf(LexicalSQL, docSQL), append([]any{text, sourceIDs, candidates, profileID}, docArgs...)...)
+	rows, err := s.Pool.Query(ctx, LexicalSQL(docSQL), append([]any{text, sourceIDs, candidates, profileID}, docArgs...)...)
 	if err != nil {
 		return nil, err
 	}

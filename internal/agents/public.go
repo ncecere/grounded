@@ -18,6 +18,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -53,7 +54,18 @@ type PublicTarget struct {
 // resolvePublic finds a published public agent by ID or short name while
 // the public switch is on (503 public_disabled otherwise; 404 for anything
 // that is not public).
+//
+// One anonymous question asks three times (the handler before it resumes the
+// session, the guardrails for the team's limits, the answer itself): a request
+// that keeps a cache (requestcache) resolves the agent once.
 func (s *Service) resolvePublic(ctx context.Context, ref string) (resolved, error) {
+	return requestcache.Get(ctx, publicRefKey{ref}, func() (resolved, error) { return s.lookupPublic(ctx, ref) })
+}
+
+// publicRefKey is a resolved public agent in a request's cache.
+type publicRefKey struct{ ref string }
+
+func (s *Service) lookupPublic(ctx context.Context, ref string) (resolved, error) {
 	var r resolved
 	on, err := s.publicEnabled(ctx)
 	if err != nil {
@@ -109,6 +121,17 @@ func (s *Service) PublicProfile(ctx context.Context, ref string) (PublicTarget, 
 		return PublicTarget{}, err
 	}
 	return PublicTarget{Card: s.card(ctx, r), TeamID: r.team.ID}, nil
+}
+
+// PublicAgent is a public agent without its profile card, for the steps that
+// only need to know it is public, whose it is and whether it is live: the
+// card's About costs several queries more.
+func (s *Service) PublicAgent(ctx context.Context, ref string) (agent dbgen.Agent, teamID uuid.UUID, err error) {
+	r, err := s.resolvePublic(ctx, ref)
+	if err != nil {
+		return dbgen.Agent{}, uuid.Nil, err
+	}
+	return r.agent, r.team.ID, nil
 }
 
 // PublicChat answers an anonymous visitor. The conversation is stored for

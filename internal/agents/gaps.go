@@ -83,6 +83,7 @@ func (ru *run) recordGap(ctx context.Context, ans *Answer) {
 	if !ans.Persisted || ru.conv == nil || ru.channel == ChannelTest {
 		return
 	}
+	ctx = context.WithoutCancel(ctx) // like the record it follows
 	signals := ru.gapSignals(ans)
 	profile, vec := ru.gapVector()
 	var err error

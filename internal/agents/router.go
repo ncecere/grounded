@@ -255,6 +255,7 @@ func (ru *run) delegate(ctx context.Context, c Card) (Answer, error) {
 	}
 	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: ans.Text}}, StopReason: llm.StopReason(ans.StopReason)}
 	ru.record(ctx, &ans, &msg, nil)
+	ru.recordGap(ctx, &ans)
 	ru.sendEnd(ans)
 	return ans, nil
 }

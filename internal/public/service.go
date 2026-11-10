@@ -207,11 +207,11 @@ type ChatRequest struct {
 // length, the widget key (still enabled), then the rate limits, daily caps
 // and concurrency.
 func (s *Service) Chat(ctx context.Context, sess Session, req ChatRequest, emit func(agents.Event)) (agents.Answer, error) {
-	t, err := s.Agents.PublicProfile(ctx, sess.AgentID.String())
+	_, teamID, err := s.Agents.PublicAgent(ctx, sess.AgentID.String())
 	if err != nil {
 		return agents.Answer{}, err
 	}
-	set, err := s.Limits.Effective(ctx, nil, t.TeamID)
+	set, err := s.Limits.Effective(ctx, nil, teamID)
 	if err != nil {
 		return agents.Answer{}, err
 	}
@@ -283,14 +283,14 @@ type FeedbackRequest struct {
 // live, the widget's key still enabled, and the per-minute guardrails
 // allow it (counted apart from questions).
 func (s *Service) Feedback(ctx context.Context, sess Session, req FeedbackRequest) error {
-	t, err := s.Agents.PublicProfile(ctx, sess.AgentID.String())
+	agent, teamID, err := s.Agents.PublicAgent(ctx, sess.AgentID.String())
 	if err != nil {
 		return err
 	}
-	if t.Agent.Status != agents.StatusActive {
+	if agent.Status != agents.StatusActive {
 		return errDisabled
 	}
-	set, err := s.Limits.Effective(ctx, nil, t.TeamID)
+	set, err := s.Limits.Effective(ctx, nil, teamID)
 	if err != nil {
 		return err
 	}

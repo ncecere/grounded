@@ -38,6 +38,7 @@ func (ru *run) failBeforeStart(ctx context.Context, err error) (Answer, error) {
 		ans.StopReason = string(llm.StopReasonAborted)
 	}
 	ru.record(ctx, &ans, nil, nil)
+	ru.recordGap(ctx, &ans)
 	if code == ErrCodeModelUnavailable || code == ErrCodeModelBusy {
 		return ans, withConversation(apperr.New(503, code, msg), ans)
 	}
@@ -92,6 +93,7 @@ func (ru *run) refuseWithoutModel(ctx context.Context) (Answer, error) {
 	ans.noContextReason = ru.noContextReason
 	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: text}}, StopReason: llm.StopReasonStop}
 	ru.record(ctx, &ans, &msg, nil)
+	ru.recordGap(ctx, &ans)
 	ru.sendEnd(ans)
 	return ans, nil
 }
@@ -153,6 +155,7 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	} else if ru.citeRec != nil {
 		ru.out.send(ru.citationsChecked(ans))
 	}
+	ru.recordGap(ctx, &ans)        // the gap report (gaps.go)
 	ru.suggest(ctx, &ans, sources) // follow-up questions (suggest.go)
 	ru.storeCached(ctx, &ans)      // the answer cache (cache.go)
 	return ans, nil

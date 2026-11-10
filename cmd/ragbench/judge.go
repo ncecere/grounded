@@ -72,7 +72,7 @@ func (d sweepData) fusedCandidates(ctx context.Context, q judged, vec []float32,
 	if err != nil {
 		return nil, err
 	}
-	kw, err := d.keyword(ctx, fmt.Sprintf(kbs.LexicalSQL, "true"), q.text, n*2)
+	kw, err := d.keyword(ctx, kbs.LexicalSQL("true"), q.text, n*2)
 	if err != nil {
 		return nil, err
 	}

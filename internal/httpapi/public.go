@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/public"
+	"github.com/ncecere/grounded/internal/requestcache"
 )
 
 // publicRoutes: the anonymous API, the widget loader and the embed page.
@@ -210,7 +211,7 @@ func (a *api) getPublicSession(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid agentId")
 		return
 	}
-	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+	if _, _, err := a.Agents.PublicAgent(r.Context(), agentID.String()); failed(w, r, err) {
 		return
 	}
 	key, channel := strings.TrimSpace(r.URL.Query().Get("key")), requestChannel(r)
@@ -252,7 +253,9 @@ func (a *api) publicChat(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
-	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+	// The agent is resolved here, by the guardrails and by the answer: once for the request.
+	r = r.WithContext(requestcache.With(r.Context()))
+	if _, _, err := a.Agents.PublicAgent(r.Context(), agentID.String()); failed(w, r, err) {
 		return
 	}
 	sess, ok := a.resume(w, r, agentID)
@@ -280,7 +283,7 @@ func (a *api) setPublicMessageFeedback(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
-	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+	if _, _, err := a.Agents.PublicAgent(r.Context(), agentID.String()); failed(w, r, err) {
 		return
 	}
 	sess, ok := a.resume(w, r, agentID)

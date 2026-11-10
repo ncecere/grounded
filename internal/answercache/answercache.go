@@ -43,9 +43,12 @@ type Service struct {
 	pool *pgxpool.Pool
 	log  *slog.Logger
 
-	mu sync.Mutex
-	on bool
-	at time.Time
+	// The platform switch as last read (settings.go): on at time at; loading
+	// while one caller reads it again.
+	mu      sync.Mutex
+	on      bool
+	at      time.Time
+	loading bool
 }
 
 // New returns a Service.

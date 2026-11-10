@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -164,12 +165,46 @@ func (c *Client) learn(ctx context.Context, e *Error) {
 	c.Limiter.Backoff(ctx, d)
 }
 
+// sharedTransport is the transport of every client, so connections to a
+// gateway are reused across requests and across the clients built for them
+// (one per model target per request). It is http.DefaultTransport with more
+// idle connections kept per gateway: the default keeps two, and one answer
+// alone sends up to eight judging calls at once besides the chat stream,
+// embeddings and reranking, so an HTTP/1.1 gateway had most of its connections
+// closed after every burst and dialled again (TCP and TLS) for the next. It
+// follows http.DefaultTransport: a process that replaces the default gets a
+// transport made from the new one.
+func sharedTransport() http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	shared.mu.Lock()
+	defer shared.mu.Unlock()
+	if shared.base != base {
+		t := base.Clone()
+		t.MaxIdleConnsPerHost = idleConnsPerGateway
+		t.MaxIdleConns = max(t.MaxIdleConns, 4*idleConnsPerGateway)
+		shared.base, shared.transport = base, t
+	}
+	return shared.transport
+}
+
+var shared struct {
+	mu        sync.Mutex
+	base      *http.Transport
+	transport *http.Transport
+}
+
+// idleConnsPerGateway is how many idle connections are kept to one gateway.
+const idleConnsPerGateway = 32
+
 // New returns a client with the given per-request timeout.
 func New(baseURL, apiKey string, timeout time.Duration) *Client {
 	return &Client{
 		BaseURL: strings.TrimRight(baseURL, "/"),
 		APIKey:  apiKey,
-		HTTP:    &http.Client{Timeout: timeout},
+		HTTP:    &http.Client{Timeout: timeout, Transport: sharedTransport()},
 	}
 }
 

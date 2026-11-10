@@ -382,27 +382,31 @@ func (s *PGVector) searchSQL(ctx context.Context, col, table, docSQL string, exa
 	return sql, settings
 }
 
-// runSearch runs the query with the HNSW search settings in a transaction.
+// runSearch runs the query with the HNSW search settings in a transaction,
+// sent as one batch: the settings are local to the transaction, and four
+// statements around every search would otherwise be four more round trips.
 func (s *PGVector) runSearch(ctx context.Context, ef int, settings, sql string, args []any) ([]Hit, error) {
+	batch := &pgx.Batch{}
+	batch.Queue("begin")
+	batch.Queue("SELECT set_config('hnsw.ef_search', $1, true), set_config('hnsw.iterative_scan', 'relaxed_order', true)", strconv.Itoa(ef))
+	for _, set := range strings.Split(settings, ";") {
+		batch.Queue(strings.TrimSpace(set))
+	}
 	var hits []Hit
-	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, "SELECT set_config('hnsw.ef_search', $1, true), set_config('hnsw.iterative_scan', 'relaxed_order', true)", strconv.Itoa(ef)); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, settings); err != nil {
-			return err
-		}
-		rows, err := tx.Query(ctx, sql, args...)
-		if err != nil {
-			return err
-		}
+	batch.Queue(sql, args...).Query(func(rows pgx.Rows) (err error) {
 		hits, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Hit, error) {
 			var h Hit
 			return h, r.Scan(&h.ChunkID, &h.Distance)
 		})
 		return err
 	})
-	return hits, err
+	batch.Queue("commit")
+	// A failed statement leaves the connection inside the transaction; the pool
+	// discards such a connection instead of reusing it.
+	if err := s.Pool.SendBatch(ctx, batch).Close(); err != nil {
+		return nil, err
+	}
+	return hits, nil
 }
 
 func isUndefinedTable(err error) bool {
