@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- **The Go test suite runs in under a quarter of the time** (759 s to 169 s on a 12-core machine, without `-race`). An integration test's database is now copied from a template migrated once per set of migrations instead of running every migration again, and the API tests in `internal/httpapi` run in parallel. No product change.
+- **The Go test suite runs in under a quarter of the time** (759 s to 169 s on a 12-core machine, without `-race`). An integration test's database is now copied from a template migrated once per set of migrations instead of running every migration again, and the API tests in `internal/httpapi` run in parallel.
+- The PDF engine's compiled code is kept for the life of the process, so a second parser in the same process starts at once instead of compiling it again.
 
 ## [0.9.0] - 2026-11-05
 
