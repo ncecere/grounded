@@ -30,7 +30,9 @@ func addUsage(dst *llm.Usage, u llm.Usage) {
 }
 
 // record stores the answer (for user conversations), usage events and one
-// message_events row. It runs even when the request was cancelled.
+// message_events row. It runs even when the request was cancelled. The gap
+// report follows it (recordGap), after the event that ends the answer where
+// one is sent: the reader does not wait for it.
 func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessage, results []llm.ToolResultMessage) {
 	ru.settleSearch() // an unused search's embedding tokens are recorded too
 	ctx = context.WithoutCancel(ctx)
@@ -41,7 +43,7 @@ func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessag
 	latency := int32(ans.Latency.Milliseconds())
 	observability.ObserveChat(ru.channel, chatOutcome(ans), ans.Latency, ru.firstToken)
 	modelID := uuid.NullUUID{UUID: ru.target.Model.ID, Valid: ru.target.Model.ID != uuid.Nil}
-	err := store.InTx(ctx, ru.s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err := store.InTx(ctx, ru.s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		messageID := uuid.NullUUID{}
 		if ru.persist && ru.conv != nil {
 			if err := ru.storeAnswer(ctx, q, ans, msg, results, modelID, latency); err != nil {
@@ -50,19 +52,19 @@ func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessag
 			messageID = uuid.NullUUID{UUID: ans.MessageID, Valid: true}
 			ans.Persisted = true
 		}
-		if err := ru.recordUsage(ctx, q, ans, modelID); err != nil {
+		if err := ru.recordUsage(ctx, tx, ans, modelID); err != nil {
 			return err
 		}
 		return q.InsertMessageEvent(ctx, ru.messageEvent(ans, messageID, modelID, latency))
 	})
 	if err != nil {
 		ru.s.Log.Error("record answer", "err", err, "agent", ru.agent.ID)
+		ans.Persisted = false // rolled back: nothing follows an answer that was not stored
 		return
 	}
 	if ru.s.Limits != nil {
 		ru.s.Limits.Recorded(ru.team.ID, ru.usage)
 	}
-	ru.recordGap(ctx, ans) // the gap report (gaps.go)
 }
 
 // Chat outcomes (grounded_chat_answers_total).
@@ -137,7 +139,7 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 
 // recordUsage writes the usage ledger: the query, chat tokens, embedding
 // tokens, moderation requests and SystemOne use.
-func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, modelID uuid.NullUUID) error {
+func (ru *run) recordUsage(ctx context.Context, tx pgx.Tx, ans *Answer, modelID uuid.NullUUID) error {
 	meta := ru.usageMetadata(ru.cacheMeta())
 	team := uuid.NullUUID{UUID: ru.team.ID, Valid: true}
 	agent := uuid.NullUUID{UUID: ru.agent.ID, Valid: true}
@@ -162,9 +164,9 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	usage = append(usage, ru.mcpUsage()...)
 	for i := range usage {
 		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, ru.a.NullUser(), keyID(ru.a)
-		if err := q.InsertUsage(ctx, usage[i]); err != nil {
-			return err
-		}
+	}
+	if err := store.InsertUsage(ctx, tx, usage); err != nil {
+		return err
 	}
 	ru.usage = usage
 	return nil

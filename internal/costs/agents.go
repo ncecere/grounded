@@ -51,7 +51,7 @@ func (s *Service) agentStatus(ctx context.Context, teamID, agentID uuid.UUID, fr
 	if team.Mode == ModeOff {
 		return out, nil
 	}
-	cfg, err := s.q.TeamCostConfig(ctx, teamID)
+	cfg, err := s.teamConfig(ctx, teamID)
 	if err != nil {
 		return AgentStatus{}, err
 	}

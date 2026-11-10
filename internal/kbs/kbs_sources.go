@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -11,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -172,7 +175,22 @@ func joinMigration(ctx context.Context, q *dbgen.Queries, kbID uuid.UUID, src db
 	return err
 }
 
+// restrictedKey is the answer for a set of sources in a request's cache.
+type restrictedKey struct{ sources string }
+
 // SourcesHaveRestricted reports whether any of the sources has (or had) a restricted document.
+// An answer asks for all its knowledge bases' sources and then each search asks for its own: a request that keeps a
+// cache (requestcache) asks once per set of sources. Permissions themselves are checked on every read of passage text.
 func (s *Service) SourcesHaveRestricted(ctx context.Context, ids []uuid.UUID) (bool, error) {
-	return s.q.SourcesHaveRestricted(ctx, ids)
+	return requestcache.Get(ctx, restrictedKey{sourceSet(ids)}, func() (bool, error) { return s.q.SourcesHaveRestricted(ctx, ids) })
+}
+
+// sourceSet names a set of sources whatever their order, as a cache key.
+func sourceSet(ids []uuid.UUID) string {
+	key := make([]string, len(ids))
+	for i, id := range ids {
+		key[i] = id.String()
+	}
+	slices.Sort(key)
+	return strings.Join(key, ",")
 }

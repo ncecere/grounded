@@ -173,7 +173,7 @@ func (es *evalSet) embedChunks(ctx context.Context, spark *endpoint, f retrieval
 // keywordCandidates runs Grounded's keyword query once per question.
 func (es *evalSet) keywordCandidates(ctx context.Context, cands int) ([][]uuid.UUID, error) {
 	kw := make([][]uuid.UUID, len(es.queries))
-	lexSQL := fmt.Sprintf(kbs.LexicalSQL, "true")
+	lexSQL := kbs.LexicalSQL("true")
 	for i, q := range es.queries {
 		rows, err := es.pool.Query(ctx, lexSQL, q.text, es.sourceIDs, cands)
 		if err != nil {

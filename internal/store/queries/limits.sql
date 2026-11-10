@@ -61,6 +61,13 @@ SELECT count(*) FROM knowledge_bases WHERE team_id = $1;
 SELECT coalesce(sum(quantity), 0)::bigint
 FROM usage_events WHERE team_id = @team_id AND kind = @kind AND occurred_at >= @since;
 
+-- TeamUsageSince for several kinds in one statement (a chat answer checks three).
+-- A kind with no usage has no row.
+-- name: TeamUsageByKindSince :many
+SELECT kind, coalesce(sum(quantity), 0)::bigint AS quantity
+FROM usage_events WHERE team_id = @team_id AND kind = ANY(@kinds::text[]) AND occurred_at >= @since
+GROUP BY kind;
+
 -- Crawl runs holding a slot: running, or queued and admitted (not waiting
 -- for a slot).
 -- name: CountCrawlSlots :one

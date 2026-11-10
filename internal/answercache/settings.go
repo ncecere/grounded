@@ -34,13 +34,23 @@ var (
 )
 
 // Enabled reports the platform switch (cached briefly; off when unreadable).
+// Every answer asks, so the lock is never held while the database is read: one
+// caller refreshes an expired value and the others go on with the one they have.
 func (s *Service) Enabled(ctx context.Context) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.at.IsZero() && time.Since(s.at) < switchTTL {
-		return s.on
+	known := !s.at.IsZero()
+	if (known && time.Since(s.at) < switchTTL) || (known && s.loading) {
+		on := s.on
+		s.mu.Unlock()
+		return on
 	}
+	s.loading = true
+	s.mu.Unlock()
+
 	st, err := s.load(ctx, s.pool)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loading = false
 	if err != nil {
 		s.log.Warn("answer cache: read the platform switch", "err", err)
 		return false

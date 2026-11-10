@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/moderation"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/tracing"
@@ -107,6 +108,8 @@ type run struct {
 // execute runs the shared part of chat and test chat, as one span (IDs
 // and the channel only: never the question or the answer).
 func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err error) {
+	// One answer reads the team's limits and cost settings in several steps (admission, budgets, tools): once each.
+	ctx = requestcache.With(ctx)
 	ctx, span := tracing.Start(ctx, "agent.answer", attribute.String("grounded.team_id", ru.team.ID.String()),
 		attribute.String("grounded.agent_id", ru.agent.ID.String()), attribute.String("grounded.channel", ru.channel))
 	if v := ru.versionNum(); v != nil {

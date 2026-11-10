@@ -1573,6 +1573,55 @@ func (q *Queries) NextMessageSeq(ctx context.Context, conversationID uuid.UUID) 
 	return column_1, err
 }
 
+const recentTurns = `-- name: RecentTurns :many
+SELECT role, content, stop_reason, error_code
+FROM messages
+WHERE conversation_id = $1 AND role IN ('user', 'assistant')
+ORDER BY seq DESC
+LIMIT $2
+`
+
+type RecentTurnsParams struct {
+	ConversationID uuid.UUID
+	Limit          int32
+}
+
+type RecentTurnsRow struct {
+	Role       string
+	Content    json.RawMessage
+	StopReason string
+	ErrorCode  string
+}
+
+// The latest turns of a conversation for the model's history, newest first:
+// questions and answers only (tool results hold whole passages and are not
+// sent back), and only the columns the history is built from. A long
+// conversation is not read in full for every new question.
+func (q *Queries) RecentTurns(ctx context.Context, arg RecentTurnsParams) ([]RecentTurnsRow, error) {
+	rows, err := q.db.Query(ctx, recentTurns, arg.ConversationID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecentTurnsRow{}
+	for rows.Next() {
+		var i RecentTurnsRow
+		if err := rows.Scan(
+			&i.Role,
+			&i.Content,
+			&i.StopReason,
+			&i.ErrorCode,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const renameConversation = `-- name: RenameConversation :one
 UPDATE conversations SET title = $1 WHERE id = $2 RETURNING id, agent_id, user_id, title, last_version_id, created_at, updated_at, deleted_at, anonymous, anon_session_id
 `

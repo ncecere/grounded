@@ -10,6 +10,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/kv"
 	"github.com/ncecere/grounded/internal/ratelimit"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
 )
@@ -128,11 +129,20 @@ func (s *Service) platform(ctx context.Context, q *dbgen.Queries, lock bool) (Pl
 	return Platform{Settings: settings, Custom: custom, Revision: row.Revision, UpdatedAt: row.UpdatedAt}, nil
 }
 
+// effectiveKey is a team's limits in a request's cache.
+type effectiveKey struct{ team uuid.UUID }
+
 // Effective returns a team's effective limits. q may be bound to a transaction.
+// Outside a transaction, a request that keeps a cache (requestcache: a chat
+// answer, a search) reads them once however many checks ask.
 func (s *Service) Effective(ctx context.Context, q *dbgen.Queries, teamID uuid.UUID) (Set, error) {
 	if q == nil {
-		q = s.q
+		return requestcache.Get(ctx, effectiveKey{teamID}, func() (Set, error) { return s.effective(ctx, s.q, teamID) })
 	}
+	return s.effective(ctx, q, teamID)
+}
+
+func (s *Service) effective(ctx context.Context, q *dbgen.Queries, teamID uuid.UUID) (Set, error) {
 	row, err := q.TeamLimitConfig(ctx, teamID)
 	if err != nil {
 		return Set{}, err

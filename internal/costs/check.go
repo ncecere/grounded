@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -114,9 +115,19 @@ func (s *Service) Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams) {
 	s.cache[teamID] = c
 }
 
+// costConfigKey is a team's cost settings in a request's cache.
+type costConfigKey struct{ team uuid.UUID }
+
+// teamConfig reads a team's cost settings: once per request where the request
+// keeps a cache (requestcache), since the team's and the agent's budget checks
+// of one chat answer both need them.
+func (s *Service) teamConfig(ctx context.Context, teamID uuid.UUID) (dbgen.TeamCostConfigRow, error) {
+	return requestcache.Get(ctx, costConfigKey{teamID}, func() (dbgen.TeamCostConfigRow, error) { return s.q.TeamCostConfig(ctx, teamID) })
+}
+
 // status computes a team's budget state; fresh skips the cache.
 func (s *Service) status(ctx context.Context, teamID uuid.UUID, fresh bool) (Status, error) {
-	cfg, err := s.q.TeamCostConfig(ctx, teamID)
+	cfg, err := s.teamConfig(ctx, teamID)
 	if err != nil {
 		return Status{}, err
 	}

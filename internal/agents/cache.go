@@ -279,6 +279,7 @@ func (ru *run) replayCached(ctx context.Context) (Answer, error) {
 	}
 	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: a.Text}}, Model: ru.model.ID, StopReason: llm.StopReasonStop}
 	ru.record(ctx, &ans, &msg, nil)
+	ru.recordGap(ctx, &ans)
 	ru.sendEnd(ans)
 	ru.replaySuggestions(&ans, a.Suggestions)
 	observability.AnswerCacheTokensSaved.Add(float64(ru.cache.tokens))

@@ -57,7 +57,7 @@ func (a *api) getPublicCitedPassage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+	if _, _, err := a.Agents.PublicAgent(r.Context(), agentID.String()); failed(w, r, err) {
 		return
 	}
 	sess, ok := a.resume(w, r, agentID)
