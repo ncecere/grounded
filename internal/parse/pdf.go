@@ -18,6 +18,9 @@ import (
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/webassembly"
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/experimental"
 )
 
 // pdfEngine runs PDFium (Chrome's PDF library) compiled to WebAssembly
@@ -30,10 +33,28 @@ type pdfEngine struct {
 	err     error
 }
 
+// pdfCompiled keeps PDFium's compiled machine code for the process. Compiling
+// the module takes seconds of CPU; with the cache every engine after the
+// first starts from the compiled code (one engine in production, one per
+// test application in the tests). pdfInit lets one engine start at a time, so
+// engines starting together wait for the first one's compilation instead of
+// each compiling.
+var (
+	pdfCompiled = wazero.NewCompilationCache()
+	pdfInit     sync.Mutex
+)
+
 func (e *pdfEngine) instance() (pdfium.Pdfium, error) {
 	e.once.Do(func() {
 		n := max(e.workers, 1)
-		e.pool, e.err = webassembly.Init(webassembly.Config{MinIdle: 1, MaxIdle: n, MaxTotal: n})
+		pdfInit.Lock()
+		defer pdfInit.Unlock()
+		e.pool, e.err = webassembly.Init(webassembly.Config{MinIdle: 1, MaxIdle: n, MaxTotal: n,
+			// go-pdfium's own default (its module needs the exception handling
+			// feature), plus the shared cache.
+			RuntimeConfig: wazero.NewRuntimeConfig().
+				WithCoreFeatures(api.CoreFeaturesV2 | experimental.CoreFeaturesExceptionHandling).
+				WithCompilationCache(pdfCompiled)})
 	})
 	if e.err != nil {
 		return nil, fmt.Errorf("start PDF engine: %w", e.err)

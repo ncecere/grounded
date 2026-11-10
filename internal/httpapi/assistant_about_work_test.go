@@ -52,6 +52,7 @@ func (b *aboutBlobTrap) Get(context.Context, string) (io.ReadCloser, error) {
 }
 
 func TestAssistantAboutNoWork(t *testing.T) {
+	serial(t) // replaces http.DefaultTransport
 	env := newPublishEnv(t)
 	pub := env.publicAgent(t, "No work")
 	if err := env.app.stopWorker(); err != nil {

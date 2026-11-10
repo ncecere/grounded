@@ -373,6 +373,7 @@ func TestMCPToolInAnswer(t *testing.T) {
 }
 
 func TestMCPToolBounds(t *testing.T) {
+	serial(t) // counts grounded_mcp_client_calls_total, which the whole process shares
 	env := newMCPEnv(t)
 	env.approve(t, "check_outage", "slow", "huge", "needs_input", "broken")
 
