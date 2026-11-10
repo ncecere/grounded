@@ -6,7 +6,7 @@
  * on, bitop-format's rounding applies. A follow-up for bitop-ui's
  * formatRelativeTime itself.
  */
-import { startOfDay } from "@/components/ui/calendar/calendar";
+import { startOfDay } from "@/lib/start-of-day";
 import { type DateInput, formatRelativeTime, toDate } from "@/lib/bitop-format";
 
 const DAY = 86_400_000;

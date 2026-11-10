@@ -5,11 +5,6 @@ import type { Schemas } from "../api/client";
 import { type Call, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const slow = { timeout: scaled(5000) };
 
 describe("Mark as read on /notifications", () => {

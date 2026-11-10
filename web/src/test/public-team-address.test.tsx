@@ -2,8 +2,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { Reply, mockApi, renderApp } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-
 const signedOut = {
   "GET /v1/me": () => Reply.error(401, "unauthorized"),
   "GET /v1/auth/config": () => ({ oidcEnabled: false, devAuthEnabled: true, loginUrl: "/auth/login", teamRequestUrl: null, devAccounts: [], instance: { name: "Campus RAG", orgName: "", theme: "neutral", logoUrl: null, supportUrl: null } }),

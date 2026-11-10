@@ -19,6 +19,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
+import { adminProfilesQuery } from "../hooks";
 import { type AdminKB, adminKBsQuery, estimateItems, migrationsKey, type Migration, type Preflight } from "./common";
 import p from "./profile-migrations.module.css";
 
@@ -29,7 +30,7 @@ const kbLabel = (kb: AdminKB) => `${kb.name} (${kb.teamName}) · ${kb.profile.na
 export function StartMigrationDialog({ initialKB, onClose, onStarted }: Props) {
   const qc = useQueryClient();
   const kbs = useQuery(adminKBsQuery());
-  const profiles = useQuery({ queryKey: ["admin", "profiles"], queryFn: async () => unwrap(await api.GET("/v1/admin/embedding-profiles")) });
+  const profiles = useQuery(adminProfilesQuery());
   const [kbId, setKB] = useState(initialKB ?? "");
   const [target, setTarget] = useState("");
   const [grace, setGrace] = useState<string | null>(null);
@@ -39,6 +40,8 @@ export function StartMigrationDialog({ initialKB, onClose, onStarted }: Props) {
     queryKey: ["admin", "profile-migrations", "preflight", kbId, target],
     enabled: Boolean(kbId && target),
     queryFn: async () => unwrap(await api.POST("/v1/admin/profile-migrations/preflight", { body: { kbId, targetProfileId: target } })),
+    // A check of the server's state now: choosing the pair again asks again (a blocker may have been fixed meanwhile).
+    staleTime: 0,
   });
   const pf = preflight.data;
   const graceDays = grace === null || grace === "" ? pf?.defaultGraceDays : Number(grace);

@@ -6,12 +6,6 @@ import { boilerplateHeadline, boilerplateRule } from "../pages/sources/boilerpla
 import { SourceDetail } from "../pages/sources/detail";
 import { boilerplate, mockApi, renderWith, webRoutes, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const found = boilerplate({ repeatedBlocks: 12, pagesAffected: 147, documentsCounted: 200, threshold: 40 });
 
 describe("boilerplate helpers", () => {
@@ -128,7 +122,6 @@ describe("Repeated blocks card", () => {
     expect(screen.queryByRole("switch", { name: /Remove repeated blocks/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: /near-duplicate/ })).not.toBeInTheDocument();
     unmount();
-    vi.unstubAllGlobals();
     mockApi(webRoutes(webSource({ boilerplate: boilerplate({ enabled: false }) })));
     renderWith(<SourceDetail sourceId="s1" />, { role: "member" });
     await screen.findByRole("region", { name: "Document counts" });

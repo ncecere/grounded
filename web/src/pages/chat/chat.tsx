@@ -10,19 +10,21 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { MessagesSquare } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, unwrap, type Schemas } from "../../api/client";
+import type { Schemas } from "../../api/client";
 import { agentConversationsQuery, agentProfileQuery, conversationsKey } from "../../api/queries";
 import { NotFoundState, isNotFound } from "../../components/not-found";
 import { ConversationTranscript, conversationQuery } from "../conversations/transcript";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { IconButton } from "@/components/ui/button/button";
 import { Sheet } from "@/components/ui/sheet/sheet";
+import { preloadResponse } from "@/components/ui/response/response-lazy";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { AgentInfo } from "./agent-info";
 import { ConversationGone, ConversationList, ConversationMenu } from "./conversations";
 import { useCanAddToEvaluations } from "../team/evaluations/queries";
 import { type AnswerToAdd, answerToAdd } from "../team/evaluations/answer-to-add";
 import { answerKey, useAddedAnswers } from "../team/evaluations/added";
+import type { ComposerHandle } from "./composer";
 import { ChatPanel } from "./panel";
 import { needsEvaluation } from "./thread";
 import { itemsFromConversation } from "./stream";
@@ -63,6 +65,17 @@ function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknow
   // A link to a conversation with a deleted agent: its transcript, read-only (G2).
   const lookUp = Boolean(search.c) && Boolean(profile.error);
   const stored = useQuery({ ...conversationQuery(search.c ?? ""), enabled: lookUp, retry: false });
+  // A link to a conversation: its messages and the Markdown engine are asked for while the agent's profile loads, not
+  // after it (the chat reads the conversation under the same key). Only then: a profile already here mounts the chat
+  // at once, and the chat asks for it itself.
+  const qc = useQueryClient();
+  const early = useRef<string | undefined>(undefined);
+  useEffect(() => preloadResponse(), []);
+  useEffect(() => {
+    if (!profile.isLoading || !search.c) return;
+    early.current = search.c;
+    void qc.prefetchQuery({ ...conversationQuery(search.c), retry: false });
+  }, [profile.isLoading, search.c, qc]);
   if (profile.error && stored.data?.conversation.agentDeleted)
     return (
       <div className={c.unavailable}>
@@ -78,15 +91,16 @@ function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknow
         <NotFoundState what="chat" />
       </div>
     );
-  return <AgentChat key={profile.data.id} card={profile.data} />;
+  return <AgentChat key={profile.data.id} card={profile.data} fetched={early} />;
 }
 
-function AgentChat({ card }: { card: Card }) {
+/** `fetched`: the conversation the gate asked for while the profile loaded. */
+function AgentChat({ card, fetched }: { card: Card; fetched: { current: string | undefined } }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const selected = conversationParam(useSearch({ strict: false }));
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [text, setText] = useState("");
+  const composer = useRef<ComposerHandle | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   // "Add to evaluations" on the person's own answers, for editors of the agent's team (docs/evaluations.md §1).
   const canAdd = useCanAddToEvaluations(card.teamSlug);
@@ -122,11 +136,19 @@ function AgentChat({ card }: { card: Card }) {
   });
 
   // Opening a stored conversation (not one this page just created).
+  const [early] = useState(() => fetched.current);
+  // Taken once: another agent's chat mounted by the same gate later starts without it.
+  useEffect(() => {
+    fetched.current = undefined;
+  }, [fetched]);
   const detail = useQuery({
-    queryKey: ["conversation", selected],
-    queryFn: async () => unwrap(await api.GET("/v1/conversations/{conversationId}", { params: { path: { conversationId: selected! } } })),
+    ...conversationQuery(selected ?? ""),
     enabled: Boolean(selected) && !local.current.has(selected!),
     retry: false,
+    // The gate's request for this conversation is in flight or just answered (or refused: "isn't available"): it
+    // isn't asked for twice. A conversation picked later is fetched as ever (these two are about mounting only).
+    refetchOnMount: selected !== early,
+    retryOnMount: selected !== early,
   });
   /** A link to a deleted or unknown conversation: say so once, and the next question starts a new one (US-01). */
   const gone = Boolean(selected) && isNotFound(detail.error);
@@ -154,12 +176,16 @@ function AgentChat({ card }: { card: Card }) {
     current.current = undefined;
     void navigate({ to: ".", search: {}, replace: false });
     reset([]);
-    setText("");
+    composer.current?.clear();
     setSheetOpen(false);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
   const currentSummary = conversations.data?.items.find((x) => x.id === selected);
-  const agentLook = { name: card.name, accentColor: card.accentColor, welcomeMessage: card.welcomeMessage, starterQuestions: card.starterQuestions, description: card.description };
+  // The same object while the card is: the answers are memoised on it (thread.tsx).
+  const agentLook = useMemo(
+    () => ({ name: card.name, accentColor: card.accentColor, welcomeMessage: card.welcomeMessage, starterQuestions: card.starterQuestions, description: card.description }),
+    [card],
+  );
 
   const list = { card, conversations, selected, onNew: newChat, more: pages };
 
@@ -208,8 +234,7 @@ function AgentChat({ card }: { card: Card }) {
         <ChatPanel
           chat={chat}
           agent={agentLook}
-          text={text}
-          onTextChange={setText}
+          composer={composer}
           feedback
           fullPage
           viewer={ownAnswers}

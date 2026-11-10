@@ -22,11 +22,6 @@ const chatPath = "/a/registrar/registrar-assistant";
 const conversation = { id: "c1", agentId: "ag1", agentName: card.name, agentSlug: card.slug, teamSlug: "registrar", agentDeleted: false, title: "Dropping", createdAt: "2026-09-26T10:00:00Z", updatedAt: "2026-09-26T10:00:00Z" };
 const message = (id: string, seq: number, role: "user" | "assistant", text: string) => ({ id, seq, role, text, citations: [], stopReason: role === "assistant" ? "stop" : undefined, toolCalls: [], createdAt: "2026-09-26T10:00:00Z" });
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const user = (text: string, id?: string): UserItem => ({ role: "user", key: `u-${text}`, id, text });
 const answer = (id: string | undefined, text: string): AssistantItem => ({ role: "assistant", key: `a-${text}`, id, text, thinking: "", steps: [], sources: [], citations: [], status: "done" });
 

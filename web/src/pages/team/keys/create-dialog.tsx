@@ -13,7 +13,7 @@ import { Field, Form } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { toast } from "@/components/ui/toast/toast";
-import { membersKey } from "@/components/members";
+import { membersQuery } from "@/api/queries";
 import { useCurrentUser } from "@/session";
 import { useAgents } from "../../agents/common";
 import { type KB, keysKey, useTeam } from "../common";
@@ -97,11 +97,7 @@ function KeyFields({ form, onChange, chosen, kbs }: KeyFieldsProps) {
   const { slug, role, isManager } = useTeam();
   const me = useCurrentUser();
   const agents = useAgents(slug);
-  const members = useQuery({
-    queryKey: membersKey(slug),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team: slug } } })),
-    enabled: isManager && form.kind === "service",
-  });
+  const members = useQuery({ ...membersQuery(slug), enabled: isManager && form.kind === "service" });
   const allowed = allowedScopes(role, form.kind);
   const today = toISODate(new Date());
   return (

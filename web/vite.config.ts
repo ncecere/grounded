@@ -31,6 +31,10 @@ export default defineConfig({
             { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 30 },
             { name: "base-ui", test: /node_modules[\\/](@base-ui|@floating-ui|tabbable)[\\/]/, priority: 20 },
             { name: "tanstack", test: /node_modules[\\/]@tanstack[\\/]/, priority: 20 },
+            // The icons: one chunk instead of a 0.2 kB file for each icon that two pages share (40 fewer files).
+            // Only the icons: a group for small shared modules of src/ takes their imports with it
+            // (includeDependenciesRecursively) and put 430 kB in front of the first paint when it was tried.
+            { name: "icons", test: /node_modules[\\/]lucide-react[\\/]/, priority: 20 },
           ],
         },
       },
@@ -41,6 +45,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // vi.stubGlobal (fetch in mockApi, matchMedia…) is undone before each test, so no file has to remember to.
+    unstubGlobals: true,
     // Headroom for loaded CI runners (2 vCPUs, jsdom): heavy admin pages
     // took over the 5 s default there. A limit, not a delay.
     // times TEST_TIME_SCALE (1 unless set, test-scale.ts) for slower or shared machines

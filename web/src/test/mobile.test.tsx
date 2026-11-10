@@ -10,15 +10,11 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 beforeEach(() => {
   // A 390px-wide phone: every max-width query up to 48rem matches.
   vi.stubGlobal("matchMedia", (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
 });
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
 });

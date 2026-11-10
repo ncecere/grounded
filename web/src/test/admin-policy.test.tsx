@@ -7,11 +7,6 @@ import { hoursText, levelCounts } from "../pages/admin/policy";
 import { Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const level = (key: string, name: string, rank: number, extra: Partial<Schemas["Classification"]> = {}): Schemas["Classification"] => ({
   key,
   name,

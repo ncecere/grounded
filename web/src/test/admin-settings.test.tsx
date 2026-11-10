@@ -11,11 +11,7 @@ import { hashTabHref } from "../lib/tabs";
 import { generalErrors, labelCurrency } from "../pages/admin/settings/general";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

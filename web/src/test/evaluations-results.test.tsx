@@ -19,12 +19,8 @@ import { checkReply, evalRoutes, meWithEvals, questions, result, run, runs, set 
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   resetAdded();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const T = { timeout: scaled(5000) };

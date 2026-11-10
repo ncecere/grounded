@@ -7,11 +7,6 @@ import { usageRows } from "../pages/admin/people/team-overview";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const team = {
   id: "t1",
   slug: "registrar",

@@ -8,11 +8,7 @@ import { mockApi, renderApp, shellRoutes } from "./harness";
 import { mockApi as mockWebApi, renderWith } from "./web-harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const ago = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();

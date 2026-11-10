@@ -5,11 +5,6 @@ import { csvField, toCSV } from "../pages/admin/logs/common";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 /** Reads a Blob the way jsdom allows. */
 const readBlob = (b: Blob) =>
   new Promise<string>((resolve, reject) => {

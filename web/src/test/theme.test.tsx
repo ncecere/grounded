@@ -33,11 +33,7 @@ function systemScheme(dark: boolean) {
 
 const theme = () => document.documentElement.dataset.theme;
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   delete document.documentElement.dataset.theme;
 });

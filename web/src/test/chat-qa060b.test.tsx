@@ -12,11 +12,6 @@ import { type AssistantItem, pendingAssistant } from "../pages/chat/stream";
 import { meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 /** The declarations of the first rule whose selector is exactly `selector`. */
 function rule(file: string, selector: string): string {
   const css = readFileSync(file, "utf8");

@@ -15,11 +15,6 @@ const daysAgoLocal = (n: number) => {
 
 /* Admin → Analytics (docs/phase4-publishing.md §9): groups, chart and table, CSV link, empty state, axe; and the pure helpers. */
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const day = (date: string, answers: number, conversations: number): Schemas["PlatformAnalyticsDay"] => ({
   date, answers, conversations, noContext: 1, refused: 0, moderationBlocked: answers > 50 ? 2 : 0, moderationFlagged: 0,
 });

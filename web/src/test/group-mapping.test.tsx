@@ -5,11 +5,6 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { type Handler, mockApi, renderApp, shellRoutes, team } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const rule: Schemas["GroupRule"] = {
   id: "r1",
   group: "registrar-staff",

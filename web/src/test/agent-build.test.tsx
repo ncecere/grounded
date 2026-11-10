@@ -50,11 +50,7 @@ const routes = (current: Schemas["Agent"], extra: Record<string, Handler> = {}, 
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 describe("pure helpers", () => {

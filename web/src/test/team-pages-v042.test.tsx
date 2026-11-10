@@ -10,11 +10,6 @@ import { axe } from "vitest-axe";
 import { run } from "./evaluations-fixtures";
 import { meFor, mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const stamp = { revision: 1, createdAt: "2026-09-01T10:00:00Z", updatedAt: "2026-09-01T10:00:00Z" };
 
 const kb = {

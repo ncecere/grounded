@@ -8,11 +8,7 @@ import { fitCrumbs } from "../components/layout/breadcrumbs";
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const T = { timeout: scaled(5000) };
@@ -55,7 +51,6 @@ describe("a knowledge base's Evaluations tab", () => {
     renderApp("/teams/registrar/kbs/k1");
     expect(await screen.findByRole("tab", { name: /Try it/ }, T)).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Evaluations/ })).toBeNull();
-    vi.unstubAllGlobals();
     mockApi(evalRoutes("editor", { "GET /v1/me": () => meWithEvals("editor", false) }));
     renderApp("/teams/registrar/kbs/k1");
     expect(await screen.findAllByRole("tab", { name: /Settings/ }, T)).not.toHaveLength(0);

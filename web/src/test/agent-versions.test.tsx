@@ -12,11 +12,6 @@ import { configInput } from "../pages/agents/common";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const config: Schemas["AgentConfig"] = {
   instructions: "Help students.",
   chatModelId: "mod1",

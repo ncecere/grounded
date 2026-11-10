@@ -11,11 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { meFor, mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

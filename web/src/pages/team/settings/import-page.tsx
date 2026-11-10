@@ -96,7 +96,11 @@ function ImportForm({ team }: { team: string }) {
       if (res.status === 200) {
         setApplied(res.data as Applied);
         setChecked(undefined);
-        await qc.invalidateQueries();
+        // This team's queries only (["team", slug, …], ["teams", slug, …], ["webhooks", slug]): an import changes nothing
+        // outside it, and invalidating everything also asked again for the shell's own (session, lists, banners).
+        await qc.invalidateQueries({ predicate: (q) => q.queryKey[1] === team });
+        // What platform staff see of the team is read again when they next open it.
+        void qc.invalidateQueries({ queryKey: ["admin"], refetchType: "none" });
         return;
       }
       const fresh = res.error?.details?.plan;

@@ -4,9 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { meFor, mockApi, renderApp, shellRoutes, team } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => { window.scrollTo = () => {}; });
-
 function routes(role: "platform_admin" | "platform_auditor" | "none", description = "", classification = "sensitive") {
   return {
     ...shellRoutes(role),

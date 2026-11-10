@@ -9,11 +9,7 @@ import { evalRoutes, questions, result, run } from "./evaluations-fixtures";
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const T = { timeout: scaled(5000) };

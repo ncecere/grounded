@@ -1,5 +1,5 @@
 /* Grouping a newest-first list by the local day of its dates (Today, Yesterday, then the date). */
-import { startOfDay } from "@/components/ui/calendar/calendar";
+import { startOfDay } from "@/lib/start-of-day";
 
 export type DayGroup<T> = { key: string; label: string; items: T[] };
 

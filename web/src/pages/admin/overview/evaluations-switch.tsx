@@ -6,28 +6,19 @@
  * change it (If-Match, audited as platform.evaluations), confirming before
  * they turn it off; auditors see it disabled, with the reason.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ifMatch, unwrap } from "@/api/client";
-import { AlertDialog } from "@/components/ui/dialog/dialog";
-import { Switch } from "@/components/ui/switch/switch";
-import { toast } from "@/components/ui/toast/toast";
-import { lockedSwitch } from "./locked-switch";
+import { FeatureSwitch, useFeatureSave } from "./feature-switch";
 import { evaluationSettingsQuery } from "./queries";
 
 /** The evaluations setting and its save. */
 export function useEvaluationsSetting() {
-  const qc = useQueryClient();
   const settings = useQuery(evaluationSettingsQuery());
-  const save = useMutation({
-    mutationFn: async (enabled: boolean) =>
-      unwrap(await api.PUT("/v1/admin/settings/evaluations", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
-    onSuccess: (st) => {
-      qc.setQueryData(evaluationSettingsQuery().queryKey, st);
-      void qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success(st.enabled ? "Evaluations are on" : "Evaluations are off");
-    },
-    onError: () => void qc.invalidateQueries({ queryKey: evaluationSettingsQuery().queryKey }),
+  const save = useFeatureSave({
+    put: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/settings/evaluations", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
+    queryKey: evaluationSettingsQuery().queryKey,
+    alsoInvalidate: [["me"]],
+    saved: (st) => (st.enabled ? "Evaluations are on" : "Evaluations are off"),
   });
   return { settings, save };
 }
@@ -45,28 +36,13 @@ const offConsequences =
 /** The switch: platform admins confirm before turning evaluations off; others see it read-only, with the reason. */
 export function EvaluationsSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useEvaluationsSetting>; isAdmin: boolean }) {
   const { settings, save } = setting;
-  const [confirming, setConfirming] = useState(false);
-  if (!settings.data) return null;
   return (
-    <>
-      <Switch
-        label="Allow evaluations"
-        labelPosition="start"
-        checked={settings.data.enabled}
-        disabled={save.isPending}
-        {...lockedSwitch(isAdmin)}
-        onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
-      />
-      <AlertDialog
-        open={confirming}
-        onOpenChange={(o) => !o && setConfirming(false)}
-        title="Turn evaluations off for every team?"
-        description={offConsequences}
-        confirmLabel="Turn evaluations off"
-        busy={save.isPending}
-        error={save.error}
-        onConfirm={() => save.mutate(false, { onSuccess: () => setConfirming(false) })}
-      />
-    </>
+    <FeatureSwitch
+      label="Allow evaluations"
+      enabled={settings.data?.enabled}
+      save={save}
+      isAdmin={isAdmin}
+      off={{ title: "Turn evaluations off for every team?", description: offConsequences, confirmLabel: "Turn evaluations off" }}
+    />
   );
 }

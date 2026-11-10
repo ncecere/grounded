@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Compass, Home, KeyRound, LifeBuoy, LogOut, MessageSquare, MessagesSquare, Plug, User } from "lucide-react";
-import { api, unwrap } from "../../api/client";
-import { conversationsQuery } from "../../api/queries";
+import { attentionQuery, conversationsQuery } from "../../api/queries";
 import { liveGrant, useMyBreakGlass } from "../../lib/break-glass";
 import { terms } from "../../lib/terms";
 import { InstanceLogo, useInstance, useSignOut, type Me } from "../../session";
@@ -156,12 +155,7 @@ function AdminNav() {
 
 /** The count of pending domain requests beside Crawl domains (docs/ui-review P-16), and of team requests beside Teams (v0.6.0). */
 function PendingRequestsBadge({ field, noun }: { field: "pendingDomainRequests" | "pendingTeamRequests"; noun: string }) {
-  const attention = useQuery({
-    queryKey: ["admin", "attention"],
-    queryFn: async () => unwrap(await api.GET("/v1/admin/attention")),
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-  });
+  const attention = useQuery({ ...attentionQuery(), refetchInterval: 5 * 60_000 });
   const n = attention.data?.[field] ?? 0;
   if (n === 0) return null;
   return (

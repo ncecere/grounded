@@ -9,6 +9,8 @@
     "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "../node_modules/.cache/tsc/e2e.tsbuildinfo",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,

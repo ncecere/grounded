@@ -29,8 +29,6 @@ export const kindLabels: Record<Kind, { label: string; description: string }> = 
   },
 };
 
-export const kindLabel = (k: Kind) => kindLabels[k]?.label ?? k;
-
 /** "1 day", "90 days". */
 export const daysText = (d: number) => (d === 0 ? "at once" : `${d} ${d === 1 ? "day" : "days"}`);
 

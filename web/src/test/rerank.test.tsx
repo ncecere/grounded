@@ -12,11 +12,6 @@ import { RetrievePlayground } from "../pages/team/retrieve";
 import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const reranker = {
   id: "r1", connectionId: "c1", key: "bge-reranker", upstreamModel: "bge-reranker-v2-m3", displayName: "BGE reranker", description: "", kind: "rerank",
   maxClassification: "sensitive", enabled: true, supportsTools: false, supportsVision: false, compat: {}, maxInputTokens: 512,

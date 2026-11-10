@@ -9,15 +9,11 @@ import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { catalogRoutes, hook, webhookSettings } from "./webhooks-fixtures";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
 beforeEach(() => {
   // A 390px-wide phone: every max-width query up to 48rem matches.
   vi.stubGlobal("matchMedia", (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
 });
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
 });

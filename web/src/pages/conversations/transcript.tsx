@@ -5,7 +5,7 @@
  * agent was deleted, no composer (G2). The chat page falls back to this view
  * for a ?c= link to a deleted agent.
  */
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { Navigate, useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { api, unwrap } from "../../api/client";
@@ -23,10 +23,15 @@ import { Time } from "@/components/ui/time/time";
 import s from "../shared.module.css";
 import c from "./conversations.module.css";
 
-export const conversationQuery = (id: string) => ({
-  queryKey: ["conversation", id],
-  queryFn: async () => unwrap(await api.GET("/v1/conversations/{conversationId}", { params: { path: { conversationId: id } } })),
-});
+/** One stored conversation with its messages: the one definition, for this page and the chat page. */
+export const conversationQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["conversation", id],
+    queryFn: async () => unwrap(await api.GET("/v1/conversations/{conversationId}", { params: { path: { conversationId: id } } })),
+    // Always asked for again when opened: the chat adds messages and ratings to a conversation without writing them
+    // here, so a copy from seconds ago can already lack the last answer (the app's default would keep it for 15 s).
+    staleTime: 0,
+  });
 
 export function ConversationTranscriptPage() {
   const { conversationId } = useParams({ from: "/app/conversations/$conversationId" });

@@ -9,11 +9,7 @@ import { GapsView } from "../pages/agents/analytics/gaps";
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const T = { timeout: scaled(5000) };

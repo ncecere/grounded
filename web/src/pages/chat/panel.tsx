@@ -6,43 +6,29 @@
  * polite status says each step before the first words (progress.ts), and a
  * ConversationAnnouncer (polite status) says how each answer ended.
  */
-import { RotateCcw } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef } from "react";
+import { type ReactNode, type RefObject, useCallback, useEffect, useId, useMemo, useRef } from "react";
 import { Alert } from "@/components/ui/alert/alert";
-import { Button } from "@/components/ui/button/button";
-import { Conversation, ConversationAnnouncer, ConversationContent, ConversationScrollButton, useConversation } from "@/components/ui/conversation/conversation";
-import { PromptInput, PromptInputSubmit, PromptInputTextarea, PromptInputToolbar, PromptInputTools } from "@/components/ui/prompt-input/prompt-input";
+import { Conversation, ConversationContent, ConversationScrollButton, useConversation } from "@/components/ui/conversation/conversation";
 import { preloadResponse } from "@/components/ui/response/response-lazy";
-import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { cx } from "@/lib/bitop-utils";
-import { progressAnnouncement } from "./progress";
+import { Composer, type ComposerHandle } from "./composer";
 import { ChatMessages } from "./thread";
 import type { ViewerAccess } from "./viewer/data";
 import { ViewerHost } from "./viewer/host";
 import type { AssistantItem } from "./stream";
 import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
-import a from "./answer.module.css";
 import c from "./chat.module.css";
 import pm from "./panel.module.css";
 import { RevealBufferedAnswer } from "./reveal-answer";
 import { ShowSuggestions } from "./show-suggestions";
 import { rememberSuggestions, withRememberedSuggestions } from "./suggestion-memory";
 
-const defaultMaxLength = 8000;
-
-/** Characters (code points), as the server counts them: text.length counts UTF-16 units, so an emoji would count twice (#127). */
-const charCount = (s: string) => {
-  let n = 0;
-  for (const _ of s) n++;
-  return n;
-};
-
 type ChatPanelProps = {
   chat: ReturnType<typeof useChat>;
   agent: AgentLook;
-  text: string;
-  onTextChange: (text: string) => void;
+  /** The message box's handle: the page clears it for a new chat. The text itself is the composer's own state. */
+  composer?: RefObject<ComposerHandle | null>;
   /** Offer feedback on answers (stored conversations). */
   feedback?: boolean;
   /** Chat is impossible (e.g. the agent is disabled): why. */
@@ -82,14 +68,11 @@ function ScrollOnSend({ questions }: { questions: number }) {
   return null;
 }
 
-/** Errors worth a Retry: the question never left (offline). */
-const retriable = new Set(["send_failed"]);
-
 export function ChatPanel(props: ChatPanelProps) {
-  const { chat, text, onTextChange, disabledReason, inputRef, maxLength = defaultMaxLength } = props;
+  const { chat, inputRef } = props;
   const local = useRef<HTMLTextAreaElement | null>(null);
   const ref = inputRef ?? local;
-  const over = charCount(text) > maxLength;
+  const ownComposer = useRef<ComposerHandle | null>(null);
   const wasStreaming = useRef(false);
   // Fetch the Markdown engine while the user types the first question.
   useEffect(() => preloadResponse(), []);
@@ -103,43 +86,27 @@ export function ChatPanel(props: ChatPanelProps) {
     wasStreaming.current = chat.streaming;
   }, [chat.streaming, ref]);
 
-  const send = async (message: string) => {
-    if (!message.trim() || over || chat.streaming || disabledReason) return;
-    onTextChange("");
-    ref.current?.focus();
-    const started = await chat.send(message);
-    // Refused before it started: give the question back.
-    if (!started) onTextChange(message);
-  };
-  /** Asks without touching what's being typed (Retry after a lost answer, a starter under a refusal). */
-  const ask = async (question: string) => {
-    if (!question.trim() || chat.streaming || disabledReason) return;
-    const started = await chat.send(question);
-    if (!started && !ref.current?.value.trim()) onTextChange(question);
-  };
-
   return (
     <ViewerHost access={props.viewer} items={chat.items}>
-      <ChatColumn {...props} send={send} ask={ask} over={over} inputRef={ref} />
+      <ChatColumn {...props} composer={props.composer ?? ownComposer} inputRef={ref} />
     </ViewerHost>
   );
 }
 
 type ColumnProps = ChatPanelProps & {
-  send: (message: string) => Promise<void>;
-  ask: (question: string) => Promise<void>;
-  over: boolean;
+  composer: RefObject<ComposerHandle | null>;
   inputRef: RefObject<HTMLTextAreaElement | null>;
 };
 
 /** The conversation, its errors and the composer: one column, beside the source viewer when it is open. */
 function ChatColumn(props: ColumnProps) {
-  const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef: ref, label = "Conversation", fullPage, send, ask, over } = props;
-  const maxLength = props.maxLength ?? defaultMaxLength;
+  const { chat, agent, feedback, disabledReason, loading, inputRef: ref, composer, label = "Conversation", fullPage } = props;
   // An empty chat's message box is described by the agent's welcome (focused on opening a new chat, US2-04).
   const welcomeId = useId();
   const welcomed = chat.items.length === 0 && !loading;
-  const describedBy = [over && "composer-count", welcomed && welcomeId].filter(Boolean).join(" ") || undefined;
+  // Through the composer's handle, which holds the text: these two never change, so the answers aren't rendered again for them.
+  const send = useCallback((q: string) => void composer.current?.send(q), [composer]);
+  const ask = useCallback((q: string) => void composer.current?.ask(q), [composer]);
   // The last answer's follow-up suggestions survive a reload in this tab (US2-09).
   const items = useMemo(() => withRememberedSuggestions(chat.items), [chat.items]);
   useEffect(() => rememberSuggestions(chat.items), [chat.items]);
@@ -154,7 +121,7 @@ function ChatColumn(props: ColumnProps) {
       >
         <ConversationContent className={c.content}>
           {chat.items.length === 0 ? (
-            (loading ?? <ChatWelcome agent={agent} textId={welcomeId} compact={props.compact} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
+            (loading ?? <ChatWelcome agent={agent} textId={welcomeId} compact={props.compact} disabled={Boolean(disabledReason) || chat.streaming} onStarter={send} />)
           ) : (
             <ChatMessages
               items={items}
@@ -165,8 +132,8 @@ function ChatColumn(props: ColumnProps) {
               onAddToEvaluations={props.onAddToEvaluations}
               canAdd={props.canAdd}
               added={props.added}
-              onRetry={(q) => void ask(q)}
-              onStarter={disabledReason ? undefined : (q) => void ask(q)}
+              onRetry={ask}
+              onStarter={disabledReason ? undefined : ask}
             />
           )}
         </ConversationContent>
@@ -180,66 +147,17 @@ function ChatColumn(props: ColumnProps) {
           {disabledReason}
         </Alert>
       )}
-      {chat.error && (
-        <Alert
-          tone={chat.error.code === "rate_limited" || chat.error.code === "quota_exceeded" || chat.error.code === "budget_exhausted" ? "warning" : "danger"}
-          title={chat.error.title}
-          onDismiss={() => chat.setError(null)}
-          className={c.errorBox}
-          actions={
-            retriable.has(chat.error.code) && text.trim() ? (
-              <Button size="sm" variant="secondary" disabled={chat.streaming} onClick={() => void send(text)}>
-                <RotateCcw aria-hidden /> Retry
-              </Button>
-            ) : undefined
-          }
-        >
-          {chat.error.message}
-          {errorExtra}
-        </Alert>
-      )}
-      {/* What the agent is doing until the first words, one polite announcement per step (the log itself is silent). */}
-      <VisuallyHidden role="status">{progressAnnouncement(chat.items, agent.name)}</VisuallyHidden>
-      <ConversationAnnouncer
-        status={chat.streaming ? "streaming" : "ready"}
-        // Silent while answering (the log isn't live either); the outcome comes from useChat.
-        messages={{ submitted: "", streaming: "", complete: chat.announcement }}
+      <Composer
+        ref={composer}
+        chat={chat}
+        agentName={agent.name}
+        inputRef={ref}
+        composerId={props.composerId}
+        disabledReason={disabledReason}
+        errorExtra={props.errorExtra}
+        maxLength={props.maxLength}
+        welcomeId={welcomed ? welcomeId : undefined}
       />
-      <PromptInput
-        onSubmit={({ text: t }) => void send(t)}
-        status={chat.streaming ? "streaming" : "ready"}
-        onStop={() => {
-          chat.stop();
-          ref.current?.focus();
-        }}
-        className={cx(c.composer, pm.raised)}
-      >
-        <PromptInputTextarea
-          ref={ref}
-          id={props.composerId}
-          value={text}
-          aria-label={`Message ${agent.name}`}
-          placeholder={disabledReason ?? `Ask ${agent.name}…`}
-          disabled={Boolean(disabledReason)}
-          aria-invalid={over || undefined}
-          aria-describedby={describedBy}
-          onChange={(e) => onTextChange(e.target.value)}
-        />
-        <PromptInputToolbar>
-          <PromptInputTools className={c.tools}>
-            {/* The keyboard hint means nothing on a touch screen: hidden there (answer.module.css). */}
-            <span className={cx(c.hint, !chat.streaming && a.keyHint)}>
-              {chat.streaming ? "Answering… You can type your next question meanwhile." : "Enter to send, Shift+Enter for a new line."}
-            </span>
-            <span id="composer-count" className={c.count} data-over={over ? "" : undefined}>
-              {charCount(text).toLocaleString()} / {maxLength.toLocaleString()}
-              {over && " (too long)"}
-            </span>
-          </PromptInputTools>
-          {/* While streaming the button is Stop: only disable it when sending is impossible. */}
-          <PromptInputSubmit showLabel disabled={chat.streaming ? false : !text.trim() || over || Boolean(disabledReason)} />
-        </PromptInputToolbar>
-      </PromptInput>
     </div>
   );
 }

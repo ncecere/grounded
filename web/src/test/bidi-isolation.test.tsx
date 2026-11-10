@@ -7,12 +7,8 @@ const RLO = "\u202e";
 const evil = `Fees${RLO}dne`;
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 /** The `<bdi>` that holds `text` (an element that isolates it), or null. */

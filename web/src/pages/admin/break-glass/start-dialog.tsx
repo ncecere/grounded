@@ -3,7 +3,7 @@
  * duration. With the approval setting on, it becomes a request another
  * platform admin approves.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
@@ -15,7 +15,7 @@ import { NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { type BreakGlassDetail, type BreakGlassScope, breakGlassKey, durationText, scopeLabels } from "@/lib/break-glass";
 import { useFormState } from "@/lib/use-form-state";
-import { useDebounced } from "../hooks";
+import { useTeamOptions } from "../team-picker";
 
 type Settings = Schemas["BreakGlassSettings"];
 
@@ -40,15 +40,6 @@ export function startProblems(f: StartForm, minReason: number): Partial<Record<k
   else if (n > maxReason) out.reason = `At most ${maxReason} characters.`;
   if (f.scopes.length === 0) out.scopes = "Choose what you need to read.";
   return out;
-}
-
-function useTeamOptions(text: string): ComboboxOption[] {
-  const q = useDebounced(text.trim(), 250);
-  const teams = useQuery({
-    queryKey: ["admin", "teams", "break-glass-picker", q],
-    queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { q: q || undefined, limit: 20 } } })),
-  });
-  return (teams.data?.items ?? []).map(({ team: t }) => ({ value: t.slug, label: t.name, hint: t.slug }));
 }
 
 export function StartDialog({ settings, initialTeam, onClose, onStarted }: { settings: Settings; initialTeam?: string; onClose: () => void; onStarted: (s: BreakGlassDetail) => void }) {

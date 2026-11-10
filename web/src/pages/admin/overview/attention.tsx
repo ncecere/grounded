@@ -17,8 +17,10 @@ import { adminAgentsQuery } from "../agents/agents";
 import { failingCount, healthChecksQuery } from "../models/health";
 import { useIsPlatformAdmin } from "../hooks";
 import { auditStreamQuery, errorClassText, failingLong, lagText } from "../logs/streaming/queries";
-import { attentionQuery, featuresQuery, overviewQuery } from "./queries";
+import { attentionQuery } from "@/api/queries";
+import { featuresQuery, overviewQuery } from "./queries";
 import o from "./overview.module.css";
+import { plural } from "@/lib/plural";
 
 type Row = { id: string; icon: ReactNode; title: string; description: ReactNode; action?: string; link?: ReactElement; tone?: "danger" | "warning" };
 
@@ -45,7 +47,6 @@ function warningRow(w: Schemas["AdminWarning"], isAdmin: boolean): Row {
   };
 }
 
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
   const overview = useQuery(overviewQuery());

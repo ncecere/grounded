@@ -32,6 +32,8 @@ export function connectionTestQuery(connectionId: string) {
     queryKey: ["admin", "connection-test", connectionId],
     queryFn: async () => unwrap(await api.POST("/v1/admin/connections/{connectionId}/test", { params: { path: { connectionId } } })),
     retry: false,
+    // A live test of the connection: every place that shows it runs it again.
+    staleTime: 0,
   } as const;
 }
 

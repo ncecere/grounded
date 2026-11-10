@@ -38,12 +38,8 @@ const routes = (extra: Record<string, Handler> = {}) => ({
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 describe("the suggestions event", () => {

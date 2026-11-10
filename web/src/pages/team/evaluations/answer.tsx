@@ -13,7 +13,7 @@ import { useCallback, useId, useMemo, useState } from "react";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
 import { plainSnippet } from "@/lib/plain-text";
-import { displayNumbers, useAnswerMarkers, withUncited } from "../../chat/citations";
+import { AnswerMarkers, displayNumbers, markerProps, useAnswerMarkers, withUncited } from "../../chat/citations";
 import { ClaimSummary, uncitedOfClaims } from "../../chat/claims";
 import { revealSource } from "../../chat/reveal";
 import a from "../../chat/answer.module.css";
@@ -72,9 +72,11 @@ export function EvalAnswer({ result }: { result: EvalResult }) {
     <div className={e.answer}>
       {result.answer ? (
         // Answers quote team documents: never fetch image URLs from them.
-        <LazyResponse images="alt" {...(cites.length > 0 || result.claims ? markers : {})}>
-          {text}
-        </LazyResponse>
+        <AnswerMarkers value={markers}>
+          <LazyResponse images="alt" {...(cites.length > 0 || result.claims ? markerProps : {})}>
+            {text}
+          </LazyResponse>
+        </AnswerMarkers>
       ) : (
         <p className={s.muted}>The answer was empty.</p>
       )}

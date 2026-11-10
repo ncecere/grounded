@@ -4,11 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { SourceDetail } from "../pages/sources/detail";
 import { ApiFailure, mockApi, renderWith, webRoutes, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 async function openSettings(patch: () => unknown) {
   const calls = mockApi({ ...webRoutes(webSource()), "PATCH /v1/teams/registrar/sources/s1": patch });
   renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });

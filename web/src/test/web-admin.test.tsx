@@ -11,11 +11,6 @@ import { ApiFailure, common, counts, mockApi, renderWith, request, webSource } f
 
 /* Admin crawling, shared sources and attaching sources to knowledge bases (fixtures in web-harness.tsx). */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 describe("admin crawling page", () => {
   it("lists the allowlist and approves a domain request with a note", async () => {
     let requests = [request("r1", "pending"), request("r2", "approved", { pattern: "news.example.com", reviewedAt: "2026-09-21T10:00:00Z" })];

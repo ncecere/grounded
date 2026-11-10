@@ -7,11 +7,6 @@ import { mockApi, renderApp, shellRoutes } from "./harness";
 import { webSource } from "./web-harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const connection = {
   id: "c1",
   name: "Campus gateway",

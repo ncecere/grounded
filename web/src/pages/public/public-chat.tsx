@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button/button";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { FeedbackSenderContext, publicFeedback } from "../chat/feedback-sender";
+import type { ComposerHandle } from "../chat/composer";
 import { ChatPanel } from "../chat/panel";
 import { itemsFromConversation } from "../chat/stream";
 import { useChat } from "../chat/useChat";
@@ -52,7 +53,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
   const session = useQuery(publicSessionQuery(agent.id, widgetKey));
   const [hasSession, setHasSession] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
-  const [text, setText] = useState("");
+  const composer = useRef<ComposerHandle | null>(null);
   const local = useRef<HTMLTextAreaElement | null>(null);
   const ref = inputRef ?? local;
   const newConversation = useRef(false);
@@ -104,13 +105,17 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
   const newChat = () => {
     newConversation.current = true;
     reset([]);
-    setText("");
+    composer.current?.clear();
     setTimeout(() => ref.current?.focus(), 0);
   };
 
   const disabledReason =
     agent.status !== "active" ? "This assistant has been turned off." : needsCaptcha && !captchaToken ? "Complete the verification below to start." : undefined;
-  const look = { name: agent.name, accentColor: agent.accentColor, welcomeMessage: agent.welcomeMessage, starterQuestions: agent.starterQuestions, description: agent.description };
+  // The same object while the agent is: the answers are memoised on it (chat/thread.tsx).
+  const look = useMemo(
+    () => ({ name: agent.name, accentColor: agent.accentColor, welcomeMessage: agent.welcomeMessage, starterQuestions: agent.starterQuestions, description: agent.description }),
+    [agent],
+  );
 
   // The widget's loader already shows the agent's name and Close: the frame names it for screen readers only, and
   // has a slim row for New chat once there's a conversation (one header, US-16).
@@ -149,8 +154,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
           <ChatPanel
             chat={{ ...chat, send }}
             agent={look}
-            text={text}
-            onTextChange={setText}
+            composer={composer}
             feedback
             fullPage
             viewer={viewer}

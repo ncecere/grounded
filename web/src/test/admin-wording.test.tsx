@@ -1,5 +1,5 @@
 /* Wording found in the v0.4.1 bug hunt (AD-36): a kill-switch reason ends its sentence; an archived team's empty sources say why nothing can be added. */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -8,11 +8,10 @@ import type { Agent } from "../pages/agents/common";
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { SourcesPage } from "../pages/team/sources";
 import { common, mockApi, team } from "./web-harness";
-
-afterEach(() => vi.unstubAllGlobals());
+import { testQueryClient } from "./query-client";
 
 function renderInTeam(ui: ReactNode, archived: boolean) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   qc.setQueryData(["me"], { user: { id: "u1", email: "u1@example.edu", displayName: "Una", platformRole: "none", status: "active" }, teams: [], csrfToken: "c", capabilities: { platformAdmin: false, platformAuditor: false } });
   const ctx = teamCtx({ ...team, status: archived ? "archived" : "active" }, "owner");
   const root = createRootRoute({ component: () => <TeamContext.Provider value={ctx}>{ui}</TeamContext.Provider> });

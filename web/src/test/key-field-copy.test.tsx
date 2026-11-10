@@ -5,11 +5,6 @@ import { keyProblem } from "../lib/validation";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const copy = "Use lowercase letters, digits, dots, hyphens and underscores, starting with a letter or digit (63 characters at most).";
 const conn = { id: "c1", name: "Gateway", baseUrl: "http://gateway.example.edu/v1", enabled: true, modelCount: 0, revision: 1, timeoutSeconds: 60, maxConcurrentRequests: 8 };
 const embed = { id: "m2", connectionId: "c1", key: "nomic", upstreamModel: "nomic", displayName: "Nomic", kind: "embedding", maxClassification: "open", enabled: true, dimensions: 768, compat: {}, revision: 1, createdAt: "", updatedAt: "" };

@@ -63,7 +63,9 @@ export function ViewerHost({ access, items, children }: Props) {
   const wide = useWide(group);
   const found = open ? items.find((i) => i.key === open.key && i.role === "assistant") : undefined;
   const item = found?.role === "assistant" ? found : undefined;
-  const target: ViewerTarget | undefined = item && open ? { item, n: open.n } : undefined;
+  // The same object until the answer or the source changes: it is in the context every answer reads, and a new one
+  // on each streamed token would render them all again.
+  const target = useMemo<ViewerTarget | undefined>(() => (item && open ? { item, n: open.n } : undefined), [item, open]);
 
   const show = useCallback((t: ViewerTarget) => {
     setOpen((cur) => {

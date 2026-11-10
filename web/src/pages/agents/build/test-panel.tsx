@@ -25,7 +25,6 @@ type Props = {
 };
 
 export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) {
-  const [text, setText] = useState("");
   const { slug } = useTeam();
   // "Add to evaluations" on any test question (docs/evaluations.md §1).
   const evaluationsOn = useEvaluationsOn();
@@ -35,6 +34,12 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
   // Nothing is stored: cited passages open through the team's documents (editors may read them).
   const viewer = useMemo(() => ({ kind: "team" as const, team: slug }), [slug]);
   const p = d.draft.profile;
+  // The same object until the draft's look changes: the answers are memoised on it (chat/thread.tsx).
+  const name = p.name || agent.name;
+  const look = useMemo(
+    () => ({ name, accentColor: p.accentColor, welcomeMessage: p.welcomeMessage, starterQuestions: p.starterQuestions, description: p.description }),
+    [name, p.accentColor, p.welcomeMessage, p.starterQuestions, p.description],
+  );
   const problems = (chat.error?.code === "agent_invalid" ? (chat.error.details?.problems as AgentProblem[] | undefined) : undefined) ?? [];
 
   return (
@@ -76,9 +81,7 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
                 return chat.send(message);
               },
             }}
-            agent={{ name: p.name || agent.name, accentColor: p.accentColor, welcomeMessage: p.welcomeMessage, starterQuestions: p.starterQuestions, description: p.description }}
-            text={text}
-            onTextChange={setText}
+            agent={look}
             inputRef={inputRef}
             viewer={viewer}
             label="Draft test conversation"

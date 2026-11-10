@@ -11,11 +11,6 @@ import { type Handler, Reply, meFor, mockApi, renderApp, shellRoutes } from "./h
 import { set as baseSet } from "./evaluations-fixtures";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 type EvalSet = Schemas["EvaluationSet"];
 const summary = (recall: number): Schemas["EvaluationSummary"] => ({
   k: 4, questions: 3, passed: 2, failed: 1, missing: 0, notIndexed: 0, errors: 0, recall, mrr: 0.5, cited: 0, citedOnly: 0, refused: 0,
@@ -118,7 +113,6 @@ describe("the team's Evaluations page (I3)", () => {
       // The menu opens inside the page's main landmark, not at the end of <body> (G19, axe's region rule).
       expect(screen.getByRole("menu").closest("main")).not.toBeNull();
     } finally {
-      vi.unstubAllGlobals();
       localStorage.clear();
     }
   });

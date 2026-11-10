@@ -10,11 +10,6 @@ import { changedRows, configRows } from "../pages/agents/config-rows";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-afterEach(() => vi.unstubAllGlobals());
-
 const config: Schemas["AgentConfig"] = {
   instructions: "Help with IT questions.", chatModelId: "mod1", kbs: [{ kbId: "kb1", topK: 6 }], retrievalMode: "always", maxTurns: 4,
   contextTokenBudget: 6000, minSimilarity: 0, strictlyGrounded: true, refusalMessage: "No.", citationMode: "snippet_link", queryRewrite: true,

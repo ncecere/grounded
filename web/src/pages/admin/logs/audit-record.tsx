@@ -13,7 +13,7 @@ import { Time } from "@/components/ui/time/time";
 import { useCostSettings } from "@/lib/costs";
 import s from "../../shared.module.css";
 import { useConnections, useModels } from "../models/common";
-import { profilesQuery } from "../overview/queries";
+import { adminProfilesQuery } from "../hooks";
 
 type Entry = Schemas["AuditEntry"];
 
@@ -27,7 +27,7 @@ export function AuditTeam({ entry }: { entry: Pick<Entry, "teamId" | "teamName" 
 function useCatalogNames(enabled: boolean): Map<string, string> {
   const models = useModels();
   const connections = useConnections();
-  const profiles = useQuery({ ...profilesQuery(), enabled });
+  const profiles = useQuery({ ...adminProfilesQuery(), enabled });
   const out = new Map<string, string>();
   for (const m of models.data ?? []) out.set(m.id.toLowerCase(), m.displayName);
   for (const c of connections.data ?? []) out.set(c.id.toLowerCase(), c.name);

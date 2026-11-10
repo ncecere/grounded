@@ -48,6 +48,33 @@ export const sharedSourceQuery = (sourceId: string) =>
     queryFn: async () => unwrap(await api.GET("/v1/admin/shared-sources/{sourceId}", { params: { path: { sourceId } } })),
   });
 
+/** What needs a platform admin's attention (the Overview's list and the sidebar's counts): one definition, one request. */
+export const attentionQuery = () =>
+  queryOptions({
+    queryKey: ["admin", "attention"],
+    queryFn: async () => unwrap(await api.GET("/v1/admin/attention")),
+    staleTime: 60_000,
+  });
+
+/** The classification levels as stored (pages/team/common.tsx sorts them by rank; the admin pages read them as they are). */
+export const classificationsQuery = () =>
+  queryOptions({
+    queryKey: ["classifications"],
+    queryFn: async () => unwrap(await api.GET("/v1/classifications")),
+  });
+
+export const membersKey = (team: string) => ["team", team, "members"];
+
+/** A team's members: the one definition, for every list, picker and filter that reads them. */
+export const membersQuery = (team: string) =>
+  queryOptions({
+    queryKey: membersKey(team),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
+  });
+
+/** Every team's member list: for a change that can move people in or out of any team (SSO group rules, a user's status). */
+export const anyMembers = { predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[0] === "team" && q.queryKey[2] === "members" };
+
 /* ---------------- agents and conversations (Phase 3) ---------------- */
 
 export const conversationsKey = ["conversations"];

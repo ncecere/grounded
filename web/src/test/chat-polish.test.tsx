@@ -29,7 +29,6 @@ describe("the search step (US-09)", () => {
 });
 
 describe("feedback (US-11)", () => {
-  afterEach(() => vi.unstubAllGlobals());
 
   it("a pressed Good answer takes the rating back, said to screen readers, without a toast", async () => {
     const calls = mockApi({ "POST /v1/messages/m1/feedback": (b) => ({ messageId: "m1", shared: false, ...(b as object) }) });
@@ -50,7 +49,6 @@ describe("feedback (US-11)", () => {
 });
 
 describe("Discover's filters (US-13)", () => {
-  afterEach(() => vi.unstubAllGlobals());
   const card = (id: string, name: string, teamSlug: string, teamName: string) => ({
     id, name, slug: id, teamSlug, teamName, description: "", accentColor: "#0021a5", welcomeMessage: "", starterQuestions: [],
     citationMode: "snippet_link", status: "active", audience: "team", group: "team",

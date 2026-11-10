@@ -3,8 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { mockApi, renderApp, shellRoutes, team } from "./harness";
 
-afterEach(() => vi.unstubAllGlobals());
-
 it.each(["owner", "admin", "editor"])("offers export for actual %s, with no automatic request", async (role) => {
   const calls = mockApi(shellRoutes("none", role));
   const { container } = renderApp("/teams/registrar/settings?tab=general");

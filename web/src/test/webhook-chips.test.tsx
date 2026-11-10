@@ -6,11 +6,6 @@ import { mockApi, renderApp } from "./harness";
 import { hook, teamSettingsRoutes, webhookRoutes } from "./webhooks-fixtures";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 /** The declarations of `.name { … }` in a CSS module. */
 const rule = (css: string, name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? "";
 

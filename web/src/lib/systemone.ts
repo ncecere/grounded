@@ -1,6 +1,7 @@
 /* SystemOne models (ADR-0020, docs/systemone.md): the status editors read, labels, and the admin settings form (pure, unit-tested). */
 import { useQuery } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "../api/client";
+import { pct } from "./percent";
 
 export type SystemOneStatus = Schemas["SystemOneStatus"];
 export type SystemOneSettings = Schemas["SystemOneSettings"];
@@ -40,7 +41,7 @@ export function judgedSummary(j: { judged: number; kept: number }) {
   return `${j.judged} ${j.judged === 1 ? "passage" : "passages"} checked, ${j.kept} kept`;
 }
 
-export const pct = (p: number) => `${Math.round(p * 100)}%`;
+export { pct };
 
 /**
  * The agent editor's cost of a SystemOne check (docs/v0.4.1.md §4), from the platform's median added time over the

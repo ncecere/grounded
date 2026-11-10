@@ -11,6 +11,11 @@ expect.extend(matchers);
 configure({ asyncUtilTimeout: scaled(5000) }); // times TEST_TIME_SCALE, 1 unless set (test-scale.ts)
 afterEach(() => cleanup());
 
+// jsdom doesn't implement window.scrollTo (the router restores the scroll position on navigation, and pages scroll to
+// their top): a no-op for every test, instead of the same stub in each file. Globals a test stubs (fetch through
+// mockApi, matchMedia…) are put back before the next test by `unstubGlobals` (vite.config.ts).
+window.scrollTo = () => {};
+
 // axe's "label-content-name-mismatch" (WCAG 2.5.3, Label in Name) draws text on a canvas to tell icon fonts from words;
 // jsdom has no canvas, so the rule came back "incomplete" and every vitest axe check skipped it. This minimal context
 // says "this is ordinary text" so the rule runs on the markup: a button named "Paused, 0" around the text "Paused0"

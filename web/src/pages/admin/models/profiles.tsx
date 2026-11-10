@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { toast } from "@/components/ui/toast/toast";
 import { useLevelName } from "../../team/common";
+import { adminProfilesKey, adminProfilesQuery } from "../hooks";
 import { describeWeights } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
 import { CHUNKERS } from "./chunkers";
@@ -34,7 +35,7 @@ function useProfileMutations(onDeleted: () => void) {
     mutationFn: async ({ p, body }: ProfileUpdate) =>
       unwrap(await api.PATCH("/v1/admin/embedding-profiles/{profileId}", { params: { path: { profileId: p.id }, header: ifMatch(p.revision) }, body })),
     onSuccess: (_, { p, body }) => toast.success(body.isDefault ? `${p.name} is now the default` : body.status === "retired" ? `${p.name} was retired` : `${p.name} was reactivated`),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["admin", "profiles"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: adminProfilesKey }),
   });
   const del = useMutation({
     mutationFn: async (p: Profile) => unwrap(await api.DELETE("/v1/admin/embedding-profiles/{profileId}", { params: { path: { profileId: p.id } } })),
@@ -58,7 +59,7 @@ function ProfileStatus({ p }: { p: Profile }) {
 /** The profiles list; `add` is the "Add profile" button for the empty state (platform admins). */
 export function ProfilesTab({ isAdmin, add }: { isAdmin: boolean; add?: ReactNode }) {
   const levelName = useLevelName();
-  const profiles = useQuery({ queryKey: ["admin", "profiles"], queryFn: async () => unwrap(await api.GET("/v1/admin/embedding-profiles")) });
+  const profiles = useQuery(adminProfilesQuery());
   const usage = useCatalogUsage();
   const record = useRecordParam();
   const [deleting, setDeleting] = useState<Profile | null>(null);

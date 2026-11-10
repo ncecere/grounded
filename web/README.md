@@ -9,7 +9,7 @@ npm run typecheck       # tsc --noEmit
 npm test                # vitest: page tests with axe
 npm run check:styling   # styling policy (scripts/check-styling.mjs), also run in CI
 npm run check:size      # file size limits (scripts/check-size.mjs), also run in CI
-npm run build           # type-check + production build into dist/
+npm run build           # production build into dist/ (no type-check: run typecheck, as CI does in `make web-test`)
 npm run gen             # regenerate src/api/schema.gen.ts from ../api/openapi.yaml
 npm run e2e             # Playwright end-to-end tests against a real server (see "End-to-end tests")
 ```

@@ -8,11 +8,6 @@ import { urlPath } from "../pages/team/documents/table";
 import { withPendingTags } from "../pages/team/documents/upload";
 import { common, mockApi, renderWith, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const uploadSource = (extra: Partial<Schemas["DataSource"]> = {}) => webSource({ type: "upload", web: null, name: "Policies", lastSyncAt: null, nextSyncAt: null, ...extra });
 
 const doc = (id: string, extra: Partial<Schemas["Document"]> = {}): Schemas["Document"] => ({

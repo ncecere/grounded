@@ -5,13 +5,9 @@
  * audited as platform.mcp), confirming before they turn it off; auditors see
  * it disabled, with the reason.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ifMatch, unwrap } from "@/api/client";
-import { AlertDialog } from "@/components/ui/dialog/dialog";
-import { Switch } from "@/components/ui/switch/switch";
-import { toast } from "@/components/ui/toast/toast";
-import { lockedSwitch } from "./locked-switch";
+import { FeatureSwitch, useFeatureSave } from "./feature-switch";
 import { mcpSettingsQuery } from "./queries";
 
 /**
@@ -31,17 +27,12 @@ export const mcpEndpoint = (origin = window.location.origin) => `${origin}/mcp`;
 
 /** The MCP setting and its save. */
 export function useMCPSetting() {
-  const qc = useQueryClient();
   const settings = useQuery(mcpSettingsQuery());
-  const save = useMutation({
-    mutationFn: async (enabled: boolean) =>
-      unwrap(await api.PUT("/v1/admin/settings/mcp", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
-    onSuccess: (st) => {
-      qc.setQueryData(mcpSettingsQuery().queryKey, st);
-      void qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success(st.enabled ? "The MCP server is on" : "The MCP server is off");
-    },
-    onError: () => void qc.invalidateQueries({ queryKey: mcpSettingsQuery().queryKey }),
+  const save = useFeatureSave({
+    put: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/settings/mcp", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
+    queryKey: mcpSettingsQuery().queryKey,
+    alsoInvalidate: [["me"]],
+    saved: (st) => (st.enabled ? "The MCP server is on" : "The MCP server is off"),
   });
   return { settings, save };
 }
@@ -59,28 +50,13 @@ const offConsequences =
 /** The switch: platform admins confirm before turning the server off; others see it read-only, with the reason. */
 export function MCPSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useMCPSetting>; isAdmin: boolean }) {
   const { settings, save } = setting;
-  const [confirming, setConfirming] = useState(false);
-  if (!settings.data) return null;
   return (
-    <>
-      <Switch
-        label="Allow MCP clients"
-        labelPosition="start"
-        checked={settings.data.enabled}
-        disabled={save.isPending}
-        {...lockedSwitch(isAdmin)}
-        onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
-      />
-      <AlertDialog
-        open={confirming}
-        onOpenChange={(o) => !o && setConfirming(false)}
-        title="Turn the MCP server off?"
-        description={offConsequences}
-        confirmLabel="Turn the MCP server off"
-        busy={save.isPending}
-        error={save.error}
-        onConfirm={() => save.mutate(false, { onSuccess: () => setConfirming(false) })}
-      />
-    </>
+    <FeatureSwitch
+      label="Allow MCP clients"
+      enabled={settings.data?.enabled}
+      save={save}
+      isAdmin={isAdmin}
+      off={{ title: "Turn the MCP server off?", description: offConsequences, confirmLabel: "Turn the MCP server off" }}
+    />
   );
 }

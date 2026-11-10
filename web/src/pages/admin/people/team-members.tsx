@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
+import { membersKey, membersQuery } from "@/api/queries";
 import { ssoGroup } from "@/components/member-list";
 import { InviteList, invitesKey } from "@/components/members";
 import { Stack } from "@/components/ui/layout/layout";
@@ -56,10 +57,8 @@ const columns: DataTableColumn<Member>[] = [
 
 export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boolean }) {
   const [assigning, setAssigning] = useState(false);
-  const members = useQuery({
-    queryKey: ["admin", "team", team, "members"],
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
-  });
+  // The team's own member list (one key with Team settings › Members, so neither shows what the other changed late).
+  const members = useQuery(membersQuery(team));
   return (
     <Stack gap={6}>
       <Card
@@ -119,7 +118,8 @@ function AssignOwnerDialog({ team, onClose }: { team: string; onClose: () => voi
     onSuccess: () => {
       toast.success("Owner assigned", email ?? undefined);
       void qc.invalidateQueries({ queryKey: ["admin"] });
-      // An invited address shows under Open invites, whose key is not under "admin".
+      // The members and an invited address (under Open invites): their keys are the team's, not under "admin".
+      void qc.invalidateQueries({ queryKey: membersKey(team) });
       void qc.invalidateQueries({ queryKey: invitesKey(team) });
       onClose();
     },

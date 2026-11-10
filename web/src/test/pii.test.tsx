@@ -9,11 +9,6 @@ import { SourceDetail } from "../pages/sources/detail";
 import { mockApi as mockShell, renderApp, shellRoutes } from "./harness";
 import { common, mockApi, renderWith, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const settings = (extra: Partial<Schemas["PiiSettings"]> = {}): Schemas["PiiSettings"] => ({
   enabled: true,
   blockLevels: [],

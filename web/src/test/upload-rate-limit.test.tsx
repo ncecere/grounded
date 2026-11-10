@@ -1,16 +1,12 @@
 /* #132: an upload refused with 429 says so, with the Retry-After seconds, instead of "Check your connection". */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TeamContext, teamCtx, type Team } from "../pages/team/common";
 import { UploadArea } from "../pages/team/documents/upload";
 import { meFor } from "./harness";
-
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
+import { testQueryClient } from "./query-client";
 
 const team: Team = {
   id: "t1", slug: "registrar", name: "Office of the Registrar", description: "", maxClassification: "restricted", status: "active", revision: 1, createdAt: "", updatedAt: "",
@@ -43,7 +39,7 @@ function stubXHR(outcome: Outcome) {
 }
 
 async function uploadOne() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   qc.setQueryData(["me"], meFor());
   const root = createRootRoute({
     component: () => (

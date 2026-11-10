@@ -1,11 +1,10 @@
 /* #132: a team whose cost tracking is Off answers GET /v1/teams/{team}/spend with 404 costs_off. Its budget status says the mode, so the pages do not ask at all; without that answer they ask once, not on every visit. */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { forgetTeamSpend } from "../lib/costs";
 import { useTeamSpend } from "../pages/team/spend";
 import { Reply, mockApi } from "./harness";
-
-afterEach(() => vi.unstubAllGlobals());
+import { testQueryClient } from "./query-client";
 
 function Page({ team }: { team: string }) {
   const spend = useTeamSpend(team);
@@ -23,7 +22,7 @@ describe("a team's spend while its cost tracking is off", () => {
       "GET /v1/teams/registrar/budget-status": () => banner("off"),
       "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team"),
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = testQueryClient();
     render(
       <QueryClientProvider client={qc}>
         <Page team="registrar" />
@@ -39,7 +38,7 @@ describe("a team's spend while its cost tracking is off", () => {
       "GET /v1/teams/registrar/budget-status": () => banner("track"),
       "GET /v1/teams/registrar/spend": () => ({ status: {}, timeZone: "UTC", from: "2026-10-01", to: "2026-10-16", total: null, agents: [], models: [] }),
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = testQueryClient();
     render(
       <QueryClientProvider client={qc}>
         <Page team="registrar" />
@@ -51,7 +50,7 @@ describe("a team's spend while its cost tracking is off", () => {
 
   it("is asked once when the budget status cannot be read, not again for every page opened afterwards", async () => {
     const calls = mockApi({ "GET /v1/teams/registrar/spend": () => Reply.error(404, "costs_off", "Cost tracking is off for this team") });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = testQueryClient();
     const view = (n: number) => (
       <QueryClientProvider client={qc}>
         <Page key={n} team="registrar" />
@@ -75,7 +74,7 @@ describe("a team's spend while its cost tracking is off", () => {
       "GET /v1/teams/registrar/budget-status": () => banner(on ? "track" : "off"),
       "GET /v1/teams/registrar/spend": () => (on ? { status: {}, timeZone: "UTC", from: "2026-10-01", to: "2026-10-16", total: null, agents: [], models: [] } : Reply.error(404, "costs_off", "Off")),
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = testQueryClient();
     const ui = (
       <QueryClientProvider client={qc}>
         <Page team="registrar" />

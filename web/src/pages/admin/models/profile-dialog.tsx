@@ -20,6 +20,7 @@ import { toast } from "@/components/ui/toast/toast";
 import { useFormState } from "@/lib/use-form-state";
 import { keyProblem } from "@/lib/validation";
 import { useLevelName } from "../../team/common";
+import { adminProfilesKey } from "../hooks";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
 import { CHUNKER_HELP, CHUNKERS } from "./chunkers";
@@ -62,7 +63,7 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
   const save = useMutation({
     mutationFn: async () => unwrap(await api.POST("/v1/admin/embedding-profiles", { body: profileBody(form, modelId) })),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "profiles"] });
+      qc.invalidateQueries({ queryKey: adminProfilesKey });
       toast.success("Embedding profile created");
       onClose();
     },
@@ -257,7 +258,7 @@ export function ProfileFusionDialog({ profile, onClose }: { profile: Profile; on
         }),
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "profiles"] });
+      qc.invalidateQueries({ queryKey: adminProfilesKey });
       toast.success(`Fusion defaults of ${profile.name} saved`);
       onClose();
     },

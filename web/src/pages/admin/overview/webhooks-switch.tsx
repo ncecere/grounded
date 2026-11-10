@@ -3,28 +3,20 @@
  * audited as platform.webhooks), confirming before they turn it off; auditors see it read-only, with the reason. Off means no new webhooks,
  * no events recorded and nothing sent; the webhooks that exist are kept, and turning it on again resumes them.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ifMatch, unwrap } from "@/api/client";
-import { AlertDialog } from "@/components/ui/dialog/dialog";
-import { Switch } from "@/components/ui/switch/switch";
-import { toast } from "@/components/ui/toast/toast";
 import { webhookSettingsQuery } from "../../webhooks/api";
-import { lockedSwitch } from "./locked-switch";
+import { FeatureSwitch, useFeatureSave } from "./feature-switch";
 
 /** The webhook setting and its save. */
 export function useWebhookSettings() {
-  const qc = useQueryClient();
   const settings = useQuery(webhookSettingsQuery());
-  const save = useMutation({
-    mutationFn: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/settings/webhooks", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
-    onSuccess: (st) => {
-      qc.setQueryData(webhookSettingsQuery().queryKey, st);
-      // Team settings shows its Webhooks tab by the capability.
-      void qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success(st.enabled ? "Webhooks are on" : "Webhooks are off");
-    },
-    onError: () => void qc.invalidateQueries({ queryKey: webhookSettingsQuery().queryKey }),
+  const save = useFeatureSave({
+    put: async (enabled: boolean) => unwrap(await api.PUT("/v1/admin/settings/webhooks", { params: { header: ifMatch(settings.data!.revision) }, body: { enabled } })),
+    queryKey: webhookSettingsQuery().queryKey,
+    // Team settings shows its Webhooks tab by the capability.
+    alsoInvalidate: [["me"]],
+    saved: (st) => (st.enabled ? "Webhooks are on" : "Webhooks are off"),
   });
   return { settings, save };
 }
@@ -41,28 +33,13 @@ const offConsequences =
 /** The switch: platform admins confirm before turning webhooks off; others see it read-only, with the reason. */
 export function WebhooksSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useWebhookSettings>; isAdmin: boolean }) {
   const { settings, save } = setting;
-  const [confirming, setConfirming] = useState(false);
-  if (!settings.data) return null;
   return (
-    <>
-      <Switch
-        label="Allow webhooks"
-        labelPosition="start"
-        checked={settings.data.enabled}
-        disabled={save.isPending}
-        {...lockedSwitch(isAdmin)}
-        onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
-      />
-      <AlertDialog
-        open={confirming}
-        onOpenChange={(o) => !o && setConfirming(false)}
-        title="Turn webhooks off?"
-        description={offConsequences}
-        confirmLabel="Turn webhooks off"
-        busy={save.isPending}
-        error={save.error}
-        onConfirm={() => save.mutate(false, { onSuccess: () => setConfirming(false) })}
-      />
-    </>
+    <FeatureSwitch
+      label="Allow webhooks"
+      enabled={settings.data?.enabled}
+      save={save}
+      isAdmin={isAdmin}
+      off={{ title: "Turn webhooks off?", description: offConsequences, confirmLabel: "Turn webhooks off" }}
+    />
   );
 }

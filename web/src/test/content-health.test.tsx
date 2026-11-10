@@ -9,11 +9,7 @@ import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness"
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const T = { timeout: scaled(5000) };

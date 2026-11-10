@@ -1,15 +1,4 @@
-/* Analytics building blocks: date range, stat groups and breakdown grids. */
-
-.rangeBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.rangeField {
-  width: 11rem;
-}
+/* Analytics building blocks: stat groups and breakdown grids. */
 
 .grid2 {
   display: grid;

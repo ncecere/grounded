@@ -16,6 +16,7 @@ import s from "../../shared.module.css";
 import { ParentSizeField } from "../models/parents";
 import { parentProblem, parentSummary } from "../models/parent-size";
 import { CHUNKER_HELP, CHUNKERS, chunkerNow } from "../models/chunkers";
+import { adminProfilesKey, adminProfilesQuery } from "../hooks";
 import { adminKBsQuery, type Migration, migrationsKey } from "./common";
 import { useContextualPreviewEstimate } from "./contextual-preview";
 import p from "./profile-migrations.module.css";
@@ -30,7 +31,7 @@ const whole = (v: string) => (v.trim() !== "" && Number.isInteger(Number(v)) ? N
 export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
   const qc = useQueryClient();
   const kbs = useQuery(adminKBsQuery());
-  const profiles = useQuery({ queryKey: ["admin", "profiles"], queryFn: async () => unwrap(await api.GET("/v1/admin/embedding-profiles")) });
+  const profiles = useQuery(adminProfilesQuery());
   const models = useQuery({ queryKey: ["admin", "models"], queryFn: async () => unwrap(await api.GET("/v1/admin/models")) });
   const [kbId, setKB] = useState(initialKB ?? "");
   const [name, setName] = useState("");
@@ -70,7 +71,7 @@ export function PreviewDialog({ initialKB, onClose, onStarted }: Props) {
     onSuccess: (m) => {
       void qc.invalidateQueries({ queryKey: migrationsKey });
       void qc.invalidateQueries({ queryKey: ["admin", "knowledge-bases"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "profiles"] });
+      void qc.invalidateQueries({ queryKey: adminProfilesKey });
       toast.success(`Building the new index of ${m.kb.name}`);
       onStarted(m);
     },

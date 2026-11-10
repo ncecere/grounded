@@ -78,7 +78,7 @@ export const audienceTabs = [
   { value: "public", label: "Public" },
 ] as const satisfies readonly { value: Schemas["Audience"]; label: string }[];
 
-export const percent = (p: number) => `${Math.round(p * 100)}%`;
+export { pct as percent } from "./percent";
 
 /** Parses a threshold typed as a percentage (0–100) into 0–1; undefined when invalid. */
 export function parseThreshold(v: string): number | undefined {

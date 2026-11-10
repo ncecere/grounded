@@ -7,10 +7,6 @@ import type { Schemas } from "../api/client";
 import { destinationProblems, lagText } from "../pages/admin/logs/streaming/queries";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const dest = (extra: Partial<Schemas["AuditStreamDestination"]> = {}): Schemas["AuditStreamDestination"] => ({
   id: "d1", name: "Splunk", kind: "https", format: "splunk_hec", address: "https://splunk.example.edu:8088/services/collector/event",
   hasAuthHeader: true, caPem: "", enabled: true, started: true, sentTotal: 1234, lastSentAt: "2026-11-05T10:00:00Z", lastErrorClass: "",

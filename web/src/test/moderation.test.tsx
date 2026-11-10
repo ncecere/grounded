@@ -11,11 +11,6 @@ import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 
 /* Moderation (docs/phase4-publishing.md §4, §10): the admin page, its form helpers, and the chat's moderation event. */
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const cats = ["violence", "self_harm", "sexual", "sexual_minors", "harassment_hate", "illicit", "personal_data", "prompt_injection"] as const;
 const policy = (audience: Schemas["Audience"], extra: Partial<Schemas["ModerationPolicy"]> = {}): Schemas["ModerationPolicy"] => {
   const action = audience === "public" ? "block" : "off";

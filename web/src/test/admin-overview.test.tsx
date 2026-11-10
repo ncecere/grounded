@@ -13,7 +13,6 @@ import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness"
 import { adminAgent } from "./admin-fixtures";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

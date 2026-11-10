@@ -5,8 +5,6 @@ import type { Schemas } from "../api/client";
 import { ContextualCard } from "../pages/sources/contextual";
 import { ApiFailure, mockApi, renderWith } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-
 const path = "/v1/admin/sources/s1/contextual";
 const budget = { maxTokens: 100000, maxTokensPerDay: 100000, maxAmount: "1.000001", maxAmountPerDay: "2.000001", currency: "USD" };
 const state = (extra: Partial<Schemas["ContextualChunks"]> = {}): Schemas["ContextualChunks"] => ({

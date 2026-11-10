@@ -10,11 +10,7 @@ import { type Handler, mockApi, Reply, renderApp, shellRoutes } from "./harness"
 import { scaled } from "../../test-scale";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
-});
-beforeAll(() => {
-  window.scrollTo = () => {};
 });
 
 const at = "2026-09-29T10:00:00Z";

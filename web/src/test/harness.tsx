@@ -1,10 +1,11 @@
 /* Test helpers for the Phase 3 pages: a fetch mock with status codes and SSE bodies, and renderers. */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { routeTree } from "../router";
 import { withFeatures } from "./admin-features";
+import { testQueryClient } from "./query-client";
 
 export type Call = { method: string; url: string; search: URLSearchParams; body?: unknown; rawBody?: string; headers: Headers; signal?: AbortSignal };
 
@@ -119,7 +120,7 @@ export const shellRoutes = (role: Parameters<typeof meFor>[0] = "none", teamRole
 });
 
 export function renderApp(path: string) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [path] }) });
   const utils = render(
     <QueryClientProvider client={qc}>
@@ -131,7 +132,7 @@ export function renderApp(path: string) {
 
 /** Renders a component inside a bare router and query client (me preloaded). */
 export function renderBare(ui: ReactNode, me: unknown = meFor()) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = testQueryClient();
   qc.setQueryData(["me"], me);
   const root = createRootRoute({ component: () => <>{ui}</> });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ["/"] }) });

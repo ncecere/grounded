@@ -33,6 +33,8 @@ export const groupRulePreviewQuery = (body: PreviewRequest, enabled = true) =>
     queryKey: [...groupRulesRoot, "preview", body],
     queryFn: async () => unwrap(await api.POST("/v1/admin/group-mapping/preview", { body })),
     enabled,
+    // A dry run against the people signed in now: asked again each time it is shown.
+    staleTime: 0,
   });
 
 /** What a change does to one person, as a sentence fragment after their name. */

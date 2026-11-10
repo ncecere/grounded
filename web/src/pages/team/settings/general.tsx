@@ -15,7 +15,8 @@ import { useState } from "react";
 import { api, ifMatch, unwrap } from "../../../api/client";
 import { ConfirmMutationDialog } from "../../../components/confirm-dialog";
 import { ssoBlockedReason, ssoGroup } from "../../../components/member-list";
-import { leaveBlockedReason, membersKey } from "../../../components/members";
+import { membersQuery } from "../../../api/queries";
+import { leaveBlockedReason } from "../../../components/members";
 import { RoleBadge } from "../../../components/role-badge";
 import { useRevisionForm } from "../../../components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../../../components/templates/settings-page";
@@ -159,10 +160,7 @@ function LeaveTeam({ slug, myUserId }: { slug: string; myUserId: string }) {
   const { role } = useTeam();
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState<true | null>(null);
-  const members = useQuery({
-    queryKey: membersKey(slug),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team: slug } } })),
-  });
+  const members = useQuery(membersQuery(slug));
   const leave = useMutation({
     mutationFn: async () => unwrap(await api.DELETE("/v1/teams/{team}/members/{userId}", { params: { path: { team: slug, userId: myUserId } } })),
     onSuccess: () => {

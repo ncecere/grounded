@@ -8,11 +8,6 @@ import { urlPath } from "../pages/team/documents/table";
 import { common, counts, mockApi, renderWith, webSource } from "./web-harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const doc = (id: string, title: string, extra: Partial<Schemas["Document"]> = {}): Schemas["Document"] => ({
   id,
   sourceId: "s1",

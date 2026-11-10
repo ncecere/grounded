@@ -4,11 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const invite = (id: string, email: string) => ({ id, email, role: "owner", createdAt: "2026-10-01T10:00:00Z", expiresAt: "2026-10-31T10:00:00Z" });
 
 describe("admin team members: Assign owner", () => {

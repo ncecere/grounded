@@ -4,11 +4,6 @@ import { screen, waitFor } from "@testing-library/react";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 import { scaled } from "../../test-scale";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 describe("breadcrumbs in a team", () => {
   it("an unknown address under a team says Page not found, not Overview", async () => {
     mockApi({ ...shellRoutes() });

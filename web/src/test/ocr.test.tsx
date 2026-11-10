@@ -8,11 +8,6 @@ import { SourceDetail } from "../pages/sources/detail";
 import { Reply, mockApi as mockShell, renderApp, shellRoutes } from "./harness";
 import { common, mockApi, renderWith, webSource } from "./web-harness";
 
-afterEach(() => vi.unstubAllGlobals());
-beforeAll(() => {
-  window.scrollTo = () => {};
-});
-
 const settings = (extra: Partial<Schemas["ParsingSettings"]> = {}): Schemas["ParsingSettings"] => ({
   ocrEnabled: false,
   backend: "tesseract",

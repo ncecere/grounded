@@ -6,7 +6,6 @@ import type { Schemas } from "../api/client";
 import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

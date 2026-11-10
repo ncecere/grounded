@@ -8,11 +8,12 @@
 import type { Schemas } from "@/api/client";
 import type { Tone } from "@/lib/bitop-utils";
 import { type CostMode, modeDescriptions, modeLabels } from "@/lib/costs";
+import { plural } from "@/lib/plural";
 
 export type FeatureState = { label: string; tone: Tone };
 type Budget = { teamName: string; status: Pick<Schemas["BudgetListItem"]["status"], "mode"> };
 
-export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+export { plural };
 
 /** "QA Team", "QA Team and Library", "A, B, C and 2 more". */
 export function names(list: string[], max = 3) {

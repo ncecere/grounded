@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, FileUp, Globe, HardDrive, Layers, Library, Upload } from "lucide-react";
 import type { ReactNode } from "react";
-import { api, unwrap } from "../../api/client";
 import { RelativeTime } from "@/components/templates/list-page";
 import { Button } from "@/components/ui/button/button";
 import type { Fact } from "@/components/ui/description-list/description-list";
@@ -16,7 +15,7 @@ import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { passagesCount } from "@/lib/terms";
 import s from "../shared.module.css";
-import { type KB, formatBytes, kbsKey, plural, profileName, useClassificationLevels, useEmbeddingProfiles } from "../team/common";
+import { type KB, formatBytes, kbsQuery, plural, profileName, useClassificationLevels, useEmbeddingProfiles } from "../team/common";
 import { ActiveCrawlPanel, isActiveCrawl } from "./crawls";
 import { useBudgetStatus } from "@/lib/costs";
 import { type DataSource, useSourceOwner } from "./owner";
@@ -40,11 +39,7 @@ export function scheduleFact(source: DataSource): ReactNode {
 export function useSourceUsedBy(source: DataSource): KB[] | undefined {
   const owner = useSourceOwner();
   const team = owner.team ?? "";
-  const kbs = useQuery({
-    queryKey: kbsKey(team),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs", { params: { path: { team } } })),
-    enabled: owner.kind === "team",
-  });
+  const kbs = useQuery({ ...kbsQuery(team), enabled: owner.kind === "team" });
   return kbs.data?.filter((kb) => kb.sources.some((src) => src.id === source.id));
 }
 
