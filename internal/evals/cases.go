@@ -181,7 +181,7 @@ func (s *Service) checkPicked(ctx context.Context, set dbgen.EvalSet, e Expected
 func insertCase(ctx context.Context, q *dbgen.Queries, a authz.Actor, setID uuid.UUID, in CaseInput) (dbgen.EvalCase, error) {
 	raw, _ := json.Marshal(in.Expected)
 	return q.InsertEvalCase(ctx, dbgen.InsertEvalCaseParams{SetID: setID, Question: in.Question, Expected: raw,
-		MustMention: in.MustMention, Note: in.Note, CreatedBy: nullUser(a)})
+		MustMention: in.MustMention, Note: in.Note, CreatedBy: a.NullUser()})
 }
 
 // UpdateQuestion replaces a question's text, expected documents, phrases

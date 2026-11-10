@@ -58,6 +58,21 @@ func cmdUpload(args []string) error {
 		return err
 	}
 	path := "/v1/teams/" + st.Team + "/sources/" + st.SourceID + "/documents"
+	counts, start, end, err := uploadAll(cl, path, docs, *workers, *perRequest)
+	if err != nil {
+		return err
+	}
+	if counts["created"]+counts["replaced"] > 0 || st.UploadStart.IsZero() {
+		st.UploadStart, st.UploadEnd, st.Uploaded, st.IngestDone = start, end, len(docs), time.Time{}
+	}
+	fmt.Printf("uploaded %d documents in %s (%.0f docs/s): %v\n", len(docs), end.Sub(start).Round(time.Millisecond), float64(len(docs))/end.Sub(start).Seconds(), counts)
+	return saveState(c.state, st)
+}
+
+// uploadAll uploads the documents in batches of perRequest from several
+// workers, stopping at the first failed request. It returns the results
+// counted by status, and when the upload started and ended.
+func uploadAll(cl *client, path string, docs []beirDoc, workers, perRequest int) (map[string]int, time.Time, time.Time, error) {
 	type batch struct{ docs []beirDoc }
 	jobs := make(chan batch)
 	counts := map[string]int{}
@@ -66,7 +81,7 @@ func cmdUpload(args []string) error {
 	var wg sync.WaitGroup
 	start := time.Now()
 	done := 0
-	for w := 0; w < max(*workers, 1); w++ {
+	for w := 0; w < max(workers, 1); w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -90,26 +105,18 @@ func cmdUpload(args []string) error {
 			}
 		}()
 	}
-	for i := 0; i < len(docs); i += *perRequest {
+	for i := 0; i < len(docs); i += perRequest {
 		mu.Lock()
 		stop := firstErr != nil
 		mu.Unlock()
 		if stop {
 			break
 		}
-		jobs <- batch{docs[i:min(i+*perRequest, len(docs))]}
+		jobs <- batch{docs[i:min(i+perRequest, len(docs))]}
 	}
 	close(jobs)
 	wg.Wait()
-	end := time.Now()
-	if firstErr != nil {
-		return firstErr
-	}
-	if counts["created"]+counts["replaced"] > 0 || st.UploadStart.IsZero() {
-		st.UploadStart, st.UploadEnd, st.Uploaded, st.IngestDone = start, end, len(docs), time.Time{}
-	}
-	fmt.Printf("uploaded %d documents in %s (%.0f docs/s): %v\n", len(docs), end.Sub(start).Round(time.Millisecond), float64(len(docs))/end.Sub(start).Seconds(), counts)
-	return saveState(c.state, st)
+	return counts, start, time.Now(), firstErr
 }
 
 func uploadBatch(cl *client, path string, docs []beirDoc) ([]uploadResult, error) {

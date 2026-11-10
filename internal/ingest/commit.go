@@ -16,6 +16,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/vectorstore"
 )
@@ -38,6 +39,42 @@ SELECT u.id, $1, $2, $10, u.ordinal, u.content,
 FROM unnest($3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[], $8::int[], $9::int[])
      AS u(id, ordinal, content, headings, page_start, page_end, tokens)`
 
+// chunkRows are a document's new chunks as the columns insertChunksSQL
+// takes, with the vector record of each.
+type chunkRows struct {
+	ids                            []uuid.UUID
+	ordinals, starts, ends, tokens []int32
+	contents, headings             []string
+	recs                           []vectorstore.Record
+}
+
+func newChunkRows(n int) *chunkRows {
+	return &chunkRows{
+		ids:      make([]uuid.UUID, n),
+		ordinals: make([]int32, n), starts: make([]int32, n), ends: make([]int32, n), tokens: make([]int32, n),
+		contents: make([]string, n), headings: make([]string, n),
+		recs: make([]vectorstore.Record, n),
+	}
+}
+
+// set fills row j with chunk c under a new ID. heading paths are joined
+// with U+001F (insertChunksSQL splits them again).
+func (r *chunkRows) set(j, ordinal int, c chunk.Chunk, sourceID uuid.UUID, vector []float32) {
+	r.ids[j] = uuid.New()
+	r.ordinals[j], r.starts[j], r.ends[j], r.tokens[j] = int32(ordinal), int32(c.PageStart), int32(c.PageEnd), int32(c.Tokens)
+	r.contents[j] = strings.ToValidUTF8(c.Content, "\uFFFD")
+	r.headings[j] = strings.Join(c.HeadingPath, "\x1f")
+	r.recs[j] = vectorstore.Record{ChunkID: r.ids[j], SourceID: sourceID, Vector: vector}
+}
+
+// insert writes the chunk rows (not their vectors) for one profile.
+func (r *chunkRows) insert(ctx context.Context, tx pgx.Tx, docID, sourceID, profileID uuid.UUID) error {
+	if _, err := tx.Exec(ctx, insertChunksSQL, docID, sourceID, r.ids, r.ordinals, r.contents, r.headings, r.starts, r.ends, r.tokens, profileID); err != nil {
+		return fmt.Errorf("insert chunks: %w", err)
+	}
+	return nil
+}
+
 // commit replaces the document's chunks and vectors atomically, unless the
 // document was replaced or deleted while it was being processed.
 func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) error {
@@ -46,17 +83,10 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		return err
 	}
 	n := len(res.chunks)
-	ids := make([]uuid.UUID, n)
-	ordinals, starts, ends, tokens := make([]int32, n), make([]int32, n), make([]int32, n), make([]int32, n)
-	contents, headings := make([]string, n), make([]string, n)
-	recs := make([]vectorstore.Record, n)
+	rows := newChunkRows(n)
 	total := 0
 	for i, c := range res.chunks {
-		ids[i] = uuid.New()
-		ordinals[i], starts[i], ends[i], tokens[i] = int32(c.Ordinal), int32(c.PageStart), int32(c.PageEnd), int32(c.Tokens)
-		contents[i] = strings.ToValidUTF8(c.Content, "\uFFFD")
-		headings[i] = strings.Join(c.HeadingPath, "\x1f")
-		recs[i] = vectorstore.Record{ChunkID: ids[i], SourceID: doc.SourceID, Vector: res.vectors[i]}
+		rows.set(i, c.Ordinal, c, doc.SourceID, res.vectors[i])
 		total += c.Tokens
 	}
 	warns := nonNil(res.parsed.Warnings)
@@ -83,13 +113,13 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		if err := q.DeleteDocumentChunks(ctx, doc.ID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, insertChunksSQL, doc.ID, doc.SourceID, ids, ordinals, contents, headings, starts, ends, tokens, prof.ID); err != nil {
-			return fmt.Errorf("insert chunks: %w", err)
+		if err := rows.insert(ctx, tx, doc.ID, doc.SourceID, prof.ID); err != nil {
+			return err
 		}
 		if err := setParents(ctx, tx, doc.ID, prof.ID, res.target.Profile.ParentTokens, res.chunks); err != nil {
 			return err
 		}
-		if err := p.Vectors.Upsert(ctx, tx, prof, recs); err != nil {
+		if err := p.Vectors.Upsert(ctx, tx, prof, rows.recs); err != nil {
 			return fmt.Errorf("insert vectors: %w", err)
 		}
 		if err := writeMark(ctx, tx, doc.SourceID, doc.ID, res.mark); err != nil {

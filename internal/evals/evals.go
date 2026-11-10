@@ -124,7 +124,7 @@ func (s *Service) SetEnabled(ctx context.Context, a authz.Actor, enabled bool, e
 			out = cur
 			return nil
 		}
-		if out, err = q.SetEvaluationsEnabled(ctx, dbgen.SetEvaluationsEnabledParams{Enabled: enabled, UpdatedBy: nullUser(a)}); err != nil {
+		if out, err = q.SetEvaluationsEnabled(ctx, dbgen.SetEvaluationsEnabledParams{Enabled: enabled, UpdatedBy: a.NullUser()}); err != nil {
 			return err
 		}
 		e := a.Audit("platform.evaluations", "evaluation_settings", "enabled")
@@ -171,10 +171,6 @@ func loadSet(ctx context.Context, q *dbgen.Queries, teamID, id uuid.UUID, lock b
 		return set, errNoSet
 	}
 	return set, err
-}
-
-func nullUser(a authz.Actor) uuid.NullUUID {
-	return uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
 }
 
 func nullID(id *uuid.UUID) uuid.NullUUID {

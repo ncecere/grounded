@@ -208,7 +208,7 @@ func (s *Service) recordSharedUse(ctx context.Context, a authz.Actor, row dbgen.
 		return nil
 	}
 	return s.q.InsertAccessLog(ctx, dbgen.InsertAccessLogParams{
-		UserID: nullUser(a), AgentID: row.AgentID, AgentVersionID: uuid.NullUUID{UUID: ver.ID, Valid: true}, Rank: ver.EffectiveRank, Channel: "shared",
+		UserID: a.NullUser(), AgentID: row.AgentID, AgentVersionID: uuid.NullUUID{UUID: ver.ID, Valid: true}, Rank: ver.EffectiveRank, Channel: "shared",
 	})
 }
 

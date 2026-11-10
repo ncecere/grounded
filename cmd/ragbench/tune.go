@@ -63,35 +63,9 @@ func cmdSweep(args []string) error {
 	if *limit > 0 && *limit < len(queries) {
 		queries = queries[:*limit]
 	}
-	var vecs [][]float32
-	if *qvecs != "" {
-		byID, err := readVectors(*qvecs)
-		if err != nil {
-			return err
-		}
-		for _, q := range queries {
-			v, ok := byID[q.ID]
-			if !ok {
-				return fmt.Errorf("%s has no vector for query %s", *qvecs, q.ID)
-			}
-			vecs = append(vecs, v)
-		}
-	} else {
-		var prefix string
-		if err := pool.QueryRow(ctx, "SELECT query_prefix FROM embedding_profiles WHERE id = $1", st.ProfileID).Scan(&prefix); err != nil {
-			return err
-		}
-		em, err := g.embedder()
-		if err != nil {
-			return err
-		}
-		texts := make([]string, len(queries))
-		for i, q := range queries {
-			texts[i] = prefix + q.Text
-		}
-		if vecs, err = em.embedAll(ctx, texts, g.batch, g.concurrency, "queries"); err != nil {
-			return err
-		}
+	vecs, err := sweepQueryVectors(ctx, pool, g, *qvecs, st.ProfileID, queries)
+	if err != nil {
+		return err
 	}
 	src := uuid.MustParse(st.SourceID)
 	docOf, err := loadDocKeys(ctx, pool, []uuid.UUID{src}, func(fn, _ string) string { return docIDFromFilename(fn) })
@@ -105,6 +79,43 @@ func cmdSweep(args []string) error {
 	d := sweepData{pool: pool, table: "emb_" + stripDashes(st.ProfileID), dims: len(vecs[0]), sourceIDs: []uuid.UUID{src}, docOf: docOf}
 	fmt.Printf("BEIR sweep: %d queries, %d chunks\n", len(js), len(docOf))
 	return runSweep(ctx, d, js, vecs, vs, ws, *k)
+}
+
+// sweepQueryVectors is one vector per query, in order: read from path (the
+// offline run's -queries-out) or, with no path, embedded through the gateway
+// with the profile's query prefix.
+func sweepQueryVectors(ctx context.Context, pool *pgxpool.Pool, g gatewayFlags, path, profileID string, queries []beirQuery) ([][]float32, error) {
+	var vecs [][]float32
+	if path != "" {
+		byID, err := readVectors(path)
+		if err != nil {
+			return nil, err
+		}
+		for _, q := range queries {
+			v, ok := byID[q.ID]
+			if !ok {
+				return nil, fmt.Errorf("%s has no vector for query %s", path, q.ID)
+			}
+			vecs = append(vecs, v)
+		}
+	} else {
+		var prefix string
+		if err := pool.QueryRow(ctx, "SELECT query_prefix FROM embedding_profiles WHERE id = $1", profileID).Scan(&prefix); err != nil {
+			return nil, err
+		}
+		em, err := g.embedder()
+		if err != nil {
+			return nil, err
+		}
+		texts := make([]string, len(queries))
+		for i, q := range queries {
+			texts[i] = prefix + q.Text
+		}
+		if vecs, err = em.embedAll(ctx, texts, g.batch, g.concurrency, "queries"); err != nil {
+			return nil, err
+		}
+	}
+	return vecs, nil
 }
 
 func readVectors(path string) (map[string][]float32, error) {
@@ -175,29 +186,12 @@ func cmdURLSet(args []string) error {
 	if err != nil {
 		return err
 	}
-	docOf, err := loadDocKeys(ctx, pool, kb.sources, func(fn, u string) string {
-		if u != "" {
-			return normURL(u)
-		}
-		return fn
-	})
+	docOf, err := urlDocKeys(ctx, pool, kb.sources, js)
 	if err != nil {
 		return err
-	}
-	if err := checkJudgedDocs(js, docOf); err != nil {
-		return err
-	}
-	ids := make([]string, len(js))
-	texts := make([]string, len(js))
-	for i, q := range js {
-		ids[i], texts[i] = q.text, kb.prefix+q.text // keyed by text: edits re-embed
 	}
 	g.model = kb.upstream
-	em, err := g.embedder()
-	if err != nil {
-		return err
-	}
-	vecs, err := cachedEmbed(ctx, em, g, *cacheDir, "urlset-query", kb.upstream+"|"+kb.prefix, ids, texts)
+	vecs, em, err := embedURLQuestions(ctx, g, kb, *cacheDir, js)
 	if err != nil {
 		return err
 	}
@@ -217,6 +211,45 @@ func cmdURLSet(args []string) error {
 	}
 	fmt.Printf("URL-set sweep: %d questions, %d chunks, gateway tokens this run: %d\n", len(js), len(docOf), em.tokens)
 	return runSweep(ctx, d, js, vecs, vs, ws, *k)
+}
+
+// urlDocKeys maps each chunk of the sources to its document's key (the
+// page's normalized URL, or the filename), and checks that the questions'
+// expected pages are among them.
+func urlDocKeys(ctx context.Context, pool *pgxpool.Pool, sources []uuid.UUID, js []judged) (map[uuid.UUID]string, error) {
+	docOf, err := loadDocKeys(ctx, pool, sources, func(fn, u string) string {
+		if u != "" {
+			return normURL(u)
+		}
+		return fn
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := checkJudgedDocs(js, docOf); err != nil {
+		return nil, err
+	}
+	return docOf, nil
+}
+
+// embedURLQuestions embeds the questions with the KB's model and query
+// prefix (g.model is the KB's upstream model), through the cache. The
+// embedder is returned for its token count.
+func embedURLQuestions(ctx context.Context, g gatewayFlags, kb kbEmbedding, cacheDir string, js []judged) ([][]float32, *embedder, error) {
+	ids := make([]string, len(js))
+	texts := make([]string, len(js))
+	for i, q := range js {
+		ids[i], texts[i] = q.text, kb.prefix+q.text // keyed by text: edits re-embed
+	}
+	em, err := g.embedder()
+	if err != nil {
+		return nil, nil, err
+	}
+	vecs, err := cachedEmbed(ctx, em, g, cacheDir, "urlset-query", kb.upstream+"|"+kb.prefix, ids, texts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return vecs, em, nil
 }
 
 // loadURLQuestions reads the questions; each expected URL is a relevant

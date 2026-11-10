@@ -338,7 +338,7 @@ func (ru *run) recordSuggestionUsage(ctx context.Context, u llm.Usage, modReqs i
 	ctx = context.WithoutCancel(ctx)
 	team, agent := uuid.NullUUID{UUID: ru.team.ID, Valid: true}, uuid.NullUUID{UUID: ru.agent.ID, Valid: true}
 	for i := range usage {
-		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, nullUser(ru.a), keyID(ru.a)
+		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, ru.a.NullUser(), keyID(ru.a)
 		if err := ru.s.q.InsertUsage(ctx, usage[i]); err != nil {
 			ru.s.Log.Error("record follow-up suggestion usage", "err", err, "agent", ru.agent.ID)
 			return

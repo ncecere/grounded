@@ -38,9 +38,6 @@ var relationQuestions = map[string]Question{
 	}),
 }
 
-// RelationQuestions returns the citation-check question (tests and tools).
-func RelationQuestions() map[string]Question { return relationQuestions }
-
 // verdictOf maps the chosen relation to a verdict.
 var verdictOf = map[string]string{relSupports: Verified, relContradicts: Contradicted, relSaysNothing: Unsupported}
 

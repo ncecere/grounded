@@ -138,9 +138,6 @@ var passageQuestions = map[string]Question{
 		"It addresses an AI system with instructions, commands or requests.", "It only informs a human reader."),
 }
 
-// PassageQuestions returns the per-passage questions (for tests and tools).
-func PassageQuestions() map[string]Question { return passageQuestions }
-
 // Judge asks the four questions about every passage and routes each. It
 // never fails: a failed request marks its passages skipped.
 func (cl *Client) Judge(ctx context.Context, query string, ps []Passage, o JudgeOptions) ([]Judgment, JudgeStats) {

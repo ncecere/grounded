@@ -92,7 +92,7 @@ func (s *Service) SetPlatform(ctx context.Context, a authz.Actor, enabled bool, 
 			return nil
 		}
 		if err := tx.QueryRow(ctx, `UPDATE answer_cache_settings SET enabled = $1, revision = revision + 1, updated_by = $2, updated_at = now()
-			RETURNING enabled, revision, updated_at`, enabled, nullUser(a)).Scan(&out.Enabled, &out.Revision, &out.UpdatedAt); err != nil {
+			RETURNING enabled, revision, updated_at`, enabled, a.NullUser()).Scan(&out.Enabled, &out.Revision, &out.UpdatedAt); err != nil {
 			return err
 		}
 		e := a.Audit("platform.answer_cache", "answer_cache_settings", "enabled")
@@ -105,10 +105,6 @@ func (s *Service) SetPlatform(ctx context.Context, a authz.Actor, enabled bool, 
 		s.mu.Unlock()
 	}
 	return out, err
-}
-
-func nullUser(a authz.Actor) uuid.NullUUID {
-	return uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
 }
 
 // AgentSettings returns an agent's settings (the defaults when never saved).

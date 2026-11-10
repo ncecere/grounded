@@ -68,14 +68,16 @@ The same suites can run on the homelab cluster instead of the laptop (`dev-env t
 
 Keep files and functions small enough to read in one go. `make lint` (and so CI) enforces hard limits on non-generated Go code:
 
-| | Target | Lint fails above |
-|---|---|---|
-| Lines per file | ~500 | 600 (test files: 1200) |
-| Lines per function | ~80 | 100 (test functions: no limit) |
-| Cyclomatic complexity per function ([gocyclo](https://github.com/fzipp/gocyclo)) | ≤ 20 | 20 (tests exempt) |
+| | Lint fails above |
+|---|---|
+| Lines per file | 500 (test files: 1200) |
+| Lines per function | 80 (test functions: no limit) |
+| Cyclomatic complexity per function ([gocyclo](https://github.com/fzipp/gocyclo)) | 20 (tests exempt) |
+
+These are limits, not targets: aim well below them.
 
 - Generated code (`internal/store/dbgen`, `internal/httpapi/apitypes`, `*.gen.go`, files marked `Code generated ... DO NOT EDIT.`) is exempt.
-- The file and function limits are checked by `tools/checksize`; run `go run ./tools/checksize -file 500 -func 80 cmd internal tools` to see what is over the targets.
+- The file and function limits are checked by `tools/checksize`; `make lint` runs `go run ./tools/checksize -file 500 -testfile 1200 -func 80 cmd internal tools`. Run it with lower numbers to see what is close to a limit.
 - When a file grows, split it by responsibility into files in the same package (for example `agents`: `chat.go`, `history.go`, `answer.go`, `record.go`). When a function grows, extract named steps; for long validation, use one small validator per section and keep error codes, messages and field paths unchanged.
 - HTTP handlers share the small helpers in `internal/httpapi/respond.go` (`decodeRevised`, `failed`, `writeRevised`, `writeList`, `writeOK`) instead of repeating the decode, precondition and response plumbing.
 - A parser ported from another project may exceed the complexity limit only if splitting it would hurt readability: mark it `//gocyclo:ignore` with a comment on the line above saying why, and keep it at 30 or below. There are none at the moment.

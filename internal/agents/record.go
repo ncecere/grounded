@@ -161,7 +161,7 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	usage = append(usage, ru.systemOneUsage()...)
 	usage = append(usage, ru.mcpUsage()...)
 	for i := range usage {
-		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, nullUser(ru.a), keyID(ru.a)
+		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, ru.a.NullUser(), keyID(ru.a)
 		if err := q.InsertUsage(ctx, usage[i]); err != nil {
 			return err
 		}

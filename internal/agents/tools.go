@@ -341,7 +341,7 @@ func (ru *run) auditToolCall(ctx context.Context, ref mcpclient.ToolRef, out mcp
 	if reason != "" {
 		meta["reason"] = reason
 	}
-	e.Metadata = mergeMeta(e.Metadata, meta)
+	e.Metadata = audit.MergeMeta(e.Metadata, meta)
 	if err := audit.Record(context.WithoutCancel(ctx), ru.s.q, e); err != nil {
 		ru.s.Log.Error("audit MCP tool call", "err", err)
 	}

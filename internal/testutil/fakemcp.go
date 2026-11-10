@@ -38,7 +38,6 @@ type FakeMCP struct {
 	hidden       map[string]bool
 	descriptions map[string]string
 	calls        []FakeMCPCall
-	requests     int
 }
 
 // FakeMCPCall is one tools/call the fake served.
@@ -69,7 +68,6 @@ func NewFakeMCPHandler() (*FakeMCP, http.Handler) {
 		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, PropagateRequestCancellation: true})
 	return f, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
-		f.requests++
 		name, value := f.header, f.value
 		f.mu.Unlock()
 		if name != "" && r.Header.Get(name) != value {
@@ -119,13 +117,6 @@ func (f *FakeMCP) Calls() []FakeMCPCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]FakeMCPCall(nil), f.calls...)
-}
-
-// Requests counts every HTTP request (lists and calls alike).
-func (f *FakeMCP) Requests() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.requests
 }
 
 type fakeMCPTool struct {

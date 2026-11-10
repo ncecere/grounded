@@ -127,7 +127,7 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 	usage = append(usage, r.rerankUsage(nil)...)
 	raw, _ := json.Marshal(base)
 	for _, u := range usage {
-		u.TeamID, u.AgentID, u.UserID = uuid.NullUUID{UUID: t.Team.ID, Valid: true}, uuid.NullUUID{UUID: t.Agent.ID, Valid: true}, nullUser(a)
+		u.TeamID, u.AgentID, u.UserID = uuid.NullUUID{UUID: t.Team.ID, Valid: true}, uuid.NullUUID{UUID: t.Agent.ID, Valid: true}, a.NullUser()
 		u.Metadata = kbs.TagMetadata(raw, meta)
 		if err := s.q.InsertUsage(ctx, u); err != nil {
 			return nil, err

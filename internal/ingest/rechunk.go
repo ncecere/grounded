@@ -221,22 +221,14 @@ func insertFresh(ctx context.Context, tx pgx.Tx, p *Processor, sourceID, docID u
 	if n == 0 {
 		return nil
 	}
-	ids := make([]uuid.UUID, n)
-	ordinals, starts, ends, tokens := make([]int32, n), make([]int32, n), make([]int32, n), make([]int32, n)
-	contents, headings := make([]string, n), make([]string, n)
-	recs := make([]vectorstore.Record, n)
+	rows := newChunkRows(n)
 	for j, i := range rc.fresh {
-		c := rc.chunks[i]
-		ids[j] = uuid.New()
-		ordinals[j], starts[j], ends[j], tokens[j] = int32(i), int32(c.PageStart), int32(c.PageEnd), int32(c.Tokens)
-		contents[j] = strings.ToValidUTF8(c.Content, "\uFFFD")
-		headings[j] = strings.Join(c.HeadingPath, "\x1f")
-		recs[j] = vectorstore.Record{ChunkID: ids[j], SourceID: sourceID, Vector: rc.vectors[j]}
+		rows.set(j, i, rc.chunks[i], sourceID, rc.vectors[j])
 	}
-	if _, err := tx.Exec(ctx, insertChunksSQL, docID, sourceID, ids, ordinals, contents, headings, starts, ends, tokens, prof.ID); err != nil {
-		return fmt.Errorf("insert chunks: %w", err)
+	if err := rows.insert(ctx, tx, docID, sourceID, prof.ID); err != nil {
+		return err
 	}
-	return p.Vectors.Upsert(ctx, tx, prof, recs)
+	return p.Vectors.Upsert(ctx, tx, prof, rows.recs)
 }
 
 // recordRechunkUsage records the embedding tokens a re-chunk spent.

@@ -34,7 +34,7 @@ func (s *Service) Sync(ctx context.Context, a authz.Actor, o Owner, id uuid.UUID
 			return err
 		}
 		e := a.Audit("source.sync", "data_source", id.String())
-		e.TeamID, e.Metadata = sc.auditTeam(), mergeMeta(e.Metadata, map[string]any{"crawlId": out.ID.String()})
+		e.TeamID, e.Metadata = sc.auditTeam(), audit.MergeMeta(e.Metadata, map[string]any{"crawlId": out.ID.String()})
 		return audit.Record(ctx, q, e)
 	})
 	return out, err
@@ -65,7 +65,7 @@ func (s *Service) RefetchDocument(ctx context.Context, a authz.Actor, o Owner, s
 		}
 		e := a.Audit("document.refetch", "document", docID.String())
 		e.TeamID = sc.auditTeam()
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"sourceId": sourceID.String(), "crawlId": out.ID.String(), "url": doc.URL, "shared": !src.TeamID.Valid})
+		e.Metadata = audit.MergeMeta(e.Metadata, map[string]any{"sourceId": sourceID.String(), "crawlId": out.ID.String(), "url": doc.URL, "shared": !src.TeamID.Valid})
 		return audit.Record(ctx, q, e)
 	})
 	return out, err
@@ -99,7 +99,7 @@ func (s *Service) CancelCrawl(ctx context.Context, a authz.Actor, o Owner, sourc
 			return err
 		}
 		e := a.Audit("source.sync_cancel", "data_source", sourceID.String())
-		e.TeamID, e.Metadata = sc.auditTeam(), mergeMeta(e.Metadata, map[string]any{"crawlId": crawlID.String()})
+		e.TeamID, e.Metadata = sc.auditTeam(), audit.MergeMeta(e.Metadata, map[string]any{"crawlId": crawlID.String()})
 		return audit.Record(ctx, q, e)
 	})
 	if err == nil {

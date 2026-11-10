@@ -135,7 +135,7 @@ func (s *Service) createSet(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a 
 		}
 	}
 	if *set, err = q.InsertEvalSet(ctx, dbgen.InsertEvalSetParams{TeamID: acc.Team.ID, KBID: nullID(in.KBID), AgentID: nullID(in.AgentID),
-		Name: in.Name, Description: in.Description, AutoRun: in.AutoRun, CreatedBy: nullUser(a)}); err != nil {
+		Name: in.Name, Description: in.Description, AutoRun: in.AutoRun, CreatedBy: a.NullUser()}); err != nil {
 		return err
 	}
 	e := a.Audit("evaluation.set_create", "evaluation_set", set.ID.String())

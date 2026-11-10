@@ -34,9 +34,6 @@ var scopeQuestions = map[string]Question{
 		"It is about something else, outside what the agent covers."),
 }
 
-// ScopeQuestions returns the scope-check questions (tests and tools).
-func ScopeQuestions() map[string]Question { return scopeQuestions }
-
 // ScopeAgent describes the agent to the model.
 type ScopeAgent struct {
 	Name        string `json:"name"`

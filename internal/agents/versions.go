@@ -252,7 +252,7 @@ func (s *Service) Revert(ctx context.Context, a authz.Actor, teamRef string, id 
 			return err
 		}
 		e := a.Audit("agent.revert", "agent", id.String())
-		e.TeamID, e.Metadata = acc.Team.ID, mergeMeta(e.Metadata, map[string]any{"version": n})
+		e.TeamID, e.Metadata = acc.Team.ID, audit.MergeMeta(e.Metadata, map[string]any{"version": n})
 		return audit.Record(ctx, q, e)
 	})
 	if err != nil {

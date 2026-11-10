@@ -193,6 +193,12 @@ func (a Actor) CanReadPlatform() bool {
 	return a.PlatformRole == PlatformAdmin || a.PlatformRole == PlatformAuditor
 }
 
+// NullUser is the actor's user ID as a nullable column value: null for an
+// actor without a user.
+func (a Actor) NullUser() uuid.NullUUID {
+	return uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
+}
+
 // Audit returns an audit entry pre-filled with the actor.
 func (a Actor) Audit(action, targetType, targetID string) audit.Entry {
 	e := audit.Entry{

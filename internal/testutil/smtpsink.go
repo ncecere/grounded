@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/mail"
 	"net/textproto"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -199,6 +198,3 @@ func (m SinkMessage) Parse(t testing.TB) Parsed {
 	}
 	return out
 }
-
-// Addr is "host:port", for logs.
-func (s *SMTPSink) Addr() string { return net.JoinHostPort(s.Host(), strconv.Itoa(s.Port())) }

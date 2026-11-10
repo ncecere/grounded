@@ -102,6 +102,16 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 	if err != nil {
 		return err
 	}
+	srv, servers := httpServers(ctx, mode, cfg, deps, log)
+	if err := serve(ctx, srv, log); err != nil {
+		return err
+	}
+	return shutdown(cfg, log, health, worker, servers...)
+}
+
+// httpServers builds the mode's HTTP server and, outside the worker mode with METRICS_ADDR set, starts the metrics
+// listener. servers lists both for shutdown.
+func httpServers(ctx context.Context, mode string, cfg config.Config, deps httpapi.Deps, log *slog.Logger) (*http.Server, []*http.Server) {
 	addr, handler := httpHandler(mode, cfg, deps, log)
 	srv := &http.Server{
 		Addr:              addr,
@@ -123,10 +133,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 		}()
 		servers = append(servers, ops)
 	}
-	if err := serve(ctx, srv, log); err != nil {
-		return err
-	}
-	return shutdown(cfg, log, health, worker, servers...)
+	return srv, servers
 }
 
 // startWorker starts the job worker in the serve and worker modes (nil in

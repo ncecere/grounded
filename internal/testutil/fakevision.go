@@ -14,17 +14,10 @@ import (
 	"strings"
 )
 
-// FakeVisionModel is the vision model the fake offers by default.
-const FakeVisionModel = "fake-vision"
-
-// AddVisionModel registers a vision model: a chat completion to it whose
-// last user message has an image_url part (a PNG data URL) answers
+// FakeVisionModel is the vision model the fake offers: a chat completion to
+// it whose last user message has an image_url part (a PNG data URL) answers
 // FakeTranscription of that image; one without an image is refused (400).
-func (p *FakeProxy) AddVisionModel(id string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.vision[id] = true
-}
+const FakeVisionModel = "fake-vision"
 
 // FailVisionWith makes vision requests answer status (0 = succeed again).
 func (p *FakeProxy) FailVisionWith(status int) {
