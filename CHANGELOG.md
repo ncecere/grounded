@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-10
+
+Private content, first part, and a hardening pass: document permissions (off until a platform admin turns them on), fewer database round trips before an answer starts, keyword and vector search side by side, a chat that stays fast in long conversations, and a fix for web pages in other character sets. Release notes: [`docs/releases/v0.10.0.md`](docs/releases/v0.10.0.md). Schema 69, expand only. The Microsoft 365, Google Drive and other connectors move to v0.11.0.
+
+### Added
+
+- **Document permissions** (B6, #41; [guide](docs/document-permissions.md), [design](docs/specs/document-acls/DESIGN.md)). Team editors can restrict a source to groups (as your identity provider names them, from sign-in or SCIM) and people (verified email addresses) in its new **Access** tab. Its documents, including ones added later, are then searched, used in answers and opened only for them. Grounded checks the reader's permissions wherever it would show a document's text or use it in an answer: search, agent answers in every channel, citations and the source viewer, whole-document text and passages, repeated-block samples and evaluations. Only a signed-in person, or their own connected app on MCP, reads a restricted document. API keys, public and widget visitors, shared links and evaluation runs read unrestricted documents only. An agent whose knowledge has restricted documents doesn't use the answer cache, and a conversation citing one can't be shared. Restricted documents are marked **Restricted**. **Off by default:** a platform admin turns on **Document permissions** (Admin → Settings → Features) after the upgrade's rollout, because a server of the previous release would ignore restrictions. It can't be turned off while anything is restricted. Audited as `source.access_update` and `platform.document_permissions`. API: `GET`/`PUT /v1/admin/document-access`, `PUT /v1/teams/{team}/sources/{id}/access`, `GET /v1/teams/{team}/access/groups`; `DataSource.access` and `Document.restricted`. Migration 00068 adds columns, two tables, a trigger and an index built concurrently, and changes no existing row.
+
 ### Fixed
 
 - **Web pages in other character sets were garbled.** A page that declares an encoding other than UTF-8 or windows-1252 (Cyrillic windows-1251, Central European ISO-8859-2, Japanese Shift_JIS and so on) was decoded as windows-1252 before its own character set was applied, so its text was indexed as nonsense. Pages are now read in the character set they declare. Pages indexed before the fix are corrected the next time they change or are fetched again.
@@ -29,10 +37,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.9.0] - 2026-11-05
 
 Identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest and per-agent budgets, with configuration as code and the published bitop-ui registry carried from v0.8.0. Release notes: [`docs/releases/v0.9.0.md`](docs/releases/v0.9.0.md). Schema 67, expand only. Personal data scanning is on by default and only flags.
-
-### Added
-
-- **Document permissions** (B6, #41; [guide](docs/document-permissions.md), [design](docs/specs/document-acls/DESIGN.md)). Team editors can restrict a source to groups (as your identity provider names them, from sign-in or SCIM) and people (verified email addresses) in its new **Access** tab. Its documents, including ones added later, are then searched, used in answers and opened only for them. Grounded checks the reader's permissions wherever it would show a document's text or use it in an answer: search, agent answers in every channel, citations and the source viewer, whole-document text and passages, repeated-block samples and evaluations. Only a signed-in person, or their own connected app on MCP, reads a restricted document. API keys, public and widget visitors, shared links and evaluation runs read unrestricted documents only. An agent whose knowledge has restricted documents doesn't use the answer cache, and a conversation citing one can't be shared. Restricted documents are marked **Restricted**. **Off by default:** a platform admin turns on **Document permissions** (Admin → Settings → Features) after the upgrade's rollout, because a server of the previous release would ignore restrictions. It can't be turned off while anything is restricted. Audited as `source.access_update` and `platform.document_permissions`. API: `GET`/`PUT /v1/admin/document-access`, `PUT /v1/teams/{team}/sources/{id}/access`, `GET /v1/teams/{team}/access/groups`; `DataSource.access` and `Document.restricted`. Migration 00068 adds columns, two tables, a trigger and an index built concurrently, and changes no existing row.
 
 ### Added
 
@@ -755,7 +759,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/ncecere/grounded/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/ncecere/grounded/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ncecere/grounded/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ncecere/grounded/compare/v0.6.3...v0.7.0
