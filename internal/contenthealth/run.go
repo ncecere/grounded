@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -205,8 +206,8 @@ func (s *Service) environment(ctx context.Context, rep dbgen.ContentHealthReport
 	for _, r := range rows {
 		env.Sources = append(env.Sources, Source{ID: r.ID, Type: r.Type, Revision: r.Revision, Classification: r.Classification})
 		cov := &Coverage{SourceID: r.ID, Type: r.Type, LinkState: LinkUnknown, SourceRevision: r.Revision, SourceClassification: r.Classification}
-		if r.Type != "web" {
-			cov.LinkState = LinkNotApplicable // an upload source has no links, whatever else happens
+		if !sourcetypes.Of(r.Type).WebPages {
+			cov.LinkState = LinkNotApplicable // only a source of web pages has links to check, whatever else happens
 		}
 		env.Coverage[r.ID] = cov
 	}

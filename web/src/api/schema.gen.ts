@@ -294,6 +294,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/source-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The source types this install has, and whether each is on
+         * @description Every signed-in person: a team needs them to add a source. A type's capabilities say what its sources do (take uploads, sync, hold web pages, report document permissions), so a client never compares a source's type with a name. Upload and web are on unless a platform admin turns them off; every other type is off until turned on.
+         */
+        get: operations["listSourceTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams": {
         parameters: {
             query?: never;
@@ -942,6 +962,26 @@ export interface paths {
          */
         get: operations["adminGetAuditStream"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/source-types/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn a source type on or off (signed-in platform admins; audited as platform.source_type)
+         * @description Off: no new source of the type can be made (409 source_type_off) and a connector type starts no sync. Its sources and their documents stay, and stay searchable. Turn a new type on once every server runs the release that has it. Each classification level also lists the types that may hold its data.
+         */
+        put: operations["adminPutSourceType"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2062,7 +2102,7 @@ export interface paths {
         /** Data sources with document counts (session, or an API key with the query scope) */
         get: operations["listSources"];
         put?: never;
-        /** Create an upload or web data source; a web source's first crawl starts immediately (activeCrawl) */
+        /** Create a data source of a registered type (upload, web); a web source's first crawl starts immediately (activeCrawl) */
         post: operations["createSource"];
         delete?: never;
         options?: never;
@@ -7542,7 +7582,7 @@ export interface components {
              */
             conversationRetentionDays: number | null;
             /** @description The data source types that may hold data at this level */
-            allowedSourceTypes: ("upload" | "web")[];
+            allowedSourceTypes: string[];
             /** @description Team API keys may call /retrieve on knowledge bases at this level */
             directRetrieve: boolean;
             revision: components["schemas"]["Revision"];
@@ -7571,7 +7611,7 @@ export interface components {
              * @description Days to keep signed-in conversations; 0 keeps them until deleted
              */
             conversationRetentionDays?: number;
-            allowedSourceTypes?: ("upload" | "web")[];
+            allowedSourceTypes?: string[];
             directRetrieve?: boolean;
         };
         UserPage: {
@@ -7598,6 +7638,58 @@ export interface components {
              * @enum {string}
              */
             destination: "builtin";
+        };
+        SourceType: {
+            /**
+             * @description A source's type
+             * @example web
+             */
+            key: string;
+            /** @example Website */
+            name: string;
+            description: string;
+            /** @description Upload and web, which have their own pages; the other types are connectors */
+            builtIn: boolean;
+            /** @description New sources of the type can be made, and a connector type syncs */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Sources of the type in this install (platform admins and auditors only)
+             */
+            sources?: number;
+            capabilities: components["schemas"]["SourceTypeCapabilities"];
+            /** @description The JSON Schema of the type's settings, from which its form is built (connectors only) */
+            configSchema?: {
+                [key: string]: unknown;
+            };
+            /** @description The credentials the type needs (connectors only). Their values are stored encrypted and never returned */
+            credentials: components["schemas"]["SourceTypeCredential"][];
+        };
+        SourceTypeCapabilities: {
+            /** @description People add files by uploading them */
+            uploads: boolean;
+            /** @description The source fetches its own content, on a schedule or on request */
+            sync: boolean;
+            /** @description Its documents are web pages: identified by address, with repeated blocks left out by default and links that can be checked */
+            webPages: boolean;
+            /**
+             * @description Where document permissions come from: none (an editor may restrict the source by hand) or provider (the type reports each document's permissions, and the source refuses a hand-set restriction)
+             * @enum {string}
+             */
+            permissions: "none" | "provider";
+            /** @description A platform admin can make a shared source of this type */
+            shared: boolean;
+        };
+        SourceTypeCredential: {
+            key: string;
+            label: string;
+            help: string;
+            /** @description Masked as it is typed */
+            secret: boolean;
+            required: boolean;
+        };
+        SourceTypeInput: {
+            enabled: boolean;
         };
         DocumentAccessSettings: {
             enabled: boolean;
@@ -9364,8 +9456,11 @@ export interface components {
             id: string;
             name: string;
             description: string;
-            /** @enum {string} */
-            type: "upload" | "web";
+            /**
+             * @description The source type's key (GET /v1/source-types): upload, web or a connector
+             * @example web
+             */
+            type: string;
             classification: string;
             /** Format: uuid */
             embeddingProfileId: string;
@@ -9485,11 +9580,11 @@ export interface components {
             name: string;
             description?: string;
             /**
-             * @description Fixed at creation
+             * @description A registered source type's key (GET /v1/source-types), fixed at creation. 409 source_type_off for a type a platform admin has turned off
              * @default upload
-             * @enum {string}
+             * @example web
              */
-            type: "upload" | "web";
+            type: string;
             classification: string;
             /**
              * Format: uuid
@@ -10268,8 +10363,11 @@ export interface components {
             id: string;
             name: string;
             description: string;
-            /** @enum {string} */
-            type: "upload" | "web";
+            /**
+             * @description The source type's key (GET /v1/source-types): upload, web or a connector
+             * @example web
+             */
+            type: string;
             classification: string;
             /** Format: uuid */
             embeddingProfileId: string;
@@ -14549,6 +14647,30 @@ export interface operations {
             default: components["responses"]["DefaultErrorReply"];
         };
     };
+    listSourceTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The built-in types first, then the others by name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceType"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
     listMyTeams: {
         parameters: {
             query?: never;
@@ -15790,6 +15912,37 @@ export interface operations {
                 };
             };
             403: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    adminPutSourceType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceTypeInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceType"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

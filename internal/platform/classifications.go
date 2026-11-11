@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -12,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -40,14 +40,11 @@ type ClassificationUpdate struct {
 	// years); ClearConversationRetention keeps them until deleted.
 	ConversationRetentionDays  *int32
 	ClearConversationRetention bool
-	// AllowedSourceTypes may hold data at this level (upload, web).
+	// AllowedSourceTypes may hold data at this level (registered source types).
 	AllowedSourceTypes []string
 	// DirectRetrieve lets team API keys call /retrieve on KBs at this level.
 	DirectRetrieve *bool
 }
-
-// SourceTypes are the data source types a level can allow.
-var SourceTypes = []string{"upload", "web"}
 
 // applySettings copies the DESIGN §4 per-level settings from in onto next and validates them.
 func applySettings(next *dbgen.ClassificationLevel, in ClassificationUpdate) error {
@@ -69,8 +66,8 @@ func applySettings(next *dbgen.ClassificationLevel, in ClassificationUpdate) err
 		seen := map[string]bool{}
 		types := []string{}
 		for _, t := range in.AllowedSourceTypes {
-			if !slices.Contains(SourceTypes, t) {
-				return apperr.Invalid("invalid_source_type", "Allowed source types are upload and web")
+			if _, ok := sourcetypes.Get(t); !ok {
+				return apperr.Invalid("invalid_source_type", "Allowed source types are "+strings.Join(sourcetypes.Keys(), ", "))
 			}
 			if !seen[t] {
 				seen[t] = true

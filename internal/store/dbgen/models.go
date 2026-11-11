@@ -1374,6 +1374,13 @@ type SourceGroupMember struct {
 	Principal string
 }
 
+type SourceTypeSetting struct {
+	Type      string
+	Enabled   bool
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
 type SsoGroupRule struct {
 	ID        uuid.UUID
 	GroupName string

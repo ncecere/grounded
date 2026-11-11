@@ -23,6 +23,7 @@ import (
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/pii"
 	"github.com/ncecere/grounded/internal/platform"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/vectorstore"
 )
@@ -147,7 +148,7 @@ func (p *Processor) parse(ctx context.Context, src dbgen.DataSource, doc dbgen.D
 	}
 	in := parse.Input{Name: name, Data: data}
 	var err error
-	if src.Type == "web" {
+	if sourcetypes.Of(src.Type).WebPages {
 		// URLs carry no reliable extension: the content and the server's
 		// Content-Type decide. Web HTML keeps only the main content.
 		if in.Kind, err = parse.Detect("", data); err != nil {

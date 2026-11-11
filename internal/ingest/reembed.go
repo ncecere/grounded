@@ -24,6 +24,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/parse"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -237,7 +238,7 @@ func (p *Processor) parseStored(ctx context.Context, src dbgen.DataSource, doc d
 		return "", err
 	}
 	full := dbgen.Document{ID: doc.ID, Filename: doc.Filename, ExternalID: doc.ExternalID}
-	if src.Type == "web" {
+	if sourcetypes.Of(src.Type).WebPages {
 		if d, err := dbgen.New(p.Pool).GetDocument(ctx, doc.ID); err == nil {
 			full = d
 		}

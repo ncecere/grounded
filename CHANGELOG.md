@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Source types are a registry** (#258, [ADR-0035](docs/adr/0035-source-type-registry-and-connectors.md)), the first step towards the connectors. Upload and web are its first two types and work exactly as before. `GET /v1/source-types` lists the types with what each can do (take uploads, sync, hold web pages, report document permissions), and a platform admin can turn a type off or on with `PUT /v1/admin/source-types/{key}` (audited as `platform.source_type`): off means no new source of that type (`409 source_type_off`), and existing sources and their documents stay. A classification level's allowed source types accept any registered type.
+
+### Changed
+
+- **The API's source `type` is an open string** instead of the list `upload`, `web` (`DataSource.type`, `DataSourceCreate.type`, `SharedSource.type`, `Classification.allowedSourceTypes`). Clients that send or compare `upload` and `web` are unaffected; a generated client loses the two-value enum. Read `GET /v1/source-types` for the types an install has.
+- Migration 00070 replaces the lists of types in the database with a format check, so a new source type needs no migration. Schema 70; it changes no row and can run while the previous release serves.
+
 ### Security
 
 - **Go 1.26.11.** It fixes GO-2026-6859, a crash of the HTTP/1 server from a race on a request-body size limit's header, which `govulncheck` reports as reachable from Grounded's HTTP handlers. `govulncheck` reports no vulnerabilities again.

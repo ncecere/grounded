@@ -57,7 +57,7 @@ func (s *Service) RefetchDocument(ctx context.Context, a authz.Actor, o Owner, s
 		if err != nil {
 			return err
 		}
-		if src.Type != "web" {
+		if src.Type != TypeWeb {
 			return apperr.Invalid("not_web_document", "Only pages of web sources can be re-fetched")
 		}
 		if out, err = s.Web.StartPageRun(ctx, tx, src, doc.URL, a.UserID); err != nil {

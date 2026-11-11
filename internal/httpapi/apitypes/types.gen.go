@@ -1156,42 +1156,6 @@ func (e ClaimCheckVerification) Valid() bool {
 	}
 }
 
-// Defines values for ClassificationAllowedSourceTypes.
-const (
-	ClassificationAllowedSourceTypesUpload ClassificationAllowedSourceTypes = "upload"
-	ClassificationAllowedSourceTypesWeb    ClassificationAllowedSourceTypes = "web"
-)
-
-// Valid indicates whether the value is a known member of the ClassificationAllowedSourceTypes enum.
-func (e ClassificationAllowedSourceTypes) Valid() bool {
-	switch e {
-	case ClassificationAllowedSourceTypesUpload:
-		return true
-	case ClassificationAllowedSourceTypesWeb:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ClassificationUpdateAllowedSourceTypes.
-const (
-	ClassificationUpdateAllowedSourceTypesUpload ClassificationUpdateAllowedSourceTypes = "upload"
-	ClassificationUpdateAllowedSourceTypesWeb    ClassificationUpdateAllowedSourceTypes = "web"
-)
-
-// Valid indicates whether the value is a known member of the ClassificationUpdateAllowedSourceTypes enum.
-func (e ClassificationUpdateAllowedSourceTypes) Valid() bool {
-	switch e {
-	case ClassificationUpdateAllowedSourceTypesUpload:
-		return true
-	case ClassificationUpdateAllowedSourceTypesWeb:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ConfigurationPlanRowAction.
 const (
 	ConfigurationPlanRowActionCreate    ConfigurationPlanRowAction = "create"
@@ -1702,42 +1666,6 @@ func (e DataSourceStatus) Valid() bool {
 	case DataSourceStatusActive:
 		return true
 	case DataSourceStatusPaused:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DataSourceType.
-const (
-	DataSourceTypeUpload DataSourceType = "upload"
-	DataSourceTypeWeb    DataSourceType = "web"
-)
-
-// Valid indicates whether the value is a known member of the DataSourceType enum.
-func (e DataSourceType) Valid() bool {
-	switch e {
-	case DataSourceTypeUpload:
-		return true
-	case DataSourceTypeWeb:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DataSourceCreateType.
-const (
-	DataSourceCreateTypeUpload DataSourceCreateType = "upload"
-	DataSourceCreateTypeWeb    DataSourceCreateType = "web"
-)
-
-// Valid indicates whether the value is a known member of the DataSourceCreateType enum.
-func (e DataSourceCreateType) Valid() bool {
-	switch e {
-	case DataSourceCreateTypeUpload:
-		return true
-	case DataSourceCreateTypeWeb:
 		return true
 	default:
 		return false
@@ -4288,18 +4216,18 @@ func (e SharedSourceStatus) Valid() bool {
 	}
 }
 
-// Defines values for SharedSourceType.
+// Defines values for SourceTypeCapabilitiesPermissions.
 const (
-	SharedSourceTypeUpload SharedSourceType = "upload"
-	SharedSourceTypeWeb    SharedSourceType = "web"
+	SourceTypeCapabilitiesPermissionsNone     SourceTypeCapabilitiesPermissions = "none"
+	SourceTypeCapabilitiesPermissionsProvider SourceTypeCapabilitiesPermissions = "provider"
 )
 
-// Valid indicates whether the value is a known member of the SharedSourceType enum.
-func (e SharedSourceType) Valid() bool {
+// Valid indicates whether the value is a known member of the SourceTypeCapabilitiesPermissions enum.
+func (e SourceTypeCapabilitiesPermissions) Valid() bool {
 	switch e {
-	case SharedSourceTypeUpload:
+	case SourceTypeCapabilitiesPermissionsNone:
 		return true
-	case SharedSourceTypeWeb:
+	case SourceTypeCapabilitiesPermissionsProvider:
 		return true
 	default:
 		return false
@@ -7189,7 +7117,7 @@ type ClaimCheckVerification string
 // Classification defines model for Classification.
 type Classification struct {
 	// AllowedSourceTypes The data source types that may hold data at this level
-	AllowedSourceTypes []ClassificationAllowedSourceTypes `json:"allowedSourceTypes"`
+	AllowedSourceTypes []string `json:"allowedSourceTypes"`
 
 	// AnonymousRetentionHours How long anonymous conversations of agents at this level are kept
 	AnonymousRetentionHours int32 `json:"anonymousRetentionHours"`
@@ -7214,9 +7142,6 @@ type Classification struct {
 	Revision  Revision  `json:"revision"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
-
-// ClassificationAllowedSourceTypes defines model for Classification.AllowedSourceTypes.
-type ClassificationAllowedSourceTypes string
 
 // ClassificationConflictResponse defines model for ClassificationConflictResponse.
 type ClassificationConflictResponse struct {
@@ -7247,8 +7172,8 @@ type ClassificationImpact struct {
 
 // ClassificationUpdate defines model for ClassificationUpdate.
 type ClassificationUpdate struct {
-	AllowedSourceTypes      *[]ClassificationUpdateAllowedSourceTypes `json:"allowedSourceTypes,omitempty"`
-	AnonymousRetentionHours *int32                                    `json:"anonymousRetentionHours,omitempty"`
+	AllowedSourceTypes      *[]string `json:"allowedSourceTypes,omitempty"`
+	AnonymousRetentionHours *int32    `json:"anonymousRetentionHours,omitempty"`
 
 	// ConversationRetentionDays Days to keep signed-in conversations; 0 keeps them until deleted
 	ConversationRetentionDays *int32  `json:"conversationRetentionDays,omitempty"`
@@ -7259,9 +7184,6 @@ type ClassificationUpdate struct {
 	MaxAudience *Audience `json:"maxAudience,omitempty"`
 	Name        *string   `json:"name,omitempty"`
 }
-
-// ClassificationUpdateAllowedSourceTypes defines model for ClassificationUpdate.AllowedSourceTypes.
-type ClassificationUpdateAllowedSourceTypes string
 
 // ConfigurationApplied defines model for ConfigurationApplied.
 type ConfigurationApplied struct {
@@ -8357,10 +8279,14 @@ type DataSource struct {
 	OcrState *DataSourceOcrState `json:"ocrState,omitempty"`
 
 	// Revision Increases on every change. Send it back in If-Match.
-	Revision  Revision         `json:"revision"`
-	Status    DataSourceStatus `json:"status"`
-	Type      DataSourceType   `json:"type"`
-	UpdatedAt time.Time        `json:"updatedAt"`
+	Revision Revision         `json:"revision"`
+	Status   DataSourceStatus `json:"status"`
+
+	// Type The source type's key (GET /v1/source-types): upload, web or a connector
+	//
+	// Example: web
+	Type      string    `json:"type"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// Web The web configuration (web sources only)
 	Web *WebConfig `json:"web"`
@@ -8371,9 +8297,6 @@ type DataSourceOcrState string
 
 // DataSourceStatus defines model for DataSource.Status.
 type DataSourceStatus string
-
-// DataSourceType defines model for DataSource.Type.
-type DataSourceType string
 
 // DataSourceCreate defines model for DataSourceCreate.
 type DataSourceCreate struct {
@@ -8391,15 +8314,14 @@ type DataSourceCreate struct {
 	// OcrEnabled Read pages without text with OCR when the platform has it on (default true)
 	OcrEnabled *bool `json:"ocrEnabled,omitempty"`
 
-	// Type Fixed at creation
-	Type *DataSourceCreateType `json:"type,omitempty"`
+	// Type A registered source type's key (GET /v1/source-types), fixed at creation. 409 source_type_off for a type a platform admin has turned off
+	//
+	// Example: web
+	Type *string `json:"type,omitempty"`
 
 	// Web A web source's configuration. URLs are normalised; every host must be on the crawl allowlist or approved for the team by a domain request (400 host_not_allowed). Unknown fields are rejected.
 	Web *WebConfigInput `json:"web,omitempty"`
 }
-
-// DataSourceCreateType Fixed at creation
-type DataSourceCreateType string
 
 // DataSourceUpdate defines model for DataSourceUpdate.
 type DataSourceUpdate struct {
@@ -12527,14 +12449,15 @@ type SharedSource struct {
 	Id                 openapi_types.UUID `json:"id"`
 	Name               string             `json:"name"`
 	Status             SharedSourceStatus `json:"status"`
-	Type               SharedSourceType   `json:"type"`
+
+	// Type The source type's key (GET /v1/source-types): upload, web or a connector
+	//
+	// Example: web
+	Type string `json:"type"`
 }
 
 // SharedSourceStatus defines model for SharedSource.Status.
 type SharedSourceStatus string
-
-// SharedSourceType defines model for SharedSource.Type.
-type SharedSourceType string
 
 // SharedSourceAttachment defines model for SharedSourceAttachment.
 type SharedSourceAttachment struct {
@@ -12596,6 +12519,71 @@ type SourceBoilerplate struct {
 
 	// Threshold Documents a block needed at the last refresh
 	Threshold int32 `json:"threshold"`
+}
+
+// SourceType defines model for SourceType.
+type SourceType struct {
+	// BuiltIn Upload and web, which have their own pages; the other types are connectors
+	BuiltIn      bool                   `json:"builtIn"`
+	Capabilities SourceTypeCapabilities `json:"capabilities"`
+
+	// ConfigSchema The JSON Schema of the type's settings, from which its form is built (connectors only)
+	ConfigSchema *map[string]interface{} `json:"configSchema,omitempty"`
+
+	// Credentials The credentials the type needs (connectors only). Their values are stored encrypted and never returned
+	Credentials []SourceTypeCredential `json:"credentials"`
+	Description string                 `json:"description"`
+
+	// Enabled New sources of the type can be made, and a connector type syncs
+	Enabled bool `json:"enabled"`
+
+	// Key A source's type
+	//
+	// Example: web
+	Key string `json:"key"`
+
+	// Name Example: Website
+	Name string `json:"name"`
+
+	// Sources Sources of the type in this install (platform admins and auditors only)
+	Sources *int64 `json:"sources,omitempty"`
+}
+
+// SourceTypeCapabilities defines model for SourceTypeCapabilities.
+type SourceTypeCapabilities struct {
+	// Permissions Where document permissions come from: none (an editor may restrict the source by hand) or provider (the type reports each document's permissions, and the source refuses a hand-set restriction)
+	Permissions SourceTypeCapabilitiesPermissions `json:"permissions"`
+
+	// Shared A platform admin can make a shared source of this type
+	Shared bool `json:"shared"`
+
+	// Sync The source fetches its own content, on a schedule or on request
+	Sync bool `json:"sync"`
+
+	// Uploads People add files by uploading them
+	Uploads bool `json:"uploads"`
+
+	// WebPages Its documents are web pages: identified by address, with repeated blocks left out by default and links that can be checked
+	WebPages bool `json:"webPages"`
+}
+
+// SourceTypeCapabilitiesPermissions Where document permissions come from: none (an editor may restrict the source by hand) or provider (the type reports each document's permissions, and the source refuses a hand-set restriction)
+type SourceTypeCapabilitiesPermissions string
+
+// SourceTypeCredential defines model for SourceTypeCredential.
+type SourceTypeCredential struct {
+	Help     string `json:"help"`
+	Key      string `json:"key"`
+	Label    string `json:"label"`
+	Required bool   `json:"required"`
+
+	// Secret Masked as it is typed
+	Secret bool `json:"secret"`
+}
+
+// SourceTypeInput defines model for SourceTypeInput.
+type SourceTypeInput struct {
+	Enabled bool `json:"enabled"`
 }
 
 // StopReason defines model for StopReason.
@@ -14878,6 +14866,9 @@ type AdminUpdateSharedDocumentJSONRequestBody = DocumentUpdate
 
 // AdminReviewSharedDocumentPiiJSONRequestBody defines body for AdminReviewSharedDocumentPii for application/json ContentType.
 type AdminReviewSharedDocumentPiiJSONRequestBody = DocumentPiiReviewInput
+
+// AdminPutSourceTypeJSONRequestBody defines body for AdminPutSourceType for application/json ContentType.
+type AdminPutSourceTypeJSONRequestBody = SourceTypeInput
 
 // AdminPutSourceContextualJSONRequestBody defines body for AdminPutSourceContextual for application/json ContentType.
 type AdminPutSourceContextualJSONRequestBody = ContextualSettingsInput

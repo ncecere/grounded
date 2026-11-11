@@ -445,6 +445,29 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Classification" }
         "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/source-types:
+    get:
+      tags: [sources]
+      operationId: listSourceTypes
+      summary: The source types this install has, and whether each is on
+      description: >-
+        Every signed-in person: a team needs them to add a source. A type's capabilities say what its sources do
+        (take uploads, sync, hold web pages, report document permissions), so a client never compares a source's type
+        with a name. Upload and web are on unless a platform admin turns them off; every other type is off until turned on.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: The built-in types first, then the others by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SourceType" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams:
     get:
       tags: [teams]
@@ -1489,6 +1512,38 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/AuditStream" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/source-types/{key}:
+    put:
+      tags: [admin]
+      operationId: adminPutSourceType
+      summary: Turn a source type on or off (signed-in platform admins; audited as platform.source_type)
+      description: >-
+        Off: no new source of the type can be made (409 source_type_off) and a connector type starts no sync. Its
+        sources and their documents stay, and stay searchable. Turn a new type on once every server runs the release
+        that has it. Each classification level also lists the types that may hold its data.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceTypeInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SourceType" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/document-access:
     get:
       tags: [admin]
@@ -3426,7 +3481,7 @@ paths:
     post:
       tags: [sources]
       operationId: createSource
-      summary: Create an upload or web data source; a web source's first crawl starts immediately (activeCrawl)
+      summary: "Create a data source of a registered type (upload, web); a web source's first crawl starts immediately (activeCrawl)"
       requestBody:
         required: true
         content:
@@ -12042,7 +12097,7 @@ components:
         allowedSourceTypes:
           type: array
           description: The data source types that may hold data at this level
-          items: { type: string, enum: [upload, web] }
+          items: { type: string, example: upload, description: "A registered source type's key (GET /v1/source-types)" }
         directRetrieve: { type: boolean, description: "Team API keys may call /retrieve on knowledge bases at this level" }
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
@@ -12069,7 +12124,7 @@ components:
         allowedSourceTypes:
           type: array
           minItems: 1
-          items: { type: string, enum: [upload, web] }
+          items: { type: string, example: upload, description: "A registered source type's key (GET /v1/source-types)" }
         directRetrieve: { type: boolean }
     UserPage:
       type: object
@@ -12101,6 +12156,53 @@ components:
         enabled: { type: boolean }
         coverageStart: { type: string, format: date, description: Immutable first covered UTC day once requests exist }
         destination: { type: string, enum: [builtin], description: External destinations are unsupported and fail closed }
+    SourceType:
+      type: object
+      required: [key, name, description, builtIn, enabled, capabilities, credentials]
+      properties:
+        key: { type: string, example: web, description: "A source's type" }
+        name: { type: string, example: Website }
+        description: { type: string }
+        builtIn: { type: boolean, description: "Upload and web, which have their own pages; the other types are connectors" }
+        enabled: { type: boolean, description: "New sources of the type can be made, and a connector type syncs" }
+        sources: { type: integer, format: int64, description: Sources of the type in this install (platform admins and auditors only) }
+        capabilities: { $ref: "#/components/schemas/SourceTypeCapabilities" }
+        configSchema:
+          type: object
+          additionalProperties: true
+          description: The JSON Schema of the type's settings, from which its form is built (connectors only)
+        credentials:
+          type: array
+          description: The credentials the type needs (connectors only). Their values are stored encrypted and never returned
+          items: { $ref: "#/components/schemas/SourceTypeCredential" }
+    SourceTypeCapabilities:
+      type: object
+      required: [uploads, sync, webPages, permissions, shared]
+      properties:
+        uploads: { type: boolean, description: People add files by uploading them }
+        sync: { type: boolean, description: "The source fetches its own content, on a schedule or on request" }
+        webPages: { type: boolean, description: "Its documents are web pages: identified by address, with repeated blocks left out by default and links that can be checked" }
+        permissions:
+          type: string
+          enum: [none, provider]
+          description: >-
+            Where document permissions come from: none (an editor may restrict the source by hand) or provider (the
+            type reports each document's permissions, and the source refuses a hand-set restriction)
+        shared: { type: boolean, description: A platform admin can make a shared source of this type }
+    SourceTypeCredential:
+      type: object
+      required: [key, label, help, secret, required]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        help: { type: string }
+        secret: { type: boolean, description: Masked as it is typed }
+        required: { type: boolean }
+    SourceTypeInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
     DocumentAccessSettings:
       type: object
       required: [enabled, revision, restrictedDocuments]
@@ -13612,7 +13714,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
-        type: { type: string, enum: [upload, web] }
+        type: { type: string, example: web, description: "The source type's key (GET /v1/source-types): upload, web or a connector" }
         classification: { type: string }
         embeddingProfileId: { type: string, format: uuid }
         status: { type: string, enum: [active, paused] }
@@ -13692,7 +13794,7 @@ components:
       properties:
         name: { type: string }
         description: { type: string }
-        type: { type: string, enum: [upload, web], default: upload, description: Fixed at creation }
+        type: { type: string, default: upload, example: web, description: "A registered source type's key (GET /v1/source-types), fixed at creation. 409 source_type_off for a type a platform admin has turned off" }
         classification: { type: string }
         embeddingProfileId: { type: string, format: uuid, description: Defaults to the platform default profile }
         web: { $ref: "#/components/schemas/WebConfigInput" }
@@ -14462,7 +14564,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
-        type: { type: string, enum: [upload, web] }
+        type: { type: string, example: web, description: "The source type's key (GET /v1/source-types): upload, web or a connector" }
         classification: { type: string }
         embeddingProfileId: { type: string, format: uuid }
         status: { type: string, enum: [active, paused] }
