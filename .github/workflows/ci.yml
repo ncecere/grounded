@@ -170,6 +170,21 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+      - name: Make sure the package mirrors resolve
+        # The hosted runners' resolver has stopped answering for the Ubuntu mirrors at times (2026-11-11: every
+        # install failed with "Temporary failure resolving" for hours while other hosts resolved). When it does not
+        # answer after a few tries, this job uses public resolvers instead.
+        run: |
+          for i in 1 2 3 4; do
+            if getent hosts azure.archive.ubuntu.com >/dev/null && getent hosts archive.ubuntu.com >/dev/null; then exit 0; fi
+            sleep 5
+          done
+          resolvectl status || true
+          cat /etc/resolv.conf || true
+          echo "::warning::The runner's resolver does not answer for the Ubuntu mirrors; using public resolvers for this job."
+          link=$(ip -o route show default | awk '{print $5; exit}')
+          sudo resolvectl dns "$link" 1.1.1.1 8.8.8.8 || printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf
+          getent hosts azure.archive.ubuntu.com
       - name: Install Chromium
         working-directory: web
         run: |
@@ -203,6 +218,21 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - name: Make sure the package mirrors resolve
+        # The hosted runners' resolver has stopped answering for the Ubuntu mirrors at times (2026-11-11: every
+        # install failed with "Temporary failure resolving" for hours while other hosts resolved). When it does not
+        # answer after a few tries, this job uses public resolvers instead.
+        run: |
+          for i in 1 2 3 4; do
+            if getent hosts azure.archive.ubuntu.com >/dev/null && getent hosts archive.ubuntu.com >/dev/null; then exit 0; fi
+            sleep 5
+          done
+          resolvectl status || true
+          cat /etc/resolv.conf || true
+          echo "::warning::The runner's resolver does not answer for the Ubuntu mirrors; using public resolvers for this job."
+          link=$(ip -o route show default | awk '{print $5; exit}')
+          sudo resolvectl dns "$link" 1.1.1.1 8.8.8.8 || printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf
+          getent hosts azure.archive.ubuntu.com
       - name: Install Tesseract
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
       - name: Sidecar tests (with Tesseract)
