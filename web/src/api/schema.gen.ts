@@ -2370,6 +2370,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/source-types/{key}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                key: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test settings and credentials for a connector source that does not exist yet (team editors and above)
+         * @description Nothing is saved. The answer says who the credentials are and lists what they reach (sites, drives, folders), so a form can offer them. 422 credentials_refused when the provider refuses the credentials, 422 connection_failed for anything else; 409 source_type_off for a type a platform admin has turned off.
+         */
+        post: operations["checkSourceTypeConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/connector": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change a connector source's settings, credentials or schedule (team editors and above; audited as source.connector_update)
+         * @description Send only what changes. A credential that is sent replaces the stored value, an empty value removes it, and one that is not sent keeps what is stored; values are never returned. New settings or credentials make the next sync list everything again. If-Match with the source's revision. 400 not_connector_source for an upload or web source.
+         */
+        put: operations["putSourceConnector"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/connector/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test a connector source's connection (team editors and above)
+         * @description Uses the stored settings and credentials, with any sent in the body laid over them, so a change can be tested before it is saved. Nothing is saved. 422 credentials_refused or connection_failed.
+         */
+        post: operations["checkSourceConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/syncs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A connector source's syncs, newest first */
+        get: operations["listSourceSyncs"];
+        put?: never;
+        /**
+         * Start a sync of a connector source (team editors and above, or an API key with the ingest scope; audited as source.sync)
+         * @description A sync lists what changed since the last one. full lists everything again, which also finds documents the provider no longer has. 409 sync_in_progress (details.sync is the active sync), source_paused, source_type_off or connector_unavailable; 400 credentials_missing.
+         */
+        post: operations["startSourceSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                syncId: components["parameters"]["SyncIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a queued or running sync (team editors and above; audited as source.sync_cancel)
+         * @description What the sync already added or changed stays; nothing is removed. 409 sync_not_active.
+         */
+        post: operations["cancelSourceSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/removals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                syncId: components["parameters"]["SyncIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * What a sync's held removals would remove (team editors and above)
+         * @description A sync that would empty a source, or remove a large share of it, removes nothing and holds its removals for an editor. The answer is the sync and the first 100 documents, by name.
+         */
+        get: operations["getSyncRemovals"];
+        put?: never;
+        /**
+         * Confirm or dismiss a sync's held removals (team editors and above; audited as source.removals_confirm or source.removals_dismiss)
+         * @description confirm true removes the documents; false keeps them, and the next full sync decides again. 409 removals_decided when the sync holds none.
+         */
+        post: operations["decideSyncRemovals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/sources/{sourceId}/access": {
         parameters: {
             query?: never;
@@ -7639,6 +7790,142 @@ export interface components {
              */
             destination: "builtin";
         };
+        /** @description A connector source's settings. Its type says which settings and credentials it takes (GET /v1/source-types). */
+        ConnectorSettingsInput: {
+            /** @description The type's settings, checked against its configSchema */
+            config?: {
+                [key: string]: unknown;
+            };
+            /** @description Values by credential key. They are stored encrypted and never returned */
+            credentials?: {
+                [key: string]: string;
+            };
+            schedule?: components["schemas"]["SyncSchedule"];
+        };
+        /**
+         * @description How often the source syncs on its own (manual, the default, only on request)
+         * @enum {string}
+         */
+        SyncSchedule: "manual" | "hourly" | "daily" | "weekly";
+        /** @description The connector side of a source (connector types only) */
+        SourceConnector: {
+            schedule: components["schemas"]["SyncSchedule"];
+            /** @description The type's settings as stored */
+            config: {
+                [key: string]: unknown;
+            };
+            /** @description The credentials that have a stored value (never the values) */
+            credentialKeys: string[];
+            /** Format: date-time */
+            credentialsSetAt: string | null;
+            /**
+             * Format: date-time
+             * @description When a sync last listed everything
+             */
+            lastCompleteAt: string | null;
+            /** @description This server has the type's connector; without it the source can't sync, and its documents stay searchable */
+            available: boolean;
+        };
+        SourceSync: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sourceId: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed" | "cancelled";
+            /** @enum {string} */
+            trigger: "create" | "manual" | "schedule";
+            /** @description The sync was asked to list everything */
+            full: boolean;
+            /** @description The listing covered everything the settings select, so what it did not mention is gone from the provider */
+            complete: boolean;
+            /** Format: int32 */
+            itemsAdded: number;
+            /** Format: int32 */
+            itemsChanged: number;
+            /** Format: int32 */
+            itemsUnchanged: number;
+            /** Format: int32 */
+            itemsSkipped: number;
+            /**
+             * Format: int32
+             * @description Documents removed because the provider no longer has them
+             */
+            itemsRemoved: number;
+            /**
+             * Format: int32
+             * @description Documents whose permissions changed without their content changing
+             */
+            permissionsChanged: number;
+            /**
+             * @description What became of removals the sync held: pending (they wait for an editor), confirmed, dismissed, or superseded by a later sync. Empty when it held none
+             * @enum {string}
+             */
+            removals: "" | "pending" | "confirmed" | "dismissed" | "superseded";
+            /**
+             * Format: int32
+             * @description Documents the sync would remove once an editor confirms
+             */
+            removalsPending: number;
+            /** @description Why the removals were held */
+            removalsReason: string;
+            /** @description Why the sync ended early: cancelled, paused, type_off, maintenance or limit:<key>. Empty when it ran to the end */
+            stoppedReason: string;
+            error: string;
+            /** @description The first 50 items left out, with the reason */
+            problems: components["schemas"]["SourceSyncProblem"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt: string | null;
+            /** Format: date-time */
+            finishedAt: string | null;
+        };
+        SourceSyncProblem: {
+            id: string;
+            title: string;
+            reason: string;
+        };
+        SourceSyncStart: {
+            /**
+             * @description List everything again instead of what changed since the last sync
+             * @default false
+             */
+            full: boolean;
+        };
+        SyncConflictResponse: {
+            error: {
+                code: string;
+                message: string;
+                details?: {
+                    sync?: components["schemas"]["SourceSync"];
+                };
+            };
+        };
+        ConnectionCheck: {
+            /** @description Who the credentials are and what they can read */
+            summary: string;
+            /** @description What could be indexed (sites, drives, spaces, folders) */
+            reachable: {
+                id: string;
+                name: string;
+                kind: string;
+            }[];
+        };
+        SyncRemovals: {
+            sync: components["schemas"]["SourceSync"];
+            /** @description The first 100 documents the sync would remove */
+            documents: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                filename: string;
+                url: string;
+            }[];
+        };
+        SyncRemovalsDecision: {
+            confirm: boolean;
+        };
         SourceType: {
             /**
              * @description A source's type
@@ -9487,6 +9774,12 @@ export interface components {
             nextSyncAt: string | null;
             /** @description The queued or running crawl, if any */
             activeCrawl: components["schemas"]["Crawl"] | null;
+            /** @description The connector's settings and schedule (connector sources only) */
+            connector?: components["schemas"]["SourceConnector"] | null;
+            /** @description The queued or running sync of a connector source, if any */
+            activeSync?: components["schemas"]["SourceSync"] | null;
+            /** @description The sync whose removals wait for an editor, if any (connector sources only) */
+            heldSync?: components["schemas"]["SourceSync"] | null;
             boilerplate: components["schemas"]["SourceBoilerplate"];
             /** @description Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md) */
             ocrEnabled: boolean;
@@ -9592,6 +9885,8 @@ export interface components {
              */
             embeddingProfileId?: string;
             web?: components["schemas"]["WebConfigInput"];
+            /** @description A connector source's settings, credentials and schedule (connector types only). Its first sync starts at once */
+            connector?: components["schemas"]["ConnectorSettingsInput"];
             boilerplate?: components["schemas"]["BoilerplateSettings"];
             /** @description Read pages without text with OCR when the platform has it on (default true) */
             ocrEnabled?: boolean;
@@ -13984,6 +14279,15 @@ export interface components {
                 "application/json": components["schemas"]["CrawlConflictResponse"];
             };
         };
+        /** @description sync_in_progress (details.sync is the active sync), or another conflict such as source_paused or source_type_off */
+        SyncInProgressReply: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["SyncConflictResponse"];
+            };
+        };
         /** @description classification_impact (details lists the knowledge bases that must detach the source first), or another conflict such as name_taken */
         ClassificationImpactReply: {
             headers: {
@@ -14169,6 +14473,7 @@ export interface components {
         AnalyticsAudienceParam: components["schemas"]["Audience"];
         SourceIdParam: string;
         DocumentIdParam: string;
+        SyncIdParam: string;
         CrawlIdParam: string;
         MigrationIdParam: string;
         WebhookIdParam: string;
@@ -18693,6 +18998,286 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["CrawlInProgressReply"];
             503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    checkSourceTypeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectorSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConnectionCheck"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            422: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    putSourceConnector: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectorSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DataSource"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    checkSourceConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConnectorSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConnectionCheck"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            422: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    listSourceSyncs: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["LimitParam"];
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceSync"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    startSourceSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SourceSyncStart"];
+            };
+        };
+        responses: {
+            /** @description The sync was queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceSync"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["SyncInProgressReply"];
+            503: components["responses"]["MaintenanceReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    cancelSourceSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                syncId: components["parameters"]["SyncIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceSync"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    getSyncRemovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                syncId: components["parameters"]["SyncIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SyncRemovals"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            default: components["responses"]["DefaultErrorReply"];
+        };
+    };
+    decideSyncRemovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: components["parameters"]["SourceIdParam"];
+                syncId: components["parameters"]["SyncIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncRemovalsDecision"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SourceSync"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
             default: components["responses"]["DefaultErrorReply"];
         };
     };

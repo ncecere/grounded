@@ -199,6 +199,8 @@ var settings = append([]setting{
 		return nil
 	}},
 	{key: "CRAWL_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.Crawl.Concurrency }, 1, 256)},
+	{key: "CONNECTOR_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.Connectors.Concurrency }, 1, 64)},
+	{key: "CONNECTOR_REMOVAL_HOLD_PERCENT", apply: integer(func(c *Config) *int { return &c.Connectors.RemovalHoldPercent }, 1, 100)},
 	{key: "CRAWL_ALLOWLIST_SEED", apply: func(c *Config, v string) error {
 		var out []string
 		for _, part := range strings.Split(v, ",") {

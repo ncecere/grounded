@@ -104,6 +104,7 @@ func toAPISource(s sources.Summary) apitypes.DataSource {
 		c := toAPICrawl(*s.ActiveCrawl)
 		out.ActiveCrawl = &c
 	}
+	addConnector(&out, s)
 	out.Boilerplate = toAPIBoilerplate(s.Boilerplate)
 	out.OcrEnabled = src.OcrEnabled
 	out.Access = toAPISourceAccess(src)
@@ -261,7 +262,7 @@ func (a *api) createSource(owner ownerFunc) http.HandlerFunc {
 		s, err := a.Sources.Create(r.Context(), a.actor(r), owner(r), sources.CreateInput{
 			Name: in.Name, Description: deref(in.Description, ""), Type: deref(in.Type, sources.TypeUpload),
 			Classification: in.Classification, ProfileID: in.EmbeddingProfileId, Web: webInput(in.Web),
-			Boilerplate: boilerplateInput(in.Boilerplate), OCREnabled: in.OcrEnabled,
+			Boilerplate: boilerplateInput(in.Boilerplate), OCREnabled: in.OcrEnabled, Connector: connectorSettings(in.Connector),
 		})
 		if err != nil {
 			a.fail(w, r, err)

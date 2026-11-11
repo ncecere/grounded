@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/breakglass"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -105,6 +106,9 @@ func (s *Service) SetAccess(ctx context.Context, a authz.Actor, o Owner, id uuid
 		}
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
+		}
+		if sourcetypes.Of(cur.Type).Permissions == sourcetypes.PermissionsProvider {
+			return errAccessFromProvider
 		}
 		if list != nil {
 			if st, err := q.GetDocumentAccessSettings(ctx); err != nil {

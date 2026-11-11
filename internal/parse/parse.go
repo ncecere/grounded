@@ -318,3 +318,14 @@ func cleanMarkdown(md string) string {
 	}
 	return s + "\n"
 }
+
+// IndexableName reports whether a file of this name is one the parsers read, going by its extension alone: PDF, DOCX,
+// PPTX, HTML, Markdown and plain text. Images are left out: they are read with OCR only when uploaded on purpose. A
+// connector uses it to skip a file before downloading it; the content is still checked by Detect when it is parsed.
+func IndexableName(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".pdf", ".docx", ".pptx", ".html", ".htm", ".xhtml", ".md", ".markdown", ".mdown", ".txt", ".text":
+		return true
+	}
+	return false
+}

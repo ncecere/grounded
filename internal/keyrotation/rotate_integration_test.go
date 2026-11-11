@@ -61,6 +61,18 @@ var seeders = map[string]func(ctx context.Context, pool *pgxpool.Pool, id uuid.U
 			VALUES ($1, 'SIEM', 'https', 'ndjson', 'https://siem.example.edu/ingest', $2)`, id, ct)
 		return err
 	},
+	// A connector source's credentials (NULL until they are entered). The row's id is its source's.
+	"source_connectors.credentials_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
+		_, err := pool.Exec(ctx, `WITH c AS (INSERT INTO model_connections (name, base_url) VALUES ('rot-' || $1::text, 'http://x/v1') RETURNING id),
+			m AS (INSERT INTO models (connection_id, key, upstream_model, display_name, kind, max_classification, dimensions)
+				SELECT id, 'rot-' || $1::text, 'e', 'E', 'embedding', 'open', 8 FROM c RETURNING id),
+			p AS (INSERT INTO embedding_profiles (key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap)
+				SELECT 'rot-' || $1::text, 'rot-' || $1::text, id, 8, 'halfvec', 512, 0 FROM m RETURNING id),
+			s AS (INSERT INTO data_sources (id, name, type, classification, embedding_profile_id)
+				SELECT $1::uuid, 'rot-' || $1::text, 'sample_connector', 'open', id FROM p RETURNING id)
+			INSERT INTO source_connectors (id, credentials_cipher) SELECT id, $2 FROM s`, id, ct)
+		return err
+	},
 	"mcp_servers.auth_value_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
 		name := any(nil)
 		if ct != nil {

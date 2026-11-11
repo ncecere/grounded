@@ -1,6 +1,6 @@
 # ADR-0035: A source type registry, and connectors built on it
 
-- Status: Accepted (2026-11-11; the registry is built, #258 step 1; the connector runtime follows in step 2)
+- Status: Accepted (2026-11-11; built in #258: the registry, then the connector runtime)
 - Date: 2026-11-11
 - Changes: [ADR-0008](0008-data-source-plugins-and-native-web-crawler.md)
 
@@ -56,22 +56,45 @@ turning a type on and choosing where it may be used are two deliberate steps.
 
 A new type is turned on after the upgrade's rollout: a server of the previous release does not know it.
 
-### Connectors (step 2)
+### Connectors
 
-A connector is a package that registers a type and implements three things: validate its settings, check a credential,
-and sync. A sync lists what changed since a saved cursor and hands each item to a **sink**, which is the one way into
-the existing parse, chunk, embed and commit steps. The runtime, not the connector, owns:
+A connector is a package that registers a type and implements three things (`internal/connector`): validate its
+settings, check a credential, and sync. A sync lists what changed since a saved cursor and hands each item to a
+**sink**, which is the one way into the existing parse, chunk, embed and commit steps. The runtime
+(`internal/sourcesync`), not the connector, owns:
 
-- **credentials**, stored encrypted per source, write-only in the API, rotated with the other secrets;
-- **scheduling**, one sync per source at a time, team limits, throttling and retries;
-- **deletion safety**: what a completed listing no longer has is removed, but a listing that fails, is partial, or would
-  remove a large share of the source removes nothing until an editor confirms;
-- **permissions**: the connector reports principals and its own groups; the runtime writes `documents.acl_principals`
-  and `source_group_members` (the document-permissions design), and fails closed on anything it can't express;
-- **outbound requests**, through the crawler's SSRF controls, with self-hosted hosts on private addresses allowed only
-  by a platform admin.
+- **Credentials.** Stored encrypted per source (`source_connectors`, bound to the source by its associated data),
+  write-only in the API, redacted from errors, and rotated with the other secrets.
+- **Syncs.** River jobs, one per source at a time, on demand or on a schedule (hourly, daily, weekly). A failed sync is
+  tried again after one, five and twenty-five minutes. A long sync checkpoints, and a restart of the same sync
+  continues from the checkpoint. The source's cursor is saved only when a sync ends, so a failed sync never leaves the
+  next one starting in the middle of a listing.
+- **Unchanged content is not read again.** An item carries a version; the sink asks for content only when it differs,
+  and then compares the hash.
+- **Deletion safety.** A sync collects what it would remove: what the provider said was deleted and, after a complete
+  listing, what the listing did not mention. That is removed when the sync ends, unless it would empty the source or
+  remove more than 30% of it (and at least 10 documents). Then nothing is removed and the removals wait for an editor
+  to confirm or dismiss. A failed, cancelled or limit-stopped sync removes nothing.
+- **Permissions.** The connector reports principals and its own groups; the runtime writes `documents.acl_principals`
+  and `source_group_members` (the document-permissions design). It fails closed: a missing report, an entry that isn't
+  a principal and a list too long to keep all end as fewer readers, never more. Permissions that change without the
+  content changing are applied without reading the content. Such a source needs the Document permissions switch on and
+  refuses a hand-set restriction.
+- **Limits.** A team's documents and storage limits apply; reaching one stops the sync and removes nothing.
+- **Outbound requests.** One client for every connector: it refuses private addresses, checked when connecting, so a
+  redirect or a name that changes its answer is caught, and it waits when the provider throttles.
 
 Polling with cursors first; provider webhooks are each connector's later decision.
+
+### Not decided here
+
+- **Hosts on private addresses.** A self-hosted Confluence or an S3-compatible server sits on a private address. The
+  project allows no configuration setting that lifts the address check (a test refuses one), so there is none. How a
+  platform admin allows one host is decided with the first connector that needs it; the client already takes a list.
+- **Shared (platform) sources of a connector type.** Not offered: shared sources can't be restricted yet.
+- **Configuration as code** carries upload and web sources only. A connector source is refused on export with the
+  reason, as before; carrying its settings (never its credentials) is a follow-up.
+- **Per-type limits** beyond the team's documents and storage limits.
 
 ## Consequences
 

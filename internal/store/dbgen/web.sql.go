@@ -1213,7 +1213,7 @@ SET url = EXCLUDED.url, tags = EXCLUDED.tags, content_type = EXCLUDED.content_ty
     http_last_modified = EXCLUDED.http_last_modified, last_seen_crawl_id = EXCLUDED.last_seen_crawl_id,
     version = documents.version + 1, status = 'pending', error_code = '', error_message = '',
     attempts = 0, waiting_until = NULL, updated_at = now()
-RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
+RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id
 `
 
 type UpsertWebDocumentParams struct {
@@ -1285,6 +1285,8 @@ func (q *Queries) UpsertWebDocument(ctx context.Context, arg UpsertWebDocumentPa
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }

@@ -114,6 +114,8 @@ type Config struct {
 
 	// Web crawling (ADR-0008, DESIGN.md §5.3).
 	Crawl Crawl
+	// Connectors configures connector sources.
+	Connectors Connectors
 
 	LogLevel  string
 	LogFormat string
@@ -155,6 +157,19 @@ type Config struct {
 	WorkerConcurrency      int
 	ShutdownDelay          time.Duration
 	ShutdownTimeout        time.Duration
+}
+
+// Connectors configures connector sources (ADR-0035).
+type Connectors struct {
+	// Concurrency is how many sources sync at once per worker process (River queue "connector").
+	Concurrency int
+	// RemovalHoldPercent: a sync that would remove more than this share of a source's documents removes nothing
+	// until an editor confirms.
+	RemovalHoldPercent int
+
+	// AllowPrivateAddressesForTests lifts the address check so tests can reach httptest servers. It has no
+	// environment variable or YAML key: only test code can set it.
+	AllowPrivateAddressesForTests bool
 }
 
 // Crawl configures the web crawler.
@@ -271,6 +286,7 @@ func Defaults() Config {
 			MaxPages: 10000, OriginInterval: time.Second, Timeout: 30 * time.Second,
 			MaxBodyBytes: 20 << 20, Concurrency: 4,
 		},
+		Connectors:      Connectors{Concurrency: 2, RemovalHoldPercent: 30},
 		ShutdownDelay:   5 * time.Second,
 		ShutdownTimeout: 60 * time.Second,
 	}

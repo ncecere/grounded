@@ -613,6 +613,8 @@ type Document struct {
 	LastSeenCrawlID  uuid.NullUUID
 	WaitingUntil     *time.Time
 	AclPrincipals    []string
+	ExternalVersion  string
+	LastSeenSyncID   uuid.NullUUID
 }
 
 type DocumentAccessSetting struct {
@@ -1341,6 +1343,17 @@ type SourceBoilerplateBlock struct {
 	MemberOf            *int64
 }
 
+type SourceConnector struct {
+	ID                uuid.UUID
+	CredentialsCipher []byte
+	CredentialsSetAt  *time.Time
+	CredentialsSetBy  uuid.NullUUID
+	Schedule          string
+	Cursor            json.RawMessage
+	CursorAt          *time.Time
+	LastCompleteAt    *time.Time
+}
+
 type SourceContextual struct {
 	SourceID        uuid.UUID
 	Enabled         bool
@@ -1372,6 +1385,38 @@ type SourceGroupMember struct {
 	SourceID  uuid.UUID
 	GroupID   string
 	Principal string
+}
+
+type SourceSync struct {
+	ID                 uuid.UUID
+	SourceID           uuid.UUID
+	TeamID             uuid.NullUUID
+	Status             string
+	Trigger            string
+	FullListing        bool
+	Complete           bool
+	ItemsAdded         int32
+	ItemsChanged       int32
+	ItemsUnchanged     int32
+	ItemsSkipped       int32
+	ItemsRemoved       int32
+	PermissionsChanged int32
+	Removals           string
+	RemovalsPending    int32
+	RemovalsReason     string
+	StoppedReason      string
+	Error              string
+	Problems           json.RawMessage
+	Checkpoint         json.RawMessage
+	CreatedBy          uuid.NullUUID
+	CreatedAt          time.Time
+	StartedAt          *time.Time
+	FinishedAt         *time.Time
+}
+
+type SourceSyncRemoval struct {
+	SyncID     uuid.UUID
+	DocumentID uuid.UUID
 }
 
 type SourceTypeSetting struct {
