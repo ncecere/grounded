@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Go 1.26.11.** It fixes GO-2026-6859, a crash of the HTTP/1 server from a race on a request-body size limit's header, which `govulncheck` reports as reachable from Grounded's HTTP handlers. `govulncheck` reports no vulnerabilities again.
+
 ## [0.10.0] - 2026-11-10
 
 Private content, first part, and a hardening pass: document permissions (off until a platform admin turns them on), fewer database round trips before an answer starts, keyword and vector search side by side, a chat that stays fast in long conversations, and a fix for web pages in other character sets. Release notes: [`docs/releases/v0.10.0.md`](docs/releases/v0.10.0.md). Schema 69, expand only. The Microsoft 365, Google Drive and other connectors move to v0.11.0.
