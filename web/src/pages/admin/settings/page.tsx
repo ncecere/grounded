@@ -24,6 +24,7 @@ import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import o from "../overview/overview.module.css";
 import { FeatureSwitches } from "./features";
+import { SourceTypeSwitches } from "./source-types";
 import { GeneralSettings } from "./general";
 import st from "./settings.module.css";
 
@@ -94,9 +95,12 @@ export function AdminSettingsPage() {
             label: "Features",
             icon: <ToggleRight aria-hidden />,
             content: (
-              <Card id="features" className={o.features} title="Features" description="Optional features for the whole platform. Each switch applies at once." flush>
-                <FeatureSwitches isAdmin={isAdmin} />
-              </Card>
+              <>
+                <Card id="features" className={o.features} title="Features" description="Optional features for the whole platform. Each switch applies at once." flush>
+                  <FeatureSwitches isAdmin={isAdmin} />
+                </Card>
+                <SourceTypeSwitches isAdmin={isAdmin} />
+              </>
             ),
           },
           { value: "environment", label: "Environment", icon: <Server aria-hidden />, content: <EnvironmentCard /> },

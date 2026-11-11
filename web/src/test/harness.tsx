@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { routeTree } from "../router";
 import { withFeatures } from "./admin-features";
+import { builtInSourceTypes } from "./source-types";
 import { testQueryClient } from "./query-client";
 
 export type Call = { method: string; url: string; search: URLSearchParams; body?: unknown; rawBody?: string; headers: Headers; signal?: AbortSignal };
@@ -26,7 +27,7 @@ export type Handler = (body: unknown, call: Call) => unknown;
 /** Replaces fetch; routes are keyed "METHOD /path". Unmatched routes return 404. */
 export function mockApi(given: Record<string, Handler>) {
   // The admin Overview's one features request, from the single-setting routes the test mocks.
-  const routes = withFeatures(given);
+  const routes: Record<string, Handler> = { "GET /v1/source-types": () => builtInSourceTypes, ...withFeatures(given) };
   const calls: Call[] = [];
   vi.stubGlobal("fetch", async (input: Request | string, init?: RequestInit) => {
     const req = input instanceof Request ? input : new Request(new URL(String(input), "http://localhost"), init);

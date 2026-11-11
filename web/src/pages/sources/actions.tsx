@@ -16,15 +16,18 @@ import { type KB, plural } from "../team/common";
 import { useInvalidateSource } from "./invalidate";
 import { useSourceUsedBy } from "./overview";
 import { type DataSource, useSourceOwner } from "./owner";
+import { kindOf } from "./types";
 import w from "./detail.module.css";
 
 export type SourceActions = ReturnType<typeof useSourceActions>;
 
 /** What pausing means for this kind of source (Danger zone and the paused notice). */
-export const pauseHelp = (web: boolean) =>
+export const pauseHelp = (web: boolean, connector = false) =>
   web
     ? "A paused source doesn't crawl, even on its schedule, and pausing cancels a running crawl. Search over indexed pages keeps working."
-    : "A paused source accepts no uploads and its pending documents wait. Search over indexed documents keeps working.";
+    : connector
+      ? "A paused source doesn't sync, even on its schedule, and pausing cancels a running sync. Search over indexed documents keeps working."
+      : "A paused source accepts no uploads and its pending documents wait. Search over indexed documents keeps working.";
 
 export function useSourceActions(source: DataSource) {
   const owner = useSourceOwner();
@@ -38,7 +41,7 @@ export function useSourceActions(source: DataSource) {
     mutationFn: (next: "active" | "paused") => owner.api.update(source, { status: next }),
     onSuccess: (updated) => {
       qc.setQueryData(owner.keys.source(source.id), updated);
-      if (updated.status === "paused") toast.success("Source paused", source.type === "web" ? "It won't crawl until you resume it." : "It won't accept uploads until you resume it.");
+      if (updated.status === "paused") toast.success("Source paused", source.type === "web" ? "It won't crawl until you resume it." : kindOf(source.type) === "connector" ? "It won't sync until you resume it." : "It won't accept uploads until you resume it.");
       else toast.success("Source resumed");
     },
     onError: (err) => toast.error(paused ? "Couldn't resume the source" : "Couldn't pause the source", err instanceof Error ? err.message : undefined),

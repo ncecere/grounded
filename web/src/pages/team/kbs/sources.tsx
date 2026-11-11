@@ -74,7 +74,7 @@ export function KBSources({ kb, flow }: { kb: KB; flow: AttachFlow }) {
       header: "Last sync",
       cell: (src) => {
         const full = all.find((x) => x.id === src.id);
-        if (!full || full.type !== "web") return <span className={s.muted}>—</span>;
+        if (!full || full.type === "upload") return <span className={s.muted}>—</span>;
         const last = (full as { lastSyncAt?: string | null }).lastSyncAt;
         return last ? <RelativeTime value={last} /> : src.shared ? <span className={s.muted}>—</span> : "Not synced yet";
       },

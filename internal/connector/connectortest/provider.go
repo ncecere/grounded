@@ -29,7 +29,7 @@ const (
 )
 
 // Schema is the settings schema both types declare.
-const Schema = `{"type":"object","required":["tenant"],"additionalProperties":false,"properties":{
+const Schema = `{"type":"object","required":["tenant"],"additionalProperties":false,"x-order":["tenant","folder"],"properties":{
 	"tenant":{"type":"string","title":"Tenant"},"folder":{"type":"string","title":"Folder","description":"Only items under this folder"}}}`
 
 var registerOnce sync.Once

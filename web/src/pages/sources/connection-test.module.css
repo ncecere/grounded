@@ -1,0 +1,32 @@
+/* The Test connection row and its result. Semantic tokens only. */
+
+.test {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.reach {
+  margin-top: var(--space-2);
+
+  & ul {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+  }
+}
+
+.kind {
+  font-weight: var(--font-weight-medium);
+}

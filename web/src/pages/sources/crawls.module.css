@@ -55,3 +55,19 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
+
+/* A sync's skipped items, folded under its status. */
+.problems {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+
+  & summary {
+    cursor: pointer;
+  }
+
+  & ul {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+  }
+}

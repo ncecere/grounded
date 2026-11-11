@@ -5,7 +5,7 @@
  * relative "Last sync".
  */
 import { Link } from "@tanstack/react-router";
-import { Database, FileUp, Globe, Settings2 } from "lucide-react";
+import { Database, FileUp, Globe, Plug, Settings2 } from "lucide-react";
 import { type ReactElement, type ReactNode, cloneElement } from "react";
 import { ListPage, RelativeTime, type ListEmpty } from "@/components/templates/list-page";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
@@ -16,6 +16,8 @@ import { passagesCount } from "@/lib/terms";
 import s from "../shared.module.css";
 import { ClassificationBadge, type Classification, type ProfileOption, formatBytes, plural, profileName } from "../team/common";
 import { crawlStatusLabels, isActiveCrawl } from "./crawls";
+import { isActiveSync, syncStatusLabels } from "./syncs";
+import { kindOf, typeName, useSourceTypes } from "./types";
 import { type DataSource, useSourceOwner } from "./owner";
 import w from "./web.module.css";
 
@@ -34,20 +36,20 @@ export function SourceStatusBadge({ status }: { status: DataSource["status"] }) 
 }
 
 export function SourceTypeBadge({ type }: { type: DataSource["type"] }) {
-  return type === "web" ? (
+  const types = useSourceTypes();
+  const kind = kindOf(type);
+  const Icon = kind === "web" ? Globe : kind === "connector" ? Plug : FileUp;
+  return (
     <Badge variant="outline">
-      <Globe aria-hidden className={w.badgeIcon} /> Website
-    </Badge>
-  ) : (
-    <Badge variant="outline">
-      <FileUp aria-hidden className={w.badgeIcon} /> Upload
+      <Icon aria-hidden className={w.badgeIcon} /> {typeName(types.data, type)}
     </Badge>
   );
 }
 
 /** "Synced 3 hours ago", "Crawl running", "Not synced yet"; uploads have no sync. */
 function lastSync(src: DataSource): ReactNode {
-  if (src.type !== "web") return <span className={s.muted}>—</span>;
+  if (kindOf(src.type) === "upload") return <span className={s.muted}>—</span>;
+  if (isActiveSync(src.activeSync)) return `Sync ${syncStatusLabels[src.activeSync.status].toLowerCase()}`;
   if (isActiveCrawl(src.activeCrawl)) return `Crawl ${crawlStatusLabels[src.activeCrawl.status].toLowerCase()}`;
   return src.lastSyncAt ? <RelativeTime value={src.lastSyncAt} /> : "Not synced yet";
 }
@@ -90,6 +92,9 @@ type Props = {
 
 export function SourcesTable({ sources, levels, profiles, caption = "Data sources", usedBy, title, description, primaryAction, notices, empty, loading, error, onRetry }: Props) {
   const owner = useSourceOwner();
+  const types = useSourceTypes().data;
+  // The Type filter offers the types these sources have: two for most installs, more once connectors are used.
+  const usedTypes = [...new Set(["web", "upload", ...sources.map((src) => src.type)])];
   const levelName = (key: string) => levels?.find((l) => l.key === key)?.name ?? key;
   const columns: DataTableColumn<DataSource>[] = [
     {
@@ -113,7 +118,7 @@ export function SourcesTable({ sources, levels, profiles, caption = "Data source
       ),
     },
     // Hidden by default so the list fits at 1280 px: Content already says pages (website) or documents (upload), and Type is a filter.
-    { id: "type", header: "Type", defaultHidden: true, accessor: (src) => (src.type === "web" ? "Website" : "Upload"), sortable: true, cell: (src) => <SourceTypeBadge type={src.type} /> },
+    { id: "type", header: "Type", defaultHidden: true, accessor: (src) => typeName(types, src.type), sortable: true, cell: (src) => <SourceTypeBadge type={src.type} /> },
     {
       id: "classification",
       header: "Classification",
@@ -174,7 +179,7 @@ export function SourcesTable({ sources, levels, profiles, caption = "Data source
   ];
   const usedLevels = [...new Set(sources.map((src) => src.classification))];
   const facets: Facet<DataSource>[] = [
-    { id: "type", label: "Type", type: "toggle", allLabel: "All", accessor: (src) => src.type, options: [{ value: "web", label: "Website" }, { value: "upload", label: "Upload" }] },
+    { id: "type", label: "Type", type: "toggle", allLabel: "All", accessor: (src) => src.type, options: usedTypes.map((t) => ({ value: t, label: typeName(types, t) })) },
     { id: "status", label: "Status", type: "toggle", allLabel: "All", accessor: (src) => src.status, options: [{ value: "active", label: "Active" }, { value: "paused", label: "Paused" }] },
     {
       id: "classification",

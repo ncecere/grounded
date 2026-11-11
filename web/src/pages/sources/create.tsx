@@ -1,8 +1,9 @@
 /*
  * "New data source" in two steps (W9): a dialog to choose the type, then a
- * form page (?form=new-upload or ?form=new-web) with Name, Classification and
- * Embedding profile first and the type's own fields below (a website's URLs,
- * mode, limits and the page preview). For a team or the platform.
+ * form page (?form=new-upload, ?form=new-web or ?form=new-<connector type>) with
+ * Name, Classification and Embedding profile first and the type's own fields
+ * below (a website's URLs, mode, limits and the page preview; a connector's
+ * settings, credentials and schedule). For a team or the platform.
  *
  *   const create = useCreateSource();
  *   <Button onClick={create.start}>New data source</Button>
@@ -20,13 +21,16 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { RadioGroup } from "@/components/ui/radio-group/radio-group";
 import { toast } from "@/components/ui/toast/toast";
 import { type Classification, type ProfileOption, allowedLevels, rankOf, useClassificationLevels, useEmbeddingProfiles } from "../team/common";
+import { useConnectorForm } from "./connector-create";
 import { useSourceOwner } from "./owner";
+import { type SourceTypeInfo, kindOf, useSourceTypes } from "./types";
 import { WebConfigFields } from "./web";
 import { WebErrorAlert } from "./host-errors";
 import { type WebFormState, formUrls, validateWeb, webDefaults, webInput } from "./web-form";
 import c from "./create.module.css";
 
-type SourceType = "upload" | "web";
+/** A source type's key: upload, web or a connector's. */
+type SourceType = string;
 
 /** Whether a profile's model may process data at the given rank. */
 function profileAllows(levels: Classification[] | undefined, p: ProfileOption, rank: number | undefined) {
@@ -42,7 +46,19 @@ export function useOwnerLevels() {
   return { levels, usable };
 }
 
-const typeOf = (value: string | undefined): SourceType | undefined => (value === "new-upload" ? "upload" : value === "new-web" ? "web" : undefined);
+const typeOf = (value: string | undefined): SourceType | undefined => (value?.startsWith("new-") && value.length > 4 ? value.slice(4) : undefined);
+
+const builtIn: Record<string, { label: string; description: string }> = {
+  upload: { label: "Upload files", description: "PDF, Word, PowerPoint, HTML, Markdown and text files, from your computer or the API." },
+  web: { label: "Website", description: "Fetch pages from a website and keep them in sync on a schedule." },
+};
+
+/** The types a new source can be: the ones that are on, and for a shared source the ones that can be shared. */
+function useCreatableTypes(): SourceTypeInfo[] | undefined {
+  const types = useSourceTypes();
+  const platform = useSourceOwner().kind === "platform";
+  return types.data?.filter((t) => t.enabled && (!platform || t.capabilities.shared));
+}
 
 /**
  * The "New data source" flow: `start()` opens the type dialog; `element` renders it and the form page.
@@ -85,8 +101,16 @@ export function useCreateSource(defaults?: { hint?: string }): { start: () => vo
 
 /** Step 1: choose the type. */
 export function SourceTypeDialog({ onClose, onPick }: { onClose: () => void; onPick: (type: SourceType) => void }) {
-  const [choice, setChoice] = useState<SourceType>("upload");
+  const types = useCreatableTypes();
+  const [picked, setChoice] = useState<SourceType>("upload");
   const platform = useSourceOwner().kind === "platform";
+  // Until the list loads, the two types every install has; a choice that isn't offered falls back to the first.
+  const options = (types ?? [{ key: "upload" }, { key: "web" }]).map((t) => ({
+    value: t.key,
+    label: builtIn[t.key]?.label ?? ("name" in t ? t.name : t.key),
+    description: builtIn[t.key]?.description ?? ("description" in t ? t.description : ""),
+  }));
+  const choice = options.some((o) => o.value === picked) ? picked : (options[0]?.value ?? "upload");
   return (
     <Dialog
       open
@@ -96,7 +120,9 @@ export function SourceTypeDialog({ onClose, onPick }: { onClose: () => void; onP
       footer={
         <>
           <DialogClose>Cancel</DialogClose>
-          <Button onClick={() => onPick(choice)}>Continue</Button>
+          <Button disabled={options.length === 0} onClick={() => onPick(choice)}>
+            Continue
+          </Button>
         </>
       }
     >
@@ -105,11 +131,9 @@ export function SourceTypeDialog({ onClose, onPick }: { onClose: () => void; onP
         variant="card"
         value={choice}
         onValueChange={setChoice}
-        options={[
-          { value: "upload", label: "Upload files", description: "PDF, Word, PowerPoint, HTML, Markdown and text files, from your computer or the API." },
-          { value: "web", label: "Website", description: "Fetch pages from a website and keep them in sync on a schedule." },
-        ]}
+        options={options}
       />
+      {options.length === 0 && <Alert tone="warning">A platform admin has turned every source type off.</Alert>}
     </Dialog>
   );
 }
@@ -129,7 +153,11 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
   const [submitted, setSubmitted] = useState(false);
   const classification = form.classification || usable[0]?.key || "";
   const embeddingProfileId = form.embeddingProfileId || profiles.data?.find((p) => p.isDefault)?.id || profiles.data?.[0]?.id || "";
-  const isWeb = form.type === "web";
+  const kind = kindOf(form.type);
+  const isWeb = kind === "web";
+  const types = useSourceTypes();
+  const connectorType = kind === "connector" ? types.data?.find((t) => t.key === form.type) : undefined;
+  const connector = useConnectorForm(connectorType, submitted);
   const webErrors = isWeb ? validateWeb(web) : {};
   const nameError = form.name.trim() ? undefined : "Enter a name.";
   const platform = owner.kind === "platform";
@@ -143,21 +171,23 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
         classification,
         embeddingProfileId: embeddingProfileId || undefined,
         web: isWeb ? webInput(web) : undefined,
+        connector: kind === "connector" ? connector.body() : undefined,
       }),
     onSuccess: (src) => {
       qc.invalidateQueries({ queryKey: owner.keys.list });
       for (const key of owner.keys.related) qc.invalidateQueries({ queryKey: key });
       if (src.type === "web") toast.success(platform ? "Shared source created" : "Data source created", "The first crawl has started.");
+      else if (kindOf(src.type) === "connector") toast.success("Data source created", "The first sync has started.");
       else toast.success(platform ? "Shared source created" : "Data source created", `${src.name} is ready for uploads.`);
       // Replace the form page's history entry: Back from the new source returns to the list.
       owner.go(navigate, src.id, { replace: true });
     },
   });
-  const loading = levels.isLoading || profiles.isLoading;
+  const loading = levels.isLoading || profiles.isLoading || (kind === "connector" && types.isLoading);
 
   function submit() {
     setSubmitted(true);
-    if (nameError || Object.keys(webErrors).length > 0) {
+    if (nameError || Object.keys(webErrors).length > 0 || (kind === "connector" && !connector.valid)) {
       // Move focus to the first invalid field once the errors have rendered.
       requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
@@ -165,7 +195,14 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
     create.mutate();
   }
 
-  const title = isWeb ? (platform ? "New shared website source" : "New website source") : platform ? "New shared upload source" : "New upload source";
+  const title =
+    kind === "connector"
+      ? `New ${connectorType?.name ?? form.type} source`
+      : isWeb
+        ? platform ? "New shared website source" : "New website source"
+        : platform ? "New shared upload source" : "New upload source";
+  // A type that is off, unknown, or can't be made here (a link from before it was turned off).
+  const unavailable = kind === "connector" && !types.isLoading && (!connectorType || !connectorType.enabled || (platform && !connectorType.capabilities.shared));
   return (
     <FormPage
       label={title}
@@ -175,13 +212,15 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
           ? "Shared sources are managed by platform admins. Every team can attach them to knowledge bases, within its approved classification."
           : isWeb
             ? "Index pages from a website and keep them in sync."
-            : "Upload files from your computer or the API after creating it."
+            : kind === "connector"
+              ? (connectorType?.description ?? "Index documents from another system and keep them in sync.")
+              : "Upload files from your computer or the API after creating it."
       }
       onClose={onClose}
       onSubmit={submit}
-      submitLabel={isWeb ? "Create and start crawl" : platform ? "Create shared source" : "Create data source"}
+      submitLabel={isWeb ? "Create and start crawl" : kind === "connector" ? "Create and start sync" : platform ? "Create shared source" : "Create data source"}
       busy={create.isPending}
-      submitDisabled={!classification}
+      submitDisabled={!classification || unavailable}
       loading={loading}
       formRef={formRef}
       startActions={
@@ -194,6 +233,11 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
     >
       <ErrorAlert error={levels.error || profiles.error} />
       {hint && <Alert tone="info">{hint}</Alert>}
+      {unavailable && (
+        <Alert tone="warning" title="This source type isn't available">
+          A platform admin turns source types on and off. Choose another type.
+        </Alert>
+      )}
       <Field label="Name" error={submitted ? nameError : undefined}>
         <Input aria-required maxLength={100} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </Field>
@@ -209,6 +253,17 @@ export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
         <fieldset className={c.section}>
           <legend className={c.legend}>Website</legend>
           <WebConfigFields value={web} onChange={setWeb} errors={submitted ? webErrors : {}} />
+        </fieldset>
+      )}
+      {kind === "connector" && connectorType && !unavailable && (
+        <fieldset className={c.section}>
+          <legend className={c.legend}>{connectorType.name}</legend>
+          {connectorType.capabilities.permissions === "provider" && (
+            <Alert tone="info">
+              Each document is readable by the people and groups {connectorType.name} names, and by nobody else. What can't be matched gives nobody access.
+            </Alert>
+          )}
+          {connector.element}
         </fieldset>
       )}
       {create.error ? <WebErrorAlert error={create.error} urls={isWeb ? formUrls(web) : []} /> : null}

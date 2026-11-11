@@ -11,12 +11,12 @@ connector yet; the first ones (SharePoint, OneDrive, Google Drive) follow.
 
 ### Turning a type on
 
-`GET /v1/source-types` lists the types this server has and what each can do. Upload and web are on. **A connector type
-is off until you turn it on**, and two things must be true before a team can use it:
+**Admin → Settings → Features → Source types** lists the types this server has and what each does. Upload and web are
+on. **A connector type is off until you turn it on**, and two things must be true before a team can use it:
 
-1. The type is on: `PUT /v1/admin/source-types/{key}` with `{"enabled": true}` (audited as `platform.source_type`).
-2. A classification level allows it: add the type to the level's allowed source types. A new type is in none of them,
-   so you choose which classifications of data may come from it.
+1. The type is on: its switch under Source types (audited as `platform.source_type`).
+2. A classification level allows it: **Admin → Policy**, a level's allowed source types. A new type is in none of
+   them, so you choose which classifications of data may come from it.
 
 Turn a type on **after every server runs the release that has it**. A server of an earlier release doesn't know the
 type and would not sync it.
@@ -70,9 +70,13 @@ connector returns.
 
 ### Adding a connector source
 
-Choose the type, give its settings and credentials, and pick a schedule: only on request (the default), hourly, daily
-or weekly. **Test connection** says who the credentials are and what they can read, before anything is saved. The first
-sync starts when the source is created.
+**New data source** offers the connector types that are on. Give the type's settings and credentials, and pick how
+often it syncs: manual only, hourly, daily or weekly. **Test connection** says who the credentials are and what they
+can read, before anything is saved. The first sync starts when the source is created.
+
+The source's page has a **Syncs** tab with its history, **Sync now** (what changed) and **Sync everything**. Its
+**Settings** tab has a **Connection** card for the settings, credentials and schedule. Stored credentials are never
+shown: leave a field empty to keep what is stored, or type a new value to replace it.
 
 ### What a sync does
 
@@ -86,7 +90,7 @@ A sync asks the provider what changed since the last one:
 A **full** sync lists everything again. It also finds documents the provider no longer has, when the provider didn't
 say so. The first sync, and the first after you change the settings or credentials, is always full.
 
-Each sync shows what it added, changed, left alone, skipped and removed. Skipped items are listed with the reason: a
+Each sync shows what it added, changed, left alone, skipped and removed, in the Syncs tab. Skipped items are listed with the reason: a
 kind of file that isn't indexed, a file over the size limit, an empty file. Images are not indexed by connectors.
 
 ### When a sync would remove a lot

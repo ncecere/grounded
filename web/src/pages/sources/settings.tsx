@@ -18,6 +18,7 @@ import { useCurrentError } from "../../lib/field-errors";
 import { type Classification, notSavedText, plural, rankOf } from "../team/common";
 import { type SourceActions, pauseHelp } from "./actions";
 import { useOwnerLevels } from "./create";
+import { kindOf } from "./types";
 import { WebErrorAlert } from "./host-errors";
 import { ClassificationImpactDialog, ImpactError, impactOf, impactSummary, isLowering } from "./impact";
 import { useInvalidateSource } from "./invalidate";
@@ -211,7 +212,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
         <DangerZone>
           <DangerAction
             title={actions.paused ? "Resume this source" : "Pause this source"}
-            description={actions.paused ? "The source is paused. Resume it to accept uploads and crawl on its schedule again." : pauseHelp(web)}
+            description={actions.paused ? "The source is paused. Resume it to accept uploads and sync on its schedule again." : pauseHelp(web, kindOf(source.type) === "connector")}
             action={
               <Button variant="secondary" loading={actions.status.isPending} onClick={actions.toggle}>
                 {actions.paused ? "Resume source" : "Pause source"}
