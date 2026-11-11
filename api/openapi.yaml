@@ -4004,6 +4004,246 @@ paths:
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/CrawlInProgressReply" }
         "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/teams/{team}/source-types/{key}/check:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [sources]
+      operationId: checkSourceTypeConnection
+      summary: Test settings and credentials for a connector source that does not exist yet (team editors and above)
+      description: >-
+        Nothing is saved. The answer says who the credentials are and lists what they reach (sites, drives, folders),
+        so a form can offer them. 422 credentials_refused when the provider refuses the credentials, 422
+        connection_failed for anything else; 409 source_type_off for a type a platform admin has turned off.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectorSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ConnectionCheck" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "422": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/connector:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+    put:
+      tags: [sources]
+      operationId: putSourceConnector
+      summary: Change a connector source's settings, credentials or schedule (team editors and above; audited as source.connector_update)
+      description: >-
+        Send only what changes. A credential that is sent replaces the stored value, an empty value removes it, and one
+        that is not sent keeps what is stored; values are never returned. New settings or credentials make the next
+        sync list everything again. If-Match with the source's revision. 400 not_connector_source for an upload or web
+        source.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectorSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DataSource" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/connector/check:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+    post:
+      tags: [sources]
+      operationId: checkSourceConnection
+      summary: Test a connector source's connection (team editors and above)
+      description: >-
+        Uses the stored settings and credentials, with any sent in the body laid over them, so a change can be tested
+        before it is saved. Nothing is saved. 422 credentials_refused or connection_failed.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectorSettingsInput" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ConnectionCheck" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "422": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/syncs:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+    get:
+      tags: [sources]
+      operationId: listSourceSyncs
+      summary: A connector source's syncs, newest first
+      parameters:
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: 
+                    type: array
+                    items: { $ref: "#/components/schemas/SourceSync" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [sources]
+      operationId: startSourceSync
+      summary: Start a sync of a connector source (team editors and above, or an API key with the ingest scope; audited as source.sync)
+      description: >-
+        A sync lists what changed since the last one. full lists everything again, which also finds documents the
+        provider no longer has. 409 sync_in_progress (details.sync is the active sync), source_paused, source_type_off
+        or connector_unavailable; 400 credentials_missing.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceSyncStart" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "202":
+          description: The sync was queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SourceSync" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/SyncInProgressReply" }
+        "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+      - $ref: "#/components/parameters/SyncIdParam"
+    post:
+      tags: [sources]
+      operationId: cancelSourceSync
+      summary: Cancel a queued or running sync (team editors and above; audited as source.sync_cancel)
+      description: What the sync already added or changed stays; nothing is removed. 409 sync_not_active.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SourceSync" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/removals:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/SourceIdParam"
+      - $ref: "#/components/parameters/SyncIdParam"
+    get:
+      tags: [sources]
+      operationId: getSyncRemovals
+      summary: What a sync's held removals would remove (team editors and above)
+      description: >-
+        A sync that would empty a source, or remove a large share of it, removes nothing and holds its removals for an
+        editor. The answer is the sync and the first 100 documents, by name.
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SyncRemovals" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [sources]
+      operationId: decideSyncRemovals
+      summary: Confirm or dismiss a sync's held removals (team editors and above; audited as source.removals_confirm or source.removals_dismiss)
+      description: >-
+        confirm true removes the documents; false keeps them, and the next full sync decides again. 409
+        removals_decided when the sync holds none.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncRemovalsDecision" }
+      responses:
+        default: { $ref: "#/components/responses/DefaultErrorReply" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SourceSync" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/sources/{sourceId}/access:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -10508,6 +10748,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    SyncIdParam:
+      name: syncId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     CrawlIdParam:
       name: crawlId
       in: path
@@ -10760,6 +11005,11 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/CrawlConflictResponse" }
+    SyncInProgressReply:
+      description: sync_in_progress (details.sync is the active sync), or another conflict such as source_paused or source_type_off
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/SyncConflictResponse" }
     ClassificationImpactReply:
       description: classification_impact (details lists the knowledge bases that must detach the source first), or another conflict such as name_taken
       content:
@@ -12156,6 +12406,131 @@ components:
         enabled: { type: boolean }
         coverageStart: { type: string, format: date, description: Immutable first covered UTC day once requests exist }
         destination: { type: string, enum: [builtin], description: External destinations are unsupported and fail closed }
+    ConnectorSettingsInput:
+      type: object
+      description: A connector source's settings. Its type says which settings and credentials it takes (GET /v1/source-types).
+      properties:
+        config:
+          type: object
+          additionalProperties: true
+          description: The type's settings, checked against its configSchema
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 16384 }
+          description: Values by credential key. They are stored encrypted and never returned
+        schedule: { $ref: "#/components/schemas/SyncSchedule" }
+    SyncSchedule:
+      type: string
+      enum: [manual, hourly, daily, weekly]
+      description: How often the source syncs on its own (manual, the default, only on request)
+    SourceConnector:
+      type: object
+      description: The connector side of a source (connector types only)
+      required: [schedule, config, credentialKeys, credentialsSetAt, lastCompleteAt, available]
+      properties:
+        schedule: { $ref: "#/components/schemas/SyncSchedule" }
+        config: { type: object, additionalProperties: true, description: The type's settings as stored }
+        credentialKeys:
+          type: array
+          items: { type: string }
+          description: The credentials that have a stored value (never the values)
+        credentialsSetAt: { type: string, format: date-time, nullable: true }
+        lastCompleteAt: { type: string, format: date-time, nullable: true, description: When a sync last listed everything }
+        available: { type: boolean, description: "This server has the type's connector; without it the source can't sync, and its documents stay searchable" }
+    SourceSync:
+      type: object
+      required: [id, sourceId, status, trigger, full, complete, itemsAdded, itemsChanged, itemsUnchanged, itemsSkipped, itemsRemoved, permissionsChanged, removals, removalsPending, removalsReason, stoppedReason, error, problems, createdAt, startedAt, finishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, completed, failed, cancelled] }
+        trigger: { type: string, enum: [create, manual, schedule] }
+        full: { type: boolean, description: The sync was asked to list everything }
+        complete: { type: boolean, description: "The listing covered everything the settings select, so what it did not mention is gone from the provider" }
+        itemsAdded: { type: integer, format: int32 }
+        itemsChanged: { type: integer, format: int32 }
+        itemsUnchanged: { type: integer, format: int32 }
+        itemsSkipped: { type: integer, format: int32 }
+        itemsRemoved: { type: integer, format: int32, description: Documents removed because the provider no longer has them }
+        permissionsChanged: { type: integer, format: int32, description: Documents whose permissions changed without their content changing }
+        removals:
+          type: string
+          enum: ["", pending, confirmed, dismissed, superseded]
+          description: >-
+            What became of removals the sync held: pending (they wait for an editor), confirmed, dismissed, or
+            superseded by a later sync. Empty when it held none
+        removalsPending: { type: integer, format: int32, description: Documents the sync would remove once an editor confirms }
+        removalsReason: { type: string, description: Why the removals were held }
+        stoppedReason: { type: string, description: "Why the sync ended early: cancelled, paused, type_off, maintenance or limit:<key>. Empty when it ran to the end" }
+        error: { type: string }
+        problems:
+          type: array
+          description: The first 50 items left out, with the reason
+          items: { $ref: "#/components/schemas/SourceSyncProblem" }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    SourceSyncProblem:
+      type: object
+      required: [id, title, reason]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        reason: { type: string }
+    SourceSyncStart:
+      type: object
+      properties:
+        full: { type: boolean, default: false, description: List everything again instead of what changed since the last sync }
+    SyncConflictResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: object
+              properties:
+                sync: { $ref: "#/components/schemas/SourceSync" }
+    ConnectionCheck:
+      type: object
+      required: [summary, reachable]
+      properties:
+        summary: { type: string, description: Who the credentials are and what they can read }
+        reachable:
+          type: array
+          description: "What could be indexed (sites, drives, spaces, folders)"
+          items:
+            type: object
+            required: [id, name, kind]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              kind: { type: string }
+    SyncRemovals:
+      type: object
+      required: [sync, documents]
+      properties:
+        sync: { $ref: "#/components/schemas/SourceSync" }
+        documents:
+          type: array
+          description: The first 100 documents the sync would remove
+          items:
+            type: object
+            required: [id, title, filename, url]
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              filename: { type: string }
+              url: { type: string }
+    SyncRemovalsDecision:
+      type: object
+      required: [confirm]
+      properties:
+        confirm: { type: boolean }
     SourceType:
       type: object
       required: [key, name, description, builtIn, enabled, capabilities, credentials]
@@ -13733,6 +14108,18 @@ components:
           description: The queued or running crawl, if any
           nullable: true
           allOf: [{ $ref: "#/components/schemas/Crawl" }]
+        connector:
+          description: The connector's settings and schedule (connector sources only)
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/SourceConnector" }]
+        activeSync:
+          description: The queued or running sync of a connector source, if any
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/SourceSync" }]
+        heldSync:
+          description: The sync whose removals wait for an editor, if any (connector sources only)
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/SourceSync" }]
         boilerplate: { $ref: "#/components/schemas/SourceBoilerplate" }
         ocrEnabled: { type: boolean, description: "Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)" }
         ocrState:
@@ -13798,6 +14185,9 @@ components:
         classification: { type: string }
         embeddingProfileId: { type: string, format: uuid, description: Defaults to the platform default profile }
         web: { $ref: "#/components/schemas/WebConfigInput" }
+        connector:
+          description: A connector source's settings, credentials and schedule (connector types only). Its first sync starts at once
+          allOf: [{ $ref: "#/components/schemas/ConnectorSettingsInput" }]
         boilerplate: { $ref: "#/components/schemas/BoilerplateSettings" }
         ocrEnabled: { type: boolean, description: "Read pages without text with OCR when the platform has it on (default true)" }
     DataSourceUpdate:

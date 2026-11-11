@@ -30,6 +30,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/platform"
+	"github.com/ncecere/grounded/internal/sourcesync"
 	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -45,13 +46,15 @@ const (
 
 type Service struct {
 	// Access computes a person's document permissions (nil: every reader reads unrestricted documents only).
-	Access         *access.Resolver
-	Pool           *pgxpool.Pool
-	Teams          *teams.Service
-	Catalog        *catalog.Service
-	Blob           blob.Store
-	Jobs           *river.Client[pgx.Tx]
-	Web            *web.Service
+	Access  *access.Resolver
+	Pool    *pgxpool.Pool
+	Teams   *teams.Service
+	Catalog *catalog.Service
+	Blob    blob.Store
+	Jobs    *river.Client[pgx.Tx]
+	Web     *web.Service
+	// Connectors runs connector sources (nil: this server has none; ADR-0035).
+	Connectors     *sourcesync.Service
 	MaxUploadBytes int64
 	// OCR says whether a source's image uploads can be read (nil: never;
 	// docs/ocr.md §5a).

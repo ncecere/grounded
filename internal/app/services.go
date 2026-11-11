@@ -53,6 +53,7 @@ import (
 	"github.com/ncecere/grounded/internal/scim"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/sources"
+	"github.com/ncecere/grounded/internal/sourcesync"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/teamconfig"
@@ -75,11 +76,13 @@ type Services struct {
 	Catalog        *catalog.Service
 	Sources        *sources.Service
 	Web            *web.Service
-	KBs            *kbs.Service
-	APIKeys        *apikeys.Service
-	Limits         *limits.Service
-	Agents         *agents.Service
-	Notify         *notify.Service
+	// Connectors runs connector sources (ADR-0035).
+	Connectors *sourcesync.Service
+	KBs        *kbs.Service
+	APIKeys    *apikeys.Service
+	Limits     *limits.Service
+	Agents     *agents.Service
+	Notify     *notify.Service
 	// Mail sends notification email (nil: SMTP_HOST unset).
 	Mail notify.Sender
 	// Moderation stores the moderation policies and runs checks (ADR-0019).
@@ -260,6 +263,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	}
 	s.TeamRequests = teamrequests.New(pool, s.Teams, s.Agents, s.Notify)
 	wireWebhooks(s, box, jobsClient)
+	wireConnectors(s, cfg, pool, jobsClient, store, box, log)
 	s.AuditStream = &auditstream.Service{Pool: pool, Box: box, Sender: &auditstream.Sender{}, Instance: cfg.Instance.Name, Hostname: appHost(cfg.AppURL), Log: log}
 	s.AnswerCache = answercache.New(pool, log)
 	s.Agents.Cache = s.AnswerCache
@@ -355,6 +359,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &ingest.SweepWorker{Queries: dbgen.New(pool)})
 			river.AddWorker(w, &web.CrawlWorker{S: s.Web})
 			river.AddWorker(w, &web.ScheduleWorker{S: s.Web})
+			sourcesync.Register(w, s.Connectors)
 			registerNotify(w, cfg, pool, s, s.Mail, log)
 			river.AddWorker(w, &breakglass.SweepWorker{S: s.BreakGlass})
 			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
@@ -375,9 +380,10 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 				SystemOne: s.SystemOne.PlatformClient, Log: log})
 		},
 		Queues: map[string]river.QueueConfig{
-			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
-			web.Queue:    {MaxWorkers: cfg.Crawl.Concurrency},
-			evals.Queue:  {MaxWorkers: 2},
+			ingest.Queue:     {MaxWorkers: cfg.IngestConcurrency},
+			web.Queue:        {MaxWorkers: cfg.Crawl.Concurrency},
+			sourcesync.Queue: {MaxWorkers: cfg.Connectors.Concurrency},
+			evals.Queue:      {MaxWorkers: 2},
 			// One report at a time per process, on a queue of its own: a report never waits behind ingestion, or the other way round.
 			contenthealth.Queue: {MaxWorkers: 1},
 			auditexport.Queue:   {MaxWorkers: 1},
@@ -417,6 +423,7 @@ func ingestPeriodic(cfg config.Config, copier *auditexport.Copier) []*river.Peri
 		river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
 			func() (river.JobArgs, *river.InsertOpts) { return web.ScheduleArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true}),
+		sourcesync.SchedulePeriodic(),
 		profilemig.SweepPeriodic(),
 		profilemig.CleanupPeriodic(),
 		notifyPeriodic(),

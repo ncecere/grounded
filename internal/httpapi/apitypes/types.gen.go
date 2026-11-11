@@ -4216,6 +4216,81 @@ func (e SharedSourceStatus) Valid() bool {
 	}
 }
 
+// Defines values for SourceSyncRemovals.
+const (
+	SourceSyncRemovalsConfirmed  SourceSyncRemovals = "confirmed"
+	SourceSyncRemovalsDismissed  SourceSyncRemovals = "dismissed"
+	SourceSyncRemovalsEmpty      SourceSyncRemovals = ""
+	SourceSyncRemovalsPending    SourceSyncRemovals = "pending"
+	SourceSyncRemovalsSuperseded SourceSyncRemovals = "superseded"
+)
+
+// Valid indicates whether the value is a known member of the SourceSyncRemovals enum.
+func (e SourceSyncRemovals) Valid() bool {
+	switch e {
+	case SourceSyncRemovalsConfirmed:
+		return true
+	case SourceSyncRemovalsDismissed:
+		return true
+	case SourceSyncRemovalsEmpty:
+		return true
+	case SourceSyncRemovalsPending:
+		return true
+	case SourceSyncRemovalsSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SourceSyncStatus.
+const (
+	SourceSyncStatusCancelled SourceSyncStatus = "cancelled"
+	SourceSyncStatusCompleted SourceSyncStatus = "completed"
+	SourceSyncStatusFailed    SourceSyncStatus = "failed"
+	SourceSyncStatusQueued    SourceSyncStatus = "queued"
+	SourceSyncStatusRunning   SourceSyncStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the SourceSyncStatus enum.
+func (e SourceSyncStatus) Valid() bool {
+	switch e {
+	case SourceSyncStatusCancelled:
+		return true
+	case SourceSyncStatusCompleted:
+		return true
+	case SourceSyncStatusFailed:
+		return true
+	case SourceSyncStatusQueued:
+		return true
+	case SourceSyncStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SourceSyncTrigger.
+const (
+	SourceSyncTriggerCreate   SourceSyncTrigger = "create"
+	SourceSyncTriggerManual   SourceSyncTrigger = "manual"
+	SourceSyncTriggerSchedule SourceSyncTrigger = "schedule"
+)
+
+// Valid indicates whether the value is a known member of the SourceSyncTrigger enum.
+func (e SourceSyncTrigger) Valid() bool {
+	switch e {
+	case SourceSyncTriggerCreate:
+		return true
+	case SourceSyncTriggerManual:
+		return true
+	case SourceSyncTriggerSchedule:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SourceTypeCapabilitiesPermissions.
 const (
 	SourceTypeCapabilitiesPermissionsNone     SourceTypeCapabilitiesPermissions = "none"
@@ -4255,6 +4330,30 @@ func (e StopReason) Valid() bool {
 	case StopReasonStop:
 		return true
 	case StopReasonToolUse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncSchedule.
+const (
+	SyncScheduleDaily  SyncSchedule = "daily"
+	SyncScheduleHourly SyncSchedule = "hourly"
+	SyncScheduleManual SyncSchedule = "manual"
+	SyncScheduleWeekly SyncSchedule = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the SyncSchedule enum.
+func (e SyncSchedule) Valid() bool {
+	switch e {
+	case SyncScheduleDaily:
+		return true
+	case SyncScheduleHourly:
+		return true
+	case SyncScheduleManual:
+		return true
+	case SyncScheduleWeekly:
 		return true
 	default:
 		return false
@@ -7271,6 +7370,19 @@ type Connection struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
+// ConnectionCheck defines model for ConnectionCheck.
+type ConnectionCheck struct {
+	// Reachable What could be indexed (sites, drives, spaces, folders)
+	Reachable []struct {
+		Id   string `json:"id"`
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+	} `json:"reachable"`
+
+	// Summary Who the credentials are and what they can read
+	Summary string `json:"summary"`
+}
+
 // ConnectionCreate defines model for ConnectionCreate.
 type ConnectionCreate struct {
 	// ApiKey Stored encrypted; never returned
@@ -7327,6 +7439,18 @@ type ConnectionUpdate struct {
 	// RequestsPerMinute Omit to keep; 0 removes the limit
 	RequestsPerMinute *int32 `json:"requestsPerMinute,omitempty"`
 	TimeoutSeconds    *int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// ConnectorSettingsInput A connector source's settings. Its type says which settings and credentials it takes (GET /v1/source-types).
+type ConnectorSettingsInput struct {
+	// Config The type's settings, checked against its configSchema
+	Config *map[string]interface{} `json:"config,omitempty"`
+
+	// Credentials Values by credential key. They are stored encrypted and never returned
+	Credentials *map[string]string `json:"credentials,omitempty"`
+
+	// Schedule How often the source syncs on its own (manual, the default, only on request)
+	Schedule *SyncSchedule `json:"schedule,omitempty"`
 }
 
 // ContentHealthFinding defines model for ContentHealthFinding.
@@ -8256,14 +8380,23 @@ type DataSource struct {
 	// ActiveCrawl The queued or running crawl, if any
 	ActiveCrawl *Crawl `json:"activeCrawl"`
 
+	// ActiveSync The queued or running sync of a connector source, if any
+	ActiveSync *SourceSync `json:"activeSync,omitempty"`
+
 	// Boilerplate Repeated-boilerplate suppression for a source: the settings in force and what they remove. A block is repeated when at least max(minDocs, ceil(ratio x documents)) documents contain it; one copy stays in the document with the shortest URL.
-	Boilerplate        SourceBoilerplate  `json:"boilerplate"`
-	Classification     string             `json:"classification"`
+	Boilerplate    SourceBoilerplate `json:"boilerplate"`
+	Classification string            `json:"classification"`
+
+	// Connector The connector's settings and schedule (connector sources only)
+	Connector          *SourceConnector   `json:"connector,omitempty"`
 	CreatedAt          time.Time          `json:"createdAt"`
 	Description        string             `json:"description"`
 	Documents          DocumentCounts     `json:"documents"`
 	EmbeddingProfileId openapi_types.UUID `json:"embeddingProfileId"`
-	Id                 openapi_types.UUID `json:"id"`
+
+	// HeldSync The sync whose removals wait for an editor, if any (connector sources only)
+	HeldSync *SourceSync        `json:"heldSync,omitempty"`
+	Id       openapi_types.UUID `json:"id"`
 
 	// LastSyncAt When the last crawl completed
 	LastSyncAt *time.Time `json:"lastSyncAt"`
@@ -8305,7 +8438,10 @@ type DataSourceCreate struct {
 	// Example: {"enabled":true,"fuzzy":false,"minDocs":5,"ratio":0.2}
 	Boilerplate    *BoilerplateSettings `json:"boilerplate,omitempty"`
 	Classification string               `json:"classification"`
-	Description    *string              `json:"description,omitempty"`
+
+	// Connector A connector source's settings, credentials and schedule (connector types only). Its first sync starts at once
+	Connector   *ConnectorSettingsInput `json:"connector,omitempty"`
+	Description *string                 `json:"description,omitempty"`
 
 	// EmbeddingProfileId Defaults to the platform default profile
 	EmbeddingProfileId *openapi_types.UUID `json:"embeddingProfileId,omitempty"`
@@ -12521,6 +12657,89 @@ type SourceBoilerplate struct {
 	Threshold int32 `json:"threshold"`
 }
 
+// SourceConnector The connector side of a source (connector types only)
+type SourceConnector struct {
+	// Available This server has the type's connector; without it the source can't sync, and its documents stay searchable
+	Available bool `json:"available"`
+
+	// Config The type's settings as stored
+	Config map[string]interface{} `json:"config"`
+
+	// CredentialKeys The credentials that have a stored value (never the values)
+	CredentialKeys   []string   `json:"credentialKeys"`
+	CredentialsSetAt *time.Time `json:"credentialsSetAt"`
+
+	// LastCompleteAt When a sync last listed everything
+	LastCompleteAt *time.Time `json:"lastCompleteAt"`
+
+	// Schedule How often the source syncs on its own (manual, the default, only on request)
+	Schedule SyncSchedule `json:"schedule"`
+}
+
+// SourceSync defines model for SourceSync.
+type SourceSync struct {
+	// Complete The listing covered everything the settings select, so what it did not mention is gone from the provider
+	Complete   bool       `json:"complete"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	Error      string     `json:"error"`
+	FinishedAt *time.Time `json:"finishedAt"`
+
+	// Full The sync was asked to list everything
+	Full         bool               `json:"full"`
+	Id           openapi_types.UUID `json:"id"`
+	ItemsAdded   int32              `json:"itemsAdded"`
+	ItemsChanged int32              `json:"itemsChanged"`
+
+	// ItemsRemoved Documents removed because the provider no longer has them
+	ItemsRemoved   int32 `json:"itemsRemoved"`
+	ItemsSkipped   int32 `json:"itemsSkipped"`
+	ItemsUnchanged int32 `json:"itemsUnchanged"`
+
+	// PermissionsChanged Documents whose permissions changed without their content changing
+	PermissionsChanged int32 `json:"permissionsChanged"`
+
+	// Problems The first 50 items left out, with the reason
+	Problems []SourceSyncProblem `json:"problems"`
+
+	// Removals What became of removals the sync held: pending (they wait for an editor), confirmed, dismissed, or superseded by a later sync. Empty when it held none
+	Removals SourceSyncRemovals `json:"removals"`
+
+	// RemovalsPending Documents the sync would remove once an editor confirms
+	RemovalsPending int32 `json:"removalsPending"`
+
+	// RemovalsReason Why the removals were held
+	RemovalsReason string             `json:"removalsReason"`
+	SourceId       openapi_types.UUID `json:"sourceId"`
+	StartedAt      *time.Time         `json:"startedAt"`
+	Status         SourceSyncStatus   `json:"status"`
+
+	// StoppedReason Why the sync ended early: cancelled, paused, type_off, maintenance or limit:<key>. Empty when it ran to the end
+	StoppedReason string            `json:"stoppedReason"`
+	Trigger       SourceSyncTrigger `json:"trigger"`
+}
+
+// SourceSyncRemovals What became of removals the sync held: pending (they wait for an editor), confirmed, dismissed, or superseded by a later sync. Empty when it held none
+type SourceSyncRemovals string
+
+// SourceSyncStatus defines model for SourceSync.Status.
+type SourceSyncStatus string
+
+// SourceSyncTrigger defines model for SourceSync.Trigger.
+type SourceSyncTrigger string
+
+// SourceSyncProblem defines model for SourceSyncProblem.
+type SourceSyncProblem struct {
+	Id     string `json:"id"`
+	Reason string `json:"reason"`
+	Title  string `json:"title"`
+}
+
+// SourceSyncStart defines model for SourceSyncStart.
+type SourceSyncStart struct {
+	// Full List everything again instead of what changed since the last sync
+	Full *bool `json:"full,omitempty"`
+}
+
 // SourceType defines model for SourceType.
 type SourceType struct {
 	// BuiltIn Upload and web, which have their own pages; the other types are connectors
@@ -12588,6 +12807,37 @@ type SourceTypeInput struct {
 
 // StopReason defines model for StopReason.
 type StopReason string
+
+// SyncConflictResponse defines model for SyncConflictResponse.
+type SyncConflictResponse struct {
+	Error struct {
+		Code    string `json:"code"`
+		Details *struct {
+			Sync *SourceSync `json:"sync,omitempty"`
+		} `json:"details,omitempty"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// SyncRemovals defines model for SyncRemovals.
+type SyncRemovals struct {
+	// Documents The first 100 documents the sync would remove
+	Documents []struct {
+		Filename string             `json:"filename"`
+		Id       openapi_types.UUID `json:"id"`
+		Title    string             `json:"title"`
+		Url      string             `json:"url"`
+	} `json:"documents"`
+	Sync SourceSync `json:"sync"`
+}
+
+// SyncRemovalsDecision defines model for SyncRemovalsDecision.
+type SyncRemovalsDecision struct {
+	Confirm bool `json:"confirm"`
+}
+
+// SyncSchedule How often the source syncs on its own (manual, the default, only on request)
+type SyncSchedule string
 
 // SystemOneAgentUse How many published agents (active, in active teams) each check is on for: by the agent's own "SystemOne checks" setting, else by the platform default. All zero without a SystemOne model.
 type SystemOneAgentUse struct {
@@ -13571,6 +13821,9 @@ type SearchParam = string
 // SourceIdParam defines model for SourceIdParam.
 type SourceIdParam = openapi_types.UUID
 
+// SyncIdParam defines model for SyncIdParam.
+type SyncIdParam = openapi_types.UUID
+
 // TeamParam defines model for TeamParam.
 type TeamParam = string
 
@@ -13666,6 +13919,9 @@ type ProfileMigrationReply struct {
 
 // RateLimitedReply defines model for RateLimitedReply.
 type RateLimitedReply = LimitErrorResponse
+
+// SyncInProgressReply defines model for SyncInProgressReply.
+type SyncInProgressReply = SyncConflictResponse
 
 // StartLoginParams defines parameters for StartLogin.
 type StartLoginParams struct {
@@ -14597,6 +14853,12 @@ type ListBoilerplateBlocksParams struct {
 	Limit *BoilerplateLimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// PutSourceConnectorParams defines parameters for PutSourceConnector.
+type PutSourceConnectorParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // ListCrawlsParams defines parameters for ListCrawls.
 type ListCrawlsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
@@ -14653,6 +14915,11 @@ type GetDocumentTextParams struct {
 	ParentFirst  *int                `form:"parentFirst,omitempty" json:"parentFirst,omitempty"`
 	ParentLast   *int                `form:"parentLast,omitempty" json:"parentLast,omitempty"`
 	ParentSha256 *string             `form:"parentSha256,omitempty" json:"parentSha256,omitempty"`
+}
+
+// ListSourceSyncsParams defines parameters for ListSourceSyncs.
+type ListSourceSyncsParams struct {
+	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetTeamSpendParams defines parameters for GetTeamSpend.
@@ -15044,6 +15311,9 @@ type AddMemberJSONRequestBody = MemberAdd
 // UpdateMemberJSONRequestBody defines body for UpdateMember for application/json ContentType.
 type UpdateMemberJSONRequestBody = MemberUpdate
 
+// CheckSourceTypeConnectionJSONRequestBody defines body for CheckSourceTypeConnection for application/json ContentType.
+type CheckSourceTypeConnectionJSONRequestBody = ConnectorSettingsInput
+
 // CreateSourceJSONRequestBody defines body for CreateSource for application/json ContentType.
 type CreateSourceJSONRequestBody = DataSourceCreate
 
@@ -15052,6 +15322,12 @@ type UpdateSourceJSONRequestBody = DataSourceUpdate
 
 // PutSourceAccessJSONRequestBody defines body for PutSourceAccess for application/json ContentType.
 type PutSourceAccessJSONRequestBody = SourceAccessInput
+
+// PutSourceConnectorJSONRequestBody defines body for PutSourceConnector for application/json ContentType.
+type PutSourceConnectorJSONRequestBody = ConnectorSettingsInput
+
+// CheckSourceConnectionJSONRequestBody defines body for CheckSourceConnection for application/json ContentType.
+type CheckSourceConnectionJSONRequestBody = ConnectorSettingsInput
 
 // UploadDocumentsMultipartRequestBody defines body for UploadDocuments for multipart/form-data ContentType.
 type UploadDocumentsMultipartRequestBody UploadDocumentsMultipartBody
@@ -15064,6 +15340,12 @@ type UpdateDocumentJSONRequestBody = DocumentUpdate
 
 // ReviewDocumentPiiJSONRequestBody defines body for ReviewDocumentPii for application/json ContentType.
 type ReviewDocumentPiiJSONRequestBody = DocumentPiiReviewInput
+
+// StartSourceSyncJSONRequestBody defines body for StartSourceSync for application/json ContentType.
+type StartSourceSyncJSONRequestBody = SourceSyncStart
+
+// DecideSyncRemovalsJSONRequestBody defines body for DecideSyncRemovals for application/json ContentType.
+type DecideSyncRemovalsJSONRequestBody = SyncRemovalsDecision
 
 // MapSiteJSONRequestBody defines body for MapSite for application/json ContentType.
 type MapSiteJSONRequestBody = MapRequest

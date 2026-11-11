@@ -8,6 +8,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/breakglass"
+	"github.com/ncecere/grounded/internal/sourcesync"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -25,6 +26,10 @@ type Summary struct {
 	Source      dbgen.DataSource
 	Stats       Stats
 	ActiveCrawl *dbgen.WebCrawl
+	// Connector is a connector source's schedule, stored credential fields and held removals, and ActiveSync its
+	// queued or running sync (nil for upload and web sources).
+	Connector   *sourcesync.State
+	ActiveSync  *dbgen.SourceSync
 	Boilerplate BoilerplateSummary
 }
 
@@ -59,11 +64,20 @@ func (s *Service) summaries(ctx context.Context, srcs []dbgen.DataSource, withCr
 	if err != nil {
 		return nil, err
 	}
+	states := map[uuid.UUID]sourcesync.State{}
+	if s.Connectors != nil && withCrawls {
+		if states, err = s.Connectors.States(ctx, srcs); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]Summary, len(srcs))
 	for i, src := range srcs {
 		out[i] = Summary{Source: src, Stats: stats[src.ID], Boilerplate: bp[src.ID]}
 		if c, ok := active[src.ID]; ok {
 			out[i].ActiveCrawl = &c
+		}
+		if st, ok := states[src.ID]; ok {
+			out[i].Connector, out[i].ActiveSync = &st, st.Active
 		}
 	}
 	return out, nil

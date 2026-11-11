@@ -159,6 +159,15 @@ var (
 		Buckets: fastBuckets,
 	})
 
+	ConnectorSyncs = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_connector_syncs_total",
+		Help: "Connector syncs that ended, by source type and result (completed, held, stopped, failed, cancelled).",
+	}, []string{"type", "result"})
+	ConnectorItems = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_connector_items_total",
+		Help: "Items connector syncs handled, by source type and result (added, changed, unchanged, skipped, removed).",
+	}, []string{"type", "result"})
+
 	BreakGlassSessions = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_breakglass_sessions_total",
 		Help: "Break-glass session transitions by the status reached (pending, active, ended, cancelled, denied, expired, request_expired).",
@@ -241,7 +250,7 @@ func appCollectors() []prometheus.Collector {
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, SystemOneWait, RerankRequests, RerankDuration, ModerationDecisions,
 		ModerationFirstRelease, ModerationChunkChecks,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
-		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
+		CrawlPages, CrawlFetchDuration, ConnectorSyncs, ConnectorItems, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
 		GapQuestions, GapTopicChanges, ContentHealthReports, AnswerCacheLookups, AnswerCacheTokensSaved, ValkeyErrors,
 	}
 }

@@ -105,7 +105,7 @@ func (q *Queries) CountInflight(ctx context.Context) (int64, error) {
 }
 
 const deleteDocument = `-- name: DeleteDocument :one
-DELETE FROM documents WHERE id = $1 RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
+DELETE FROM documents WHERE id = $1 RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id
 `
 
 func (q *Queries) DeleteDocument(ctx context.Context, id uuid.UUID) (Document, error) {
@@ -146,6 +146,8 @@ func (q *Queries) DeleteDocument(ctx context.Context, id uuid.UUID) (Document, e
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
@@ -169,7 +171,7 @@ func (q *Queries) DeleteSource(ctx context.Context, id uuid.UUID) error {
 }
 
 const findDocumentByExternalID = `-- name: FindDocumentByExternalID :one
-SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals FROM documents WHERE source_id = $1 AND external_id = $2
+SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id FROM documents WHERE source_id = $1 AND external_id = $2
 `
 
 type FindDocumentByExternalIDParams struct {
@@ -215,6 +217,8 @@ func (q *Queries) FindDocumentByExternalID(ctx context.Context, arg FindDocument
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
@@ -261,7 +265,7 @@ func (q *Queries) FinishDocument(ctx context.Context, arg FinishDocumentParams) 
 }
 
 const getDocument = `-- name: GetDocument :one
-SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals FROM documents WHERE id = $1
+SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id FROM documents WHERE id = $1
 `
 
 func (q *Queries) GetDocument(ctx context.Context, id uuid.UUID) (Document, error) {
@@ -302,6 +306,8 @@ func (q *Queries) GetDocument(ctx context.Context, id uuid.UUID) (Document, erro
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
@@ -490,7 +496,7 @@ func (q *Queries) ListDocumentChunks(ctx context.Context, arg ListDocumentChunks
 }
 
 const listDocuments = `-- name: ListDocuments :many
-SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals FROM documents
+SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id FROM documents
 WHERE source_id = $1
   AND ($2::text IS NULL OR status = $2::text)
   AND ($3::text IS NULL OR kind = $3::text)
@@ -569,6 +575,8 @@ func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([
 			&i.LastSeenCrawlID,
 			&i.WaitingUntil,
 			&i.AclPrincipals,
+			&i.ExternalVersion,
+			&i.LastSeenSyncID,
 		); err != nil {
 			return nil, err
 		}
@@ -847,7 +855,7 @@ func (q *Queries) RequeueDocument(ctx context.Context, arg RequeueDocumentParams
 const retryDocument = `-- name: RetryDocument :one
 UPDATE documents SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
 WHERE id = $1 AND (status IN ('failed', 'skipped') OR (status = 'ready' AND error_code = 'needs_ocr'))
-RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
+RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id
 `
 
 // A failed or skipped document, or a partly scanned PDF (ready, needs_ocr:
@@ -890,12 +898,14 @@ func (q *Queries) RetryDocument(ctx context.Context, id uuid.UUID) (Document, er
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
 
 const searchDocuments = `-- name: SearchDocuments :many
-SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals FROM documents
+SELECT id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id FROM documents
 WHERE source_id = $1
   AND (title || ' ' || url || ' ' || filename) ILIKE '%' || $2::text || '%' ESCAPE '\'
   AND ($3::text IS NULL OR status = $3::text)
@@ -980,6 +990,8 @@ func (q *Queries) SearchDocuments(ctx context.Context, arg SearchDocumentsParams
 			&i.LastSeenCrawlID,
 			&i.WaitingUntil,
 			&i.AclPrincipals,
+			&i.ExternalVersion,
+			&i.LastSeenSyncID,
 		); err != nil {
 			return nil, err
 		}
@@ -992,7 +1004,7 @@ func (q *Queries) SearchDocuments(ctx context.Context, arg SearchDocumentsParams
 }
 
 const setDocumentTags = `-- name: SetDocumentTags :one
-UPDATE documents SET tags = $1 WHERE id = $2 RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
+UPDATE documents SET tags = $1 WHERE id = $2 RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id
 `
 
 type SetDocumentTagsParams struct {
@@ -1038,6 +1050,8 @@ func (q *Queries) SetDocumentTags(ctx context.Context, arg SetDocumentTagsParams
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
@@ -1240,7 +1254,7 @@ func (q *Queries) SourceKnowledgeBases(ctx context.Context, sourceID uuid.UUID) 
 const startProcessing = `-- name: StartProcessing :one
 UPDATE documents SET status = 'processing', attempts = attempts + 1, updated_at = now()
 WHERE id = $1 AND status IN ('queued', 'processing')
-RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals
+RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id
 `
 
 func (q *Queries) StartProcessing(ctx context.Context, id uuid.UUID) (Document, error) {
@@ -1281,6 +1295,8 @@ func (q *Queries) StartProcessing(ctx context.Context, id uuid.UUID) (Document, 
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 	)
 	return i, err
 }
@@ -1344,7 +1360,7 @@ SET filename = EXCLUDED.filename, content_type = EXCLUDED.content_type, size_byt
     sha256 = EXCLUDED.sha256, blob_key = EXCLUDED.blob_key, uploaded_by = EXCLUDED.uploaded_by,
     version = documents.version + 1, status = 'pending', error_code = '', error_message = '',
     attempts = 0, waiting_until = NULL, updated_at = now()
-RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, (xmax = 0) AS inserted
+RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until, acl_principals, external_version, last_seen_sync_id, (xmax = 0) AS inserted
 `
 
 type UpsertUploadedDocumentParams struct {
@@ -1396,6 +1412,8 @@ type UpsertUploadedDocumentRow struct {
 	LastSeenCrawlID  uuid.NullUUID
 	WaitingUntil     *time.Time
 	AclPrincipals    []string
+	ExternalVersion  string
+	LastSeenSyncID   uuid.NullUUID
 	Inserted         bool
 }
 
@@ -1452,6 +1470,8 @@ func (q *Queries) UpsertUploadedDocument(ctx context.Context, arg UpsertUploaded
 		&i.LastSeenCrawlID,
 		&i.WaitingUntil,
 		&i.AclPrincipals,
+		&i.ExternalVersion,
+		&i.LastSeenSyncID,
 		&i.Inserted,
 	)
 	return i, err

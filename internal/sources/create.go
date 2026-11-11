@@ -15,8 +15,10 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/boilerplate"
+	"github.com/ncecere/grounded/internal/connector"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/platform"
+	"github.com/ncecere/grounded/internal/sourcesync"
 	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -29,7 +31,9 @@ type CreateInput struct {
 	Name, Description, Type, Classification string
 	ProfileID                               *uuid.UUID
 	Web                                     json.RawMessage
-	Boilerplate                             *boilerplate.Settings // overrides; nil = the defaults
+	// Connector holds a connector source's settings, credentials and schedule (connector types only).
+	Connector   *sourcesync.Settings
+	Boilerplate *boilerplate.Settings // overrides; nil = the defaults
 	// OCREnabled turns OCR off for the source (nil: on, docs/ocr.md §5).
 	OCREnabled *bool
 }
@@ -88,6 +92,8 @@ func sourceSnapshot(src dbgen.DataSource) map[string]any {
 	}
 	if src.Type == TypeWeb {
 		m["web"] = src.Config
+	} else if isConnector(src.Type) {
+		m["config"] = src.Config // a connector's settings hold no credential: those are stored apart, encrypted
 	}
 	return m
 }
@@ -106,6 +112,9 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, o Owner, in CreateI
 	})
 	if err != nil {
 		return out, err
+	}
+	if isConnector(out.Source.Type) {
+		return s.summary(ctx, out.Source) // with its connector settings and first sync
 	}
 	bp, err := s.boilerplateSummaries(ctx, []dbgen.DataSource{out.Source}, []uuid.UUID{out.Source.ID})
 	out.Boilerplate = bp[out.Source.ID]
@@ -200,6 +209,11 @@ func (s *Service) insert(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a aut
 		}
 		out.ActiveCrawl = &cr
 	}
+	if isConnector(src.Type) {
+		if out.ActiveSync, err = s.attachConnector(ctx, q, tx, a, src, in, startCrawl); err != nil {
+			return out, err
+		}
+	}
 	return out, s.recordCreate(ctx, q, tx, a, sc, src, in.Boilerplate)
 }
 
@@ -208,11 +222,17 @@ var errTypeOff = apperr.Conflict("source_type_off", "This source type is turned 
 
 // typeConfig validates the type-specific configuration of a new source.
 func (s *Service) typeConfig(ctx context.Context, sc scope, in CreateInput) (json.RawMessage, error) {
+	if in.Connector != nil && !isConnector(in.Type) {
+		return nil, errNotConnector
+	}
+	if in.Type != TypeWeb && len(in.Web) > 0 && string(in.Web) != "null" {
+		return nil, apperr.Invalid("invalid_web_config", "Only web sources take a web configuration")
+	}
+	if _, ok := connector.Get(in.Type); ok {
+		return s.connectorConfig(sc, in)
+	}
 	switch in.Type {
 	case TypeUpload:
-		if len(in.Web) > 0 && string(in.Web) != "null" {
-			return nil, apperr.Invalid("invalid_web_config", "Only web sources take a web configuration")
-		}
 		return json.RawMessage(`{}`), nil
 	case TypeWeb:
 		cfg, err := s.Web.ValidateConfig(ctx, sc.teamID(), in.Web)

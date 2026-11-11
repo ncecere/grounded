@@ -83,6 +83,8 @@ Admin **Test connection** and **Test model** calls, the scheduled health check a
 | `grounded_embedding_batch_inputs` | histogram | | Inputs per embedding request sent by ingestion |
 | `grounded_crawl_pages_total` | counter | `result` (`done`, `failed`, `skipped`) | Crawled frontier URLs |
 | `grounded_crawl_fetch_duration_seconds` | histogram | | One page fetch |
+| `grounded_connector_syncs_total` | counter | `type`, `result` (`completed`, `held`, `stopped`, `failed`, `cancelled`) | Connector syncs that ended. `held`: the sync removed nothing because it would have removed a large share of the source, and waits for an editor. `stopped`: a team limit ended it early |
+| `grounded_connector_items_total` | counter | `type`, `result` (`added`, `changed`, `unchanged`, `skipped`, `removed`) | Items connector syncs handled |
 | `grounded_jobs_worked_total` | counter | `kind`, `outcome` | River jobs by kind (`ingest.document`, `web.crawl`, `retention.run`, …); outcomes `ok`, `error`, `snoozed`, `cancelled`, `panic` |
 | `grounded_job_duration_seconds` | histogram | `kind` | |
 

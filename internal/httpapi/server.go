@@ -188,7 +188,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.auditExportRoutes(), a.publicRoutes(), a.accessibilityRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.scimAdminRoutes(), a.parsingRoutes(), a.auditStreamRoutes(), a.documentAccessRoutes(), a.sourceTypeRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
+		a.profileMigrationRoutes(), a.contextualRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.scimAdminRoutes(), a.parsingRoutes(), a.auditStreamRoutes(), a.documentAccessRoutes(), a.sourceTypeRoutes(), a.connectorRoutes(), a.piiRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(), a.contentHealthRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(), a.answerCacheRoutes(),
 	} {
 		routes = append(routes, group...)

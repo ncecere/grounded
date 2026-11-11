@@ -400,6 +400,11 @@ func (s *Service) afterUpdate(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, 
 			return err
 		}
 	}
+	if cur.Status == "active" && out.Status == "paused" && isConnector(out.Type) && s.Connectors != nil {
+		if err := s.Connectors.CancelActive(ctx, q, out.ID); err != nil {
+			return err
+		}
+	}
 	if cur.Status == "active" && out.Status == "paused" && out.Type == TypeWeb {
 		if err := s.Web.CancelActive(ctx, tx, out.ID, "The source was paused"); err != nil {
 			return err
