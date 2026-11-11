@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -40,7 +41,7 @@ func (linkSignal) Name() string { return SignalBrokenLink }
 // NoteTimeout: the signal ran out of time, so its sources' links are unknown, never "observed" by a half-finished run.
 func (linkSignal) NoteTimeout(env *Env) {
 	for _, s := range env.Sources {
-		if s.Type == "web" {
+		if sourcetypes.Of(s.Type).WebPages {
 			env.Coverage[s.ID].LinkState, env.Coverage[s.ID].LinkReason = LinkUnknown, LinkSignalTimedOut
 		}
 	}
@@ -64,7 +65,7 @@ func sanitizeURL(raw string) (string, bool) {
 func (linkSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 	var web []uuid.UUID
 	for _, s := range env.Sources {
-		if s.Type == "web" {
+		if sourcetypes.Of(s.Type).WebPages {
 			web = append(web, s.ID)
 		} else {
 			env.Coverage[s.ID].LinkState = LinkNotApplicable

@@ -117,17 +117,9 @@ func toAPIClassification(c dbgen.ClassificationLevel) apitypes.Classification {
 		Key: c.Key, Name: c.Name, Description: c.Description, Rank: c.Rank,
 		MaxAudience: apitypes.Audience(c.MaxAudience), AnonymousRetentionHours: c.AnonymousRetentionHours, Revision: c.Revision,
 		ConversationRetentionDays: c.ConversationRetentionDays, DirectRetrieve: c.DirectRetrieve,
-		AllowedSourceTypes: toAPISourceTypes(c.AllowedSourceTypes),
+		AllowedSourceTypes: nonNilStrings(c.AllowedSourceTypes),
 		CreatedAt:          c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
-}
-
-func toAPISourceTypes(types []string) []apitypes.ClassificationAllowedSourceTypes {
-	out := make([]apitypes.ClassificationAllowedSourceTypes, len(types))
-	for i, t := range types {
-		out[i] = apitypes.ClassificationAllowedSourceTypes(t)
-	}
-	return out
 }
 
 func nullUUID(n uuid.NullUUID) *uuid.UUID {

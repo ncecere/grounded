@@ -266,10 +266,7 @@ func (a *api) adminUpdateClassification(w http.ResponseWriter, r *http.Request) 
 		up.ConversationRetentionDays, up.ClearConversationRetention = d, *d == 0
 	}
 	if in.AllowedSourceTypes != nil {
-		up.AllowedSourceTypes = make([]string, len(*in.AllowedSourceTypes))
-		for i, t := range *in.AllowedSourceTypes {
-			up.AllowedSourceTypes[i] = string(t)
-		}
+		up.AllowedSourceTypes = nonNilStrings(*in.AllowedSourceTypes)
 	}
 	c, err := a.Platform.UpdateClassification(r.Context(), a.actor(r), r.PathValue("key"), up, rev)
 	if failed(w, r, err) {

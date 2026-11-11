@@ -23,6 +23,7 @@ import (
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/parse"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -70,8 +71,12 @@ func (s *Service) BeginUpload(ctx context.Context, a authz.Actor, o Owner, sourc
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != TypeUpload {
-		return nil, apperr.Invalid("not_upload_source", "Files can only be uploaded to upload sources; web sources fetch their pages")
+	if !sourcetypes.Of(src.Type).Uploads {
+		msg := "Files can only be uploaded to upload sources; this source fetches its own content"
+		if src.Type == TypeWeb {
+			msg = "Files can only be uploaded to upload sources; web sources fetch their pages"
+		}
+		return nil, apperr.Invalid("not_upload_source", msg)
 	}
 	if src.Status == "paused" {
 		return nil, apperr.Conflict("source_paused", "This source is paused. Resume it to upload files.")

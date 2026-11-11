@@ -30,16 +30,17 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/platform"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/web"
 )
 
-// Source types.
+// The built-in source types (the registry of every type is internal/sourcetypes).
 const (
-	TypeUpload = "upload"
-	TypeWeb    = "web"
+	TypeUpload = sourcetypes.Upload
+	TypeWeb    = sourcetypes.Web
 )
 
 type Service struct {

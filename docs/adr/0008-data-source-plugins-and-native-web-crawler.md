@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-09-24
 
+> **Note (2026-11-11):** The plugin interface described here was not built as written. [ADR-0035](0035-source-type-registry-and-connectors.md) records the registry that replaces it and what changes.
+>
 > **Note (2026-09-26):** Migrations no longer seed the first institution's domain: a fresh install's allowlist is empty unless `CRAWL_ALLOWLIST_SEED` sets patterns. See [ADR-0018](0018-open-source-institution-neutral.md).
 
 ## Context

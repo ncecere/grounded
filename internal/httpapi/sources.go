@@ -92,7 +92,7 @@ func nonNilStrings(s []string) []string {
 func toAPISource(s sources.Summary) apitypes.DataSource {
 	src := s.Source
 	out := apitypes.DataSource{
-		Id: src.ID, Name: src.Name, Description: src.Description, Type: apitypes.DataSourceType(src.Type),
+		Id: src.ID, Name: src.Name, Description: src.Description, Type: src.Type,
 		Classification: src.Classification, EmbeddingProfileId: src.EmbeddingProfileID,
 		Status: apitypes.DataSourceStatus(src.Status), Documents: toAPICounts(s.Stats), Revision: src.Revision,
 		CreatedAt: src.CreatedAt, UpdatedAt: src.UpdatedAt, LastSyncAt: src.LastSyncAt, NextSyncAt: src.NextSyncAt,
@@ -234,7 +234,7 @@ func (a *api) listSharedSources(w http.ResponseWriter, r *http.Request) {
 	for i, s := range list {
 		src := s.Source
 		out[i] = apitypes.SharedSource{
-			Id: src.ID, Name: src.Name, Description: src.Description, Type: apitypes.SharedSourceType(src.Type),
+			Id: src.ID, Name: src.Name, Description: src.Description, Type: src.Type,
 			Classification: src.Classification, EmbeddingProfileId: src.EmbeddingProfileID,
 			Status: apitypes.SharedSourceStatus(src.Status), Documents: toAPICounts(s.Stats),
 		}
@@ -259,7 +259,7 @@ func (a *api) createSource(owner ownerFunc) http.HandlerFunc {
 			return
 		}
 		s, err := a.Sources.Create(r.Context(), a.actor(r), owner(r), sources.CreateInput{
-			Name: in.Name, Description: deref(in.Description, ""), Type: string(deref(in.Type, "upload")),
+			Name: in.Name, Description: deref(in.Description, ""), Type: deref(in.Type, sources.TypeUpload),
 			Classification: in.Classification, ProfileID: in.EmbeddingProfileId, Web: webInput(in.Web),
 			Boilerplate: boilerplateInput(in.Boilerplate), OCREnabled: in.OcrEnabled,
 		})

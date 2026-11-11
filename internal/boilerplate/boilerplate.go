@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/ncecere/grounded/internal/sourcetypes"
 )
 
 // Settings are a source's overrides; nil fields inherit the platform
@@ -79,7 +81,7 @@ type Effective struct {
 // Resolve applies a source's overrides to the defaults for its type.
 func (d Defaults) Resolve(sourceType string, s Settings) Effective {
 	e := Effective{Enabled: d.Upload, MinDocs: d.MinDocs, Ratio: d.Ratio, Fuzzy: d.Fuzzy}
-	if sourceType == "web" {
+	if sourcetypes.Of(sourceType).WebPages {
 		e.Enabled = d.Web
 	}
 	if s.Enabled != nil {

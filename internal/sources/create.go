@@ -16,6 +16,8 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/boilerplate"
 	"github.com/ncecere/grounded/internal/limits"
+	"github.com/ncecere/grounded/internal/platform"
+	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/web"
@@ -162,6 +164,11 @@ func (s *Service) insert(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a aut
 			return out, err
 		}
 	}
+	if on, err := platform.SourceTypeEnabled(ctx, q, in.Type); err != nil {
+		return out, err
+	} else if !on {
+		return out, errTypeOff
+	}
 	profileID, err := s.resolveProfile(ctx, q, in.ProfileID)
 	if err != nil {
 		return out, err
@@ -196,6 +203,9 @@ func (s *Service) insert(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a aut
 	return out, s.recordCreate(ctx, q, tx, a, sc, src, in.Boilerplate)
 }
 
+// errTypeOff refuses a new source of a type a platform admin has turned off.
+var errTypeOff = apperr.Conflict("source_type_off", "This source type is turned off. A platform admin turns source types on and off.")
+
 // typeConfig validates the type-specific configuration of a new source.
 func (s *Service) typeConfig(ctx context.Context, sc scope, in CreateInput) (json.RawMessage, error) {
 	switch in.Type {
@@ -211,7 +221,7 @@ func (s *Service) typeConfig(ctx context.Context, sc scope, in CreateInput) (jso
 		}
 		return cfg.JSON(), nil
 	}
-	return nil, apperr.Invalid("unsupported_type", "type must be upload or web")
+	return nil, apperr.Invalid("unsupported_type", "type must be one of: "+strings.Join(sourcetypes.Keys(), ", "))
 }
 
 // recordCreate stores a new source's boilerplate overrides and audits it.
