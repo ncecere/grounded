@@ -25,6 +25,7 @@ import { fieldError, useCurrentError } from "@/lib/field-errors";
 import s from "../shared.module.css";
 import { useClassifications, useIsPlatformAdmin } from "./hooks";
 import { useModels } from "./models/common";
+import { typeName, useSourceTypes } from "../sources/types";
 import m from "./models/models.module.css";
 import { FormPage, FormSection } from "@/components/templates/form-page";
 
@@ -32,12 +33,19 @@ type Classification = Schemas["Classification"];
 type Audience = Schemas["Audience"];
 type SourceType = Classification["allowedSourceTypes"][number];
 
+/** The types a level can allow: the registered ones, and any the level already names (a type this server no longer has). */
+function useSourceTypeOptions(current: string[]): { key: string; label: string }[] {
+  const types = useSourceTypes().data;
+  const keys = [...new Set([...(types ?? [{ key: "upload" }, { key: "web" }]).map((t) => t.key), ...current])];
+  return keys.map((key) => ({ key, label: sourceTypeLabels[key] ?? typeName(types, key) }));
+}
+
 export const audienceLabels: Record<Audience, string> = {
   team: "Team only",
   all_authenticated: "Signed-in users",
   public: "Public (no sign-in)",
 };
-const sourceTypeLabels: Record<SourceType, string> = { upload: "Uploads", web: "Websites" };
+const sourceTypeLabels: Record<string, string> = { upload: "Uploads", web: "Websites" };
 
 /** "24 hours", "3 days". */
 export const hoursText = (h: number) => (h % 24 === 0 && h >= 48 ? `${h / 24} days` : `${h} ${h === 1 ? "hour" : "hours"}`);
@@ -87,6 +95,7 @@ export function ClassificationsPage() {
     models.data ?? [],
     (teams.data?.items ?? []).map((t) => t.team),
   );
+  const types = useSourceTypes().data;
   const columns: DataTableColumn<Classification>[] = [
     { id: "level", header: "Level", accessor: "name", rowHeader: true, hideable: false, cell: (l) => <CellText className={m.levelCell} primary={l.name} secondary={l.description || undefined} /> },
     {
@@ -125,7 +134,7 @@ export function ClassificationsPage() {
       id: "sources",
       header: "Source types",
       accessor: (l) => l.allowedSourceTypes.join(", "),
-      cell: (l) => <span className={m.nowrap}>{l.allowedSourceTypes.map((t) => sourceTypeLabels[t]).join(", ")}</span>,
+      cell: (l) => <span className={m.nowrap}>{l.allowedSourceTypes.map((t) => sourceTypeLabels[t] ?? typeName(types, t)).join(", ")}</span>,
     },
     { id: "retrieve", header: "API /retrieve", accessor: (l) => (l.directRetrieve ? "Allowed" : "Agents only"), muted: true },
     { id: "models", header: "Models allowed", accessor: (l) => counts.get(l.key)?.models ?? 0, numeric: true },
@@ -187,6 +196,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const noTypes = form.allowedSourceTypes.length === 0;
+  const typeOptions = useSourceTypeOptions(level?.allowedSourceTypes ?? []);
   const save = useMutation({
     mutationFn: async () => {
       const settings = {
@@ -292,8 +302,8 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
           className={m.wide}
         >
           <div className={s.badges}>
-            {(Object.keys(sourceTypeLabels) as SourceType[]).map((t) => (
-              <Checkbox key={t} label={sourceTypeLabels[t]} checked={form.allowedSourceTypes.includes(t)} onCheckedChange={(v) => toggleType(t, v)} />
+            {typeOptions.map((t) => (
+              <Checkbox key={t.key} label={t.label} checked={form.allowedSourceTypes.includes(t.key)} onCheckedChange={(v) => toggleType(t.key, v)} />
             ))}
           </div>
         </Field>

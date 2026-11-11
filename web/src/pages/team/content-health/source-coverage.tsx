@@ -24,7 +24,7 @@ export function SourceCoverage({ sources, team, minAnswers }: { sources: Coverag
           <Tr key={c.sourceId}>
             <Td>
               <TextLink render={<Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: c.sourceId }} />}>{c.name}</TextLink>
-              <span className={s.muted}> {c.type === "web" ? "Web" : "Upload"}</span>
+              <span className={s.muted}> {c.type === "web" ? "Web" : c.type === "upload" ? "Upload" : c.type}</span>
             </Td>
             <Td numeric>{c.documents.toLocaleString()}</Td>
             <Td numeric>{c.ready.toLocaleString()}</Td>

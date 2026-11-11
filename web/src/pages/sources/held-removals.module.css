@@ -1,0 +1,17 @@
+/* The documents a held sync would remove. Semantic tokens only. */
+
+.list {
+  max-height: 18rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  font-size: var(--font-size-sm);
+}
+
+.more {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

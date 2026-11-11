@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { FileText, FileUp, Globe, HardDrive, Layers, Library, Upload } from "lucide-react";
+import { FileText, FileUp, Globe, HardDrive, Layers, Library, Plug, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { RelativeTime } from "@/components/templates/list-page";
 import { Button } from "@/components/ui/button/button";
@@ -19,6 +19,8 @@ import { type KB, formatBytes, kbsQuery, plural, profileName, useClassificationL
 import { ActiveCrawlPanel, isActiveCrawl } from "./crawls";
 import { useBudgetStatus } from "@/lib/costs";
 import { type DataSource, useSourceOwner } from "./owner";
+import { ActiveSyncPanel, isActiveSync } from "./syncs";
+import { kindOf, syncScheduleLabels, typeName, useSourceTypes } from "./types";
 import { describeWeb, scheduleLabels } from "./web-form";
 import w from "./detail.module.css";
 
@@ -80,17 +82,19 @@ export function useSourceFacts(source: DataSource): Fact[] {
   const levels = useClassificationLevels();
   const profiles = useEmbeddingProfiles();
   const web = source.type === "web";
+  const connector = kindOf(source.type) === "connector";
+  const types = useSourceTypes();
   const c = source.documents;
   return [
-    { id: "type", label: "Type", icon: web ? <Globe /> : <FileUp />, value: web ? "Website" : "Upload" },
+    { id: "type", label: "Type", icon: web ? <Globe /> : connector ? <Plug /> : <FileUp />, value: typeName(types.data, source.type) },
     { id: "shared", value: owner.kind === "platform" ? sharedWith(source.classification, levels.data) : undefined },
     { id: "site", label: "Site", value: web ? siteFact(source) : undefined },
     { id: "mode", label: "Mode", value: web && source.web ? describeWeb(source.web) : undefined },
-    { id: "schedule", label: "Schedule", value: web ? scheduleFact(source) : undefined },
+    { id: "schedule", label: "Schedule", value: web ? scheduleFact(source) : source.connector ? syncScheduleLabels[source.connector.schedule] : undefined },
     {
       id: "sync",
       label: "Last sync",
-      value: web ? source.lastSyncAt ? <>Synced <RelativeTime value={source.lastSyncAt} /></> : "Not synced yet" : undefined,
+      value: web || connector ? source.lastSyncAt ? <>Synced <RelativeTime value={source.lastSyncAt} /></> : "Not synced yet" : undefined,
     },
     { id: "profile", label: "Embedding profile", value: profileName(profiles.data, source.embeddingProfileId) },
     { id: "documents", label: web ? "Pages" : "Documents", value: plural(c.total, web ? "page" : "document") },
@@ -165,13 +169,18 @@ function UsedByLinks({ kbs, team }: { kbs: KB[]; team: string }) {
  */
 export function SourceOverview({ source, onUpload, extra }: { source: DataSource; onUpload?: () => void; extra?: ReactNode }) {
   const active = isActiveCrawl(source.activeCrawl) ? source.activeCrawl : null;
+  const sync = isActiveSync(source.activeSync) ? source.activeSync : null;
   const empty = source.documents.total === 0;
   return (
     <>
       {active && <ActiveCrawlPanel source={source} crawl={active} />}
+      {sync && <ActiveSyncPanel source={source} sync={sync} />}
       <SourceStats source={source} />
       {/* Source-level blocks go after the stats, e.g. "Repeated blocks removed" (boilerplate suppression). */}
       {extra}
+      {empty && !sync && kindOf(source.type) === "connector" && (
+        <EmptyState icon={<Plug />} title="No documents yet." description="A sync adds the documents this source's settings select. The sync history says what each sync did." />
+      )}
       {empty && source.type === "upload" && (
         <EmptyState
           icon={<Upload />}

@@ -67,7 +67,13 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations, o
         open={Boolean(docId)}
         onClose={onClose}
         title={d0 ? docName(d0) : web ? "Page" : "Document"}
-        description={web ? "A page fetched from the website, with the passages knowledge bases search." : "An uploaded file, with the passages knowledge bases search."}
+        description={
+          web
+            ? "A page fetched from the website, with the passages knowledge bases search."
+            : d0?.url
+              ? "A document synced from its source, with the passages knowledge bases search."
+              : "An uploaded file, with the passages knowledge bases search."
+        }
         loading={doc.isLoading}
         error={doc.error}
         facts={d0 ? documentFacts(d0, web) : []}
@@ -169,6 +175,19 @@ function documentFacts(doc: Doc, web: boolean) {
         doc.filename || "—"
       ),
     },
+    // A connector's document also has an address: where it opens in its provider.
+    ...(!web && doc.url
+      ? [
+          {
+            label: "Opens at",
+            value: (
+              <TextLink href={doc.url} target="_blank" rel="noreferrer" external className={d.breakAll}>
+                {doc.url}
+              </TextLink>
+            ),
+          },
+        ]
+      : []),
     { label: "Kind · size", value: [docKind(doc) && kindLabel(docKind(doc)), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ") },
     ...(doc.pages > 0 ? [{ label: "Pages", value: doc.pages.toLocaleString() }] : []),
     ...(doc.ocr ? [{ label: "OCR", value: ocrNote(doc.ocr, doc.pages) }] : []),

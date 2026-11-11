@@ -1,9 +1,10 @@
 /*
- * The source detail page (team and shared sources; upload and web) on the
- * DetailPage template (D3, W3): one contextual primary action (Sync now,
- * Upload files, or Resume when paused), a "…" menu (Pause, Delete last), the
- * facts line, and pill tabs Overview · Documents/Pages · Crawls (web) ·
- * Settings. Documents open as record pages (?record=).
+ * The source detail page (team and shared sources; upload, web and connector
+ * sources) on the DetailPage template (D3, W3): one contextual primary action
+ * (Sync now, Upload files, or Resume when paused), a "…" menu (Pause, Delete
+ * last), the facts line, and pill tabs Overview · Documents/Pages · Crawls
+ * (web) · Syncs (connectors) · Settings. Documents open as record pages
+ * (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
 import { FileText, History, LayoutDashboard, Lock, Network, Settings2, Upload } from "lucide-react";
@@ -24,12 +25,16 @@ import { PageSkeleton } from "../team/layout";
 import { accessSummary, SourceAccess } from "./access";
 import { type SourceActions, useSourceActions } from "./actions";
 import { BoilerplateCard } from "./boilerplate";
+import { ConnectorSettingsCard } from "./connector-settings";
 import { ContextualCard } from "./contextual";
 import { CrawlHistory, SyncButton, isActiveCrawl, syncBlockedReason, useCrawlFinished } from "./crawls";
+import { HeldRemovalsNotice } from "./held-removals";
 import { SourceStatusBadge } from "./list";
 import { SourceOverview, useSourceFacts } from "./overview";
 import { type DataSource, ownerSourceQuery, useSourceOwner } from "./owner";
 import { SourceSettings } from "./settings";
+import { ConnectorSyncButton, SyncHistory, connectorSyncBlocked, isActiveSync, useSyncFinished } from "./syncs";
+import { kindOf, useSourceTypes } from "./types";
 import { maintenanceReason, useMaintenance } from "@/lib/maintenance";
 import w from "./detail.module.css";
 
@@ -42,12 +47,13 @@ export function SourceDetail({ sourceId }: { sourceId: string }) {
     refetchInterval: (q) => {
       const d = q.state.data;
       if (!d) return false;
-      if (isActiveCrawl(d.activeCrawl)) return 2000;
+      if (isActiveCrawl(d.activeCrawl) || isActiveSync(d.activeSync)) return 2000;
       if (d.documents.pending + d.documents.processing > 0) return 2000;
       return d.boilerplate?.pending ? 3000 : false;
     },
   });
   useCrawlFinished(source.data);
+  useSyncFinished(source.data);
 
   if (source.isLoading) return <PageSkeleton />;
   if (isNotFound(source.error) || (!source.error && !source.data)) return <NotFoundState what="source" />;
@@ -64,11 +70,24 @@ function SourcePage({ source: src }: { source: DataSource }) {
   const [uploading, setUploading] = useState(false);
   const [, setTab] = useUrlTab(sourceTabs);
   const syncReasonId = useId();
-  const web = src.type === "web";
+  const kind = kindOf(src.type);
+  const web = kind === "web";
+  const connector = kind === "connector";
+  const types = useSourceTypes();
+  // A connector that reports permissions decides who reads each document: the Access tab can't.
+  const fromProvider = types.data?.find((t) => t.key === src.type)?.capabilities.permissions === "provider";
   const maintenance = useMaintenance(owner.canEdit);
   // Why the primary action (Sync now / Upload files) is disabled, if it is.
-  const reason = !owner.canEdit ? undefined : web ? syncBlockedReason(src, maintenance) : maintenance ? maintenanceReason(maintenance, "Uploading") : undefined;
-  const canUpload = owner.canEdit && !actions.paused && !maintenance;
+  const reason = !owner.canEdit
+    ? undefined
+    : web
+      ? syncBlockedReason(src, maintenance)
+      : connector
+        ? connectorSyncBlocked(src, maintenance)
+        : maintenance
+          ? maintenanceReason(maintenance, "Uploading")
+          : undefined;
+  const canUpload = kind === "upload" && owner.canEdit && !actions.paused && !maintenance;
 
   return (
     <>
@@ -100,10 +119,13 @@ function SourcePage({ source: src }: { source: DataSource }) {
               <Alert tone="warning" title="This source is paused">
                 {web
                   ? "It doesn't crawl on its schedule and can't be synced. Pages already indexed stay searchable."
-                  : "It accepts no uploads, and documents waiting to be processed wait. Documents already indexed stay searchable."}
+                  : connector
+                    ? "It doesn't sync on its schedule and can't be synced by hand. Documents already indexed stay searchable."
+                    : "It accepts no uploads, and documents waiting to be processed wait. Documents already indexed stay searchable."}
                 {owner.canEdit ? " Resume it to continue." : ""}
               </Alert>
             )}
+            {src.heldSync && <HeldRemovalsNotice source={src} sync={src.heldSync} />}
             {owner.readOnlyNote}
           </>
         }
@@ -123,7 +145,7 @@ function SourcePage({ source: src }: { source: DataSource }) {
             label: web ? "Pages" : "Documents",
             icon: <FileText aria-hidden />,
             count: src.documents.total,
-            content: <DocumentsTable source={src} onUpload={canUpload && !web ? () => setUploading(true) : undefined} />,
+            content: <DocumentsTable source={src} onUpload={canUpload ? () => setUploading(true) : undefined} />,
           },
           {
             value: "crawls",
@@ -133,6 +155,17 @@ function SourcePage({ source: src }: { source: DataSource }) {
             content: (
               <Card title="Crawl history" description="The 20 most recent crawls, newest first." flush>
                 <CrawlHistory source={src} />
+              </Card>
+            ),
+          },
+          {
+            value: "syncs",
+            label: "Syncs",
+            icon: <History aria-hidden />,
+            hidden: !connector,
+            content: (
+              <Card title="Sync history" description="The 20 most recent syncs, newest first." flush>
+                <SyncHistory source={src} />
               </Card>
             ),
           },
@@ -148,19 +181,33 @@ function SourcePage({ source: src }: { source: DataSource }) {
             label: "Access",
             icon: <Lock aria-hidden />,
             hidden: owner.kind !== "team" || !owner.canEdit,
-            content: owner.team ? <SourceAccess source={src} team={owner.team} /> : null,
+            content: fromProvider ? (
+              <Card title="Access">
+                <Alert tone="info" title="This source's permissions come from its provider">
+                  Each document is readable by the people and groups the provider names, and by nobody else. A change of sharing there applies at the
+                  next sync. Restricted documents are marked in the Documents tab.
+                </Alert>
+              </Card>
+            ) : owner.team ? (
+              <SourceAccess source={src} team={owner.team} />
+            ) : null,
           },
           {
             value: "settings",
             label: "Settings",
             icon: <Settings2 aria-hidden />,
             hidden: !owner.canEdit,
-            content: <SourceSettings source={src} levels={levels.data ?? []} actions={actions} />,
+            content: (
+              <>
+                {connector && <ConnectorSettingsCard source={src} />}
+                <SourceSettings source={src} levels={levels.data ?? []} actions={actions} />
+              </>
+            ),
           },
         ]}
       />
       {actions.dialog}
-      {!web && owner.canEdit && (
+      {kind === "upload" && owner.canEdit && (
         <UploadDialog
           source={src}
           open={uploading}
@@ -199,6 +246,7 @@ function PrimaryAction({
       </Button>
     );
   if (source.type === "web") return <SyncButton source={source} reasonId={syncReasonId} />;
+  if (kindOf(source.type) === "connector") return <ConnectorSyncButton source={source} reasonId={syncReasonId} />;
   return (
     <Button onClick={onUpload} disabled={blocked} aria-describedby={blocked ? syncReasonId : undefined}>
       <Upload aria-hidden /> Upload files

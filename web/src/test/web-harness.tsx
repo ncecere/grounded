@@ -8,6 +8,7 @@ import type { TeamRole } from "../components/roles";
 import { TeamContext, teamCtx, type Team } from "../pages/team/common";
 import { Toaster } from "@/components/ui/toast/toast";
 import { testQueryClient } from "./query-client";
+import { builtInSourceTypes } from "./source-types";
 
 /* ---------- fixtures ---------- */
 
@@ -165,7 +166,8 @@ export class ApiFailure {
 type Handler = (body: unknown, url: URL) => unknown;
 
 /** Replaces fetch with canned {"data": ...} responses keyed by "METHOD path". */
-export function mockApi(routes: Record<string, Handler>) {
+export function mockApi(given: Record<string, Handler>) {
+  const routes: Record<string, Handler> = { "GET /v1/source-types": () => builtInSourceTypes, ...given };
   const calls: { method: string; url: string; search: string; body?: unknown; headers: Headers }[] = [];
   vi.stubGlobal("fetch", async (input: Request | string, init?: RequestInit) => {
     const req = input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init);

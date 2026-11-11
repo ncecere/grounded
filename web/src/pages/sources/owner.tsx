@@ -26,6 +26,26 @@ type DocQuery = { status?: Schemas["DocumentStatus"]; q?: string; kind?: DocKind
 /** A document kind the documents list can filter on (?kind=). */
 export type DocKind = NonNullable<NonNullable<paths["/v1/teams/{team}/sources/{sourceId}/documents"]["get"]["parameters"]["query"]>["kind"]>;
 export type PassagePage = Schemas["DocumentPassagePage"];
+export type SourceSync = Schemas["SourceSync"];
+export type ConnectorSettings = Schemas["ConnectorSettingsInput"];
+export type ConnectionCheck = Schemas["ConnectionCheck"];
+
+/** A connector source's operations (docs/source-types.md). Team sources only: a shared source is an upload or a website. */
+export type ConnectorApi = {
+  /** Tests settings and credentials for a source that doesn't exist yet. Nothing is saved. */
+  checkNew(type: string, body: ConnectorSettings): Promise<ConnectionCheck>;
+  /** Tests the stored connection, with `body` laid over it. Nothing is saved. */
+  check(id: string, body?: ConnectorSettings): Promise<ConnectionCheck>;
+  /** Changes settings, credentials or schedule (only what is sent). */
+  save(src: DataSource, body: ConnectorSettings): Promise<DataSource>;
+  syncs(id: string): Promise<SourceSync[]>;
+  /** Starts a sync; `full` lists everything again. */
+  sync(id: string, full: boolean): Promise<SourceSync>;
+  cancelSync(id: string, syncId: string): Promise<SourceSync>;
+  /** What a sync's held removals would remove. */
+  removals(id: string, syncId: string): Promise<Schemas["SyncRemovals"]>;
+  decideRemovals(id: string, syncId: string, confirm: boolean): Promise<SourceSync>;
+};
 
 export type SourceApi = {
   list(): Promise<DataSource[]>;
@@ -60,6 +80,8 @@ export type SourceApi = {
   boilerplate(id: string): Promise<Schemas["BoilerplateBlock"][]>;
   /** Team only: discovery preview for a crawl. */
   map?(body: MapRequest): Promise<MapResult>;
+  /** Team only: connector sources. */
+  connector?: ConnectorApi;
 };
 
 type Navigate = ReturnType<typeof useNavigate>;
@@ -82,6 +104,8 @@ export type SourceOwner = {
     source: (id: string) => QueryKey;
     documents: (id: string) => QueryKey;
     crawls: (id: string) => QueryKey;
+    /** A connector source's sync history. */
+    syncs: (id: string) => QueryKey;
     /** Other queries that show source data (knowledge bases, catalogs). */
     related: QueryKey[];
   };
@@ -152,12 +176,27 @@ function teamOwner(ctx: TeamCtx): SourceOwner {
       boilerplate: async (id) =>
         unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}/boilerplate", { params: { ...p(id), query: { limit: 20 } } })),
       map: async (body) => unwrap(await api.POST("/v1/teams/{team}/web/map", { params: { path: { team } }, body })),
+      connector: {
+        checkNew: async (key, body) => unwrap(await api.POST("/v1/teams/{team}/source-types/{key}/check", { params: { path: { team, key } }, body })),
+        check: async (id, body) => unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/connector/check", { params: p(id), body })),
+        save: async (src, body) =>
+          unwrap(await api.PUT("/v1/teams/{team}/sources/{sourceId}/connector", { params: { ...p(src.id), header: ifMatch(src.revision) }, body })),
+        syncs: async (id) => unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}/syncs", { params: { ...p(id), query: { limit: 20 } } })),
+        sync: async (id, full) => unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/syncs", { params: p(id), body: { full } })),
+        cancelSync: async (id, syncId) =>
+          unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/cancel", { params: { path: { team, sourceId: id, syncId } } })),
+        removals: async (id, syncId) =>
+          unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/removals", { params: { path: { team, sourceId: id, syncId } } })),
+        decideRemovals: async (id, syncId, confirm) =>
+          unwrap(await api.POST("/v1/teams/{team}/sources/{sourceId}/syncs/{syncId}/removals", { params: { path: { team, sourceId: id, syncId } }, body: { confirm } })),
+      },
     },
     keys: {
       list: sourcesKey(team),
       source: (id) => sourceKey(team, id),
       documents: (id) => documentsKey(team, id),
       crawls: (id) => [...sourceKey(team, id), "crawls"],
+      syncs: (id) => [...sourceKey(team, id), "syncs"],
       related: [kbsKey(team), ["team", team, "kb"]],
     },
     sourceLink: (id) => <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: id }} />,
@@ -223,6 +262,7 @@ export function platformOwner(isAdmin: boolean): SourceOwner {
       source: sharedSourceKey,
       documents: (id) => [...sharedSourceKey(id), "documents"],
       crawls: (id) => [...sharedSourceKey(id), "crawls"],
+      syncs: (id) => [...sharedSourceKey(id), "syncs"],
       related: [["shared-sources"]],
     },
     sourceLink: (id) => <Link to="/admin/shared-sources/$sourceId" params={{ sourceId: id }} />,

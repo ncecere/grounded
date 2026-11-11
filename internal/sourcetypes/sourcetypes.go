@@ -65,7 +65,11 @@ type Type struct {
 	// BuiltIn types are on unless a platform admin turns them off; every other type is off until turned on.
 	BuiltIn bool
 	// ConfigSchema is the JSON Schema of the type's settings, from which its form is built (nil for the built-in
-	// types, which have their own pages).
+	// types, which have their own pages). The form shows an object's properties that are a string (an enum makes a
+	// choice, "x-multiline": true a text area), a boolean, an integer or number, or a list of strings; "title" is
+	// the label, "description" the help, "default" the starting value and "required" what must be filled. JSON
+	// objects have no order, so "x-order" lists the properties in the order to show them. The connector's own
+	// Config validation is what counts: the schema only draws the form.
 	ConfigSchema json.RawMessage
 	// Credentials are the credentials the type needs (none for the built-in types).
 	Credentials []Field

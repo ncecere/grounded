@@ -13,7 +13,8 @@ export type EditorTab = (typeof editorTabs)[number];
 
 /** Source detail (D3): Crawls only shows for web sources. */
 /** "used-by" is shown for shared sources only (A6). */
-export const sourceTabs = ["overview", "documents", "crawls", "used-by", "access", "settings"] as const;
+/** "syncs" is a connector source's sync history (docs/source-types.md). */
+export const sourceTabs = ["overview", "documents", "crawls", "syncs", "used-by", "access", "settings"] as const;
 export type SourceTab = (typeof sourceTabs)[number];
 /** Knowledge base detail (D3, W4). */
 export const kbTabs = ["overview", "sources", "try", "evaluations", "settings"] as const;
