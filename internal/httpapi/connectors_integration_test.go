@@ -287,7 +287,7 @@ func TestConnectorCredentialsAreNeverShown(t *testing.T) {
 		if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE (to_jsonb(audit_log.*))::text LIKE '%' || $1 || '%'`, secret); n != 0 {
 			t.Errorf("%d audit entries hold a credential", n)
 		}
-		if n := env.scalar(t, `SELECT count(*) FROM source_connectors WHERE convert_from(credentials_cipher, 'LATIN1') LIKE '%' || $1 || '%'`, secret); n != 0 {
+		if n := env.scalar(t, `SELECT count(*) FROM source_connectors WHERE position(convert_to($1, 'UTF8') in credentials_cipher) > 0`, secret); n != 0 {
 			t.Error("a credential is stored in the clear")
 		}
 		if n := env.scalar(t, `SELECT count(*) FROM source_syncs WHERE error LIKE '%' || $1 || '%'`, secret); n != 0 {
