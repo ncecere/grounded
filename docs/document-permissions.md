@@ -76,5 +76,5 @@ Permissions are checked on every request, and nothing caches them.
 
 - At most 50 groups and people per source.
 - Restrictions are set per source. Per-document permissions come from connectors (Microsoft 365 and Google Drive,
-  planned for v0.10.0).
+  planned for v0.11.0).
 - Shared (platform) sources can't be restricted yet.
