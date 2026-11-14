@@ -51,8 +51,8 @@ var TraceSamplers = []string{
 	"parentbased_always_on", "parentbased_always_off", "parentbased_traceidratio",
 }
 
-// TracingDefaults are the built-in tracing settings (off).
-func TracingDefaults() Tracing {
+// tracingDefaults are the built-in tracing settings (off).
+func tracingDefaults() Tracing {
 	return Tracing{Protocol: OTLPProtocolHTTP, ServiceName: DefaultTraceServiceName, Sampler: DefaultTraceSampler, SamplerArg: 1}
 }
 

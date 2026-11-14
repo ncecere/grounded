@@ -22,8 +22,8 @@ func (t TeamRef) path(rest string) string { return "/teams/" + t.Slug + rest }
 
 var roleNames = map[string]string{"owner": "Owner", "admin": "Admin", "editor": "Editor", "member": "Member"}
 
-// RoleName is a team role as shown to people.
-func RoleName(role string) string {
+// roleName is a team role as shown to people.
+func roleName(role string) string {
 	if n, ok := roleNames[role]; ok {
 		return n
 	}
@@ -37,7 +37,7 @@ func InvitedEvent(t TeamRef, email, role string, expires time.Time) Event {
 		Type: TeamInvited, TeamID: t.ID, Emails: []string{email}, Link: "/",
 		Title: fmt.Sprintf("You're invited to join %s", t.Name),
 		Body: fmt.Sprintf("You've been invited to the team %s as %s. Sign in with %s to join; the invite expires on %s.",
-			t.Name, strings.ToLower(RoleName(role)), email, day(expires)),
+			t.Name, strings.ToLower(roleName(role)), email, day(expires)),
 		Data: map[string]any{"team": t.Slug, "role": role, "email": email},
 	}
 }
@@ -49,7 +49,7 @@ func InviteExpiringEvent(t TeamRef, inviteID uuid.UUID, email, role string, expi
 		Type: InviteExpiring, TeamID: t.ID, Emails: []string{email}, Link: "/",
 		DedupeKey: "invite_expiring:" + inviteID.String() + ":" + day(expires),
 		Title:     fmt.Sprintf("Your invite to %s expires on %s", t.Name, day(expires)),
-		Body:      fmt.Sprintf("You were invited to the team %s as %s. Sign in with %s before %s to join.", t.Name, strings.ToLower(RoleName(role)), email, day(expires)),
+		Body:      fmt.Sprintf("You were invited to the team %s as %s. Sign in with %s before %s to join.", t.Name, strings.ToLower(roleName(role)), email, day(expires)),
 		Data:      map[string]any{"team": t.Slug, "role": role, "inviteId": inviteID},
 	}
 }
@@ -59,7 +59,7 @@ func MemberAddedEvent(t TeamRef, user uuid.UUID, role string) Event {
 	return Event{
 		Type: MembershipChanged, TeamID: t.ID, Users: []uuid.UUID{user}, Link: t.path(""),
 		Title: fmt.Sprintf("You were added to %s", t.Name),
-		Body:  fmt.Sprintf("You're now a member of %s with the role %s.", t.Name, RoleName(role)),
+		Body:  fmt.Sprintf("You're now a member of %s with the role %s.", t.Name, roleName(role)),
 		Data:  map[string]any{"team": t.Slug, "change": "added", "role": role},
 	}
 }
@@ -68,8 +68,8 @@ func MemberAddedEvent(t TeamRef, user uuid.UUID, role string) Event {
 func RoleChangedEvent(t TeamRef, user uuid.UUID, from, to string) Event {
 	return Event{
 		Type: MembershipChanged, TeamID: t.ID, Users: []uuid.UUID{user}, Link: t.path(""),
-		Title: fmt.Sprintf("Your role in %s is now %s", t.Name, RoleName(to)),
-		Body:  fmt.Sprintf("Your role in %s changed from %s to %s.", t.Name, RoleName(from), RoleName(to)),
+		Title: fmt.Sprintf("Your role in %s is now %s", t.Name, roleName(to)),
+		Body:  fmt.Sprintf("Your role in %s changed from %s to %s.", t.Name, roleName(from), roleName(to)),
 		Data:  map[string]any{"team": t.Slug, "change": "role", "from": from, "to": to},
 	}
 }

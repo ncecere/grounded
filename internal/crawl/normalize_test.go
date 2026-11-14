@@ -68,12 +68,12 @@ func TestNormalize(t *testing.T) {
 
 func TestIsTrackingParam(t *testing.T) {
 	for _, k := range []string{"utm_source", "UTM_campaign", "gclid", "fbclid", "mc_cid", "mc_eid"} {
-		if !IsTrackingParam(k) {
+		if !isTrackingParam(k) {
 			t.Errorf("%s not tracking", k)
 		}
 	}
 	for _, k := range []string{"utm", "id", "q", "page"} {
-		if IsTrackingParam(k) {
+		if isTrackingParam(k) {
 			t.Errorf("%s tracking", k)
 		}
 	}

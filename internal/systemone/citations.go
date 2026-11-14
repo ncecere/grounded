@@ -67,9 +67,9 @@ type CheckStats struct {
 	Latency  time.Duration
 }
 
-// CheckState is the state of one citation check: the claim and the
+// checkState is the state of one citation check: the claim and the
 // section it cites (the cookbook's shape).
-func CheckState(p ClaimPair) map[string]string {
+func checkState(p ClaimPair) map[string]string {
 	src := p.Source
 	if utf8.RuneCountInString(src) > maxPassageRunes {
 		src = string([]rune(src)[:maxPassageRunes])
@@ -87,7 +87,7 @@ func (cl *Client) CheckClaims(ctx context.Context, pairs []ClaimPair, timeout ti
 	var wg sync.WaitGroup
 	for i, p := range pairs {
 		wg.Go(func() {
-			res, err := cl.Ask(ctx, Call{Feature: FeatureCitations, Timeout: timeout}, CheckState(p), relationQuestions)
+			res, err := cl.Ask(ctx, Call{Feature: FeatureCitations, Timeout: timeout}, checkState(p), relationQuestions)
 			out[i] = verdictFrom(res, err)
 		})
 	}

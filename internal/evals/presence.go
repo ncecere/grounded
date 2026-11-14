@@ -52,7 +52,7 @@ func (s *Service) CheckQuestion(ctx context.Context, a authz.Actor, teamRef stri
 			return QuestionCheck{}, err
 		}
 	}
-	phrases, err := NormalizePhrases(in.MustMention)
+	phrases, err := normalizePhrases(in.MustMention)
 	if err != nil {
 		return QuestionCheck{}, err
 	}

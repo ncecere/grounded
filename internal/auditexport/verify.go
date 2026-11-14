@@ -84,9 +84,9 @@ func verifyLines(m Manifest, day time.Time, payload io.Reader) error {
 	return nil
 }
 
-// VerifyLink checks date adjacency and the exact previous canonical envelope.
+// verifyLink checks date adjacency and the exact previous canonical envelope.
 // Call Verify for both artifacts as well, with independently trusted keys.
-func VerifyLink(previous, next Envelope) error {
+func verifyLink(previous, next Envelope) error {
 	b, _ := json.Marshal(previous)
 	day, err := time.Parse("2006-01-02", previous.Manifest.Day)
 	if err != nil || next.Manifest.CoverageStart != previous.Manifest.CoverageStart || next.Manifest.PreviousExport != digest(b) || next.Manifest.Day != day.AddDate(0, 0, 1).Format("2006-01-02") {

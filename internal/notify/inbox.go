@@ -126,7 +126,7 @@ func (s *Service) Settings(ctx context.Context, userID uuid.UUID) ([]Setting, er
 		if c, ok := saved[d.Type]; ok {
 			ch = &c
 		}
-		out = append(out, Setting{Def: d, Channels: Resolve(d, ch)})
+		out = append(out, Setting{Def: d, Channels: resolve(d, ch)})
 	}
 	return out, nil
 }

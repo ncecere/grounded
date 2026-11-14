@@ -18,8 +18,8 @@ import (
 // visitMaxAge outlives any anonymous session (they last hours).
 const visitMaxAge = 400 * 24 * 60 * 60
 
-// VisitCookieName is the epoch cookie's name (__Host- on HTTPS, like the session's).
-func VisitCookieName(secure bool) string {
+// visitCookieName is the epoch cookie's name (__Host- on HTTPS, like the session's).
+func visitCookieName(secure bool) string {
 	if secure {
 		return "__Host-grounded_visit"
 	}
@@ -28,14 +28,14 @@ func VisitCookieName(secure bool) string {
 
 // rotateVisit starts a new epoch: anonymous chats of the previous one end.
 func (s *Service) rotateVisit(w http.ResponseWriter) {
-	s.setCookie(w, VisitCookieName(s.cfg.SecureCookies()), httpx.NewID(16), visitMaxAge)
+	s.setCookie(w, visitCookieName(s.cfg.SecureCookies()), httpx.NewID(16), visitMaxAge)
 }
 
 // VisitBinding is a short digest of the request's epoch cookie, "" without
 // one (a browser that never signed in, or the widget's third-party frame,
 // where the first-party cookie isn't sent).
 func VisitBinding(r *http.Request, secure bool) string {
-	c, err := r.Cookie(VisitCookieName(secure))
+	c, err := r.Cookie(visitCookieName(secure))
 	if err != nil || c.Value == "" {
 		return ""
 	}

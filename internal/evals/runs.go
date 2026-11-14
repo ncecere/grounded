@@ -79,8 +79,8 @@ type Run struct {
 	Config  RunConfig
 }
 
-// DecodeRun reads a stored run.
-func DecodeRun(r dbgen.EvalRun) Run {
+// decodeRun reads a stored run.
+func decodeRun(r dbgen.EvalRun) Run {
 	out := Run{EvalRun: r}
 	_ = json.Unmarshal(r.Summary, &out.Summary)
 	_ = json.Unmarshal(r.Config, &out.Config)
@@ -105,7 +105,7 @@ func (s *Service) Runs(ctx context.Context, a authz.Actor, teamRef string, setID
 	rows, err := s.q.ListEvalRuns(ctx, dbgen.ListEvalRunsParams{SetID: setID, Lim: int32(limit)})
 	out := make([]Run, len(rows))
 	for i, r := range rows {
-		out[i] = DecodeRun(r)
+		out[i] = decodeRun(r)
 	}
 	return out, err
 }
@@ -143,7 +143,7 @@ func (s *Service) CancelRun(ctx context.Context, a authz.Actor, teamRef string, 
 		e.Metadata = mergeMeta(e.Metadata, map[string]any{"setId": setID, "done": out.Done, "questions": out.Total})
 		return audited(ctx, q, e, acc.Team.ID)
 	})
-	return DecodeRun(out), err
+	return decodeRun(out), err
 }
 
 // summarize computes a run's summary from its stored results.
@@ -160,7 +160,7 @@ func summarize(ctx context.Context, q *dbgen.Queries, run dbgen.EvalRun) (Summar
 			scored[i].Rank = int(*r.Rank)
 		}
 	}
-	return Summarize(run.Kind, DecodeRun(run).Config.ResultsPerSearch, scored), nil
+	return Summarize(run.Kind, decodeRun(run).Config.ResultsPerSearch, scored), nil
 }
 
 // systemActor is who automatic runs act as.

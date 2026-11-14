@@ -13,7 +13,7 @@ func TestSMTPSettings(t *testing.T) {
 	if err := os.WriteFile(pw, []byte("hunter2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c, err := LoadFrom("", env(map[string]string{
+	c, err := loadFrom("", env(map[string]string{
 		"SMTP_HOST": "smtp.example.edu", "SMTP_PORT": "465", "SMTP_TLS": "TLS", "SMTP_USERNAME": "rag",
 		"SMTP_PASSWORD_FILE": pw, "SMTP_FROM": "Campus RAG <rag@example.edu>",
 	}))
@@ -32,7 +32,7 @@ func TestSMTPSettings(t *testing.T) {
 	if d.Enabled() || d.Port != 587 || d.TLS != SMTPStartTLS || len(d.validate("")) != 0 {
 		t.Errorf("defaults = %+v", d)
 	}
-	if _, err := LoadFrom("", env(map[string]string{"SMTP_PORT": "0"})); err == nil {
+	if _, err := loadFrom("", env(map[string]string{"SMTP_PORT": "0"})); err == nil {
 		t.Error("port 0 accepted")
 	}
 }

@@ -71,7 +71,7 @@ func Load(ctx context.Context, q *dbgen.Queries) (Scanner, error) {
 	set := toSettings(r)
 	sc := Scanner{Enabled: set.Enabled, BlockLevels: set.BlockLevels}
 	for _, p := range set.Patterns {
-		if c, ok := CompilePattern(p.Name, p.Pattern); ok {
+		if c, ok := compilePattern(p.Name, p.Pattern); ok {
 			sc.Patterns = append(sc.Patterns, c)
 		}
 	}
@@ -90,7 +90,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, in Settings, revisi
 	seen := map[string]bool{}
 	for i, p := range in.Patterns {
 		in.Patterns[i].Name = strings.TrimSpace(p.Name)
-		if _, ok := CompilePattern(p.Name, p.Pattern); !ok || seen[strings.ToLower(in.Patterns[i].Name)] {
+		if _, ok := compilePattern(p.Name, p.Pattern); !ok || seen[strings.ToLower(in.Patterns[i].Name)] {
 			return Settings{}, &apperr.Error{Status: 400, Code: "invalid_pattern",
 				Message: "Each pattern needs a unique name (1-60 characters) and a valid regular expression of at most 500 characters that does not match empty text",
 				Details: map[string]any{"index": i}}

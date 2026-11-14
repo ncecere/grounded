@@ -186,10 +186,10 @@ func luhn(d string) bool {
 	return sum%10 == 0
 }
 
-// CompilePattern checks a platform admin's pattern: a name for the kind (1-60 characters, not a built-in kind) and an
+// compilePattern checks a platform admin's pattern: a name for the kind (1-60 characters, not a built-in kind) and an
 // RE2 expression of at most MaxPatternLength characters that does not match the empty string (it would count every
 // position).
-func CompilePattern(name, expr string) (Pattern, bool) {
+func compilePattern(name, expr string) (Pattern, bool) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 || len(name) > 60 || name == KindUSSSN || name == KindPaymentCard || len(expr) == 0 || len(expr) > MaxPatternLength {
 		return Pattern{}, false

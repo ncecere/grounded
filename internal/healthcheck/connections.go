@@ -51,34 +51,34 @@ func (c *ConnectionChecker) Targets(ctx context.Context) ([]Target, error) {
 			Key: KindConnection + ":" + id.String(),
 			Probe: func(ctx context.Context) ([]Result, error) {
 				test, err := c.Probe(ctx, id)
-				return ConnectionResults(id, test, err, ms)
+				return connectionResults(id, test, err, ms)
 			},
 		})
 	}
 	return out, nil
 }
 
-// ConnectionResults turns a connection test into the connection's result
-// followed by one derived result per model (DeriveModel).
-func ConnectionResults(id uuid.UUID, test catalog.ConnectionTest, testErr error, models []dbgen.Model) ([]Result, error) {
-	conn, err := ConnectionResult(id, test, testErr)
+// connectionResults turns a connection test into the connection's result
+// followed by one derived result per model (deriveModel).
+func connectionResults(id uuid.UUID, test catalog.ConnectionTest, testErr error, models []dbgen.Model) ([]Result, error) {
+	conn, err := connectionResult(id, test, testErr)
 	if err != nil {
 		return nil, err
 	}
 	out := []Result{conn}
 	for _, m := range models {
-		out = append(out, DeriveModel(m, test, conn))
+		out = append(out, deriveModel(m, test, conn))
 	}
 	return out, nil
 }
 
-// ConnectionResult turns a connection test into a result. A test that
+// connectionResult turns a connection test into a result. A test that
 // could not run because of the connection's own settings (an API key the
 // current ENCRYPTION_KEY can't decrypt: a 409) is a failure of class
 // ClassConfig with its message; any other error (the connection was
 // deleted, the caller may not test, the run was cancelled, the database
 // failed) proves nothing about the connection and is returned.
-func ConnectionResult(id uuid.UUID, t catalog.ConnectionTest, err error) (Result, error) {
+func connectionResult(id uuid.UUID, t catalog.ConnectionTest, err error) (Result, error) {
 	r := Result{Kind: KindConnection, SubjectID: id, Latency: t.Latency}
 	if err != nil {
 		e, ok := apperr.As(err)
@@ -95,13 +95,13 @@ func ConnectionResult(id uuid.UUID, t catalog.ConnectionTest, err error) (Result
 	return r, nil
 }
 
-// DeriveModel is a model's health from its connection's test: failing with
+// deriveModel is a model's health from its connection's test: failing with
 // the connection's error class when the connection failed; failing
 // (not_found) when the connection listed its models, the list isn't empty
 // and it lacks the model; otherwise healthy. SystemOne models are never in
 // a model list, and an empty list proves nothing, so neither counts against
 // a model.
-func DeriveModel(m dbgen.Model, t catalog.ConnectionTest, conn Result) Result {
+func deriveModel(m dbgen.Model, t catalog.ConnectionTest, conn Result) Result {
 	r := Result{Kind: KindModel, SubjectID: m.ID, Latency: conn.Latency, OK: true}
 	switch {
 	case !conn.OK:

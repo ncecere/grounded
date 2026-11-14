@@ -116,8 +116,8 @@ type MaintenanceGate struct {
 	now func() time.Time
 }
 
-// NewMaintenanceGate reads through db, caching for ttl (MaintenanceTTL when 0).
-func NewMaintenanceGate(db dbgen.DBTX, ttl time.Duration) *MaintenanceGate {
+// newMaintenanceGate reads through db, caching for ttl (MaintenanceTTL when 0).
+func newMaintenanceGate(db dbgen.DBTX, ttl time.Duration) *MaintenanceGate {
 	if ttl <= 0 {
 		ttl = MaintenanceTTL
 	}

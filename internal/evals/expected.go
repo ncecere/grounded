@@ -217,9 +217,9 @@ func (e Expected) existence() (docs []uuid.UUID, urls, prefixes, filenames []str
 	return docs, urls, prefixes, filenames
 }
 
-// NormalizePhrases trims and deduplicates must-mention phrases (case
+// normalizePhrases trims and deduplicates must-mention phrases (case
 // aside): at most 20, each at most 200 characters.
-func NormalizePhrases(in []string) ([]string, error) {
+func normalizePhrases(in []string) ([]string, error) {
 	out := []string{}
 	seen := map[string]bool{}
 	for _, p := range in {
@@ -239,8 +239,8 @@ func NormalizePhrases(in []string) ([]string, error) {
 	return out, nil
 }
 
-// SplitList splits the | notation of must-mention phrases.
-func SplitList(s string) []string {
+// splitList splits the | notation of must-mention phrases.
+func splitList(s string) []string {
 	var out []string
 	for _, v := range strings.Split(s, "|") {
 		if v = strings.TrimSpace(v); v != "" {

@@ -54,8 +54,8 @@ type emailData struct {
 	Mandatory                    bool
 }
 
-// Render builds an email for c. Links are absolute (APP_URL + path).
-func Render(site Site, c Content) (Rendered, error) {
+// render builds an email for c. Links are absolute (APP_URL + path).
+func render(site Site, c Content) (Rendered, error) {
 	d := emailData{
 		Instance: site.Instance, Title: strutil.OneLine(c.Title), Body: strings.TrimSpace(c.Body),
 		SettingsURL: site.AppURL + SettingsPath, Mandatory: c.Mandatory, Label: string(c.Type),

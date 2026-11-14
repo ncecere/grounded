@@ -63,7 +63,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 			return nil
 		}
 	}
-	if err := SeedFirstRun(ctx, cfg, pool, log); err != nil {
+	if err := seedFirstRun(ctx, cfg, pool, log); err != nil {
 		return err
 	}
 	logPreflight(ctx, cfg, pool, log)

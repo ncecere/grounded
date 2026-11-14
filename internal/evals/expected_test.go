@@ -80,18 +80,18 @@ func TestExistence(t *testing.T) {
 }
 
 func TestNormalizePhrases(t *testing.T) {
-	p, err := NormalizePhrases([]string{"  office   hours ", "Office Hours", "", "room 101"})
+	p, err := normalizePhrases([]string{"  office   hours ", "Office Hours", "", "room 101"})
 	if err != nil || strings.Join(p, ",") != "office hours,room 101" {
 		t.Errorf("phrases = %v %v", p, err)
 	}
-	if _, err := NormalizePhrases([]string{strings.Repeat("x", 201)}); err == nil {
+	if _, err := normalizePhrases([]string{strings.Repeat("x", 201)}); err == nil {
 		t.Error("a long phrase was accepted")
 	}
 	many := make([]string, 21)
 	for i := range many {
 		many[i] = strings.Repeat("p", i+1)
 	}
-	if _, err := NormalizePhrases(many); err == nil {
+	if _, err := normalizePhrases(many); err == nil {
 		t.Error("21 phrases were accepted")
 	}
 }

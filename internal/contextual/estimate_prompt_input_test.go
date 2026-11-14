@@ -7,7 +7,7 @@ import "testing"
 func TestMetadataEstimateCoversEscapedPromptReservation(t *testing.T) {
 	e := newGen(t)
 	req, required := escapedCapacityRequest(t, e)
-	plan := PlanDocument(ItemsOf(req.Chunks), e.g.Counter)
+	plan := planDocument(itemsOf(req.Chunks), e.g.Counter)
 	input := int64(required - RequestMaxTokens)
 	if plan.Over || plan.Units != 1 {
 		t.Fatalf("unexpected fixture plan: %+v", plan)

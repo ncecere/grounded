@@ -49,7 +49,7 @@ func (o Override) Normalize() Override {
 		if !r.Output.active() {
 			r.Output = Rule{Action: ActionOff, Threshold: DefaultThreshold}
 		}
-		if r.Input.active() || r.Output.active() || !IsCategory(c) {
+		if r.Input.active() || r.Output.active() || !isCategory(c) {
 			out.Categories[c] = r
 		}
 	}
@@ -74,7 +74,7 @@ func (o Override) IsZero() bool {
 func (o Override) Validate() []Problem {
 	var out []Problem
 	for c, r := range o.Categories {
-		if !IsCategory(c) {
+		if !isCategory(c) {
 			out = append(out, Problem{"moderation.categories." + c, "Unknown category"})
 			continue
 		}
@@ -114,7 +114,7 @@ func (p Policy) Merge(o Override) Policy {
 		}
 		out.Categories[c] = r
 	}
-	if o.OutputMode != ModeStreamRetract && ValidMode(o.OutputMode) && modeRank[o.OutputMode] > modeRank[out.OutputMode] {
+	if o.OutputMode != ModeStreamRetract && validMode(o.OutputMode) && modeRank[o.OutputMode] > modeRank[out.OutputMode] {
 		out.OutputMode = o.OutputMode
 	}
 	if a := o.SeverityBlock; a != nil && (out.SeverityBlock == nil || *a < *out.SeverityBlock) {

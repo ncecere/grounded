@@ -65,8 +65,8 @@ func wireCosts(s *Services, pool *pgxpool.Pool, jobsClient *jobs.Client, log *sl
 	}
 }
 
-// NewMailSender returns the SMTP sender, or nil when email is off.
-func NewMailSender(cfg config.Config) notify.Sender {
+// newMailSender returns the SMTP sender, or nil when email is off.
+func newMailSender(cfg config.Config) notify.Sender {
 	if !cfg.SMTP.Enabled() {
 		return nil
 	}

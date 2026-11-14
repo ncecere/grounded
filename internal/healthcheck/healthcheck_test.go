@@ -196,22 +196,22 @@ func TestSafeMessage(t *testing.T) {
 
 func TestConnectionResult(t *testing.T) {
 	id := uuid.New()
-	ok, err := ConnectionResult(id, catalog.ConnectionTest{OK: true, Latency: time.Second}, nil)
+	ok, err := connectionResult(id, catalog.ConnectionTest{OK: true, Latency: time.Second}, nil)
 	if err != nil || !ok.OK || ok.Kind != KindConnection || ok.Latency != time.Second {
 		t.Errorf("healthy = %+v %v", ok, err)
 	}
-	failed, _ := ConnectionResult(id, catalog.ConnectionTest{Error: &catalog.ProbeError{Kind: gateway.KindAuth, Status: 401, Message: "bad key"}}, nil)
+	failed, _ := connectionResult(id, catalog.ConnectionTest{Error: &catalog.ProbeError{Kind: gateway.KindAuth, Status: 401, Message: "bad key"}}, nil)
 	if failed.OK || failed.ErrorClass != gateway.KindAuth || failed.HTTPStatus != 401 || failed.Message != "bad key" {
 		t.Errorf("failed = %+v", failed)
 	}
 	undecryptable := apperr.Conflict("api_key_undecryptable", "The stored API key cannot be decrypted.")
-	cfg, err := ConnectionResult(id, catalog.ConnectionTest{}, undecryptable)
+	cfg, err := connectionResult(id, catalog.ConnectionTest{}, undecryptable)
 	if err != nil || cfg.OK || cfg.ErrorClass != ClassConfig || !strings.Contains(cfg.Message, "decrypted") {
 		t.Errorf("config failure = %+v %v", cfg, err)
 	}
 	// Errors that prove nothing about the connection aren't results.
 	for _, e := range []error{apperr.NotFound("connection_not_found", "gone"), apperr.Forbidden("no"), context.Canceled} {
-		if _, err := ConnectionResult(id, catalog.ConnectionTest{}, e); err == nil {
+		if _, err := connectionResult(id, catalog.ConnectionTest{}, e); err == nil {
 			t.Errorf("%v became a result", e)
 		}
 	}
@@ -239,7 +239,7 @@ func TestDeriveModel(t *testing.T) {
 		{"connection down", chat, catalog.ConnectionTest{Probe: catalog.ProbeModels}, down, false, gateway.KindUnavailable},
 	}
 	for _, c := range cases {
-		r := DeriveModel(c.m, c.test, c.conn)
+		r := deriveModel(c.m, c.test, c.conn)
 		if r.Kind != KindModel || r.SubjectID != c.m.ID || r.OK != c.ok || r.ErrorClass != c.class {
 			t.Errorf("%s: %+v", c.name, r)
 		}
@@ -247,7 +247,7 @@ func TestDeriveModel(t *testing.T) {
 			t.Errorf("%s: failing without a message", c.name)
 		}
 	}
-	if r := DeriveModel(chat, catalog.ConnectionTest{}, down); r.HTTPStatus != 503 || !strings.Contains(r.Message, "Service Unavailable") {
+	if r := deriveModel(chat, catalog.ConnectionTest{}, down); r.HTTPStatus != 503 || !strings.Contains(r.Message, "Service Unavailable") {
 		t.Errorf("connection failure = %+v", r)
 	}
 }

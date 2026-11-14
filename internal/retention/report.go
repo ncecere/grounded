@@ -58,7 +58,7 @@ func (s *Service) Report(ctx context.Context, a authz.Actor) (Report, error) {
 	now := time.Now()
 	out := Report{GeneratedAt: now}
 	err := pgx.BeginTxFunc(ctx, s.Pool, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
-		periods, err := LoadPeriods(ctx, tx, s.Env)
+		periods, err := loadPeriods(ctx, tx, s.Env)
 		if err != nil {
 			return err
 		}

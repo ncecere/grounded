@@ -28,8 +28,8 @@ type Totals struct {
 	Unpriced bool
 }
 
-// NewTotals returns zero totals.
-func NewTotals() *Totals {
+// newTotals returns zero totals.
+func newTotals() *Totals {
 	t := &Totals{Spend: new(big.Rat), ByCategory: map[string]*big.Rat{}}
 	for _, c := range Categories {
 		t.ByCategory[c] = new(big.Rat)
@@ -38,7 +38,7 @@ func NewTotals() *Totals {
 }
 
 func (t *Totals) add(unit string, qty int64, cost *big.Rat) {
-	if PerUnits(unit) == 1 {
+	if perUnits(unit) == 1 {
 		t.Requests += qty
 	} else {
 		t.Tokens += qty
@@ -131,7 +131,7 @@ func Sum[K comparable](book PriceBook, rows []usageRow, key func(usageRow) K) ma
 		k := key(u)
 		t := out[k]
 		if t == nil {
-			t = NewTotals()
+			t = newTotals()
 			out[k] = t
 		}
 		t.add(u.Unit, u.Quantity, priceRow(book, u))

@@ -25,18 +25,18 @@ Write ONE paragraph of plain text, at most 60 words: what the document is and wh
 
 If you cannot write a description, reply with exactly: UNABLE`
 
-// Input is what one call is made from. Every field is bounded before it gets here (BuildInput), and every field is the document's, so the
+// Input is what one call is made from. Every field is bounded before it gets here (buildInput), and every field is the document's, so the
 // key of a call is a function of the text that is sent.
 type Input struct {
 	Title, HeadingPath string
 	Opening, Section   string
 }
 
-// BuildInput bounds a unit's prompt fields: a one-line title and heading path cut to their token bounds, the opening and the section text.
-func BuildInput(title string, path []string, opening, section string, c chunk.TokenCounter) Input {
+// buildInput bounds a unit's prompt fields: a one-line title and heading path cut to their token bounds, the opening and the section text.
+func buildInput(title string, path []string, opening, section string, c chunk.TokenCounter) Input {
 	return Input{
-		Title:       CutTokens(strutil.OneLine(title), TitleMaxTokens, c),
-		HeadingPath: CutTokens(strutil.OneLine(strings.Join(path, " > ")), PathMaxTokens, c),
+		Title:       cutTokens(strutil.OneLine(title), TitleMaxTokens, c),
+		HeadingPath: cutTokens(strutil.OneLine(strings.Join(path, " > ")), PathMaxTokens, c),
 		Opening:     opening,
 		Section:     section,
 	}

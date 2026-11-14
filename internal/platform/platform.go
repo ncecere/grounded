@@ -38,7 +38,7 @@ type Service struct {
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: dbgen.New(pool), Gate: NewMaintenanceGate(pool, 0)}
+	return &Service{pool: pool, q: dbgen.New(pool), Gate: newMaintenanceGate(pool, 0)}
 }
 
 // UserListParams page the user list by (email, id).

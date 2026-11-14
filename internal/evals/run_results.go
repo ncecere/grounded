@@ -107,5 +107,5 @@ func (s *Service) Run(ctx context.Context, a authz.Actor, teamRef string, setID,
 	for i, r := range rows {
 		out[i] = DecodeResult(r)
 	}
-	return DecodeRun(run), out, err
+	return decodeRun(run), out, err
 }

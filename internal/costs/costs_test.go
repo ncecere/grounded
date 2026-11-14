@@ -91,7 +91,7 @@ func TestCostArithmetic(t *testing.T) {
 func TestPriceBookEffectiveDating(t *testing.T) {
 	m := uuid.New()
 	other := uuid.New()
-	book := NewPriceBook([]Price{
+	book := newPriceBook([]Price{
 		{ModelID: m, Unit: UnitChatIn, Price: rat("3"), EffectiveFrom: day("2026-01-01")},
 		{ModelID: m, Unit: UnitChatIn, Price: rat("2.5"), EffectiveFrom: day("2026-09-15")},
 		{ModelID: m, Unit: UnitChatIn, Price: rat("4"), EffectiveFrom: day("2026-12-01")}, // scheduled
@@ -227,17 +227,17 @@ func TestStatesAndProjection(t *testing.T) {
 	if UnitsFor("unknown") != nil || len(UnitsFor("systemone")) != 2 || len(UnitsFor("rerank")) != 2 {
 		t.Error("UnitsFor")
 	}
-	if Category(UnitRerankTokens) != "rerank" || Category(UnitRerankRequests) != "rerank" || PerUnits(UnitRerankRequests) != 1 ||
-		PerUnits(UnitRerankTokens) != 1_000_000 {
+	if Category(UnitRerankTokens) != "rerank" || Category(UnitRerankRequests) != "rerank" || perUnits(UnitRerankRequests) != 1 ||
+		perUnits(UnitRerankTokens) != 1_000_000 {
 		t.Error("rerank units")
 	}
 }
 
 func TestCSVColumnsAreUnique(t *testing.T) {
-	team := ReportRow{Key: uuid.NewString(), Label: "QA Team", TeamSlug: "qa-team", TeamName: "QA Team", Totals: NewTotals()}
-	agent := ReportRow{Key: uuid.NewString(), Label: "Helper", TeamSlug: "qa-team", TeamName: "QA Team", Totals: NewTotals()}
-	model := ReportRow{Key: uuid.NewString(), Label: "Chat", ModelKind: "chat", Totals: NewTotals()}
-	daily := ReportRow{Key: "2026-09-01", Label: "2026-09-01", Totals: NewTotals()}
+	team := ReportRow{Key: uuid.NewString(), Label: "QA Team", TeamSlug: "qa-team", TeamName: "QA Team", Totals: newTotals()}
+	agent := ReportRow{Key: uuid.NewString(), Label: "Helper", TeamSlug: "qa-team", TeamName: "QA Team", Totals: newTotals()}
+	model := ReportRow{Key: uuid.NewString(), Label: "Chat", ModelKind: "chat", Totals: newTotals()}
+	daily := ReportRow{Key: "2026-09-01", Label: "2026-09-01", Totals: newTotals()}
 	for _, c := range []struct {
 		groupBy string
 		row     ReportRow

@@ -114,10 +114,10 @@ func rpmColumn(n int32) (*int32, error) {
 	return &n, nil
 }
 
-// NormalizeBaseURL validates an OpenAI-style base URL and strips any
+// normalizeBaseURL validates an OpenAI-style base URL and strips any
 // trailing slash. Proxies are admin-configured and usually internal, so
 // private addresses are allowed.
-func NormalizeBaseURL(raw string) (string, error) {
+func normalizeBaseURL(raw string) (string, error) {
 	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
@@ -213,7 +213,7 @@ func (s *Service) CreateConnection(ctx context.Context, a authz.Actor, in Connec
 	if err := validateConnection(in.Name, in.Description, in.TimeoutSeconds); err != nil {
 		return Connection{}, err
 	}
-	base, err := NormalizeBaseURL(in.BaseURL)
+	base, err := normalizeBaseURL(in.BaseURL)
 	if err != nil {
 		return Connection{}, err
 	}
@@ -336,7 +336,7 @@ func applyConnectionUpdate(p *dbgen.UpdateConnectionParams, in ConnectionUpdate)
 		return err
 	}
 	if in.BaseURL != nil {
-		if p.BaseURL, err = NormalizeBaseURL(*in.BaseURL); err != nil {
+		if p.BaseURL, err = normalizeBaseURL(*in.BaseURL); err != nil {
 			return err
 		}
 	}

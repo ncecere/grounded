@@ -13,7 +13,7 @@ func env(m map[string]string) func(string) (string, bool) {
 }
 
 func TestDefaultsAndEnvOverride(t *testing.T) {
-	c, err := LoadFrom("", env(map[string]string{
+	c, err := loadFrom("", env(map[string]string{
 		"APP_URL":                    "https://rag.example.edu/",
 		"SESSION_TTL":                "2h",
 		"OIDC_ALLOWED_EMAIL_DOMAINS": "EXAMPLE.edu, , example.org",
@@ -43,7 +43,7 @@ func TestFileThenEnvPrecedenceAndSecretFiles(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte(doc), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c, err := LoadFrom(cfg, env(map[string]string{"HTTP_ADDR": ":7000"}))
+	c, err := loadFrom(cfg, env(map[string]string{"HTTP_ADDR": ":7000"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,13 +63,13 @@ func TestUnknownFileKeyRejected(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte("app_ur1: x\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadFrom(cfg, env(nil)); err == nil || !strings.Contains(err.Error(), "unknown key") {
+	if _, err := loadFrom(cfg, env(nil)); err == nil || !strings.Contains(err.Error(), "unknown key") {
 		t.Fatalf("expected unknown key error, got %v", err)
 	}
 }
 
 func TestInvalidValuesReported(t *testing.T) {
-	_, err := LoadFrom("", env(map[string]string{"DEV_AUTH": "maybe", "SESSION_TTL": "1s", "TRUSTED_PROXIES": "nope"}))
+	_, err := loadFrom("", env(map[string]string{"DEV_AUTH": "maybe", "SESSION_TTL": "1s", "TRUSTED_PROXIES": "nope"}))
 	if err == nil {
 		t.Fatal("expected errors")
 	}
@@ -138,7 +138,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestCrawlSettings(t *testing.T) {
-	c, err := LoadFrom("", env(map[string]string{
+	c, err := loadFrom("", env(map[string]string{
 		"APP_URL": "https://rag.example.edu", "CRAWL_MAX_PAGES": "500", "CRAWL_ORIGIN_INTERVAL": "2s",
 		"CRAWL_TIMEOUT": "10s", "CRAWL_MAX_BODY_BYTES": "1048576", "CRAWL_CONCURRENCY": "8",
 	}))
@@ -158,7 +158,7 @@ func TestCrawlSettings(t *testing.T) {
 		t.Errorf("defaults = %+v", d.Crawl)
 	}
 
-	_, err = LoadFrom("", env(map[string]string{"CRAWL_ORIGIN_INTERVAL": "1ms", "CRAWL_MAX_PAGES": "0", "CRAWL_MAX_BODY_BYTES": "10"}))
+	_, err = loadFrom("", env(map[string]string{"CRAWL_ORIGIN_INTERVAL": "1ms", "CRAWL_MAX_PAGES": "0", "CRAWL_MAX_BODY_BYTES": "10"}))
 	for _, want := range []string{"CRAWL_ORIGIN_INTERVAL", "CRAWL_MAX_PAGES", "CRAWL_MAX_BODY_BYTES"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("want %s rejected, got %v", want, err)
@@ -173,7 +173,7 @@ func TestPrivateAddressOverrideNotConfigurable(t *testing.T) {
 			t.Errorf("setting %s must not exist", s.key)
 		}
 	}
-	c, _ := LoadFrom("", env(map[string]string{"CRAWL_ALLOW_PRIVATE_ADDRESSES_FOR_TESTS": "true", "ALLOW_PRIVATE_ADDRESSES_FOR_TESTS": "true"}))
+	c, _ := loadFrom("", env(map[string]string{"CRAWL_ALLOW_PRIVATE_ADDRESSES_FOR_TESTS": "true", "ALLOW_PRIVATE_ADDRESSES_FOR_TESTS": "true"}))
 	if c.Crawl.AllowPrivateAddressesForTests {
 		t.Fatal("private addresses enabled from the environment")
 	}
@@ -181,13 +181,13 @@ func TestPrivateAddressOverrideNotConfigurable(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte("crawl_allow_private_addresses_for_tests: true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadFrom(cfg, env(nil)); err == nil {
+	if _, err := loadFrom(cfg, env(nil)); err == nil {
 		t.Fatal("unknown YAML key accepted")
 	}
 }
 
 func TestRetrievalAndEmbeddingSettings(t *testing.T) {
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,16 +200,16 @@ func TestRetrievalAndEmbeddingSettings(t *testing.T) {
 	if c.EmbedBatchSize != 64 || c.EmbedBatchTokens != 32768 || c.EmbedBatchWait != 100*time.Millisecond {
 		t.Errorf("embed batch defaults = %d %d %s", c.EmbedBatchSize, c.EmbedBatchTokens, c.EmbedBatchWait)
 	}
-	c, err = LoadFrom("", env(map[string]string{
+	c, err = loadFrom("", env(map[string]string{
 		"RETRIEVAL_VECTOR_WEIGHT": "0.8", "RETRIEVAL_KEYWORD_WEIGHT": "0", "EMBED_BATCH_WAIT": "0s", "EMBED_BATCH_TOKENS": "0",
 	}))
 	if err != nil || c.RetrievalVectorWeight != 0.8 || c.RetrievalKeywordWeight != 0 || c.EmbedBatchWait != 0 || c.EmbedBatchTokens != 0 {
 		t.Fatalf("overrides = %+v %v", c, err)
 	}
-	if _, err := LoadFrom("", env(map[string]string{"RETRIEVAL_KEYWORD_WEIGHT": "1.5"})); err == nil || !strings.Contains(err.Error(), "RETRIEVAL_KEYWORD_WEIGHT") {
+	if _, err := loadFrom("", env(map[string]string{"RETRIEVAL_KEYWORD_WEIGHT": "1.5"})); err == nil || !strings.Contains(err.Error(), "RETRIEVAL_KEYWORD_WEIGHT") {
 		t.Errorf("weight above 1: %v", err)
 	}
-	c, _ = LoadFrom("", env(map[string]string{"RETRIEVAL_VECTOR_WEIGHT": "0", "RETRIEVAL_KEYWORD_WEIGHT": "0"}))
+	c, _ = loadFrom("", env(map[string]string{"RETRIEVAL_VECTOR_WEIGHT": "0", "RETRIEVAL_KEYWORD_WEIGHT": "0"}))
 	c.DatabaseURL = "postgres://x"
 	if err := c.Validate("migrate"); err != nil {
 		t.Fatal(err)
@@ -221,15 +221,15 @@ func TestRetrievalAndEmbeddingSettings(t *testing.T) {
 
 // Near-duplicate boilerplate matching is off unless the install turns it on (#23).
 func TestBoilerplateFuzzySetting(t *testing.T) {
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil || c.Boilerplate.Fuzzy {
 		t.Fatalf("default: %+v %v", c.Boilerplate, err)
 	}
-	c, err = LoadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "true", "BOILERPLATE_RATIO": "0.3"}))
+	c, err = loadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "true", "BOILERPLATE_RATIO": "0.3"}))
 	if err != nil || !c.Boilerplate.Fuzzy || c.Boilerplate.Ratio != 0.3 || !c.Boilerplate.Web {
 		t.Fatalf("on: %+v %v", c.Boilerplate, err)
 	}
-	if _, err := LoadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "maybe"})); err == nil || !strings.Contains(err.Error(), "BOILERPLATE_FUZZY") {
+	if _, err := loadFrom("", env(map[string]string{"BOILERPLATE_FUZZY": "maybe"})); err == nil || !strings.Contains(err.Error(), "BOILERPLATE_FUZZY") {
 		t.Errorf("not a boolean: %v", err)
 	}
 }
@@ -241,7 +241,7 @@ func TestInstanceSettings(t *testing.T) {
 		t.Errorf("defaults = %+v seed=%v", d.Instance, d.Crawl.AllowlistSeed)
 	}
 
-	c, err := LoadFrom("", env(map[string]string{
+	c, err := loadFrom("", env(map[string]string{
 		"INSTANCE_NAME":        "  Campus Assistant ",
 		"ORG_NAME":             "Example University",
 		"UI_THEME":             " Neutral ",
@@ -269,7 +269,7 @@ func TestInstanceSettings(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte("instance_name: ''\nui_theme: ''\ncrawl_allowlist_seed: ['*.example.edu', example.org]\nui_logo_url: /brand/logo.svg\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c, err = LoadFrom(cfg, env(nil))
+	c, err = loadFrom(cfg, env(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +282,7 @@ func TestInstanceSettings(t *testing.T) {
 
 	// Seed patterns follow the allowlist rules.
 	for _, bad := range []string{"not a host", "*.*.example.edu", "example.edu/path", "https://example.edu"} {
-		if _, err := LoadFrom("", env(map[string]string{"CRAWL_ALLOWLIST_SEED": "example.org," + bad})); err == nil ||
+		if _, err := loadFrom("", env(map[string]string{"CRAWL_ALLOWLIST_SEED": "example.org," + bad})); err == nil ||
 			!strings.Contains(err.Error(), "CRAWL_ALLOWLIST_SEED") {
 			t.Errorf("seed %q accepted: %v", bad, err)
 		}
@@ -332,18 +332,18 @@ func TestValidateInstance(t *testing.T) {
 }
 
 func TestHealthCheckInterval(t *testing.T) {
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil || c.HealthCheckInterval != 15*time.Minute {
 		t.Fatalf("default = %s %v", c.HealthCheckInterval, err)
 	}
 	for v, want := range map[string]time.Duration{"30m": 30 * time.Minute, "5m": 5 * time.Minute, "24h": 24 * time.Hour, "0": 0, "off": 0, "0s": 0} {
-		c, err := LoadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v}))
+		c, err := loadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v}))
 		if err != nil || c.HealthCheckInterval != want {
 			t.Errorf("%q = %s %v, want %s", v, c.HealthCheckInterval, err, want)
 		}
 	}
 	for _, v := range []string{"1m", "4m59s", "25h", "soon", "-5m"} {
-		if _, err := LoadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v})); err == nil || !strings.Contains(err.Error(), "HEALTH_CHECK_INTERVAL") {
+		if _, err := loadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v})); err == nil || !strings.Contains(err.Error(), "HEALTH_CHECK_INTERVAL") {
 			t.Errorf("%q: %v", v, err)
 		}
 	}

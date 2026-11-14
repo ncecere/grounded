@@ -207,9 +207,9 @@ func judged(s Scores, t Thresholds) Judgment {
 	return Judgment{Scores: s, Route: route, Reason: reason}
 }
 
-// BatchedRequest builds the one-request form: every passage under
+// batchedRequest builds the one-request form: every passage under
 // passages.pN and four questions per passage (N from 1).
-func BatchedRequest(query string, ps []Passage) (any, map[string]Question) {
+func batchedRequest(query string, ps []Passage) (any, map[string]Question) {
 	passages := map[string]Passage{}
 	qs := map[string]Question{}
 	for i, p := range ps {
@@ -229,7 +229,7 @@ func (cl *Client) judgeBatched(ctx context.Context, query string, ps []Passage, 
 	if len(ps) == 0 {
 		return out, JudgeStats{}
 	}
-	state, qs := BatchedRequest(query, ps)
+	state, qs := batchedRequest(query, ps)
 	res, err := cl.Ask(ctx, Call{Feature: FeatureJudging, Timeout: o.Timeout}, state, qs)
 	for i := range ps {
 		if err != nil {

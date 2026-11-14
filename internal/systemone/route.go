@@ -51,8 +51,8 @@ type RouteState struct {
 	PreviousMessage string `json:"previous_message,omitempty"`
 }
 
-// RouteQuestion builds the routing question for the candidates.
-func RouteQuestion(agents []RouteAgent) Question {
+// routeQuestion builds the routing question for the candidates.
+func routeQuestion(agents []RouteAgent) Question {
 	opts := make(map[string]string, len(agents)+2)
 	for _, a := range agents {
 		opts[a.Key] = describeRoute(a)
@@ -95,7 +95,7 @@ type RouteResult struct {
 // if nothing fit.
 func (cl *Client) Route(ctx context.Context, st RouteState, agents []RouteAgent, s Scope) RouteResult {
 	start := time.Now()
-	qs := map[string]Question{QRoute: RouteQuestion(agents)}
+	qs := map[string]Question{QRoute: routeQuestion(agents)}
 	res, err := cl.Ask(ctx, Call{Feature: FeatureScope, Timeout: s.Timeout()}, st, qs)
 	out := RouteResult{Latency: time.Since(start), Err: err, Decision: RouteSkipped}
 	if err != nil {

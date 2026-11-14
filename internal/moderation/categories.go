@@ -25,8 +25,8 @@ const (
 // Categories lists every category in display order.
 var Categories = []string{Violence, SelfHarm, Sexual, SexualMinors, HarassmentHate, Illicit, PersonalData, PromptInjection}
 
-// IsCategory reports whether c is a category.
-func IsCategory(c string) bool {
+// isCategory reports whether c is a category.
+func isCategory(c string) bool {
 	for _, k := range Categories {
 		if k == c {
 			return true
@@ -68,9 +68,9 @@ var defs = func() (d struct {
 	return d
 }()
 
-// DefinitionsVersion is the version of the category definitions and
+// definitionsVersion is the version of the category definitions and
 // prompts in use.
-func DefinitionsVersion() string { return defs.Version }
+func definitionsVersion() string { return defs.Version }
 
 // Score is one category's probability.
 type Score struct {

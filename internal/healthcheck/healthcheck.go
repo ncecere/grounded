@@ -131,14 +131,14 @@ func (s *Service) Record(ctx context.Context, r Result) (Check, error) {
 
 // RecordConnectionTest stores a connection test (test and testErr as
 // catalog.ProbeConnection returned them) and the health it implies for the
-// connection's enabled models (DeriveModel). It returns the error when the
-// test proves nothing about the connection (ConnectionResult).
+// connection's enabled models (deriveModel). It returns the error when the
+// test proves nothing about the connection (connectionResult).
 func (s *Service) RecordConnectionTest(ctx context.Context, id uuid.UUID, test catalog.ConnectionTest, testErr error, trigger string, by uuid.NullUUID) error {
 	models, err := s.q.ListModels(ctx, dbgen.ListModelsParams{ConnectionID: uuid.NullUUID{UUID: id, Valid: true}})
 	if err != nil {
 		return err
 	}
-	results, err := ConnectionResults(id, test, testErr, enabled(models))
+	results, err := connectionResults(id, test, testErr, enabled(models))
 	if err != nil {
 		return err
 	}
@@ -155,8 +155,8 @@ func enabled(models []dbgen.Model) []dbgen.Model {
 	return slices.DeleteFunc(models, func(m dbgen.Model) bool { return !m.Enabled })
 }
 
-// ValidKind reports whether kind is a subject kind.
-func ValidKind(kind string) bool { return slices.Contains(Kinds, kind) }
+// validKind reports whether kind is a subject kind.
+func validKind(kind string) bool { return slices.Contains(Kinds, kind) }
 
 // Latest returns the latest check of every subject that has one, optionally
 // of one kind ("" for all).
@@ -166,7 +166,7 @@ func (s *Service) Latest(ctx context.Context, a authz.Actor, kind string) ([]Lat
 	}
 	var k *string
 	if kind != "" {
-		if !ValidKind(kind) {
+		if !validKind(kind) {
 			return nil, errNoKind
 		}
 		k = &kind
@@ -185,7 +185,7 @@ type Status struct {
 // for pickers any team member sees (a chat model, an MCP tool), and gives
 // only the status and its start, never the message.
 func (s *Service) Statuses(ctx context.Context, kind string) (map[uuid.UUID]Status, error) {
-	if !ValidKind(kind) {
+	if !validKind(kind) {
 		return nil, errNoKind
 	}
 	rows, err := s.q.LatestHealthChecks(ctx, &kind)

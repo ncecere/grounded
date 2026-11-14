@@ -95,7 +95,7 @@ func (s *Service) settings(ctx context.Context) (Settings, error) {
 	if err != nil {
 		return Settings{}, err
 	}
-	stored, err := ParseStored(row.Periods)
+	stored, err := parseStored(row.Periods)
 	if err != nil {
 		return Settings{}, err
 	}
@@ -104,7 +104,7 @@ func (s *Service) settings(ctx context.Context) (Settings, error) {
 		return Settings{}, err
 	}
 	return Settings{
-		Periods: Resolve(stored, s.Env), Levels: levels, Revision: row.Revision, UpdatedAt: row.UpdatedAt,
+		Periods: resolve(stored, s.Env), Levels: levels, Revision: row.Revision, UpdatedAt: row.UpdatedAt,
 		UpdatedBy: people.From(row.UpdatedBy, row.UpdatedByName, row.UpdatedByEmail),
 	}, nil
 }
@@ -171,7 +171,7 @@ func (s *Service) SetPeriods(ctx context.Context, a authz.Actor, in []PeriodUpda
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
-		before, err := ParseStored(cur.Periods)
+		before, err := parseStored(cur.Periods)
 		if err != nil {
 			return err
 		}

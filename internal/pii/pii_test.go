@@ -55,7 +55,7 @@ func TestScanRejectsFalsePositives(t *testing.T) {
 }
 
 func TestCustomPatterns(t *testing.T) {
-	p, ok := CompilePattern("Student ID", `\bU\d{8}\b`)
+	p, ok := compilePattern("Student ID", `\bU\d{8}\b`)
 	if !ok {
 		t.Fatal("valid pattern refused")
 	}
@@ -66,7 +66,7 @@ func TestCustomPatterns(t *testing.T) {
 	for _, bad := range []struct{ name, expr string }{
 		{"", `\d+`}, {"x", ""}, {"x", `(`}, {"x", `a*`}, {KindUSSSN, `\d`}, {strings.Repeat("n", 61), `\d`}, {"x", strings.Repeat("a", MaxPatternLength+1)},
 	} {
-		if _, ok := CompilePattern(bad.name, bad.expr); ok {
+		if _, ok := compilePattern(bad.name, bad.expr); ok {
 			t.Errorf("accepted pattern %q %q", bad.name, bad.expr)
 		}
 	}

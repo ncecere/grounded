@@ -12,7 +12,7 @@ import (
 )
 
 func TestSummaryLines(t *testing.T) {
-	got := SummaryLines([]dbgen.BreakGlassReadCountsRow{
+	got := summaryLines([]dbgen.BreakGlassReadCountsRow{
 		{Kind: ReadPassages, Reads: 2, Targets: 1},
 		{Kind: ReadConversation, Reads: 5, Targets: 3},
 		{Kind: ReadConversationList, Reads: 1, Targets: 1},
@@ -28,7 +28,7 @@ func TestSummaryLines(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("summary =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if SummaryLines(nil) != nil {
+	if summaryLines(nil) != nil {
 		t.Error("empty summary should be nil")
 	}
 }

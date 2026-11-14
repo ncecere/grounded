@@ -86,7 +86,7 @@ func load(ctx context.Context, q *dbgen.Queries, audience string, lock bool) (St
 	} else if err != nil {
 		return Stored{}, err
 	}
-	out := Stored{Audience: audience, Policy: DecodePolicy(audience, row.Policy), Revision: row.Revision,
+	out := Stored{Audience: audience, Policy: decodePolicy(audience, row.Policy), Revision: row.Revision,
 		UpdatedAt: &row.UpdatedAt, UpdatedBy: row.UpdatedBy}
 	if row.ModelID.Valid {
 		id := row.ModelID.UUID

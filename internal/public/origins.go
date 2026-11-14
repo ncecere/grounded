@@ -169,10 +169,10 @@ func validDNS(h string) bool {
 	return true
 }
 
-// NormalizeAllowedOrigins validates and normalises a key's allowed origins
+// normalizeAllowedOrigins validates and normalises a key's allowed origins
 // (at most 20, duplicates removed).
-func NormalizeAllowedOrigins(in []string) ([]string, error) {
-	out, _, err := NormalizeOrigins(in)
+func normalizeAllowedOrigins(in []string) ([]string, error) {
+	out, _, err := normalizeOrigins(in)
 	return out, err
 }
 
@@ -182,9 +182,9 @@ type OriginChange struct {
 	Input, Origin string
 }
 
-// NormalizeOrigins is NormalizeAllowedOrigins that also reports the
+// normalizeOrigins is normalizeAllowedOrigins that also reports the
 // origins it changed, so the UI can show what was saved.
-func NormalizeOrigins(in []string) ([]string, []OriginChange, error) {
+func normalizeOrigins(in []string) ([]string, []OriginChange, error) {
 	out := []string{}
 	changes := []OriginChange{}
 	seen := map[string]bool{}

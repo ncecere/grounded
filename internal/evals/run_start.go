@@ -167,7 +167,7 @@ func (s *Service) StartRun(ctx context.Context, a authz.Actor, teamRef string, s
 			"questions": run.Total, "rerank": t.cfg.Rerank})
 		return audited(ctx, q, e, acc.Team.ID)
 	})
-	return DecodeRun(run), err
+	return decodeRun(run), err
 }
 
 var (

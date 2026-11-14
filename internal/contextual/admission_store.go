@@ -81,7 +81,7 @@ func lockAdmissionSource(ctx context.Context, q *dbgen.Queries, r Reservation) (
 	if err != nil {
 		return cur, nil, err
 	}
-	if problem := ModelProblem(ctx, q, &r.ModelID, src.Classification); problem != nil {
+	if problem := modelProblem(ctx, q, &r.ModelID, src.Classification); problem != nil {
 		return cur, nil, &Failure{Code: CodeForbidden, Err: problem, Permanent: true}
 	}
 	return cur, a, nil

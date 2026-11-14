@@ -94,11 +94,11 @@ func (s *Service) report(ctx context.Context, f ReportFilter) (Report, error) {
 		return Report{}, err
 	}
 	group := map[string]string{ByTeam: groupTeam, ByAgent: groupAgent}[f.GroupBy]
-	rows, err := s.usage(ctx, StartOf(f.From, loc), StartOf(f.To.AddDate(0, 0, 1), loc), st.TimeZone, group, f.Team)
+	rows, err := s.usage(ctx, startOf(f.From, loc), startOf(f.To.AddDate(0, 0, 1), loc), st.TimeZone, group, f.Team)
 	if err != nil {
 		return Report{}, err
 	}
-	out := Report{From: f.From, To: f.To, GroupBy: f.GroupBy, Currency: st.Currency, TimeZone: st.TimeZone, Total: NewTotals()}
+	out := Report{From: f.From, To: f.To, GroupBy: f.GroupBy, Currency: st.Currency, TimeZone: st.TimeZone, Total: newTotals()}
 	byKey := Sum(book, rows, func(u usageRow) string { return rowKey(f.GroupBy, u) })
 	teamOf := map[string]uuid.NullUUID{}
 	for _, u := range rows {
@@ -107,7 +107,7 @@ func (s *Service) report(ctx context.Context, f ReportFilter) (Report, error) {
 	if f.GroupBy == ByDay {
 		for d := f.From; !d.After(f.To); d = d.AddDate(0, 0, 1) {
 			if _, ok := byKey[d.Format(time.DateOnly)]; !ok {
-				byKey[d.Format(time.DateOnly)] = NewTotals()
+				byKey[d.Format(time.DateOnly)] = newTotals()
 			}
 		}
 	}

@@ -9,7 +9,7 @@ func TestRetentionEnvironment(t *testing.T) {
 	env := func(m map[string]string) func(string) (string, bool) {
 		return func(k string) (string, bool) { v, ok := m[k]; return v, ok }
 	}
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,10 +17,10 @@ func TestRetentionEnvironment(t *testing.T) {
 	if len(c.Retention.Days) != 1 || c.Retention.Days["evaluation_runs"] != DefaultEvaluationRunDays || c.Retention.BatchSize != 500 || c.Retention.MaxBatches != 100 {
 		t.Fatalf("defaults = %+v (nothing may be deleted by default)", c.Retention)
 	}
-	if c, err := LoadFrom("", env(map[string]string{"RETENTION_EVALUATION_RUNS_DAYS": "keep"})); err != nil || len(c.Retention.Days) != 0 {
+	if c, err := loadFrom("", env(map[string]string{"RETENTION_EVALUATION_RUNS_DAYS": "keep"})); err != nil || len(c.Retention.Days) != 0 {
 		t.Fatalf("keep evaluation runs = %+v %v", c.Retention, err)
 	}
-	c, err = LoadFrom("", env(map[string]string{
+	c, err = loadFrom("", env(map[string]string{
 		"RETENTION_AUDIT_LOG_DAYS": "2555", "RETENTION_ACCESS_LOG_DAYS": "keep", "RETENTION_DELETED_FILES_DAYS": "0",
 		"RETENTION_BATCH_SIZE": "200",
 	}))
@@ -34,7 +34,7 @@ func TestRetentionEnvironment(t *testing.T) {
 		t.Error("keep set a period")
 	}
 	for k, v := range map[string]string{"RETENTION_USAGE_EVENTS_DAYS": "6", "RETENTION_AUDIT_LOG_DAYS": "29", "RETENTION_ACCESS_LOG_DAYS": "forever"} {
-		if _, err := LoadFrom("", env(map[string]string{k: v})); err == nil || !strings.Contains(err.Error(), k) {
+		if _, err := loadFrom("", env(map[string]string{k: v})); err == nil || !strings.Contains(err.Error(), k) {
 			t.Errorf("%s=%s: err = %v", k, v, err)
 		}
 	}

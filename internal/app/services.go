@@ -168,8 +168,8 @@ func NewBlobStore(ctx context.Context, cfg config.Config) (blob.Store, error) {
 	return blob.NewFS(cfg.BlobDir)
 }
 
-// NewParser builds the parse router: built-in parsers, plus Tika when configured.
-func NewParser(cfg config.Config, log *slog.Logger) (*parse.Router, *parse.Builtin) {
+// newParser builds the parse router: built-in parsers, plus Tika when configured.
+func newParser(cfg config.Config, log *slog.Logger) (*parse.Router, *parse.Builtin) {
 	b := parse.NewBuiltin(parse.Limits{}, cfg.PDFWorkers)
 	r := &parse.Router{Builtin: b, Log: log, PreferTika: map[parse.Kind]bool{}}
 	if cfg.TikaURL != "" {
@@ -194,9 +194,9 @@ func NewFetcher(cfg config.Config, kvs *kv.Store) *crawl.Fetcher {
 	})
 }
 
-// SeedFirstRun applies the one-time first-run configuration (ADR-0018):
+// seedFirstRun applies the one-time first-run configuration (ADR-0018):
 // CRAWL_ALLOWLIST_SEED. Each step runs at most once per database.
-func SeedFirstRun(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
+func seedFirstRun(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
 	_, err := web.SeedAllowlist(ctx, pool, cfg.Crawl.AllowlistSeed, log)
 	return err
 }
@@ -249,7 +249,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		s.OAuth.Log = log
 	}
 	s.Notify = notify.New(pool, jobsClient, cfg.SMTP.Enabled(), log)
-	s.Mail = NewMailSender(cfg)
+	s.Mail = newMailSender(cfg)
 	s.BreakGlass = breakglass.New(pool, s.Teams, s.Notify, log)
 	s.Sources.BreakGlass, s.Agents.BreakGlass = s.BreakGlass, s.BreakGlass
 	wireNotify(s)
@@ -259,7 +259,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	wireCosts(s, pool, jobsClient, log)
 	s.Retention = retention.New(pool, jobsClient, cfg.Retention, log)
 	s.RetentionMetrics = retention.NewMetrics()
-	s.Parser, s.builtin = NewParser(cfg, log)
+	s.Parser, s.builtin = newParser(cfg, log)
 	tika, _ := s.Parser.Tika.(*parse.Tika)
 	s.PII = &pii.Service{Pool: pool}
 	s.SCIM = &scim.Service{Pool: pool, Issuer: scimIssuer(cfg), MatchClaim: cfg.OIDC.SCIMMatchClaim}

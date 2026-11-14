@@ -65,7 +65,7 @@ func hammer(t *testing.T, pacers []Pacer, perWorker int, origin string) (time.Ti
 
 func TestLocalPacer(t *testing.T) {
 	const interval = 30 * time.Millisecond
-	p := NewLocalPacer(interval)
+	p := newLocalPacer(interval)
 	start, times := hammer(t, []Pacer{p, p}, 3, "https://www.example.edu:443")
 	if len(times) != 12 {
 		t.Fatalf("got %d grants", len(times))
@@ -75,7 +75,7 @@ func TestLocalPacer(t *testing.T) {
 	// Different origins do not wait on each other. A longer interval here
 	// keeps a wide margin: paced together, 5 origins would take at least
 	// 4 × 200 ms; independently they take microseconds, even on a loaded run.
-	slow := NewLocalPacer(200 * time.Millisecond)
+	slow := newLocalPacer(200 * time.Millisecond)
 	start = time.Now()
 	for i := 0; i < 5; i++ {
 		if err := slow.Wait(context.Background(), "https://o"+string(rune('a'+i))+".example:443"); err != nil {
@@ -92,7 +92,7 @@ func TestLocalPacer(t *testing.T) {
 	if err := p.Wait(ctx, "https://slow.example:443"); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("ctx: %v", err)
 	}
-	if err := NewLocalPacer(0).Wait(context.Background(), "x"); err != nil {
+	if err := newLocalPacer(0).Wait(context.Background(), "x"); err != nil {
 		t.Fatal(err)
 	}
 }

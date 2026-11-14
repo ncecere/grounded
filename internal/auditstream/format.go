@@ -96,8 +96,8 @@ type hecEvent struct {
 	Event      Event   `json:"event"`
 }
 
-// HTTPBody renders a batch for an HTTPS destination, with its content type.
-func HTTPBody(format string, events []Event) ([]byte, string, error) {
+// httpBody renders a batch for an HTTPS destination, with its content type.
+func httpBody(format string, events []Event) ([]byte, string, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	for _, e := range events {
@@ -130,9 +130,9 @@ func sdSafe(s string, max int) string {
 	return strutil.TruncateBytes(s, max)
 }
 
-// SyslogFrame renders one event as an RFC 5424 message with RFC 5425 octet-counting framing ("LEN SP MSG"). Facility 13
+// syslogFrame renders one event as an RFC 5424 message with RFC 5425 octet-counting framing ("LEN SP MSG"). Facility 13
 // (log audit), severity 6 (informational): PRI 110. MSGID is the action; MSG is the event's JSON.
-func SyslogFrame(hostname string, e Event) ([]byte, error) {
+func syslogFrame(hostname string, e Event) ([]byte, error) {
 	body, err := json.Marshal(e)
 	if err != nil {
 		return nil, err

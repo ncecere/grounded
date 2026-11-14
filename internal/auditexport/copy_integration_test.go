@@ -101,7 +101,7 @@ func TestExternalCopy(t *testing.T) {
 	if n, err := c.Run(ctx); err != nil || n != 1 {
 		t.Fatalf("copy = %d %v", n, err)
 	}
-	payloadKey, envelopeKey := CopyKeys("2026-01-01")
+	payloadKey, envelopeKey := copyKeys("2026-01-01")
 	r, err := bucket.Get(ctx, payloadKey)
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +177,7 @@ func TestExternalCopyToS3(t *testing.T) {
 	if n, err := c.Run(ctx); err != nil || n != 1 {
 		t.Fatalf("copy to S3 = %d %v", n, err)
 	}
-	payloadKey, _ := CopyKeys("2026-02-01")
+	payloadKey, _ := copyKeys("2026-02-01")
 	got, err := c.hashOf(ctx, payloadKey)
 	if err != nil || got != env.Manifest.PayloadHash {
 		t.Fatalf("payload in S3 = %s %v, want %s", got, err, env.Manifest.PayloadHash)

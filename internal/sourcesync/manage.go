@@ -58,7 +58,7 @@ func (s *Service) Attach(ctx context.Context, q *dbgen.Queries, src dbgen.DataSo
 			return err
 		}
 	}
-	return q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: NextSync(schedule, s.now())})
+	return q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: nextSync(schedule, s.now())})
 }
 
 // Change is what Update did, for the audit entry (never a credential value).
@@ -115,7 +115,7 @@ func (s *Service) Update(ctx context.Context, q *dbgen.Queries, src dbgen.DataSo
 		if _, err := q.SetSourceSchedule(ctx, dbgen.SetSourceScheduleParams{ID: src.ID, Schedule: in.Schedule}); err != nil {
 			return out, err
 		}
-		if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: NextSync(in.Schedule, s.now()), LastSyncAt: src.LastSyncAt}); err != nil {
+		if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: nextSync(in.Schedule, s.now()), LastSyncAt: src.LastSyncAt}); err != nil {
 			return out, err
 		}
 		out.Schedule = true

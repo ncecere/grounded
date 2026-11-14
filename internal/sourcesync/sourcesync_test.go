@@ -126,11 +126,11 @@ func TestRedact(t *testing.T) {
 func TestSchedule(t *testing.T) {
 	from := time.Date(2026, 11, 11, 9, 0, 0, 0, time.UTC)
 	for schedule, want := range map[string]time.Duration{ScheduleHourly: time.Hour, ScheduleDaily: 24 * time.Hour, ScheduleWeekly: 168 * time.Hour} {
-		if got := NextSync(schedule, from); got == nil || got.Sub(from) != want || !ValidSchedule(schedule) {
+		if got := nextSync(schedule, from); got == nil || got.Sub(from) != want || !ValidSchedule(schedule) {
 			t.Errorf("%s: %v", schedule, got)
 		}
 	}
-	if NextSync(ScheduleManual, from) != nil || NextSync("yearly", from) != nil || ValidSchedule("yearly") || !ValidSchedule(ScheduleManual) {
+	if nextSync(ScheduleManual, from) != nil || nextSync("yearly", from) != nil || ValidSchedule("yearly") || !ValidSchedule(ScheduleManual) {
 		t.Error("manual and unknown schedules have no next sync")
 	}
 }

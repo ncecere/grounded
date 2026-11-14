@@ -25,7 +25,7 @@ func MCPClientMiddleware() mcp.Middleware {
 				for k, v := range p.GetMeta() {
 					meta[k] = v
 				}
-				if meta = InjectMeta(ctx, meta); len(meta) > 0 {
+				if meta = injectMeta(ctx, meta); len(meta) > 0 {
 					p.SetMeta(meta)
 				}
 			}
@@ -50,7 +50,7 @@ func MCPServerMiddleware(tools ...string) mcp.Middleware {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 			parent, opts := ctx, []trace.SpanStartOption{trace.WithSpanKind(trace.SpanKindServer)}
 			if p := params(req); p != nil {
-				rsc := trace.SpanContextFromContext(ExtractMeta(context.Background(), p.GetMeta()))
+				rsc := trace.SpanContextFromContext(extractMeta(context.Background(), p.GetMeta()))
 				if cur := trace.SpanContextFromContext(ctx); rsc.IsValid() && rsc.TraceID() != cur.TraceID() {
 					parent = trace.ContextWithRemoteSpanContext(ctx, rsc)
 					if cur.IsValid() {

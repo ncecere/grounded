@@ -78,8 +78,8 @@ const (
 	MaxCallsLimit   = 100000
 )
 
-// ValidPolicy reports whether p is a failure policy.
-func ValidPolicy(p string) bool { return p == PolicyFail || p == PolicyPlain }
+// validPolicy reports whether p is a failure policy.
+func validPolicy(p string) bool { return p == PolicyFail || p == PolicyPlain }
 
 // Code is a stable error code for a document that could not be given context. Stored on documents and sets (never the reply).
 type Code string

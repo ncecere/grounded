@@ -26,14 +26,14 @@ func testPlan(t *testing.T, p *fakes.FakeProxy) *Plan {
 }
 
 func TestSettings(t *testing.T) {
-	s := DefaultSettings()
+	s := defaultSettings()
 	if s.Candidates != 40 || s.TimeLimitMs != 2000 || len(s.Validate()) != 0 || s.TimeLimit() != 2*time.Second {
 		t.Fatalf("defaults = %+v", s)
 	}
 	if p := (Settings{Candidates: 4, TimeLimitMs: 20000}).Validate(); len(p) != 2 || p[0].Field != "candidates" || p[1].Field != "timeLimitMs" {
 		t.Errorf("problems = %v", p)
 	}
-	if got := DecodeSettings(json.RawMessage(`{"candidates":12}`)); got.Candidates != 12 || got.TimeLimitMs != DefaultTimeLimitMs {
+	if got := decodeSettings(json.RawMessage(`{"candidates":12}`)); got.Candidates != 12 || got.TimeLimitMs != DefaultTimeLimitMs {
 		t.Errorf("decoded = %+v", got)
 	}
 }

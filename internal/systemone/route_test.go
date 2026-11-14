@@ -30,7 +30,7 @@ func TestRouteDecisionNeedsConfidenceForAnAgent(t *testing.T) {
 
 func TestRouteQuestionOffersEveryCandidateAndTheTwoOthers(t *testing.T) {
 	long := RouteAgent{Key: "agent_3", Name: "Long", Description: strings.Repeat("word ", 400), Subject: strings.Repeat("more ", 400)}
-	q := RouteQuestion(append([]RouteAgent{{Key: "agent_1", Name: "Parking help", Team: "Transport", Description: "Permits", Subject: "Decals"}}, long))
+	q := routeQuestion(append([]RouteAgent{{Key: "agent_1", Name: "Parking help", Team: "Transport", Description: "Permits", Subject: "Decals"}}, long))
 	opts, _ := q.Criteria.(map[string]string)
 	if len(opts) != 4 {
 		t.Fatalf("%d options, want the two agents, small talk and none", len(opts))

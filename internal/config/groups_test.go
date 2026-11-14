@@ -7,14 +7,14 @@ import (
 )
 
 func TestGroupsClaimAndDevGroups(t *testing.T) {
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.OIDC.GroupsClaim != "groups" || c.DevAuthGroups != nil {
 		t.Fatalf("defaults: claim %q, dev groups %v", c.OIDC.GroupsClaim, c.DevAuthGroups)
 	}
-	c, err = LoadFrom("", env(map[string]string{
+	c, err = loadFrom("", env(map[string]string{
 		"OIDC_GROUPS_CLAIM": "roles",
 		"DEV_AUTH_GROUPS":   " Alex = registrar-staff, library ; blair=library;casey=",
 	}))
@@ -25,7 +25,7 @@ func TestGroupsClaimAndDevGroups(t *testing.T) {
 	if c.OIDC.GroupsClaim != "roles" || !reflect.DeepEqual(c.DevAuthGroups, want) {
 		t.Fatalf("claim %q, dev groups %#v", c.OIDC.GroupsClaim, c.DevAuthGroups)
 	}
-	if _, err := LoadFrom("", env(map[string]string{"DEV_AUTH_GROUPS": "alex"})); err == nil || !strings.Contains(err.Error(), "DEV_AUTH_GROUPS") {
+	if _, err := loadFrom("", env(map[string]string{"DEV_AUTH_GROUPS": "alex"})); err == nil || !strings.Contains(err.Error(), "DEV_AUTH_GROUPS") {
 		t.Fatalf("malformed DEV_AUTH_GROUPS: %v", err)
 	}
 }

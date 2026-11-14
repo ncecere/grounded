@@ -28,7 +28,7 @@ func TestMessageJSONRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		back, err := UnmarshalMessage(raw)
+		back, err := unmarshalMessage(raw)
 		if err != nil {
 			t.Fatalf("%s: %v", raw, err)
 		}
@@ -76,7 +76,7 @@ func TestUnmarshalErrors(t *testing.T) {
 		`{"role":"user","content":5}`,
 		`{"role":"toolResult","isError":"yes"}`,
 	} {
-		if _, err := UnmarshalMessage([]byte(in)); err == nil {
+		if _, err := unmarshalMessage([]byte(in)); err == nil {
 			t.Errorf("%s: expected error", in)
 		}
 	}

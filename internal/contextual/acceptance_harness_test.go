@@ -134,7 +134,7 @@ func (r *acceptanceRun) checkpoint(ctx context.Context) error {
 	if err != nil || snap.PromptVersion != PromptVersion || snap.ModelID != r.fixture.res.ModelID {
 		return &StopError{Reason: "acceptance snapshot changed"}
 	}
-	if problem := ModelProblem(ctx, q, &r.fixture.res.ModelID, "open"); problem != nil {
+	if problem := modelProblem(ctx, q, &r.fixture.res.ModelID, "open"); problem != nil {
 		return &StopError{Reason: "acceptance model eligibility changed"}
 	}
 	return nil

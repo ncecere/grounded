@@ -152,10 +152,10 @@ type AnswerScores struct {
 	Claims []agents.Claim `json:"claims,omitempty"`
 }
 
-// ScoreAnswer scores an answer: whether it cites an expected document and
+// scoreAnswer scores an answer: whether it cites an expected document and
 // mentions each phrase (case-insensitive, citation markers and spacing
 // aside). It passes when it cites one and mentions every phrase.
-func ScoreAnswer(e Expected, phrases []string, text string, cited []Doc, refused bool, checks *agents.CitationsRecord) (AnswerScores, bool) {
+func scoreAnswer(e Expected, phrases []string, text string, cited []Doc, refused bool, checks *agents.CitationsRecord) (AnswerScores, bool) {
 	sc := AnswerScores{Refused: refused, Mentions: []Mention{}}
 	for _, d := range cited {
 		if e.Matches(d) {
@@ -197,9 +197,9 @@ func (d Drop) Notify() bool {
 	return (d.PrevRecall-d.Recall)*100 > RecallDropPoints+1e-9 || d.NewlyFailing > 0
 }
 
-// DetectDrop compares a run with the previous one: recall@k of both (0
+// detectDrop compares a run with the previous one: recall@k of both (0
 // when unknown) and the questions (by ID) that passed before and fail now.
-func DetectDrop(prev, cur Summary, prevStatus, curStatus map[uuid.UUID]string) Drop {
+func detectDrop(prev, cur Summary, prevStatus, curStatus map[uuid.UUID]string) Drop {
 	d := Drop{}
 	if prev.Recall != nil {
 		d.PrevRecall = *prev.Recall

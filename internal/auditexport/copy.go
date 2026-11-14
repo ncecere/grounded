@@ -41,8 +41,8 @@ const (
 	CopyAttentionFailures = 3
 )
 
-// CopyKeys are the object keys of a day's copy, under the bucket's prefix.
-func CopyKeys(day string) (payload, envelope string) {
+// copyKeys are the object keys of a day's copy, under the bucket's prefix.
+func copyKeys(day string) (payload, envelope string) {
 	return "audit-exports/" + day + "/payload.jsonl", "audit-exports/" + day + "/envelope.json"
 }
 
@@ -135,7 +135,7 @@ func (c *Copier) copyOne(ctx context.Context, id uuid.UUID, day string) error {
 	if err != nil {
 		return err
 	}
-	payloadKey, envelopeKey := CopyKeys(day)
+	payloadKey, envelopeKey := copyKeys(day)
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return err
 	}

@@ -157,7 +157,7 @@ func (g *Generator) log() *slog.Logger {
 // the first failure (the calls after it would not change the outcome).
 func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, error) {
 	g.init()
-	units := PlanUnits(ItemsOf(req.Chunks))
+	units := planUnits(itemsOf(req.Chunks))
 	res := Result{Units: len(units)}
 	if err := requestCheckpoint(ctx, req); err != nil {
 		return res, err
@@ -182,8 +182,8 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 	inputs := make([]Input, len(units))
 	keys := make([][32]byte, len(units))
 	for i, u := range units {
-		inputs[i] = BuildInput(req.Title, u.Path, opening, UnitText(req.Chunks, u, g.Counter), g.Counter)
-		inputs[i] = fitInput(inputs[i], CallInputMax(g.Counter, docTokens, u.Tokens), g.Counter)
+		inputs[i] = buildInput(req.Title, u.Path, opening, unitText(req.Chunks, u, g.Counter), g.Counter)
+		inputs[i] = fitInput(inputs[i], callInputMax(g.Counter, docTokens, u.Tokens), g.Counter)
 		keys[i] = Key(model, inputs[i])
 	}
 	plan := requestCachePlan(req, keys)
@@ -391,7 +391,7 @@ func (g *Generator) send(ctx, callCtx context.Context, req Request, t catalog.Ch
 		usage.TokensIn = g.Counter.Count(SystemPrompt) + g.Counter.Count(UserMessage(in))
 		usage.TokensOut = g.Counter.Count(msg.Text())
 	}
-	text, cerr := Clean(msg.Text(), g.Counter)
+	text, cerr := clean(msg.Text(), g.Counter)
 	switch {
 	case errors.Is(cerr, ErrRefused):
 		return zero, g.unusable(settle, OutcomeRefused, cerr, usage, reported)

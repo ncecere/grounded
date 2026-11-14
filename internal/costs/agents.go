@@ -78,8 +78,8 @@ const NoBudgetRevision = 1
 // ErrCodeAgentExhausted is the error code of a refusal at 100% of an agent's budget.
 const ErrCodeAgentExhausted = "agent_budget_exhausted"
 
-// AgentExhausted is the 429 refusal of an agent's chats. The message names no amount (editors and members see it).
-func AgentExhausted(st AgentStatus) *apperr.Error {
+// agentExhausted is the 429 refusal of an agent's chats. The message names no amount (editors and members see it).
+func agentExhausted(st AgentStatus) *apperr.Error {
 	resets := st.Team.ResetsAt.In(st.Team.Location).Format("Jan 2, 2006")
 	return &apperr.Error{
 		Status: http.StatusTooManyRequests, Code: ErrCodeAgentExhausted,
@@ -112,7 +112,7 @@ func (s *Service) CheckAgent(ctx context.Context, teamID, agentID uuid.UUID) err
 		s.agentNotice(ctx, st, LevelWarning)
 	case StateExhausted:
 		s.agentNotice(ctx, st, LevelExhausted)
-		return AgentExhausted(st)
+		return agentExhausted(st)
 	}
 	return nil
 }

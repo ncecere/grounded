@@ -233,7 +233,7 @@ func (s *Service) deliver(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, def 
 			saved = &Channels{InApp: rows[0].InApp, Email: rows[0].Email}
 		}
 	}
-	ch := Resolve(def, saved)
+	ch := resolve(def, saved)
 	if ch.InApp {
 		p := dbgen.InsertNotificationParams{EventID: eventID, Type: string(def.Type), UserID: nullUUID(r.UserID)}
 		if r.UserID == uuid.Nil {

@@ -24,7 +24,7 @@ func TestCleanLabel(t *testing.T) {
 }
 
 func TestLabelRequestHasOnlyTheQuestions(t *testing.T) {
-	got := LabelRequest([]string{"Where do I  park?\n", strings.Repeat("a", 400)})
+	got := labelRequest([]string{"Where do I  park?\n", strings.Repeat("a", 400)})
 	lines := strings.Split(strings.TrimSpace(got), "\n")
 	if len(lines) != 3 || lines[0] != "Questions:" || lines[1] != "- Where do I park?" || len([]rune(lines[2])) != labelQuestionChars+3 {
 		t.Fatalf("request = %q", got)

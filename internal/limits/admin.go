@@ -112,7 +112,7 @@ func checkSettingChanges(changes []SettingChange) error {
 			return apperr.Invalid("duplicate_limit", "Each limit may appear once: "+string(c.Key))
 		}
 		seen[c.Key] = true
-		if err := ValidateSetting(d, c.Setting); err != nil {
+		if err := validateSetting(d, c.Setting); err != nil {
 			return err
 		}
 	}

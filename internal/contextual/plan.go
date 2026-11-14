@@ -23,10 +23,10 @@ type Unit struct {
 	Tokens int
 }
 
-// PlanUnits groups a document's passages, in order, into units: a unit ends where the heading path changes, or when one more passage would
+// planUnits groups a document's passages, in order, into units: a unit ends where the heading path changes, or when one more passage would
 // pass UnitMaxTokens or UnitMaxPassages. A passage longer than UnitMaxTokens is a unit of its own (its text is cut when the prompt is made).
 // Deterministic: the same items give the same units.
-func PlanUnits(items []Item) []Unit {
+func planUnits(items []Item) []Unit {
 	var units []Unit
 	for i := 0; i < len(items); {
 		u := Unit{First: i, Last: i, Path: items[i].Path, Tokens: items[i].Tokens}
@@ -42,8 +42,8 @@ func PlanUnits(items []Item) []Unit {
 	return units
 }
 
-// ItemsOf describes passages for PlanUnits.
-func ItemsOf(chunks []chunk.Chunk) []Item {
+// itemsOf describes passages for planUnits.
+func itemsOf(chunks []chunk.Chunk) []Item {
 	items := make([]Item, len(chunks))
 	for i, c := range chunks {
 		items[i] = Item{Path: c.HeadingPath, Tokens: c.Tokens}
@@ -54,9 +54,9 @@ func ItemsOf(chunks []chunk.Chunk) []Item {
 // cutMark ends a text that was cut to its bound, so the model knows it is not the whole.
 const cutMark = "\n[…]"
 
-// CutTokens shortens text to at most n tokens (plus the cut mark), trimming by runes in proportion and checking again, as the embedding
+// cutTokens shortens text to at most n tokens (plus the cut mark), trimming by runes in proportion and checking again, as the embedding
 // inputs are shortened. It is deterministic.
-func CutTokens(text string, n int, c chunk.TokenCounter) string {
+func cutTokens(text string, n int, c chunk.TokenCounter) string {
 	if n <= 0 {
 		return ""
 	}
@@ -89,14 +89,14 @@ func Opening(chunks []chunk.Chunk, c chunk.TokenCounter) string {
 		b.WriteString(ch.Content)
 		total += ch.Tokens
 	}
-	return CutTokens(b.String(), ExcerptTokens, c)
+	return cutTokens(b.String(), ExcerptTokens, c)
 }
 
-// UnitText is the text of a unit's passages, cut to UnitMaxTokens.
-func UnitText(chunks []chunk.Chunk, u Unit, c chunk.TokenCounter) string {
+// unitText is the text of a unit's passages, cut to UnitMaxTokens.
+func unitText(chunks []chunk.Chunk, u Unit, c chunk.TokenCounter) string {
 	parts := make([]string, 0, u.Last-u.First+1)
 	for _, ch := range chunks[u.First : u.Last+1] {
 		parts = append(parts, ch.Content)
 	}
-	return CutTokens(strings.Join(parts, "\n\n"), UnitMaxTokens, c)
+	return cutTokens(strings.Join(parts, "\n\n"), UnitMaxTokens, c)
 }

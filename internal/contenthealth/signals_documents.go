@@ -15,9 +15,9 @@ import (
 // day is the unit of every age.
 const day = 24 * time.Hour
 
-// StaleCutoff is the latest processing time that counts as stale: a document last processed exactly staleDays before asOf
+// staleCutoff is the latest processing time that counts as stale: a document last processed exactly staleDays before asOf
 // is stale ("at least staleDays old"), one second newer is not.
-func StaleCutoff(asOf time.Time, staleDays int) time.Time {
+func staleCutoff(asOf time.Time, staleDays int) time.Time {
 	return asOf.Add(-time.Duration(staleDays) * day)
 }
 
@@ -41,7 +41,7 @@ func (staleSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 		return notApplicable(ReasonNoDocuments), nil
 	}
 	rows, err := env.Q.ContentHealthStale(ctx, dbgen.ContentHealthStaleParams{
-		TeamID: nullID(env.TeamID), SourceIds: env.SourceIDs(), Cutoff: StaleCutoff(env.AsOf, env.Params.StaleDays), PageSize: MaxFindingsPerSignal,
+		TeamID: nullID(env.TeamID), SourceIds: env.SourceIDs(), Cutoff: staleCutoff(env.AsOf, env.Params.StaleDays), PageSize: MaxFindingsPerSignal,
 	})
 	if err != nil {
 		return Result{}, err

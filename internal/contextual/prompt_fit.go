@@ -11,7 +11,7 @@ import (
 // The ceiling includes the empty frame and slack, so empty fields always fit.
 // No token additivity or monotonicity is assumed: every candidate is counted
 // after escaping, including cut marks and chat framing, with the same counter
-// used by admission. Applying WithMargin to both sides preserves the bound.
+// used by admission. Applying withMargin to both sides preserves the bound.
 //
 // Only an overflowing prompt changes. Halve the longest field (stable ties),
 // preserving a rune boundary and marking the cut. Each step strictly reduces

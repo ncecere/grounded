@@ -79,7 +79,7 @@ func (w *EmailWorker) Work(ctx context.Context, job *river.Job[EmailArgs]) error
 		return river.JobCancel(errors.New("email is not configured (SMTP_HOST)"))
 	}
 	def, _ := Lookup(Type(d.Type))
-	r, err := Render(w.Site, Content{Type: Type(d.Type), Title: d.Title, Body: d.Body, Link: d.Link, Mandatory: def.Mandatory})
+	r, err := render(w.Site, Content{Type: Type(d.Type), Title: d.Title, Body: d.Body, Link: d.Link, Mandatory: def.Mandatory})
 	if err != nil {
 		return river.JobCancel(err) // a template bug; retrying won't help
 	}

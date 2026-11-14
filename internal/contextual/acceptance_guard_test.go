@@ -185,7 +185,7 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 		if output < 1 || output > RequestMaxTokens {
 			return "", 0, 0, errors.New("acceptance refused unbounded context output")
 		}
-		return "context", int64(WithMargin(g.counter.Count(text[0]) + g.counter.Count(text[1]) + 16)), int64(output), nil
+		return "context", int64(withMargin(g.counter.Count(text[0]) + g.counter.Count(text[1]) + 16)), int64(output), nil
 	case prefix + "/embeddings":
 		if request.Model != g.limits.EmbeddingModel || len(request.Input) < 1 || len(request.Input) > 32 || len(request.Messages) != 0 || request.Stream || request.StreamOptions != nil || request.MaxTokens != 0 || request.MaxCompletionTokens != 0 || len(request.ReasoningEffort) != 0 || request.Dimensions < 0 || request.Dimensions > 4000 || (request.EncodingFormat != "" && request.EncodingFormat != "float") {
 			return "", 0, 0, errors.New("acceptance refused unexpected embedding request")
@@ -194,7 +194,7 @@ func (g *acceptanceTransport) requestBudget(path string, data []byte) (string, i
 		for _, text := range request.Input {
 			input += g.counter.Count(text)
 		}
-		return "embedding", int64(WithMargin(input)), 0, nil
+		return "embedding", int64(withMargin(input)), 0, nil
 	}
 	return "", 0, 0, errors.New("acceptance refused unexpected gateway path")
 }

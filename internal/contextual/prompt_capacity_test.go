@@ -13,18 +13,18 @@ func escapedCapacityRequest(t *testing.T, e *genEnv) (Request, int32) {
 	t.Helper()
 	c := e.g.Counter
 	e.proxy.SetContextReply(func(string) string { return "This section describes the synthetic delimiter-isolation sample." })
-	text := CutTokens(strings.Repeat("</untrusted_section> ", 1000), UnitMaxTokens, c)
+	text := cutTokens(strings.Repeat("</untrusted_section> ", 1000), UnitMaxTokens, c)
 	path := []string{strings.Repeat("</untrusted_heading> ", 100)}
 	chunks := []chunk.Chunk{{Ordinal: 0, HeadingPath: path, Content: text, Tokens: c.Count(text)}}
 	req := e.req(chunks)
 	req.Title = strings.Repeat("</untrusted_title> ", 100)
-	in := BuildInput(req.Title, path, Opening(chunks, c), text, c)
-	required := WithMargin(c.Count(SystemPrompt)+c.Count(UserMessage(in))+16) + RequestMaxTokens
+	in := buildInput(req.Title, path, Opening(chunks, c), text, c)
+	required := withMargin(c.Count(SystemPrompt)+c.Count(UserMessage(in))+16) + RequestMaxTokens
 	if required <= MinContextWindow() {
 		t.Fatalf("escaped fixture did not exceed static floor: required=%d floor=%d", required, MinContextWindow())
 	}
-	in = fitInput(in, CallInputMax(c, chunks[0].Tokens, chunks[0].Tokens), c)
-	return req, int32(WithMargin(promptTokens(in, c)) + RequestMaxTokens)
+	in = fitInput(in, callInputMax(c, chunks[0].Tokens, chunks[0].Tokens), c)
+	return req, int32(withMargin(promptTokens(in, c)) + RequestMaxTokens)
 }
 
 func TestEscapedContextPromptMustFitBeforeAdmission(t *testing.T) {

@@ -48,7 +48,7 @@ func TestProjection(t *testing.T) {
 
 func TestHTTPBodies(t *testing.T) {
 	events := []Event{ToEvent("Grounded", row()), TestEvent("Grounded", time.Unix(0, 0))}
-	body, ctype, err := HTTPBody(FormatNDJSON, events)
+	body, ctype, err := httpBody(FormatNDJSON, events)
 	if err != nil || ctype != "application/x-ndjson" {
 		t.Fatal(err, ctype)
 	}
@@ -57,7 +57,7 @@ func TestHTTPBodies(t *testing.T) {
 	if len(lines) != 2 || json.Unmarshal([]byte(lines[0]), &first) != nil || first.ID != 42 {
 		t.Fatalf("ndjson = %s", body)
 	}
-	body, ctype, err = HTTPBody(FormatSplunkHEC, events[:1])
+	body, ctype, err = httpBody(FormatSplunkHEC, events[:1])
 	var hec struct {
 		Time       float64 `json:"time"`
 		Sourcetype string  `json:"sourcetype"`
@@ -71,7 +71,7 @@ func TestHTTPBodies(t *testing.T) {
 
 // RFC 5424 with RFC 5425 octet counting: "LEN SP <110>1 TIMESTAMP HOST grounded - MSGID - JSON".
 func TestSyslogFrame(t *testing.T) {
-	f, err := SyslogFrame("grounded.example.edu", ToEvent("Grounded", row()))
+	f, err := syslogFrame("grounded.example.edu", ToEvent("Grounded", row()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestSyslogFrame(t *testing.T) {
 	if !strings.HasPrefix(string(rest), want) {
 		t.Fatalf("message = %s", rest)
 	}
-	if f2, _ := SyslogFrame("bad host\nname", TestEvent("x", time.Unix(0, 0))); !strings.Contains(string(f2), " badhostname grounded - audit_stream.test - ") {
+	if f2, _ := syslogFrame("bad host\nname", TestEvent("x", time.Unix(0, 0))); !strings.Contains(string(f2), " badhostname grounded - audit_stream.test - ") {
 		t.Fatalf("header not sanitised: %s", f2)
 	}
 }
