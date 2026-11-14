@@ -10,7 +10,7 @@
 - Current document/profile/version plans retain their bounded union; deletion/opt-out/snapshot cleanup prunes only permitted artifacts. Generated context never changes original passages, keyword text, citation/viewer text or parent hashes.
 - Regression evidence includes unit/PG races, HTTP/authz, full UI, desktop/phone fake browser consent/estimate/held-preview/switch/switch-back, the guarded real check and an ordinary feature-unused upgrade rehearsal. Earlier failed/incomplete wrappers and smaller-host timeouts remain failures. The merged head passed full GitHub CI and exact-source disposable-cluster acceptance.
 
-The guarded test-only entry and private outer receipt protocol are documented in [issue21-live-entry.md](issue21-live-entry.md). Without an explicit single-use source/corpus-bound grant, the live test skips. It never gets authority from the mere presence of a key or environment flag.
+The single-use entry used for those runs (`tools/issue21` and the `-issue21-grant` test with its grant, ledger and receipt checks) was removed once they were recorded (#253); it remains in the history at `50385a9f`. The fake-gateway harness (`TestContextualAcceptanceHarnessFake` and the corpus in `internal/contextual/acceptance_corpus_test.go`) still runs in CI. A future real-model run needs a new, reviewed entry (see "Any future real-model run" below).
 
 ## Rollout compatibility
 
