@@ -1,3 +1,5 @@
+//go:build bench
+
 // Command sparkbench compares self-hosted models (the owner's DGX Spark:
 // qwen3-embedding-4b and qwen3.8-27b) with an OpenAI-compatible AI gateway's models
 // (nomic-embed-text-v1.5 and gpt-oss-120b) for Grounded. It is measurement code:

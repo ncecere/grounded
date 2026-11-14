@@ -123,7 +123,7 @@ These cover `internal/`, which this run did not change. Items 1–3 were done th
 ```sh
 mkdir -p /tmp/ragbench && cd /tmp/ragbench
 curl -O https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/fiqa.zip && unzip fiqa.zip
-go build -o /tmp/ragbench/grounded ./cmd/grounded && go build -o /tmp/ragbench/ragbench ./cmd/ragbench
+go build -o /tmp/ragbench/grounded ./cmd/grounded && go build -tags bench -o /tmp/ragbench/ragbench ./cmd/ragbench
 docker exec grounded-postgres-1 psql -U grounded -d postgres -c "CREATE DATABASE grounded_bench"
 # Grounded on :8081 with DATABASE_URL=.../grounded_bench, VALKEY_URL=redis://127.0.0.1:56379/3,
 # BLOB_DIR=/tmp/ragbench/blobs, DEV_AUTH=true, APP_URL=http://127.0.0.1:8081 (see .env.example)
