@@ -1,4 +1,4 @@
--- Document counters (v0.10.0, #249, ADR-0036): per team (documents, bytes), per source and status (documents, bytes,
+-- Document counters (v0.11.0, #249, ADR-0036): per team (documents, bytes), per source and status (documents, bytes,
 -- chunks, documents waiting for a personal-data review) and per source and tag (documents), so the usage check under a
 -- team's usage lock, the source pages, the documents table's tag list and the admin team pages read a few rows instead
 -- of aggregating every document.

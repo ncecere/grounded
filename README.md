@@ -205,7 +205,9 @@ Read the notes for your [published release](https://github.com/ncecere/grounded/
 - [x] **v0.9.0** (2026-11-05): identity and compliance: SCIM provisioning, audit streaming to a SIEM, signed daily audit exports with external copies, personal data scanning at ingest, per-agent budgets, and configuration as code.
 - [x] **v0.10.0** (2026-11-10): private content, first part: document permissions (a source restricted to groups and people, enforced wherever its text is used), and a hardening pass: faster answers, a faster chat and a fix for web pages in other character sets.
 
-**Next:** v0.11.0 ([`docs/roadmap.md`](docs/roadmap.md)): the connectors: Microsoft 365, then Google Drive and others, each mapping its files' permissions to document permissions.
+- [x] **v0.11.0** (2026-11-14): the connector framework (source types are a registry; encrypted credentials, scheduled syncs, a hold on large removals and the provider's permissions), and the hardening pass's follow-ups: document counters, ingestion that stops redoing finished work, less waiting before the first token and lighter public pages.
+
+**Next:** v0.12.0 ([`docs/roadmap.md`](docs/roadmap.md)): the first connectors on the framework: SharePoint and OneDrive, then Google Drive, each mapping its files' permissions to document permissions.
 
 **Later**
 
