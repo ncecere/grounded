@@ -71,7 +71,7 @@ func (a *api) featureSettings(ctx context.Context, actor authz.Actor, out *apity
 		return err
 	}
 	out.Ocr = apitypes.AdminFeatureOCR{Enabled: parsing.Enabled, Backend: apitypes.OcrBackend(parsing.Backend)}
-	sso, err := a.groups.Status(ctx, actor)
+	sso, err := a.Groups.Status(ctx, actor)
 	if err != nil {
 		return err
 	}

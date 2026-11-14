@@ -144,24 +144,10 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		t.Fatal(err)
 	}
 	t.Cleanup(svc.Close)
-	deps := httpapi.Deps{
-		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Log: log, Health: httpapi.NewHealth(nil),
-		Teams: svc.Teams, Platform: svc.Platform, Catalog: svc.Catalog, Sources: svc.Sources, KBs: svc.KBs, APIKeys: svc.APIKeys,
-		WebSources: svc.Web, Limits: svc.Limits, Costs: svc.Costs, Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne,
-		OCR: svc.OCR, PII: svc.PII, SCIM: svc.SCIM, Rerank: svc.Rerank,
-		Public: svc.Public, Retention: svc.Retention, BreakGlass: svc.BreakGlass, Web: testWeb, WebBuilt: true,
-	}
-	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
-	deps.Contextual = svc.Contextual
-	deps.TeamRequests = svc.TeamRequests
-	deps.Webhooks = svc.Webhooks
-	deps.Gaps = svc.Gaps
-	deps.ContentHealth = svc.ContentHealth
-	deps.AnswerCache = svc.AnswerCache
-	deps.TeamConfig = svc.TeamConfig
-	deps.AuditExports = svc.AuditExports
-	deps.AuditStream = svc.AuditStream
-	deps.DocumentAccess = svc.DocumentAccess
+	// The same mapping as the app (app.Services.HTTPDeps).
+	deps := svc.HTTPDeps(httpapi.Deps{
+		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Log: log, Health: httpapi.NewHealth(nil), Web: testWeb, WebBuilt: true,
+	})
 	svc.Limits.OnBackendError = metrics.RateLimitErrors.Inc
 	svc.Public.Guard.OnBackendError = metrics.RateLimitErrors.Inc
 	fixRateWindows(svc, kvs)

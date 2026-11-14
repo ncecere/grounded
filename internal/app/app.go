@@ -94,7 +94,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 		"valkey":   kvs.Ping,
 		"storage":  svc.Blob.Ping,
 	})
-	deps := svc.withHTTPServices(httpapi.Deps{
+	deps := svc.HTTPDeps(httpapi.Deps{
 		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Health: health, Log: log,
 	})
 

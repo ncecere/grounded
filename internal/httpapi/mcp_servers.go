@@ -250,7 +250,7 @@ func (a *api) listUsableMCPTools(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	health, err := a.health.Statuses(r.Context(), healthcheck.KindMCPServer)
+	health, err := a.HealthChecks.Statuses(r.Context(), healthcheck.KindMCPServer)
 	writeList(w, r, tools, err, func(t mcpclient.UsableTool) apitypes.MCPToolOption {
 		return apitypes.MCPToolOption{Id: t.ID, ServerId: t.ServerID, ServerName: t.ServerName, Name: t.Name, Title: t.Title,
 			Description: t.Description, MaxClassification: t.ServerMaxClassification, ServerHealth: pickerHealth(health, t.ServerID)}

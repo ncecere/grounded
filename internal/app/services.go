@@ -15,6 +15,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/agents"
+	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/auditexport"
@@ -56,6 +57,7 @@ import (
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/sourcesync"
+	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/teamconfig"
@@ -131,6 +133,10 @@ type Services struct {
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
+	// Analytics reads the platform analytics and the moderation events.
+	Analytics *analytics.Service
+	// Groups administers SSO group mapping rules (docs/sso-groups.md).
+	Groups *ssogroups.Service
 	// MCP registers MCP servers and calls their tools from agents
 	// (docs/mcp-client.md).
 	MCP *mcpclient.Service
@@ -211,6 +217,8 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		Catalog:      catalog.NewService(pool, box),
 		Blob:         store,
 		HealthChecks: healthcheck.New(pool),
+		Analytics:    analytics.New(pool),
+		Groups:       ssogroups.New(pool, cfg.OIDC.GroupsClaim, cfg.OIDC.Enabled()),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
 	wireContent(s, cfg, pool, jobsClient, kvs, store, log)

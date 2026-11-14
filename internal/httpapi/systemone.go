@@ -80,7 +80,7 @@ func (a *api) getSystemOneStatus(w http.ResponseWriter, r *http.Request) {
 	if st.Available {
 		// Each check's median added time, for the agent editor
 		// (docs/v0.4.1.md §4); without it the editor shows no estimate.
-		lat, err := a.analytics.CheckLatency(r.Context())
+		lat, err := a.Analytics.CheckLatency(r.Context())
 		if err != nil {
 			a.Log.WarnContext(r.Context(), "SystemOne status: could not read the checks' median latency", "err", err)
 		}

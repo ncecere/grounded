@@ -191,7 +191,7 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	health, err := a.health.Statuses(r.Context(), healthcheck.KindModel)
+	health, err := a.HealthChecks.Statuses(r.Context(), healthcheck.KindModel)
 	if failed(w, r, err) {
 		return
 	}

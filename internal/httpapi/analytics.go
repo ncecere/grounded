@@ -58,7 +58,7 @@ func (a *api) adminGetAnalytics(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ov, err := a.analytics.Overview(r.Context(), a.actor(r), from, to, f)
+	ov, err := a.Analytics.Overview(r.Context(), a.actor(r), from, to, f)
 	if failed(w, r, err) {
 		return
 	}
@@ -114,7 +114,7 @@ func (a *api) adminExportAnalyticsDaily(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	from, to, days, err := a.analytics.Daily(r.Context(), a.actor(r), from, to, f)
+	from, to, days, err := a.Analytics.Daily(r.Context(), a.actor(r), from, to, f)
 	if failed(w, r, err) {
 		return
 	}
@@ -202,7 +202,7 @@ func (a *api) adminListModerationEvents(w http.ResponseWriter, r *http.Request) 
 		}
 		f.AgentID = &id
 	}
-	rows, next, err := a.analytics.ModerationEvents(r.Context(), a.actor(r), f)
+	rows, next, err := a.Analytics.ModerationEvents(r.Context(), a.actor(r), f)
 	if failed(w, r, err) {
 		return
 	}
