@@ -632,14 +632,18 @@ func (q *Queries) ListPlatformSources(ctx context.Context) ([]DataSource, error)
 }
 
 const listSourceTags = `-- name: ListSourceTags :many
-SELECT DISTINCT t::text AS tag
-FROM documents d, unnest(d.tags) AS t
-WHERE d.source_id = $1
-ORDER BY 1
+SELECT tag
+FROM source_tag_counts
+WHERE source_id = $1
+GROUP BY tag
+HAVING sum(documents) > 0
+ORDER BY tag
 LIMIT 200
 `
 
 // The tags a source's documents use, for the documents filter.
+// The tags a source's documents carry, from the counters the documents
+// triggers keep (ADR-0036).
 func (q *Queries) ListSourceTags(ctx context.Context, sourceID uuid.UUID) ([]string, error) {
 	rows, err := q.db.Query(ctx, listSourceTags, sourceID)
 	if err != nil {
@@ -1158,13 +1162,12 @@ func (q *Queries) SnoozeDocument(ctx context.Context, arg SnoozeDocumentParams) 
 }
 
 const sourceDocumentStats = `-- name: SourceDocumentStats :many
-SELECT source_id, status, count(*)::bigint AS documents,
-       coalesce(sum(size_bytes), 0)::bigint AS bytes,
-       coalesce(sum(chunk_count), 0)::bigint AS chunks,
-       count(*) FILTER (WHERE metadata->'pii'->>'state' IN ('flagged', 'held'))::bigint AS pii_review
-FROM documents
+SELECT source_id, status, sum(documents)::bigint AS documents, sum(bytes)::bigint AS bytes,
+       sum(chunks)::bigint AS chunks, sum(pii_review)::bigint AS pii_review
+FROM source_document_counts
 WHERE source_id = ANY($1::uuid[])
 GROUP BY source_id, status
+HAVING sum(documents) <> 0
 `
 
 type SourceDocumentStatsRow struct {
@@ -1176,6 +1179,8 @@ type SourceDocumentStatsRow struct {
 	PiiReview int64
 }
 
+// Each source's documents by status, from the counters the documents
+// triggers keep (migration 00072, ADR-0036): the slots of each key are summed.
 func (q *Queries) SourceDocumentStats(ctx context.Context, sourceIds []uuid.UUID) ([]SourceDocumentStatsRow, error) {
 	rows, err := q.db.Query(ctx, sourceDocumentStats, sourceIds)
 	if err != nil {

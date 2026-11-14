@@ -84,7 +84,7 @@ func TestDoctorHealthyInstall(t *testing.T) {
 	}
 	for _, want := range []struct{ group, name string }{
 		{"safety", "production"}, {"configuration", "api"}, {"postgres", "connect"}, {"postgres", "pgvector"},
-		{"postgres", "migrations"}, {"valkey", "PING"}, {"storage", "probe object"}, {"oidc", "discovery"}, {"oidc", "JWKS"},
+		{"postgres", "migrations"}, {"postgres", "document counters"}, {"valkey", "PING"}, {"storage", "probe object"}, {"oidc", "discovery"}, {"oidc", "JWKS"},
 	} {
 		if c := find(t, rep, want.group, want.name); c.Status != doctor.OK {
 			t.Errorf("%s %s = %+v", want.group, want.name, c)
@@ -126,6 +126,15 @@ func TestDoctorHealthyInstall(t *testing.T) {
 	}
 	if !strings.Contains(js.String(), `"firstByteMs"`) || !strings.Contains(js.String(), `"ok": true`) {
 		t.Errorf("json report:\n%s", js.String())
+	}
+
+	// A disabled counter trigger fails the run (ADR-0036): the limits and the source pages would stop following the documents.
+	if _, err := pool.Exec(ctx, "ALTER TABLE documents DISABLE TRIGGER documents_count_update"); err != nil {
+		t.Fatal(err)
+	}
+	rep = doctor.Run(ctx, cfg, doctor.Options{Mode: "api", Timeout: 5 * time.Second})
+	if c := find(t, rep, "postgres", "document counters"); rep.OK || c.Status != doctor.Fail || !strings.Contains(c.Fix, "reconcile_document_counts") {
+		t.Errorf("a disabled trigger: ok %v, %+v", rep.OK, c)
 	}
 }
 

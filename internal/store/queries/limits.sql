@@ -47,9 +47,11 @@ SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 7301));
 -- name: LockTeamCrawlSlots :exec
 SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 7302));
 
+-- A team's documents and their bytes, from the counters the documents
+-- triggers keep (migration 00072, ADR-0036): a few rows, not every document.
 -- name: TeamDocumentUsage :one
-SELECT count(*) AS documents, coalesce(sum(size_bytes), 0)::bigint AS storage_bytes
-FROM documents WHERE team_id = $1;
+SELECT coalesce(sum(documents), 0)::bigint AS documents, coalesce(sum(bytes), 0)::bigint AS storage_bytes
+FROM team_document_counts WHERE team_id = @team_id::uuid;
 
 -- name: CountTeamSources :one
 SELECT count(*) FROM data_sources WHERE team_id = $1;
@@ -83,3 +85,8 @@ SELECT t.slug, t.name, tl.overrides
 FROM team_limits tl JOIN teams t ON t.id = tl.team_id
 WHERE t.status = 'active' AND tl.overrides <> '{}'::jsonb
 ORDER BY t.name;
+
+-- Makes one kind of document counter ('teams', 'sources', 'tags') equal to
+-- the documents (migration 00072) and returns how many keys were off.
+-- name: ReconcileDocumentCounts :one
+SELECT reconcile_document_counts(@kind::text)::bigint AS fixed;

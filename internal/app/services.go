@@ -29,6 +29,7 @@ import (
 	"github.com/ncecere/grounded/internal/contextual"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
+	"github.com/ncecere/grounded/internal/doccounts"
 	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/gaps"
 	"github.com/ncecere/grounded/internal/healthcheck"
@@ -376,6 +377,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			webhooks.Register(w, s.Webhooks)
 			registerHealth(w, cfg, pool, s, log)
 			contenthealth.Register(w, s.ContentHealth)
+			river.AddWorker(w, &doccounts.Worker{Q: dbgen.New(pool), Log: log})
 			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check,
 				SystemOne: s.SystemOne.PlatformClient, Log: log})
 		},
@@ -387,6 +389,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			// One report at a time per process, on a queue of its own: a report never waits behind ingestion, or the other way round.
 			contenthealth.Queue: {MaxWorkers: 1},
 			auditexport.Queue:   {MaxWorkers: 1},
+			doccounts.Queue:     {MaxWorkers: 1},
 		},
 		Periodic: ingestPeriodic(cfg, copier),
 	}, nil
@@ -436,6 +439,7 @@ func ingestPeriodic(cfg config.Config, copier *auditexport.Copier) []*river.Peri
 		evals.Periodic(),
 		gaps.Periodic(),
 		contenthealth.PrunePeriodic(),
+		doccounts.Periodic(),
 	}, append(healthPeriodic(cfg), exportCopyPeriodic(copier)...)...)
 }
 

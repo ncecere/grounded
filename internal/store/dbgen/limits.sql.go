@@ -208,9 +208,22 @@ func (q *Queries) LockTeamUsage(ctx context.Context, dollar_1 uuid.UUID) error {
 	return err
 }
 
+const reconcileDocumentCounts = `-- name: ReconcileDocumentCounts :one
+SELECT reconcile_document_counts($1::text)::bigint AS fixed
+`
+
+// Makes one kind of document counter ('teams', 'sources', 'tags') equal to
+// the documents (migration 00072) and returns how many keys were off.
+func (q *Queries) ReconcileDocumentCounts(ctx context.Context, kind string) (int64, error) {
+	row := q.db.QueryRow(ctx, reconcileDocumentCounts, kind)
+	var fixed int64
+	err := row.Scan(&fixed)
+	return fixed, err
+}
+
 const teamDocumentUsage = `-- name: TeamDocumentUsage :one
-SELECT count(*) AS documents, coalesce(sum(size_bytes), 0)::bigint AS storage_bytes
-FROM documents WHERE team_id = $1
+SELECT coalesce(sum(documents), 0)::bigint AS documents, coalesce(sum(bytes), 0)::bigint AS storage_bytes
+FROM team_document_counts WHERE team_id = $1::uuid
 `
 
 type TeamDocumentUsageRow struct {
@@ -218,7 +231,9 @@ type TeamDocumentUsageRow struct {
 	StorageBytes int64
 }
 
-func (q *Queries) TeamDocumentUsage(ctx context.Context, teamID uuid.NullUUID) (TeamDocumentUsageRow, error) {
+// A team's documents and their bytes, from the counters the documents
+// triggers keep (migration 00072, ADR-0036): a few rows, not every document.
+func (q *Queries) TeamDocumentUsage(ctx context.Context, teamID uuid.UUID) (TeamDocumentUsageRow, error) {
 	row := q.db.QueryRow(ctx, teamDocumentUsage, teamID)
 	var i TeamDocumentUsageRow
 	err := row.Scan(&i.Documents, &i.StorageBytes)

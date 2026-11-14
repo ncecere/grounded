@@ -30,14 +30,15 @@ RETURNING *;
 -- name: DeleteSource :exec
 DELETE FROM data_sources WHERE id = $1;
 
+-- Each source's documents by status, from the counters the documents
+-- triggers keep (migration 00072, ADR-0036): the slots of each key are summed.
 -- name: SourceDocumentStats :many
-SELECT source_id, status, count(*)::bigint AS documents,
-       coalesce(sum(size_bytes), 0)::bigint AS bytes,
-       coalesce(sum(chunk_count), 0)::bigint AS chunks,
-       count(*) FILTER (WHERE metadata->'pii'->>'state' IN ('flagged', 'held'))::bigint AS pii_review
-FROM documents
+SELECT source_id, status, sum(documents)::bigint AS documents, sum(bytes)::bigint AS bytes,
+       sum(chunks)::bigint AS chunks, sum(pii_review)::bigint AS pii_review
+FROM source_document_counts
 WHERE source_id = ANY(@source_ids::uuid[])
-GROUP BY source_id, status;
+GROUP BY source_id, status
+HAVING sum(documents) <> 0;
 
 -- name: SourceKnowledgeBases :many
 SELECT kb.id, kb.name FROM kb_sources ks JOIN knowledge_bases kb ON kb.id = ks.kb_id
@@ -192,11 +193,15 @@ ORDER BY c.ordinal
 LIMIT @page_size;
 
 -- The tags a source's documents use, for the documents filter.
+-- The tags a source's documents carry, from the counters the documents
+-- triggers keep (ADR-0036).
 -- name: ListSourceTags :many
-SELECT DISTINCT t::text AS tag
-FROM documents d, unnest(d.tags) AS t
-WHERE d.source_id = @source_id
-ORDER BY 1
+SELECT tag
+FROM source_tag_counts
+WHERE source_id = @source_id
+GROUP BY tag
+HAVING sum(documents) > 0
+ORDER BY tag
 LIMIT 200;
 
 -- name: DeleteDocumentChunks :exec
