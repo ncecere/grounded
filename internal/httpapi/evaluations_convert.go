@@ -48,7 +48,7 @@ func (a *api) expectedDocuments(ctx context.Context, cases ...evals.Case) map[uu
 	if len(ids) == 0 {
 		return out
 	}
-	rows, err := a.q.EvalDocumentsByID(ctx, ids)
+	rows, err := a.Evaluations.DocumentsByID(ctx, ids)
 	if err != nil {
 		a.Log.Warn("evaluation documents", "err", err)
 	}

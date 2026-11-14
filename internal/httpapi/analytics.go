@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
-	"github.com/ncecere/grounded/internal/store"
 )
 
 // analyticsRoutes: platform analytics (docs/phase4-publishing.md §9).
@@ -37,14 +35,11 @@ func dateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok b
 func (a *api) analyticsFilter(w http.ResponseWriter, r *http.Request) (analytics.Filter, bool) {
 	f := analytics.Filter{Audience: r.URL.Query().Get("audience")}
 	if slug := r.URL.Query().Get("team"); slug != "" {
-		t, err := a.q.GetTeamBySlug(r.Context(), slug)
-		if errors.Is(store.NotFound(err), store.ErrNotFound) {
-			httpx.Error(w, http.StatusNotFound, "team_not_found", "Team not found")
-			return f, false
-		} else if failed(w, r, err) {
+		acc, err := a.Teams.Get(r.Context(), a.actor(r), slug)
+		if failed(w, r, err) {
 			return f, false
 		}
-		f.Team = uuid.NullUUID{UUID: t.ID, Valid: true}
+		f.Team = uuid.NullUUID{UUID: acc.Team.ID, Valid: true}
 	}
 	return f, true
 }

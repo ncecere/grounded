@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
 
@@ -69,14 +68,9 @@ func (a *api) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	for i, u := range users {
 		ids[i] = u.ID
 	}
-	counts, err := a.q.UserTeamCounts(r.Context(), ids)
-	if err != nil {
-		httpx.Internal(w, r, err)
+	teamsOf, err := a.Platform.TeamCounts(r.Context(), a.actor(r), ids)
+	if failed(w, r, err) {
 		return
-	}
-	teamsOf := make(map[uuid.UUID]int64, len(counts))
-	for _, c := range counts {
-		teamsOf[c.UserID] = c.Teams
 	}
 	for _, u := range users {
 		out := toAPIUser(u)
@@ -287,21 +281,5 @@ func (a *api) adminListAudit(w http.ResponseWriter, r *http.Request) {
 // adminGetAuditEntry returns one entry by id, so a link to any entry opens
 // it (not only one on the list's loaded pages).
 func (a *api) adminGetAuditEntry(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64)
-	if err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid entryId")
-		return
-	}
-	// The list query, newest first below id+1, one row: exactly this entry if it exists.
-	before := id + 1
-	rows, err := a.q.ListAudit(r.Context(), dbgen.ListAuditParams{BeforeID: &before, PageSize: 1})
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	if len(rows) == 0 || rows[0].ID != id {
-		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
-		return
-	}
-	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0], true))
+	a.writeAuditEntry(w, r, dbgen.ListAuditParams{}, true)
 }

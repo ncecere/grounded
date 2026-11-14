@@ -5,7 +5,6 @@ import (
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
-	"github.com/ncecere/grounded/internal/preflight"
 )
 
 // adminGetOverview serves the admin Overview's counts and attention items
@@ -15,20 +14,11 @@ import (
 // requests come from /v1/admin/attention; agents, moderation, analytics and
 // recent changes from their own endpoints.
 func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
-	if !a.actor(r).CanReadPlatform() {
-		httpx.Error(w, http.StatusForbidden, "forbidden", "Platform administration requires the platform admin or auditor role")
+	ov, err := a.Platform.Overview(r.Context(), a.actor(r), a.Config)
+	if failed(w, r, err) {
 		return
 	}
-	c, err := a.q.AdminOverviewCounts(r.Context())
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	failedRows, err := a.q.FailedDocumentsByTeam(r.Context())
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
+	c := ov.Counts
 	near, err := a.Limits.TeamsNearLimits(r.Context(), a.actor(r))
 	if failed(w, r, err) {
 		return
@@ -37,10 +27,9 @@ func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	warnings, err := a.overviewWarnings(r)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
+	warnings := make([]apitypes.AdminWarning, len(ov.Warnings))
+	for i, f := range ov.Warnings {
+		warnings[i] = apitypes.AdminWarning{Code: f.Code, Severity: apitypes.AdminWarningSeverity(f.Severity), Message: f.Message, Fix: f.Fix}
 	}
 	out := apitypes.AdminOverview{
 		Teams: apitypes.AdminOverviewTeams{Active: c.ActiveTeams, Archived: c.ArchivedTeams},
@@ -54,7 +43,7 @@ func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
 		TeamsNearBudget: &nearBudget,
 		Warnings:        &warnings,
 	}
-	for _, f := range failedRows {
+	for _, f := range ov.FailedByTeam {
 		item := apitypes.AdminFailedIngest{Failed: f.Failed}
 		if f.TeamID.Valid {
 			item.TeamSlug, item.TeamName = &f.TeamSlug, &f.TeamName
@@ -70,31 +59,11 @@ func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-// overviewWarnings are the production-readiness warnings (E7), the same
-// ones logged at startup and printed by `grounded doctor`.
-func (a *api) overviewWarnings(r *http.Request) ([]apitypes.AdminWarning, error) {
-	findings, err := preflight.Check(r.Context(), a.Config, a.q)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]apitypes.AdminWarning, len(findings))
-	for i, f := range findings {
-		out[i] = apitypes.AdminWarning{Code: f.Code, Severity: apitypes.AdminWarningSeverity(f.Severity), Message: f.Message, Fix: f.Fix}
-	}
-	return out, nil
-}
-
 // adminGetCatalogUsage serves what uses each model and embedding profile,
 // for the catalog pages' "Used by" (docs/ui-review A5).
 func (a *api) adminGetCatalogUsage(w http.ResponseWriter, r *http.Request) {
-	models, err := a.q.ModelUsage(r.Context())
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	profiles, err := a.q.ProfileUsage(r.Context())
-	if err != nil {
-		httpx.Internal(w, r, err)
+	models, profiles, err := a.Catalog.Usage(r.Context(), a.actor(r))
+	if failed(w, r, err) {
 		return
 	}
 	out := apitypes.CatalogUsage{Models: make([]apitypes.ModelUsage, len(models)), Profiles: make([]apitypes.ProfileUsage, len(profiles))}
@@ -117,9 +86,8 @@ func (a *api) adminGetCatalogUsage(w http.ResponseWriter, r *http.Request) {
 // adminListSharedSourceUsage lists the knowledge bases (and their teams)
 // that attach each platform-shared source (docs/ui-review A6).
 func (a *api) adminListSharedSourceUsage(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.q.SharedSourceAttachments(r.Context())
-	if err != nil {
-		httpx.Internal(w, r, err)
+	rows, err := a.Platform.SharedSourceAttachments(r.Context(), a.actor(r))
+	if failed(w, r, err) {
 		return
 	}
 	out := make([]apitypes.SharedSourceAttachment, len(rows))

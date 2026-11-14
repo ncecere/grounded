@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -140,7 +141,7 @@ func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, scope dbgen
 	if !ok {
 		return
 	}
-	p := dbgen.ListAuditParams{TeamID: scope.TeamID, HideSpend: scope.HideSpend, PageSize: limit + 1}
+	p := dbgen.ListAuditParams{TeamID: scope.TeamID, HideSpend: scope.HideSpend}
 	if keys != nil {
 		before, err := strconv.ParseInt(keys[0], 10, 64)
 		if err != nil {
@@ -152,20 +153,38 @@ func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, scope dbgen
 	if !auditFilters(w, r, &p) {
 		return
 	}
-	rows, err := a.q.ListAudit(r.Context(), p)
+	rows, next, err := a.AuditLog.Page(r.Context(), p, limit)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 	page := apitypes.AuditPage{Items: []apitypes.AuditEntry{}}
-	if len(rows) > int(limit) {
-		rows = rows[:limit]
-		page.NextCursor = encodeCursor(strconv.FormatInt(rows[len(rows)-1].ID, 10))
+	if next != nil {
+		page.NextCursor = encodeCursor(strconv.FormatInt(next.ID, 10))
 	}
 	for _, e := range rows {
 		page.Items = append(page.Items, toAPIAudit(e, !scope.TeamID.Valid))
 	}
 	httpx.JSON(w, http.StatusOK, page)
+}
+
+// writeAuditEntry serves one entry within scope; outside it, the entry is
+// not found.
+func (a *api) writeAuditEntry(w http.ResponseWriter, r *http.Request, scope dbgen.ListAuditParams, platform bool) {
+	id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64)
+	if err != nil || id <= 0 {
+		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid entryId")
+		return
+	}
+	e, err := a.AuditLog.Entry(r.Context(), scope, id)
+	if errors.Is(err, store.ErrNotFound) {
+		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
+		return
+	} else if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, toAPIAudit(e, platform))
 }
 
 // toAPIAudit converts one entry; platform is whether it is read in the

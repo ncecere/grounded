@@ -143,3 +143,12 @@ func snapshot(s Settings) map[string]any {
 	}
 	return map[string]any{"enabled": s.Enabled, "blockLevels": s.BlockLevels, "patterns": names}
 }
+
+// ReviewCounts is each team's documents held or flagged for personal data
+// review (Admin -> Personal data; platform admins and auditors).
+func (s *Service) ReviewCounts(ctx context.Context, a authz.Actor) ([]dbgen.CountPIIReviewByTeamRow, error) {
+	if !a.CanReadPlatform() || a.Delegated() {
+		return nil, apperr.Forbidden("Only platform admins and auditors can see personal data scanning")
+	}
+	return dbgen.New(s.Pool).CountPIIReviewByTeam(ctx)
+}

@@ -133,11 +133,11 @@ func (a *api) featureModels(r *http.Request, out *apitypes.AdminFeatures) error 
 	if rr.ModelID == nil {
 		return nil
 	}
-	m, err := a.q.GetModel(ctx, *rr.ModelID)
+	m, err := a.Catalog.GetModel(ctx, actor, *rr.ModelID)
 	if err != nil {
 		return nil // deleted meanwhile: shown as off
 	}
-	conn, err := a.q.GetConnection(ctx, m.ConnectionID)
+	conn, err := a.Catalog.GetConnection(ctx, actor, m.ConnectionID)
 	out.RerankModel = &apitypes.AdminFeatureModel{DisplayName: m.DisplayName, Enabled: m.Enabled && err == nil && conn.Enabled}
 	return nil
 }
@@ -157,7 +157,7 @@ func (a *api) featureSetup(ctx context.Context, actor authz.Actor, out *apitypes
 	if err != nil {
 		return err
 	}
-	counts, err := a.q.AdminOverviewCounts(ctx)
+	counts, err := a.Platform.Counts(ctx, actor)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
+	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/auditstream"
 	"github.com/ncecere/grounded/internal/auth"
@@ -136,6 +137,8 @@ type Deps struct {
 	ContentHealth *contenthealth.Service
 	// AnswerCache reuses recent answers (docs/answer-cache.md).
 	AnswerCache *answercache.Service
+	// AuditLog reads the audit log; the handlers decide the scope.
+	AuditLog *audit.Log
 	// Analytics reads the platform analytics and the moderation events.
 	Analytics *analytics.Service
 	// Groups administers SSO group mapping rules.

@@ -238,8 +238,8 @@ func (a *api) adminSetMCPToolApproval(w http.ResponseWriter, r *http.Request) {
 	}
 	name := ""
 	if t.ApprovedBy.Valid {
-		if u, err := a.q.GetUser(r.Context(), t.ApprovedBy.UUID); err == nil {
-			name = u.DisplayName
+		if u, err := a.Platform.GetUser(r.Context(), a.actor(r), t.ApprovedBy.UUID); err == nil {
+			name = u.User.DisplayName
 		}
 	}
 	httpx.JSON(w, http.StatusOK, toAPIMCPTool(t, name))

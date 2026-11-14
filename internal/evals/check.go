@@ -267,3 +267,9 @@ func errorText(err error) string {
 	}
 	return "The check failed."
 }
+
+// DocumentsByID looks up the documents that questions expect (their titles
+// and sources, for the question list).
+func (s *Service) DocumentsByID(ctx context.Context, ids []uuid.UUID) ([]dbgen.EvalDocumentsByIDRow, error) {
+	return s.q.EvalDocumentsByID(ctx, ids)
+}

@@ -104,28 +104,14 @@ func (a *api) listTeamAudit(w http.ResponseWriter, r *http.Request) {
 // the app's record sheet); entries of other teams, and cost entries for
 // readers who may not see the team's spend, are not found.
 func (a *api) getTeamAuditEntry(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64)
-	if err != nil || id <= 0 {
+	// A bad ID is a 400 before the access check, as for the admin log.
+	if id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64); err != nil || id <= 0 {
 		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid entryId")
 		return
 	}
-	scope, ok := a.teamAuditAccess(w, r)
-	if !ok {
-		return
+	if scope, ok := a.teamAuditAccess(w, r); ok {
+		a.writeAuditEntry(w, r, scope, false)
 	}
-	// The list query, newest first below id+1, one row: exactly this entry if it is the team's.
-	before := id + 1
-	scope.BeforeID, scope.PageSize = &before, 1
-	rows, err := a.q.ListAudit(r.Context(), scope)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	if len(rows) == 0 || rows[0].ID != id {
-		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
-		return
-	}
-	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0], false))
 }
 
 // teamAuditAccess resolves the team and checks the caller may read its log:

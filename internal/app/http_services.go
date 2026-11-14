@@ -20,6 +20,6 @@ func (s *Services) HTTPDeps(d httpapi.Deps) httpapi.Deps {
 	d.Contextual = s.Contextual
 	d.TeamRequests, d.Webhooks, d.TeamConfig = s.TeamRequests, s.Webhooks, s.TeamConfig
 	d.Gaps, d.ContentHealth, d.AnswerCache = s.Gaps, s.ContentHealth, s.AnswerCache
-	d.Analytics, d.Groups, d.HealthChecks = s.Analytics, s.Groups, s.HealthChecks
+	d.Analytics, d.Groups, d.HealthChecks, d.AuditLog = s.Analytics, s.Groups, s.HealthChecks, s.AuditLog
 	return d
 }

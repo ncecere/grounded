@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
+	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/auditstream"
 	"github.com/ncecere/grounded/internal/auth"
@@ -133,10 +134,10 @@ type Services struct {
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
-	// Analytics reads the platform analytics and the moderation events.
+	// AuditLog, Analytics and Groups (SSO group mapping) serve the admin pages.
+	AuditLog  *audit.Log
 	Analytics *analytics.Service
-	// Groups administers SSO group mapping rules (docs/sso-groups.md).
-	Groups *ssogroups.Service
+	Groups    *ssogroups.Service
 	// MCP registers MCP servers and calls their tools from agents
 	// (docs/mcp-client.md).
 	MCP *mcpclient.Service
@@ -218,6 +219,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		Blob:         store,
 		HealthChecks: healthcheck.New(pool),
 		Analytics:    analytics.New(pool),
+		AuditLog:     audit.NewLog(pool),
 		Groups:       ssogroups.New(pool, cfg.OIDC.GroupsClaim, cfg.OIDC.Enabled()),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
