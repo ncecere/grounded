@@ -46,9 +46,9 @@ func (b *Builtin) Parse(ctx context.Context, in Input) (Document, error) {
 	case KindHTML:
 		return parseHTML(in, b.Limits)
 	case KindMarkdown:
-		return parseMarkdown(in)
+		return parseMarkdown(in, b.Limits)
 	case KindText:
-		return parseText(in)
+		return parseText(in, b.Limits)
 	case KindImage:
 		return parseImage(ctx, in, b.Limits)
 	}

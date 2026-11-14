@@ -67,7 +67,7 @@ WHERE EXISTS (SELECT 1 FROM source_embedding_sets es WHERE es.source_id = s.id);
 -- name: PendingSetDocuments :many
 SELECT d.id, d.version, d.title, d.filename, d.external_id, d.blob_key, d.team_id, d.uploaded_by
 FROM documents d
-WHERE d.source_id = @source_id AND d.status = 'ready'
+WHERE d.source_id = @source_id AND d.status = 'ready' AND d.id > @after::uuid
   AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.document_id = d.id AND c.profile_id = @profile_id)
   AND NOT EXISTS (SELECT 1 FROM embedding_set_failures f WHERE f.document_id = d.id AND f.profile_id = @profile_id
                   AND f.version = d.version AND (f.permanent OR f.retry_after > now()))

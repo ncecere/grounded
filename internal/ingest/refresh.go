@@ -151,6 +151,8 @@ type refresh struct {
 	// settleUntil is how long a count waits for the source's documents in flight (the job's creation plus IdleWait); zero
 	// counts at once.
 	settleUntil time.Time
+	// Positions of this invocation's scans (Keyset): blocks to backfill, sketches to backfill, stale documents.
+	missing, sketches, stale Keyset
 }
 
 // settled reports whether the source's documents can be counted now: none in flight, or waiting for them took too long.
@@ -205,11 +207,14 @@ func due(row dbgen.SourceBoilerplate) bool {
 // were recorded (or before this feature), from their stored parsed text.
 // Nothing was dropped from them.
 func (r *refresh) backfill(ctx context.Context) (int, error) {
-	docs, err := r.q.DocumentsMissingBlocks(ctx, dbgen.DocumentsMissingBlocksParams{SourceID: r.src.ID, MaxRows: backfillBatch})
+	docs, err := NextBatch(&r.missing, func(after uuid.UUID) ([]dbgen.DocumentsMissingBlocksRow, error) {
+		return r.q.DocumentsMissingBlocks(ctx, dbgen.DocumentsMissingBlocksParams{SourceID: r.src.ID, After: after, MaxRows: backfillBatch})
+	})
 	if err != nil {
 		return 0, err
 	}
 	for _, d := range docs {
+		r.missing.Done(d.ID)
 		var hashes []int64
 		if md, err := r.p.readParsed(ctx, d.BlobKey); err == nil {
 			hashes = decide(chunk.Blocks(md), nil, d.ID).hashes

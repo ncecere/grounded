@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/riverqueue/river"
 
 	"github.com/ncecere/grounded/internal/catalog"
@@ -89,8 +90,11 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 	} else if !ready {
 		return river.JobSnooze(0)
 	}
+	var pos ingest.Keyset // this invocation's position in the source's documents (#250)
 	for {
-		docs, err := q.PendingSetDocuments(ctx, dbgen.PendingSetDocumentsParams{SourceID: src.ID, ProfileID: args.ProfileID, MaxRows: setBatch})
+		docs, err := ingest.NextBatch(&pos, func(after uuid.UUID) ([]dbgen.PendingSetDocumentsRow, error) {
+			return q.PendingSetDocuments(ctx, dbgen.PendingSetDocumentsParams{SourceID: src.ID, ProfileID: args.ProfileID, After: after, MaxRows: setBatch})
+		})
 		if err != nil {
 			return err
 		}
@@ -110,6 +114,7 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 		} else if wait > 0 {
 			return river.JobSnooze(wait)
 		}
+		pos.Done(docs[len(docs)-1].ID)
 		if time.Now().After(deadline) {
 			return river.JobSnooze(0) // continue in a new invocation
 		}

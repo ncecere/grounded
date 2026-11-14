@@ -2,6 +2,8 @@ package retention
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -205,5 +207,61 @@ func TestDeletedFiles(t *testing.T) {
 	res, err = f.runner().Apply(f.ctx, nil)
 	if err == nil || res[DeletedFiles].Error == "" || res[Conversations].Error != "" {
 		t.Fatalf("no store = %v %+v", err, res)
+	}
+}
+
+// failingPrefix is an object store that cannot delete one prefix.
+type failingPrefix struct {
+	blob.Store
+	prefix string
+}
+
+func (s failingPrefix) DeletePrefix(ctx context.Context, prefix string) error {
+	if prefix == s.prefix {
+		return errors.New("storage unavailable")
+	}
+	return s.Store.DeletePrefix(ctx, prefix)
+}
+
+// The files of deleted content are removed outside a transaction (#250): the record of each removed prefix goes, and
+// the record of a prefix storage could not remove stays for the next run.
+func TestDeletedFilesKeepTheRecordUntilRemoved(t *testing.T) {
+	f := newFixture(t)
+	store, err := blob.NewFS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := uuid.New()
+	var prefixes []string
+	for range 3 {
+		p := "teams/" + f.team.String() + "/sources/" + src.String() + "/docs/" + uuid.NewString() + "/"
+		if err := store.Put(f.ctx, p+"v1/original", bytes.NewReader([]byte("x")), 1, "text/plain"); err != nil {
+			t.Fatal(err)
+		}
+		f.exec(`INSERT INTO deleted_files (team_id, source_id, prefix, content_from, deleted_at) VALUES ($1, $2, $3, now() - interval '9 days', now() - interval '2 days')`, f.team, src, p)
+		prefixes = append(prefixes, p)
+	}
+	f.setPeriods(`{"deleted_files": 1}`)
+	r := f.runner()
+	r.Blob = failingPrefix{Store: store, prefix: prefixes[1]}
+	res, err := r.Apply(f.ctx, []Kind{DeletedFiles})
+	if err == nil || res[DeletedFiles].Error == "" {
+		t.Fatalf("a storage failure is reported: %v %+v", err, res)
+	}
+	left := f.count(`SELECT count(*) FROM deleted_files`)
+	if left == 0 || res[DeletedFiles].Deleted != 3-left {
+		t.Fatalf("%d records left, %d deleted", left, res[DeletedFiles].Deleted)
+	}
+	if f.count(`SELECT count(*) FROM deleted_files WHERE prefix = $1`, prefixes[1]) != 1 {
+		t.Fatal("the record of the prefix that could not be removed went")
+	}
+	r.Blob = store
+	if res := f.apply(r, DeletedFiles); res[DeletedFiles].Deleted != left || f.count(`SELECT count(*) FROM deleted_files`) != 0 {
+		t.Fatalf("the next run = %+v", res[DeletedFiles])
+	}
+	for _, p := range prefixes {
+		if _, err := store.Get(f.ctx, p+"v1/original"); err == nil {
+			t.Errorf("%s is still stored", p)
+		}
 	}
 }

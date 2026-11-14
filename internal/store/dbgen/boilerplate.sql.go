@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -247,14 +248,15 @@ func (q *Queries) DocumentChunkKeys(ctx context.Context, arg DocumentChunkKeysPa
 
 const documentsMissingBlocks = `-- name: DocumentsMissingBlocks :many
 SELECT d.id, d.blob_key FROM documents d
-WHERE d.source_id = $1 AND d.status = 'ready'
+WHERE d.source_id = $1 AND d.status = 'ready' AND d.id > $2::uuid
   AND NOT EXISTS (SELECT 1 FROM document_blocks db WHERE db.document_id = d.id)
 ORDER BY d.id
-LIMIT $2
+LIMIT $3
 `
 
 type DocumentsMissingBlocksParams struct {
 	SourceID uuid.UUID
+	After    uuid.UUID
 	MaxRows  int32
 }
 
@@ -265,7 +267,7 @@ type DocumentsMissingBlocksRow struct {
 
 // Ready documents processed before blocks were recorded.
 func (q *Queries) DocumentsMissingBlocks(ctx context.Context, arg DocumentsMissingBlocksParams) ([]DocumentsMissingBlocksRow, error) {
-	rows, err := q.db.Query(ctx, documentsMissingBlocks, arg.SourceID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, documentsMissingBlocks, arg.SourceID, arg.After, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -287,14 +289,15 @@ func (q *Queries) DocumentsMissingBlocks(ctx context.Context, arg DocumentsMissi
 const documentsMissingSketches = `-- name: DocumentsMissingSketches :many
 SELECT d.id, d.blob_key FROM document_blocks db
 JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
-WHERE db.source_id = $1 AND db.sketch_version < $2
+WHERE db.source_id = $1 AND db.sketch_version < $2 AND d.id > $3::uuid
 ORDER BY d.id
-LIMIT $3
+LIMIT $4
 `
 
 type DocumentsMissingSketchesParams struct {
 	SourceID      uuid.UUID
 	SketchVersion int16
+	After         uuid.UUID
 	MaxRows       int32
 }
 
@@ -306,7 +309,12 @@ type DocumentsMissingSketchesRow struct {
 // Ready documents with recorded blocks but no sketches yet (near-duplicate matching was switched on after they
 // were processed).
 func (q *Queries) DocumentsMissingSketches(ctx context.Context, arg DocumentsMissingSketchesParams) ([]DocumentsMissingSketchesRow, error) {
-	rows, err := q.db.Query(ctx, documentsMissingSketches, arg.SourceID, arg.SketchVersion, arg.MaxRows)
+	rows, err := q.db.Query(ctx, documentsMissingSketches,
+		arg.SourceID,
+		arg.SketchVersion,
+		arg.After,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -645,6 +653,21 @@ func (q *Queries) SetDocumentChunkStats(ctx context.Context, arg SetDocumentChun
 	return err
 }
 
+const setDocumentEmbed = `-- name: SetDocumentEmbed :exec
+UPDATE documents SET metadata = jsonb_set(metadata, '{embed}', $1::jsonb) WHERE id = $2
+`
+
+type SetDocumentEmbedParams struct {
+	Embed json.RawMessage
+	ID    uuid.UUID
+}
+
+// What a document's passages were embedded with besides their own text (internal/ingest/reuse.go, #250).
+func (q *Queries) SetDocumentEmbed(ctx context.Context, arg SetDocumentEmbedParams) error {
+	_, err := q.db.Exec(ctx, setDocumentEmbed, arg.Embed, arg.ID)
+	return err
+}
+
 const setDocumentSketches = `-- name: SetDocumentSketches :exec
 UPDATE document_blocks
 SET sketch_version = $1, fuzzy_hashes = $2, sketches = $3
@@ -721,14 +744,15 @@ const staleDocumentBlocks = `-- name: StaleDocumentBlocks :many
 SELECT db.document_id, db.hashes, db.dropped, d.version, d.blob_key, d.title, d.team_id, d.uploaded_by
 FROM document_blocks db
 JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
-WHERE db.source_id = $1 AND db.rev < $2
+WHERE db.source_id = $1 AND db.rev < $2 AND db.document_id > $3::uuid
 ORDER BY db.document_id
-LIMIT $3
+LIMIT $4
 `
 
 type StaleDocumentBlocksParams struct {
 	SourceID uuid.UUID
 	Rev      int32
+	After    uuid.UUID
 	MaxRows  int32
 }
 
@@ -745,7 +769,12 @@ type StaleDocumentBlocksRow struct {
 
 // Documents chunked under an older classification revision.
 func (q *Queries) StaleDocumentBlocks(ctx context.Context, arg StaleDocumentBlocksParams) ([]StaleDocumentBlocksRow, error) {
-	rows, err := q.db.Query(ctx, staleDocumentBlocks, arg.SourceID, arg.Rev, arg.MaxRows)
+	rows, err := q.db.Query(ctx, staleDocumentBlocks,
+		arg.SourceID,
+		arg.Rev,
+		arg.After,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

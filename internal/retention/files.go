@@ -44,15 +44,24 @@ func RecordDeletedFiles(ctx context.Context, q *dbgen.Queries, f DeletedContent)
 }
 
 // purgeFiles removes the stored files of a batch of due, unheld records,
-// then the records. A storage failure rolls the batch back; removing a
-// prefix again is harmless, so the next run retries it.
-func purgeFiles(ctx context.Context, r *Runner, tx pgx.Tx, candidates string, now time.Time, batch int) (int64, error) {
+// then the records of those removed. The record is the durable retry: it goes
+// only once its prefix is gone, so a storage failure leaves it (and the ones
+// after it) for the next run, and removing a prefix again is harmless.
+//
+// The object store is called outside any transaction (#250). It used to be
+// called inside the one that locked the records, which held a connection,
+// up to batch row locks and a snapshot open for as many prefix deletions.
+// That bought no protection for legal holds: a hold is checked when the
+// batch is selected (deletedFilesDue), placing one takes no lock this waits
+// on, and nothing else changes a deleted_files row (there is no restore). Two
+// runs at once (Run serialises them; Apply alone does not) can only delete
+// the same prefix twice.
+func purgeFiles(ctx context.Context, r *Runner, _ pgx.Tx, candidates string, now time.Time, batch int) (int64, error) {
 	if r.Blob == nil {
 		return 0, errors.New("no object store configured")
 	}
-	rows, err := tx.Query(ctx, fmt.Sprintf(`SELECT f.id, f.prefix FROM deleted_files f
-WHERE f.id IN (SELECT c.key FROM (%s) c WHERE NOT c.held LIMIT $2)
-FOR UPDATE OF f SKIP LOCKED`, candidates), now, batch)
+	rows, err := r.Pool.Query(ctx, fmt.Sprintf(`SELECT f.id, f.prefix FROM deleted_files f
+WHERE f.id IN (SELECT c.key FROM (%s) c WHERE NOT c.held LIMIT $2)`, candidates), now, batch)
 	if err != nil {
 		return 0, err
 	}
@@ -68,11 +77,17 @@ FOR UPDATE OF f SKIP LOCKED`, candidates), now, batch)
 		return 0, err
 	}
 	ids := make([]uuid.UUID, 0, len(files))
+	var serr error
 	for _, f := range files {
-		if err := r.Blob.DeletePrefix(ctx, f.prefix); err != nil {
-			return 0, fmt.Errorf("delete stored files: %w", err)
+		if serr = r.Blob.DeletePrefix(ctx, f.prefix); serr != nil {
+			serr = fmt.Errorf("delete stored files: %w", serr)
+			break
 		}
 		ids = append(ids, f.id)
 	}
-	return dbgen.New(tx).DeleteDeletedFiles(ctx, ids)
+	n, err := dbgen.New(r.Pool).DeleteDeletedFiles(context.WithoutCancel(ctx), ids)
+	if serr != nil {
+		return n, serr
+	}
+	return n, err
 }

@@ -142,13 +142,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 	if err != nil {
 		return err
 	}
-	keep, ords := []uuid.UUID{}, []int32{}
+	keep, ords := kept(rc.reuse)
 	total := 0
-	for i, c := range rc.chunks {
+	for _, c := range rc.chunks {
 		total += c.Tokens
-		if rc.reuse[i] != uuid.Nil {
-			keep, ords = append(keep, rc.reuse[i]), append(ords, int32(i))
-		}
 	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
 		if current, err := lockDocumentVersion(ctx, tx, d.DocumentID, d.Version, StatusReady); err != nil {
@@ -210,25 +207,41 @@ func reorderChunks(ctx context.Context, tx pgx.Tx, docID, profileID uuid.UUID, k
 	if _, err := tx.Exec(ctx, "UPDATE chunks SET ordinal = -1 - ordinal, parent_first = NULL, parent_last = NULL WHERE document_id = $1 AND profile_id = $2", docID, profileID); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `UPDATE chunks c SET ordinal = u.o
-FROM unnest($1::uuid[], $2::int[]) AS u(id, o) WHERE c.id = u.id`, keep, ords)
-	return err
-}
-
-// insertFresh inserts the new chunks and their vectors.
-func insertFresh(ctx context.Context, tx pgx.Tx, p *Processor, sourceID, docID uuid.UUID, prof vectorstore.Profile, rc rechunked) error {
-	n := len(rc.fresh)
-	if n == 0 {
-		return nil
-	}
-	rows := newChunkRows(n)
-	for j, i := range rc.fresh {
-		rows.set(j, i, rc.chunks[i], sourceID, rc.vectors[j])
-	}
-	if err := rows.insert(ctx, tx, docID, sourceID, prof.ID); err != nil {
+	tag, err := tx.Exec(ctx, `UPDATE chunks c SET ordinal = u.o
+FROM unnest($1::uuid[], $2::int[]) AS u(id, o) WHERE c.id = u.id AND c.document_id = $3 AND c.profile_id = $4`, keep, ords, docID, profileID)
+	if err != nil {
 		return err
 	}
-	return p.Vectors.Upsert(ctx, tx, prof, rows.recs)
+	if int(tag.RowsAffected()) != len(keep) {
+		// A kept row went meanwhile: retried (and matched again) rather than written with a passage missing.
+		return fmt.Errorf("%w: %d of %d kept passages found", errChunksChanged, tag.RowsAffected(), len(keep))
+	}
+	return nil
+}
+
+// errChunksChanged: a document's passages changed between reading and writing them (a transient failure, retried).
+var errChunksChanged = errors.New("the document's passages changed while it was processed")
+
+// insertBatch is how many chunks (and vectors) one statement writes: a large document's rows go in several statements,
+// not one parameter list of every chunk and vector (#250).
+const insertBatch = 500
+
+// insertFresh inserts the new chunks and their vectors, insertBatch at a time.
+func insertFresh(ctx context.Context, tx pgx.Tx, p *Processor, sourceID, docID uuid.UUID, prof vectorstore.Profile, rc rechunked) error {
+	for start := 0; start < len(rc.fresh); start += insertBatch {
+		part := rc.fresh[start:min(start+insertBatch, len(rc.fresh))]
+		rows := newChunkRows(len(part))
+		for j, i := range part {
+			rows.set(j, i, rc.chunks[i], sourceID, rc.vectors[start+j])
+		}
+		if err := rows.insert(ctx, tx, docID, sourceID, prof.ID); err != nil {
+			return err
+		}
+		if err := p.Vectors.Upsert(ctx, tx, prof, rows.recs); err != nil {
+			return fmt.Errorf("insert vectors: %w", err)
+		}
+	}
+	return nil
 }
 
 // recordRechunkUsage records the embedding tokens a re-chunk spent.

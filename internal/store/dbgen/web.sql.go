@@ -1093,6 +1093,35 @@ func (q *Queries) ReviewDomainRequest(ctx context.Context, arg ReviewDomainReque
 	return i, err
 }
 
+const saveWebPageLinks = `-- name: SaveWebPageLinks :exec
+
+INSERT INTO web_page_links (document_id, sha256, links)
+SELECT d.id, d.sha256, $1::text[] FROM documents d
+WHERE d.source_id = $2 AND d.external_id = $3 AND d.sha256 = $4
+ON CONFLICT (document_id) DO UPDATE SET sha256 = EXCLUDED.sha256, links = EXCLUDED.links
+WHERE web_page_links.sha256 <> EXCLUDED.sha256
+`
+
+type SaveWebPageLinksParams struct {
+	Links      []string
+	SourceID   uuid.UUID
+	ExternalID string
+	Sha256     string
+}
+
+// ---- stored pages' links (#250) ----------------------------------------------------------------------------------
+// The links of a page as stored: written for the stored version (the document's digest) only, and only when they
+// are not already there.
+func (q *Queries) SaveWebPageLinks(ctx context.Context, arg SaveWebPageLinksParams) error {
+	_, err := q.db.Exec(ctx, saveWebPageLinks,
+		arg.Links,
+		arg.SourceID,
+		arg.ExternalID,
+		arg.Sha256,
+	)
+	return err
+}
+
 const seedAllowlist = `-- name: SeedAllowlist :one
 INSERT INTO crawl_allowlist (pattern, note) VALUES ($1, $2)
 ON CONFLICT (pattern) DO NOTHING
@@ -1160,6 +1189,22 @@ func (q *Queries) StartCrawl(ctx context.Context, id uuid.UUID) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const storedWebPageLinks = `-- name: StoredWebPageLinks :one
+SELECT links FROM web_page_links WHERE document_id = $1 AND sha256 = $2
+`
+
+type StoredWebPageLinksParams struct {
+	DocumentID uuid.UUID
+	Sha256     string
+}
+
+func (q *Queries) StoredWebPageLinks(ctx context.Context, arg StoredWebPageLinksParams) ([]string, error) {
+	row := q.db.QueryRow(ctx, storedWebPageLinks, arg.DocumentID, arg.Sha256)
+	var links []string
+	err := row.Scan(&links)
+	return links, err
 }
 
 const teamsWithWaitingCrawls = `-- name: TeamsWithWaitingCrawls :many

@@ -28,8 +28,8 @@ var errSuperseded = errors.New("document changed while processing")
 // keeps the old one's vectors: the document is processed again.
 var errProfileMoved = errors.New("the source's embedding profile changed while processing")
 
-// insertChunksSQL writes a document's chunks for one profile ($10) in one
-// statement. heading paths are joined with U+001F per row.
+// insertChunksSQL writes a batch of a document's chunks for one profile ($10)
+// (insertFresh). heading paths are joined with U+001F per row.
 const insertChunksSQL = `
 INSERT INTO chunks (id, document_id, source_id, profile_id, ordinal, content, heading_path, page_start, page_end, token_count, content_tsv)
 SELECT u.id, $1, $2, $10, u.ordinal, u.content,
@@ -83,10 +83,8 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		return err
 	}
 	n := len(res.chunks)
-	rows := newChunkRows(n)
 	total := 0
-	for i, c := range res.chunks {
-		rows.set(i, c.Ordinal, c, doc.SourceID, res.vectors[i])
+	for _, c := range res.chunks {
 		total += c.Tokens
 	}
 	warns := nonNil(res.parsed.Warnings)
@@ -110,17 +108,8 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		} else if !ok {
 			return errProfileMoved
 		}
-		if err := q.DeleteDocumentChunks(ctx, doc.ID); err != nil {
+		if err := p.writeChunks(ctx, tx, doc, prof, res); err != nil {
 			return err
-		}
-		if err := rows.insert(ctx, tx, doc.ID, doc.SourceID, prof.ID); err != nil {
-			return err
-		}
-		if err := setParents(ctx, tx, doc.ID, prof.ID, res.target.Profile.ParentTokens, res.chunks); err != nil {
-			return err
-		}
-		if err := p.Vectors.Upsert(ctx, tx, prof, rows.recs); err != nil {
-			return fmt.Errorf("insert vectors: %w", err)
 		}
 		if err := writeMark(ctx, tx, doc.SourceID, doc.ID, res.mark); err != nil {
 			return err
@@ -154,6 +143,29 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 	})
 }
 
+// writeChunks replaces the document's chunks with res's, in tx: the previous version's rows that are not kept go (with
+// the chunks of the source's other profiles), the kept ones move to their new places, and the new ones are inserted
+// with their vectors (reuse.go).
+func (p *Processor) writeChunks(ctx context.Context, tx pgx.Tx, doc dbgen.Document, prof vectorstore.Profile, res result) error {
+	keep, ords := kept(res.reuse)
+	if err := reorderChunks(ctx, tx, doc.ID, prof.ID, keep, ords); err != nil {
+		return err
+	}
+	q := dbgen.New(tx)
+	if _, err := q.DeleteOtherProfileChunks(ctx, dbgen.DeleteOtherProfileChunksParams{DocumentID: doc.ID, ProfileID: prof.ID}); err != nil {
+		return err
+	}
+	rc := rechunked{chunks: res.chunks, reuse: res.reuse, fresh: res.fresh, vectors: res.vectors}
+	if err := insertFresh(ctx, tx, p, doc.SourceID, doc.ID, prof, rc); err != nil {
+		return err
+	}
+	if err := setParents(ctx, tx, doc.ID, prof.ID, res.target.Profile.ParentTokens, res.chunks); err != nil {
+		return err
+	}
+	embed, _ := json.Marshal(embedRecordFor(res.target, res.title))
+	return q.SetDocumentEmbed(ctx, dbgen.SetDocumentEmbedParams{ID: doc.ID, Embed: embed})
+}
+
 // recordUsage writes the document's embedding tokens and its processing to
 // the usage ledger.
 func recordUsage(ctx context.Context, q *dbgen.Queries, doc dbgen.Document, res result, n int) error {
@@ -167,7 +179,7 @@ func recordUsage(ctx context.Context, q *dbgen.Queries, doc dbgen.Document, res 
 		tokens = res.usage.Counted
 	}
 	embedMeta, _ := json.Marshal(map[string]any{"countedTokens": res.usage.Counted, "requests": res.usage.Requests,
-		"reportedByProxy": res.usage.Reported > 0})
+		"reportedByProxy": res.usage.Reported > 0, "embeddedChunks": len(res.fresh)})
 	for _, u := range []dbgen.InsertUsageParams{
 		{Kind: "embed_tokens", Quantity: int64(tokens), ModelID: model, Metadata: embedMeta},
 		{Kind: "document_processed", Quantity: 1, Metadata: meta},

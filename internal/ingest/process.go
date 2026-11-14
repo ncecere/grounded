@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ncecere/grounded/internal/blob"
@@ -76,7 +77,10 @@ const (
 type result struct {
 	kind    parse.Kind
 	parsed  parse.Document // parsed.OCR: the pages read with OCR
+	title   string         // the title the chunks are embedded with
 	chunks  []chunk.Chunk
+	reuse   []uuid.UUID // per chunk: the existing row kept for it, or uuid.Nil
+	fresh   []int       // indexes of the chunks embedded now, in vectors order
 	plan    bpPlan
 	vectors [][]float32
 	target  catalog.EmbedTarget
@@ -99,24 +103,9 @@ func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, er
 		return res, err
 	}
 
-	data, err := p.read(ctx, doc.BlobKey)
-	if err != nil {
+	if res.parsed, res.kind, res.pii, err = p.parsedDocument(ctx, q, src, doc); err != nil {
 		return res, err
 	}
-	res.parsed, res.kind, err = p.parse(ctx, src, doc, data)
-	if err != nil {
-		return res, err
-	}
-	if res.pii, err = p.scanPII(ctx, q, src, doc, res.parsed); err != nil {
-		return res, err
-	}
-	if key := parsedKey(doc.BlobKey); key != "" {
-		md := res.parsed.Markdown
-		if perr := p.Blob.Put(ctx, key, strings.NewReader(md), int64(len(md)), "text/markdown; charset=utf-8"); perr != nil {
-			p.Log.WarnContext(ctx, "could not store parsed markdown", "document", doc.ID, "err", perr)
-		}
-	}
-
 	if res.plan, err = p.planBoilerplate(ctx, q, src, doc.ID, chunk.Blocks(res.parsed.Markdown)); err != nil {
 		return res, err
 	}
@@ -126,12 +115,17 @@ func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, er
 	if len(res.chunks) == 0 {
 		return res, parse.ErrEmpty
 	}
-	title := res.parsed.Title
-	if title == "" {
-		title = doc.Title
+	res.title = res.parsed.Title
+	if res.title == "" {
+		res.title = doc.Title
 	}
-	sc := ctxScope{src: src, docID: doc.ID, title: title, team: doc.TeamID, user: doc.UploadedBy, own: true}
-	texts, mark, err := p.contextualTexts(ctx, sc, doc.Version, res.target, res.chunks)
+	// Only the chunks whose embedded input changed are embedded: a page whose timestamp changed keeps every other
+	// passage's row and vector (#250).
+	if res.reuse, res.fresh, err = p.reusable(ctx, q, src.ID, doc, res.target, res.title, res.chunks); err != nil {
+		return res, err
+	}
+	sc := ctxScope{src: src, docID: doc.ID, title: res.title, team: doc.TeamID, user: doc.UploadedBy, own: true}
+	texts, mark, err := p.contextualTexts(ctx, sc, doc.Version, res.target, pick(res.chunks, res.fresh))
 	if err != nil {
 		return res, err
 	}
