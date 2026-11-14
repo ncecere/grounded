@@ -21,7 +21,7 @@
 // the ASSISTANT ANSWER block (classifier) or state.assistant_answer (System
 // One).
 
-package testutil
+package fakes
 
 import (
 	"encoding/json"

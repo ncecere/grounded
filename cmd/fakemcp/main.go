@@ -5,7 +5,7 @@
 //	go run ./cmd/fakemcp -header X-API-Key -value dev-key
 //
 // It serves Streamable HTTP statelessly with the tools of
-// testutil.FakeMCP: check_outage {service}, slow, huge, needs_input (an MRTR
+// fakes.FakeMCP: check_outage {service}, slow, huge, needs_input (an MRTR
 // input request) and broken (a tool error). Register it with DEV_AUTH on a
 // loopback APP_URL, which allows http and loopback addresses.
 package main
@@ -16,7 +16,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ncecere/grounded/internal/testutil"
+	"github.com/ncecere/grounded/internal/fakes"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 	header := flag.String("header", "", "require this request header (for example Authorization)")
 	value := flag.String("value", "", "the header's value")
 	flag.Parse()
-	f, h := testutil.NewFakeMCPHandler()
+	f, h := fakes.NewFakeMCPHandler()
 	if *header != "" {
 		f.RequireHeader(*header, *value)
 	}

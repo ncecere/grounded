@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
@@ -77,7 +78,7 @@ type matrixEnv struct {
 	// price is a price row of the chat model.
 	price string
 	// An MCP server (on a fake MCP server) and one of its tools.
-	mcpFake            *testutil.FakeMCP
+	mcpFake            *fakes.FakeMCP
 	mcpServer, mcpTool string
 	// oauthClient is a registered OAuth client (MCP and OAuth sign-in are on).
 	oauthClient    string

@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // Parent/child retrieval fixtures (#20, docs/parent-child-retrieval.md). The fake embedder is a bag of words, so a question that names a topic
@@ -177,7 +177,7 @@ func (env *parentEnv) ask(t *testing.T, q string) apitypes.ChatEventMessageEnd {
 // lastSources is the text of the latest chat request the model received that carried sources: every message of it, joined.
 func (env *parentEnv) lastSources(t *testing.T) string { return lastSources(t, env.proxy) }
 
-func lastSources(t *testing.T, p *testutil.FakeProxy) string {
+func lastSources(t *testing.T, p *fakes.FakeProxy) string {
 	t.Helper()
 	reqs := p.ChatRequests()
 	for i := len(reqs) - 1; i >= 0; i-- {

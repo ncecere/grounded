@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
@@ -107,7 +108,7 @@ func TestListAndCallAgainstTheFake(t *testing.T) {
 	}
 	// The result the model reads is cut, with a note.
 	res, err = s.call(ctx, uuid.Nil, 0, tgt, "huge", nil)
-	if err != nil || !res.Truncated || res.Size != testutil.FakeMCPHugeChars || !strings.Contains(res.Text, "[The result was cut") {
+	if err != nil || !res.Truncated || res.Size != fakes.FakeMCPHugeChars || !strings.Contains(res.Text, "[The result was cut") {
 		t.Fatalf("huge = size %d truncated %v, %v", res.Size, res.Truncated, err)
 	}
 	// An MRTR input request is refused.

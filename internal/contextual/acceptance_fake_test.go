@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
@@ -33,7 +34,7 @@ func newAcceptanceRun(t *testing.T, config acceptanceConfig, key, mode string) (
 		report: acceptanceReport{Mode: mode, Planned: planned}}, nil
 }
 
-func fakeAcceptanceConfig(t *testing.T) (*testutil.FakeProxy, acceptanceConfig) {
+func fakeAcceptanceConfig(t *testing.T) (*fakes.FakeProxy, acceptanceConfig) {
 	t.Helper()
 	proxy := testutil.NewFakeProxy(t)
 	limits := fakeAcceptanceLimits()

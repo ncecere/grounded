@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -72,7 +73,7 @@ func TestFakeProxyStreamingChat(t *testing.T) {
 	if final.Type != llm.EventDone || msg.StopReason != llm.StopReasonToolUse || len(calls) != 1 || calls[0].Name != "search_knowledge" {
 		t.Fatalf("turn 1 = %+v", msg)
 	}
-	if string(calls[0].Arguments) != `{"query":"How do I drop a class?"}` || deltas < 3 || thinking != len(testutil.FakeReasoning) {
+	if string(calls[0].Arguments) != `{"query":"How do I drop a class?"}` || deltas < 3 || thinking != len(fakes.FakeReasoning) {
 		t.Fatalf("args %s, %d arg deltas, %d thinking deltas", calls[0].Arguments, deltas, thinking)
 	}
 	if msg.Usage.Reasoning != 3 || msg.Usage.Input == 0 || msg.Usage.Total != msg.Usage.Input+msg.Usage.Output {
@@ -104,7 +105,7 @@ func TestFakeProxyStreamingChat(t *testing.T) {
 
 	// No refusal line → the fixed fallback; query rewrite → echo.
 	ans, _ = llm.Complete(ctx, prov, fakeModel(), llm.Context{SystemPrompt: "x", Messages: []llm.Message{question}}, llm.Options{})
-	if ans.Text() != testutil.FakeRefusal {
+	if ans.Text() != fakes.FakeRefusal {
 		t.Fatalf("fallback = %q", ans.Text())
 	}
 	ans, _ = llm.Complete(ctx, prov, fakeModel(), llm.Context{SystemPrompt: "Rewrite the question as a standalone search query.", Messages: []llm.Message{question}}, llm.Options{})

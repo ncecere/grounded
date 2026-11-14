@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -250,7 +251,7 @@ func (env *agentEnv) scalar(t *testing.T, sql string, args ...any) int64 {
 }
 
 // systemPrompts returns the system messages of the proxy's chat requests.
-func systemPrompts(p *testutil.FakeProxy) []string {
+func systemPrompts(p *fakes.FakeProxy) []string {
 	var out []string
 	for _, raw := range p.ChatRequests() {
 		var body struct {

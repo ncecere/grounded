@@ -13,13 +13,14 @@ import (
 
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
-func newBatcher(t *testing.T, maxInputs int, linger time.Duration) (*ingest.Batcher, *testutil.FakeProxy, catalog.EmbedTarget) {
+func newBatcher(t *testing.T, maxInputs int, linger time.Duration) (*ingest.Batcher, *fakes.FakeProxy, catalog.EmbedTarget) {
 	t.Helper()
 	counter, err := chunk.NewTokenCounter()
 	if err != nil {
@@ -60,7 +61,7 @@ func TestBatcherSharesRequestsAcrossDocuments(t *testing.T) {
 				return
 			}
 			for i, v := range vecs {
-				if !slices.Equal(v, testutil.FakeEmbedding(in[i], 8)) {
+				if !slices.Equal(v, fakes.FakeEmbedding(in[i], 8)) {
 					t.Errorf("doc %d input %d: wrong vector", d, i)
 				}
 			}
@@ -105,7 +106,7 @@ func TestBatcherSplitsLargeDocuments(t *testing.T) {
 		t.Fatalf("batches = %v, usage %+v", got, u)
 	}
 	for i := range in {
-		if !slices.Equal(vecs[i], testutil.FakeEmbedding(in[i], 8)) {
+		if !slices.Equal(vecs[i], fakes.FakeEmbedding(in[i], 8)) {
 			t.Fatalf("input %d: wrong vector", i)
 		}
 	}

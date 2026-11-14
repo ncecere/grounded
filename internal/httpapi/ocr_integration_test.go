@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -401,7 +402,7 @@ func TestOCRVisionBackend(t *testing.T) {
 	admin.get("/v1/admin/connections", &conns)
 	var model apitypes.Model
 	code, e := admin.call("POST", "/v1/admin/models", map[string]any{
-		"connectionId": conns[0].Id, "key": "vision", "upstreamModel": testutil.FakeVisionModel, "displayName": "Vision",
+		"connectionId": conns[0].Id, "key": "vision", "upstreamModel": fakes.FakeVisionModel, "displayName": "Vision",
 		"kind": "vision", "maxClassification": "open", "maxOutputTokens": 2000,
 	}, &model, nil)
 	mustCode(t, "vision model", code, e, 201, "")
@@ -411,7 +412,7 @@ func TestOCRVisionBackend(t *testing.T) {
 	var test apitypes.ModelTestResult
 	code, e = admin.call("POST", "/v1/admin/models/"+model.Id.String()+"/test", nil, &test, nil)
 	mustCode(t, "test model", code, e, 200, "")
-	if !test.Ok || test.Reply == nil || *test.Reply != testutil.FakeTranscription(1000, 240) {
+	if !test.Ok || test.Reply == nil || *test.Reply != fakes.FakeTranscription(1000, 240) {
 		t.Errorf("model test = %+v", test)
 	}
 	putParsing(t, admin, map[string]any{"ocrEnabled": true, "backend": "vision", "visionModelId": model.Id, "languages": "eng"})

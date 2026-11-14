@@ -11,14 +11,14 @@
 // the first line of the `<source id="1">` block plus " [1]", otherwise the
 // text of a system-prompt line `Refusal message: "<text>"`. The follow-up
 // suggestions call gets up to 3 questions, one per passage it lists. The
-// full rules are documented on testutil.FakeProxy.
+// full rules are documented on fakes.FakeProxy.
 //
 // Moderation providers (ADR-0019) are deterministic too: POST /v1/moderations,
 // POST /v1/systemone (model e.g. jev-latest), the guardrail chat models
 // fake-llama-guard, fake-granite-guardian and fake-shieldgemma (with
 // logprobs when asked), and the chat classifier prompt on any chat model.
 // A text containing UNSAFE-VIOLENCE (or "hurt someone") scores violence
-// 0.97, UNSAFE-PII personal_data, and so on (see testutil/fakemoderation.go);
+// 0.97, UNSAFE-PII personal_data, and so on (see internal/fakes/fakemoderation.go);
 // anything else scores 0.02.
 //
 // Embedding models: nomic-embed-text-v1.5 (768 dimensions),
@@ -44,7 +44,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ncecere/grounded/internal/testutil"
+	"github.com/ncecere/grounded/internal/fakes"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 	latency := flag.Duration("embed-latency", 0, "delay every embedding response")
 	flag.Parse()
 
-	p, h := testutil.NewFakeProxyHandler(*key)
+	p, h := fakes.NewFakeProxyHandler(*key)
 	p.AddChatModel("gpt-oss-120b")
 	p.AddEmbeddingModel("nomic-embed-text-v1.5", 768)
 	p.AddEmbeddingModel("sfr-embedding-mistral", 4096)

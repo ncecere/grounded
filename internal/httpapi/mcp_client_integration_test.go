@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -24,7 +25,7 @@ import (
 // mcpEnv is an agent environment with a fake MCP server registered.
 type mcpEnv struct {
 	*agentEnv
-	fake   *testutil.FakeMCP
+	fake   *fakes.FakeMCP
 	server apitypes.MCPServer
 	tools  map[string]apitypes.MCPServerTool // by name
 }
@@ -221,7 +222,7 @@ func TestMCPServerRegistry(t *testing.T) {
 
 // answerEnv publishes an agent with the given tools in tool mode and
 // scripts the fake gateway to call them.
-func (env *mcpEnv) toolAgent(t *testing.T, name string, tools []string, calls ...testutil.FakeToolCall) apitypes.Agent {
+func (env *mcpEnv) toolAgent(t *testing.T, name string, tools []string, calls ...fakes.FakeToolCall) apitypes.Agent {
 	t.Helper()
 	cfg := env.agentConfig(env.kb.Id.String())
 	cfg["retrievalMode"] = "tool"
@@ -238,7 +239,7 @@ func TestMCPToolInAnswer(t *testing.T) {
 	env := newMCPEnv(t)
 	env.approve(t, "check_outage")
 	ag := env.toolAgent(t, "Status helper", []string{"check_outage"},
-		testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
+		fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
 	// The version names its tools (its page, Compare and members' summary show them).
 	var v1 apitypes.AgentVersion
 	if code := env.member.get(env.base+"/agents/"+ag.Id.String()+"/versions/1", &v1); code != 200 || v1.Tools == nil || len(*v1.Tools) != 1 ||
@@ -381,8 +382,8 @@ func TestMCPToolBounds(t *testing.T) {
 	// request is refused; a tool error goes back to the model; a huge
 	// result is cut and cited as cut.
 	ag := env.toolAgent(t, "Bounded", []string{"slow", "needs_input", "broken", "huge"},
-		testutil.FakeToolCall{Name: "slow", Args: `{}`}, testutil.FakeToolCall{Name: "needs_input", Args: `{}`},
-		testutil.FakeToolCall{Name: "broken", Args: `{}`}, testutil.FakeToolCall{Name: "huge", Args: `{}`})
+		fakes.FakeToolCall{Name: "slow", Args: `{}`}, fakes.FakeToolCall{Name: "needs_input", Args: `{}`},
+		fakes.FakeToolCall{Name: "broken", Args: `{}`}, fakes.FakeToolCall{Name: "huge", Args: `{}`})
 	setTeamLimits(t, env.admin, env.team, map[string]any{"mcp_calls_per_answer": 4})
 	code, evs, errCode := env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Check everything"})
 	if code != 200 {
@@ -415,7 +416,7 @@ func TestMCPToolBounds(t *testing.T) {
 	// The calls-per-answer limit: one call, the second is refused before it is made.
 	setTeamLimits(t, env.admin, env.team, map[string]any{"mcp_calls_per_answer": 1})
 	ag = env.toolAgent(t, "Limited", []string{"check_outage"},
-		testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"wifi"}`})
+		fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`}, fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"wifi"}`})
 	before := len(env.fake.Calls())
 	refusedBefore := env.refusedCalls(t)
 	code, evs, errCode = env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Email and wifi?"})
@@ -508,7 +509,7 @@ func TestMCPToolCeilingAndBudget(t *testing.T) {
 	}
 
 	// A budget used up mid-answer stops tool calls: the answer admits, the call is refused.
-	ok := env.toolAgent(t, "Open helper", []string{"check_outage"}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
+	ok := env.toolAgent(t, "Open helper", []string{"check_outage"}, fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
 	saved := env.app.Svc.Limits.Budget
 	env.app.Svc.Limits.Budget = &budgetAfter{n: 1}
 	defer func() { env.app.Svc.Limits.Budget = saved }()

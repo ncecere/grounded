@@ -1,4 +1,4 @@
-package testutil
+package fakes
 
 import (
 	"bytes"
@@ -42,7 +42,7 @@ func reasoningTokens(usage map[string]any) float64 {
 }
 
 func TestFakeModelsReasonOnEveryReplyByDefault(t *testing.T) {
-	p := NewFakeProxy(t)
+	p := newTestProxy(t)
 	msg, usage := chatReply(t, p, map[string]any{"model": "test-chat", "reasoning_effort": "none"})
 	if msg["reasoning_content"] == nil || msg["reasoning_content"] == "" || reasoningTokens(usage) == 0 {
 		t.Errorf("an ordinary fake model ignores thinking off, like the models in issue #7: message %v usage %v", msg, usage)
@@ -50,7 +50,7 @@ func TestFakeModelsReasonOnEveryReplyByDefault(t *testing.T) {
 }
 
 func TestANoThinkModelHonoursReasoningEffortNone(t *testing.T) {
-	p := NewFakeProxy(t)
+	p := newTestProxy(t)
 	p.AddChatModel(FakeNoThinkPrefix + "-1")
 	msg, usage := chatReply(t, p, map[string]any{"model": FakeNoThinkPrefix + "-1", "reasoning_effort": "none"})
 	if msg["reasoning_content"] != nil && msg["reasoning_content"] != "" || reasoningTokens(usage) != 0 {
@@ -62,7 +62,7 @@ func TestANoThinkModelHonoursReasoningEffortNone(t *testing.T) {
 }
 
 func TestANoThinkModelHonoursTheTemplateSwitch(t *testing.T) {
-	p := NewFakeProxy(t)
+	p := newTestProxy(t)
 	p.AddChatModel(FakeNoThinkPrefix + "-2")
 	msg, usage := chatReply(t, p, map[string]any{"model": FakeNoThinkPrefix + "-2", "chat_template_kwargs": map[string]any{"enable_thinking": false}})
 	if msg["reasoning_content"] != nil && msg["reasoning_content"] != "" || reasoningTokens(usage) != 0 {
@@ -71,7 +71,7 @@ func TestANoThinkModelHonoursTheTemplateSwitch(t *testing.T) {
 }
 
 func TestANoThinkModelStillReasonsWhenNotAsked(t *testing.T) {
-	p := NewFakeProxy(t)
+	p := newTestProxy(t)
 	p.AddChatModel(FakeNoThinkPrefix + "-3")
 	for name, extra := range map[string]map[string]any{
 		"no setting":                {},
@@ -85,4 +85,10 @@ func TestANoThinkModelStillReasonsWhenNotAsked(t *testing.T) {
 			t.Errorf("%s: message %v usage %v, want reasoning", name, msg, usage)
 		}
 	}
+}
+
+func newTestProxy(t *testing.T) *FakeProxy {
+	p := StartFakeProxy()
+	t.Cleanup(p.Close)
+	return p
 }

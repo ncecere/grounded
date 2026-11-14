@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/testutil"
 )
 
 const permitQuestion = "Where do students buy a parking permit?"
@@ -50,7 +50,7 @@ func TestFollowUpSuggestions(t *testing.T) {
 	var ev apitypes.ChatEventSuggestions
 	evs.one(t, "suggestions", &ev)
 	if ev.MessageId != end.MessageId || len(ev.Suggestions) == 0 || len(ev.Suggestions) > 3 ||
-		ev.Suggestions[0] != testutil.FakeSuggestion("Parking") || end.CitationsPending != nil {
+		ev.Suggestions[0] != fakes.FakeSuggestion("Parking") || end.CitationsPending != nil {
 		t.Fatalf("suggestions = %+v (message_end %+v)", ev, end)
 	}
 	reqs := env.proxy.SuggestionRequests()
@@ -85,13 +85,13 @@ func TestFollowUpSuggestions(t *testing.T) {
 
 	// NONE: no event (the call was made).
 	before := suggestCalls(env)
-	_, evs, _ = env.member.stream(env.chatPath("help"), map[string]any{"message": permitQuestion + " " + testutil.FakeNoSuggestions})
+	_, evs, _ = env.member.stream(env.chatPath("help"), map[string]any{"message": permitQuestion + " " + fakes.FakeNoSuggestions})
 	if suggestionsOf(t, evs) != nil || suggestCalls(env) != before+1 {
 		t.Errorf("NONE: suggestions %v, calls %d", suggestionsOf(t, evs), suggestCalls(env)-before)
 	}
 
 	// No call after a refusal or an answer without citations.
-	for name, answer := range map[string]string{"refusal": testutil.FakeRefusal, "uncited": "Permits are sold by Transportation Services."} {
+	for name, answer := range map[string]string{"refusal": fakes.FakeRefusal, "uncited": "Permits are sold by Transportation Services."} {
 		env.proxy.SetAnswer(answer)
 		before := suggestCalls(env)
 		_, evs, _ = env.member.stream(env.chatPath("help"), map[string]any{"message": permitQuestion})

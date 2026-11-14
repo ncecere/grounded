@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -816,7 +817,7 @@ func TestEndToEndWithFakeProxy(t *testing.T) {
 			thinking++
 		}
 	}
-	if thinking != 2*len(testutil.FakeReasoning) {
+	if thinking != 2*len(fakes.FakeReasoning) {
 		t.Errorf("thinking deltas = %d", thinking)
 	}
 	if u := msgs[2].(llm.AssistantMessage).Usage; u.Input == 0 || u.Reasoning != 3 {

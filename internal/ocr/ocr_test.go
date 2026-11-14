@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/parse"
@@ -66,19 +67,19 @@ func TestTesseractClient(t *testing.T) {
 	}
 }
 
-func visionTarget(fp *testutil.FakeProxy, model string) catalog.ModerationTarget {
+func visionTarget(fp *fakes.FakeProxy, model string) catalog.ModerationTarget {
 	return catalog.ModerationTarget{Model: dbgen.Model{UpstreamModel: model, Compat: json.RawMessage(`{}`)},
 		Client: gateway.New(fp.BaseURL(), fp.APIKey, 10*time.Second)}
 }
 
 func TestVisionBackend(t *testing.T) {
 	fp := testutil.NewFakeProxy(t)
-	v := &vision{target: visionTarget(fp, testutil.FakeVisionModel), user: "team:x", background: true}
+	v := &vision{target: visionTarget(fp, fakes.FakeVisionModel), user: "team:x", background: true}
 	res, err := v.Recognize(context.Background(), SamplePNG, "eng")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Text != testutil.FakeTranscription(1000, 240) || res.TokensIn != 1000 || res.TokensOut == 0 || fp.VisionRequests() != 1 {
+	if res.Text != fakes.FakeTranscription(1000, 240) || res.TokensIn != 1000 || res.TokensOut == 0 || fp.VisionRequests() != 1 {
 		t.Errorf("%+v, requests %d", res, fp.VisionRequests())
 	}
 	// The prompt and the image went as content parts.

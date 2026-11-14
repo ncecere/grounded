@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // Cross-encoder reranking (docs/v0.4.0.md §3) through the API, with the
@@ -17,8 +17,8 @@ import (
 
 var rerankDocs = []upload{
 	{"fee-plain.txt", []byte("Transcript fee: an official transcript costs ten dollars per copy.\n")},
-	{"fee-top.txt", []byte(testutil.FakeRerankTop + " Order transcripts online from the registrar.\n")},
-	{"fee-bottom.txt", []byte(testutil.FakeRerankBottom + " transcript fee transcript fee transcript fee.\n")},
+	{"fee-top.txt", []byte(fakes.FakeRerankTop + " Order transcripts online from the registrar.\n")},
+	{"fee-bottom.txt", []byte(fakes.FakeRerankBottom + " transcript fee transcript fee transcript fee.\n")},
 }
 
 type rerankEnv struct {
@@ -30,7 +30,7 @@ func newRerankEnv(t *testing.T) *rerankEnv {
 	t.Helper()
 	env := &rerankEnv{agentEnv: newAgentEnv(t)}
 	code, e := env.admin.call("POST", "/v1/admin/models", map[string]any{
-		"connectionId": env.conn.Id, "key": "reranker", "upstreamModel": testutil.FakeRerankModel, "displayName": "Reranker",
+		"connectionId": env.conn.Id, "key": "reranker", "upstreamModel": fakes.FakeRerankModel, "displayName": "Reranker",
 		"kind": "rerank", "maxClassification": "sensitive", "maxInputTokens": 512,
 		"compat": map[string]any{"supportsRerankTopN": true, "rerankDocumentsField": "documents", "supportsToolChoice": true},
 	}, &env.reranker, nil)
@@ -178,7 +178,7 @@ func TestRerankRetrieve(t *testing.T) {
 	if res.Rerank == nil || res.Rerank.Status != "ok" || res.Rerank.Candidates < 3 || len(res.Hits) != 2 {
 		t.Fatalf("rerank = %+v, %d hits", res.Rerank, len(res.Hits))
 	}
-	if !strings.HasPrefix(res.Hits[0].Content, testutil.FakeRerankTop) || res.Hits[0].RerankScore == nil || *res.Hits[0].RerankScore != 1 ||
+	if !strings.HasPrefix(res.Hits[0].Content, fakes.FakeRerankTop) || res.Hits[0].RerankScore == nil || *res.Hits[0].RerankScore != 1 ||
 		!strings.HasPrefix(res.Hits[1].Content, "Transcript fee") || res.Hits[1].RerankScore == nil {
 		t.Errorf("hits = %+v", res.Hits)
 	}
@@ -238,7 +238,7 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	mustCode(t, "chat", code, e, 200, "")
 	var ret apitypes.ChatEventRetrieval
 	evs.one(t, "retrieval", &ret)
-	if len(ret.Hits) != 2 || !strings.HasPrefix(ret.Hits[0].Snippet, testutil.FakeRerankTop) {
+	if len(ret.Hits) != 2 || !strings.HasPrefix(ret.Hits[0].Snippet, fakes.FakeRerankTop) {
 		t.Fatalf("hits = %+v", ret.Hits)
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'rerank_requests' AND agent_id = $1`, ag.Id); n != 1 {

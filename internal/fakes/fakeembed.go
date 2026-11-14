@@ -1,15 +1,14 @@
-package testutil
+package fakes
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"strings"
 	"time"
-	"unicode"
+
+	"github.com/ncecere/grounded/internal/fakeembed"
 )
 
 // admitEmbedding applies injected failures and the rate limit. It returns
@@ -134,33 +133,6 @@ func truncateNormalize(v []float32, n int) []float32 {
 	return out
 }
 
-// FakeEmbedding returns the deterministic unit vector the fake proxy
-// produces for text: a hashed bag of words, so texts sharing words are close
-// (cosine similarity behaves like a crude semantic model) and equal texts are
-// identical. A tiny hash of the whole text avoids zero vectors.
-func FakeEmbedding(text string, dims int) []float32 {
-	v := make([]float64, dims)
-	for _, w := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
-		if len(w) < 3 {
-			continue // skip short function words
-		}
-		sum := sha256.Sum256([]byte(w))
-		v[binary.BigEndian.Uint32(sum[:4])%uint32(dims)] += 1
-	}
-	whole := sha256.Sum256([]byte(text))
-	for i := range v {
-		v[i] += float64(whole[i%len(whole)]) / 255 * 0.01
-	}
-	var norm float64
-	for _, x := range v {
-		norm += x * x
-	}
-	norm = math.Sqrt(norm)
-	out := make([]float32, dims)
-	for i := range v {
-		out[i] = float32(v[i] / norm)
-	}
-	return out
-}
+// FakeEmbedding returns the vector the fake proxy produces for text
+// (fakeembed.Vector, shared with the demo's gateway).
+func FakeEmbedding(text string, dims int) []float32 { return fakeembed.Vector(text, dims) }
