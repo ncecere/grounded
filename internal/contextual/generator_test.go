@@ -69,7 +69,10 @@ func TestCallsCarryOnlyTheSectionAndNoTools(t *testing.T) {
 	if len(calls) != 3 || res.Calls != 3 || res.State != StateContext {
 		t.Fatalf("calls = %d, result = %+v", len(calls), res)
 	}
-	for i, c := range calls {
+	// Sections after the first are generated concurrently (#250), so the calls arrive in any order: each must hold
+	// exactly one section's passages, and together they hold every section once.
+	seen := map[int]bool{}
+	for _, c := range calls {
 		if c.Tools {
 			t.Error("a context request offered tools")
 		}
@@ -84,11 +87,20 @@ func TestCallsCarryOnlyTheSectionAndNoTools(t *testing.T) {
 		}
 		// Each call's section is its own passages' text: the other sections of this document are in the start of the document at most.
 		section := c.User[strings.Index(c.User, "<untrusted_section>"):]
+		var held []int
 		for j := range chunks {
-			if has := strings.Contains(section, chunks[j].Content); has != (j == i) {
-				t.Errorf("call %d: section holds section %d = %v", i, j, has)
+			if strings.Contains(section, chunks[j].Content) {
+				held = append(held, j)
 			}
 		}
+		if len(held) != 1 || seen[held[0]] {
+			t.Errorf("a call's section holds sections %v (already seen: %v)", held, seen)
+			continue
+		}
+		seen[held[0]] = true
+	}
+	if len(seen) != len(chunks) {
+		t.Errorf("sections sent = %v, want all %d", seen, len(chunks))
 	}
 	for i, c := range res.Contexts {
 		if c == "" || !strings.Contains(c, "part") {
