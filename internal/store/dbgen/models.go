@@ -1371,6 +1371,16 @@ type SourceContextual struct {
 	UpdatedAt       time.Time
 }
 
+type SourceDocumentCount struct {
+	SourceID  uuid.UUID
+	Status    string
+	Slot      int16
+	Documents int64
+	Bytes     int64
+	Chunks    int64
+	PiiReview int64
+}
+
 type SourceEmbeddingSet struct {
 	SourceID  uuid.UUID
 	ProfileID uuid.UUID
@@ -1417,6 +1427,13 @@ type SourceSync struct {
 type SourceSyncRemoval struct {
 	SyncID     uuid.UUID
 	DocumentID uuid.UUID
+}
+
+type SourceTagCount struct {
+	SourceID  uuid.UUID
+	Tag       string
+	Slot      int16
+	Documents int64
 }
 
 type SourceTypeSetting struct {
@@ -1483,6 +1500,13 @@ type TeamBudget struct {
 	Revision    int64
 	UpdatedBy   uuid.NullUUID
 	UpdatedAt   time.Time
+}
+
+type TeamDocumentCount struct {
+	TeamID    uuid.UUID
+	Slot      int16
+	Documents int64
+	Bytes     int64
 }
 
 type TeamInvite struct {

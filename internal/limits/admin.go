@@ -319,7 +319,7 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 	if err != nil {
 		return TeamUsage{}, err
 	}
-	docs, err := s.q.TeamDocumentUsage(ctx, team)
+	docs, err := s.q.TeamDocumentUsage(ctx, teamID)
 	if err != nil {
 		return TeamUsage{}, err
 	}

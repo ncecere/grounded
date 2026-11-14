@@ -74,3 +74,4 @@ Once an ADR is accepted, leave its substance alone. To reverse or replace a deci
 | [0033](0033-team-configuration-as-code.md) | Team configuration as code | Accepted | 2026-10-31 |
 | [0034](0034-signed-daily-audit-exports.md) | Signed daily audit exports | Accepted (v0.9.0) | 2026-10-31 |
 | [0035](0035-source-type-registry-and-connectors.md) | A source type registry, and connectors built on it (changes 0008) | Accepted | 2026-11-11 |
+| [0036](0036-document-counters.md) | Document counters kept by database triggers | Accepted | 2026-11-13 |

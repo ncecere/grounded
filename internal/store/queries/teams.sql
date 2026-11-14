@@ -22,8 +22,8 @@ SELECT sqlc.embed(t),
        (SELECT count(*) FROM agents ag WHERE ag.team_id = t.id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = t.id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = t.id)::bigint AS kb_count,
-       (SELECT count(*) FROM documents d WHERE d.team_id = t.id)::bigint AS document_count,
-       (SELECT coalesce(sum(d.size_bytes), 0) FROM documents d WHERE d.team_id = t.id)::bigint AS storage_bytes
+       (SELECT coalesce(sum(c.documents), 0) FROM team_document_counts c WHERE c.team_id = t.id)::bigint AS document_count,
+       (SELECT coalesce(sum(c.bytes), 0) FROM team_document_counts c WHERE c.team_id = t.id)::bigint AS storage_bytes
 FROM teams t
 WHERE (sqlc.narg(search)::text IS NULL
        OR t.slug ILIKE '%' || sqlc.narg(search)::text || '%' ESCAPE '\'
@@ -41,8 +41,8 @@ SELECT (SELECT count(*) FROM team_members m WHERE m.team_id = @team_id)::bigint 
        (SELECT count(*) FROM agents ag WHERE ag.team_id = @team_id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = @team_id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = @team_id)::bigint AS kb_count,
-       (SELECT count(*) FROM documents d WHERE d.team_id = @team_id)::bigint AS document_count,
-       (SELECT coalesce(sum(d.size_bytes), 0) FROM documents d WHERE d.team_id = @team_id)::bigint AS storage_bytes;
+       (SELECT coalesce(sum(c.documents), 0) FROM team_document_counts c WHERE c.team_id = @team_id)::bigint AS document_count,
+       (SELECT coalesce(sum(c.bytes), 0) FROM team_document_counts c WHERE c.team_id = @team_id)::bigint AS storage_bytes;
 
 -- name: UpdateTeam :one
 UPDATE teams

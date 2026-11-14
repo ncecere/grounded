@@ -399,8 +399,8 @@ SELECT t.id, t.slug, t.name, t.description, t.max_classification, t.status, t.cr
        (SELECT count(*) FROM agents ag WHERE ag.team_id = t.id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = t.id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = t.id)::bigint AS kb_count,
-       (SELECT count(*) FROM documents d WHERE d.team_id = t.id)::bigint AS document_count,
-       (SELECT coalesce(sum(d.size_bytes), 0) FROM documents d WHERE d.team_id = t.id)::bigint AS storage_bytes
+       (SELECT coalesce(sum(c.documents), 0) FROM team_document_counts c WHERE c.team_id = t.id)::bigint AS document_count,
+       (SELECT coalesce(sum(c.bytes), 0) FROM team_document_counts c WHERE c.team_id = t.id)::bigint AS storage_bytes
 FROM teams t
 WHERE ($1::text IS NULL
        OR t.slug ILIKE '%' || $1::text || '%' ESCAPE '\'
@@ -572,8 +572,8 @@ SELECT (SELECT count(*) FROM team_members m WHERE m.team_id = $1)::bigint AS mem
        (SELECT count(*) FROM agents ag WHERE ag.team_id = $1 AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = $1)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = $1)::bigint AS kb_count,
-       (SELECT count(*) FROM documents d WHERE d.team_id = $1)::bigint AS document_count,
-       (SELECT coalesce(sum(d.size_bytes), 0) FROM documents d WHERE d.team_id = $1)::bigint AS storage_bytes
+       (SELECT coalesce(sum(c.documents), 0) FROM team_document_counts c WHERE c.team_id = $1)::bigint AS document_count,
+       (SELECT coalesce(sum(c.bytes), 0) FROM team_document_counts c WHERE c.team_id = $1)::bigint AS storage_bytes
 `
 
 type TeamCountsRow struct {

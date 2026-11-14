@@ -69,7 +69,7 @@ func (s *Service) CheckResources(ctx context.Context, q *dbgen.Queries, teamID u
 	var docs *dbgen.TeamDocumentUsageRow
 	docUsage := func() (dbgen.TeamDocumentUsageRow, error) {
 		if docs == nil {
-			u, err := q.TeamDocumentUsage(ctx, team)
+			u, err := q.TeamDocumentUsage(ctx, teamID)
 			if err != nil {
 				return u, err
 			}

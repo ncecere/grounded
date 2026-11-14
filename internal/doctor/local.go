@@ -101,8 +101,32 @@ func (r *runner) postgres(ctx context.Context) *pgxpool.Pool {
 	}
 	r.add(c)
 	r.pgvector(cctx, pool)
-	r.migrations(cctx, pool)
+	if st, ok := r.migrations(cctx, pool); ok && st.Current >= countersMigration {
+		r.documentCounters(cctx, pool)
+	}
 	return pool
+}
+
+// countersMigration added the document counters and the triggers that keep them (ADR-0036).
+const countersMigration = 72
+
+// documentCounters checks that the triggers keeping the document counters are there and enabled: without them the
+// usage limits, the source pages and the admin team pages read counters that stop following the documents.
+func (r *runner) documentCounters(ctx context.Context, pool *pgxpool.Pool) {
+	var n int
+	err := pool.QueryRow(ctx, `SELECT count(*) FROM pg_trigger WHERE tgrelid = 'documents'::regclass AND tgenabled <> 'D'
+		AND tgname IN ('documents_count_insert', 'documents_count_update', 'documents_count_delete')`).Scan(&n)
+	c := Check{Group: "postgres", Name: "document counters", Status: OK, Detail: "kept by the documents triggers"}
+	switch {
+	case err != nil:
+		c.Status, c.Detail = Fail, err.Error()
+	case n < 3:
+		c.Status = Fail
+		c.Detail = fmt.Sprintf("%d of the 3 documents_count_* triggers on documents are enabled", n)
+		c.Fix = "Enable them (ALTER TABLE documents ENABLE TRIGGER documents_count_insert, and the same for _update and _delete), " +
+			"then correct the counters: SELECT reconcile_document_counts(k) FROM unnest(ARRAY['teams', 'sources', 'tags']) AS k"
+	}
+	r.add(c)
 }
 
 func (r *runner) pgvector(ctx context.Context, pool *pgxpool.Pool) {
@@ -119,7 +143,8 @@ func (r *runner) pgvector(ctx context.Context, pool *pgxpool.Pool) {
 	}
 }
 
-func (r *runner) migrations(ctx context.Context, pool *pgxpool.Pool) {
+// migrations reports the schema version; ok is false when it could not be read.
+func (r *runner) migrations(ctx context.Context, pool *pgxpool.Pool) (st store.MigrationState, ok bool) {
 	st, err := store.Migrations(ctx, pool)
 	c := Check{Group: "postgres", Name: "migrations", Status: OK}
 	switch {
@@ -136,6 +161,7 @@ func (r *runner) migrations(ctx context.Context, pool *pgxpool.Pool) {
 		c.Detail = fmt.Sprintf("current (version %d)", st.Current)
 	}
 	r.add(c)
+	return st, err == nil
 }
 
 // valkey connects and times a few PINGs.
