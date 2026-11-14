@@ -132,7 +132,7 @@ INSERT INTO agent_tools (version_id, tool_id) VALUES (@version_id, @tool_id);
 
 -- name: MCPServerCallTarget :one
 -- A server's settings at call time (the ceiling is checked on every call).
-SELECT s.id, s.name, s.url, s.auth_header_name, s.auth_value_cipher, s.timeout_seconds, s.enabled, cl.rank::int AS max_rank
+SELECT s.id, s.name, s.url, s.auth_header_name, s.auth_value_cipher, s.timeout_seconds, s.enabled, s.revision, cl.rank::int AS max_rank
 FROM mcp_servers s
 JOIN classification_levels cl ON cl.key = s.max_classification
 WHERE s.id = @id;

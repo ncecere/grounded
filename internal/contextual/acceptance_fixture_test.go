@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // Explicit test-fixture options, not arbitrary provider JSON or model presets.
@@ -124,6 +125,7 @@ func configureAcceptanceFixture(ctx context.Context, f settlementFixture, config
 	if err := exec(`UPDATE cost_settings SET currency = $1`, config.Currency); err != nil {
 		return err
 	}
+	ttlcache.InvalidateAll() // the cost settings are cached briefly (internal/ttlcache)
 	if err := exec(`UPDATE model_prices SET price = $2::numeric WHERE model_id = $1 AND unit = 'chat_tokens_in'`, f.res.ModelID, config.Limits.InputPrice); err != nil {
 		return err
 	}

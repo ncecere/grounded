@@ -47,6 +47,13 @@ type Tool struct {
 	Parameters  json.RawMessage // JSON Schema (draft 2020-12) for the arguments object; nil = any object
 	Mode        Mode
 	Execute     ExecuteFunc
+	// Prefetch, when set, starts the part of a call that doesn't depend on the message's other calls (a search's
+	// fetching and judging), for every valid call to this tool in a message at once, before the calls execute as Mode
+	// says: so sequential calls don't wait for each other's slow part (#251). It gets the validated arguments and must
+	// return at once; Execute, called with the same toolCallID, takes its result. It must not emit events or change what
+	// the order of the calls decides; a call that never executes (the run was aborted) leaves its prefetch to end with
+	// ctx.
+	Prefetch func(ctx context.Context, toolCallID string, params json.RawMessage)
 }
 
 // CheckTool reports whether a tool would be accepted by Run: a name, an

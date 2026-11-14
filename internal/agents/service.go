@@ -66,6 +66,8 @@ type Service struct {
 	BreakGlass *breakglass.Service
 	// PublicEnabled reports the platform's public switch (nil: off).
 	PublicEnabled func(context.Context) (bool, error)
+	// TimeZone is the platform's time zone name (internal/costs, cached briefly; nil: read the settings row).
+	TimeZone func(context.Context) (string, error)
 	// Pepper derives the per-team keys of pseudonymous user IDs (nil: no
 	// pseudonyms are recorded).
 	Pepper []byte

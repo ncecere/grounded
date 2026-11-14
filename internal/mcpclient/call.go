@@ -122,7 +122,7 @@ func (s *Service) Call(ctx context.Context, req CallRequest) (out CallOutcome, e
 	t, err := s.target(dbgen.McpServer{ID: row.ID, Name: row.Name, URL: row.URL, AuthHeaderName: row.AuthHeaderName,
 		AuthValueCipher: row.AuthValueCipher, TimeoutSeconds: row.TimeoutSeconds})
 	if err == nil {
-		out.Result, err = s.call(ctx, t, req.Tool, req.Arguments)
+		out.Result, err = s.call(ctx, row.ID, row.Revision, t, req.Tool, req.Arguments)
 	}
 	out.Duration = time.Since(start)
 	out.Outcome = outcomeOf(out.Result, err)

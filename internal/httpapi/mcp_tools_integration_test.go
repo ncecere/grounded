@@ -245,3 +245,45 @@ func TestMCPClaims(t *testing.T) {
 		t.Errorf("claims = %q, text %q", got, toolText(res))
 	}
 }
+
+// A tools/call reads the caller's list again, only its tool's (#251): what was taken away after tools/list can't be
+// called, though the client still has the old list.
+func TestMCPRevokedBetweenListAndCall(t *testing.T) {
+	env := newAgentEnv(t)
+	url := env.app.URL
+	ag := env.publishAgent(t, "Parking helper", env.agentConfig(env.kb.Id.String()))
+	setMCP(t, env.admin, true)
+	key := createKey(t, env.owner, env.base, map[string]any{"name": "assistant", "scopes": []string{"mcp"}})
+	cs := mustConnect(t, url, key.Secret, "")
+	if names, _ := toolNames(t, cs); strings.Join(names, ",") != "ask,search" {
+		t.Fatalf("tools = %v", names)
+	}
+	refused := func(tool string, args map[string]any) bool {
+		r, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: tool, Arguments: args})
+		return err != nil || r.IsError
+	}
+	search := map[string]any{"knowledge_base": "student-help", "query": "parking permit"}
+	ask := map[string]any{"agent": ag.Slug, "question": "Where do students buy a parking permit?"}
+	if refused("search", search) || refused("ask", ask) {
+		t.Fatal("a listed tool was refused")
+	}
+
+	// The knowledge base's level stops direct retrieval: search refuses it, ask (an agent) still answers.
+	var levels []apitypes.Classification
+	env.admin.get("/v1/classifications", &levels)
+	code, e := env.admin.call("PATCH", "/v1/admin/classifications/open", map[string]any{"directRetrieve": false}, nil, ifMatch(levels[0].Revision))
+	mustCode(t, "no direct retrieve", code, e, 200, "")
+	if !refused("search", search) {
+		t.Error("search reached a knowledge base taken off the list after tools/list")
+	}
+	if refused("ask", ask) {
+		t.Error("ask was refused by the knowledge base's level")
+	}
+
+	// The agent is deleted: ask refuses it.
+	code, e = env.owner.call("DELETE", env.base+"/agents/"+ag.Id.String(), nil, nil, nil)
+	mustCode(t, "delete the agent", code, e, 200, "")
+	if !refused("ask", ask) {
+		t.Error("ask reached an agent deleted after tools/list")
+	}
+}

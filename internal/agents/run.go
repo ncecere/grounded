@@ -54,6 +54,14 @@ type run struct {
 	stepState   // the status step, and the waits that overlay it
 
 	mod *moderation.Plan // nil: nothing is moderated
+	// modPlanned: planModeration ran (its error is modErr), with the conversation (moderate.go).
+	modPlanned bool
+	modErr     error
+	// searches are the current model turn's prefetched searches (prefetch.go).
+	searches prefetched
+	// plans and turns are read with the other preflight steps (preflight.go).
+	plans preflightPlans
+	turns history
 	// audienceEffort is the audience's reasoning effort (its moderation
 	// policy's; "" for the model's), used when the agent sets none.
 	audienceEffort string
@@ -143,26 +151,18 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		return Answer{}, err
 	}
 	ru.target, ru.model = target, llm.ModelFromRow(target.Model)
-	release, err := ru.admit(ctx)
+	release, err := ru.preflight(ctx) // admission, the knowledge bases, the plans and the history, together (preflight.go)
 	if err != nil {
 		return Answer{}, err
 	}
 	defer release()
-	resolvedKBs, err := s.KBs.ResolveKBs(ctx, ru.cfg.KBIDs())
-	if err != nil {
-		return Answer{}, err
-	}
-	if err := ru.newRetriever(ctx, resolvedKBs); err != nil {
-		return Answer{}, err
-	}
 	ru.lookupCache(ctx) // the answer cache (cache.go); never for a router, which has no knowledge bases (cacheCandidate)
 	if !ru.cacheHitNow() {
-		ru.retr.planRerank(ctx, ru.cfg)
-		ru.planSystemOne(ctx)
+		ru.applyPlans()
 	}
 	ru.msgID = uuid.New()
 
-	if err := ru.prepareConversation(ctx); err != nil {
+	if err := ru.storeConversation(ctx); err != nil {
 		return Answer{}, err
 	}
 	ru.out.send(Event{"conversation", ConversationEvent{ConversationID: ru.convID(), UserMessageID: ru.userMsgPtr(), AgentVersion: ru.versionNum()}})

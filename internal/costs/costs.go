@@ -26,6 +26,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // Modes. A team's override may also be ModeInherit.
@@ -102,6 +103,8 @@ type Service struct {
 	mu     sync.Mutex
 	cache  map[uuid.UUID]cached
 	prices *priceCache
+	// settings is the platform's cost settings, cached briefly (current).
+	settings ttlcache.Value[Settings]
 }
 
 // New returns a Service.
@@ -122,6 +125,7 @@ func (s *Service) changed(ctx context.Context, team uuid.NullUUID) {
 	s.cache = map[uuid.UUID]cached{}
 	s.prices = nil
 	s.mu.Unlock()
+	s.settings.Invalidate()
 	if s.OnChange != nil {
 		s.OnChange(context.WithoutCancel(ctx), team)
 	}

@@ -15,6 +15,7 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"sort"
 	"strconv"
@@ -214,17 +215,26 @@ func (ru *run) cacheProfile() (uuid.UUID, bool) {
 	return slices.MinFunc(ids, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) }), true
 }
 
-// cacheKey reads the knowledge bases' content revisions and the settings
-// revision (the audience's moderation policy, the SystemOne and rerank
-// settings; the agent's own are in its version) in one query and builds
-// the key.
+// errSettingsUnread: the rerank or SystemOne settings couldn't be read, so the answer's key is unknown (a miss, and
+// nothing is saved).
+var errSettingsUnread = errors.New("the rerank or SystemOne settings are unavailable")
+
+// cacheKey reads the knowledge bases' content revisions and the audience's
+// moderation policy's revision in one query and builds the key with the
+// SystemOne and rerank settings' revisions (the agent's own settings are in
+// its version). Those two are the revisions of the settings this answer uses
+// (preflight.go), read with them from the brief settings cache: an answer is
+// never saved under a revision newer than the settings that produced it.
 func (ru *run) cacheKey(ctx context.Context, c *cacheRun) error {
+	if !ru.plans.rerankOK || ru.plans.s1Err != nil {
+		return errSettingsUnread
+	}
+	s1, rr := ru.plans.systemOne.Revision, ru.plans.rerankRev
 	var revs json.RawMessage
-	var mod, s1, rr int64
+	var mod int64
 	err := ru.s.Pool.QueryRow(ctx, `SELECT coalesce((SELECT jsonb_object_agg(id::text, content_revision) FROM knowledge_bases WHERE id = ANY($1)), '{}'),
-		coalesce((SELECT revision FROM moderation_policies WHERE audience = $2), 1),
-		coalesce((SELECT revision FROM systemone_settings), 0), coalesce((SELECT revision FROM rerank_settings), 0)`,
-		ru.cfg.KBIDs(), ru.grant).Scan(&revs, &mod, &s1, &rr)
+		coalesce((SELECT revision FROM moderation_policies WHERE audience = $2), 1)`,
+		ru.cfg.KBIDs(), ru.grant).Scan(&revs, &mod)
 	if err != nil {
 		return err
 	}

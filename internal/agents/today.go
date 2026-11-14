@@ -16,12 +16,20 @@ import (
 
 // platformZone reads the platform's time zone.
 func (s *Service) platformZone(ctx context.Context) *time.Location {
-	st, err := s.q.GetCostSettings(ctx)
+	name, err := s.zoneName(ctx)
 	if err != nil {
 		s.Log.WarnContext(ctx, "platform time zone unavailable; dates use UTC", "err", err)
 		return time.UTC
 	}
-	return zoneOf(st.TimeZone)
+	return zoneOf(name)
+}
+
+func (s *Service) zoneName(ctx context.Context) (string, error) {
+	if s.TimeZone != nil {
+		return s.TimeZone(ctx)
+	}
+	st, err := s.q.GetCostSettings(ctx)
+	return st.TimeZone, err
 }
 
 // zoneOf loads a stored zone name, UTC for one this build doesn't know.

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
@@ -90,7 +92,7 @@ func TestListAndCallAgainstTheFake(t *testing.T) {
 	if err != nil || len(tools) != 5 || tools[1].Name != "check_outage" || !strings.Contains(string(tools[1].InputSchema), `"service"`) {
 		t.Fatalf("tools = %+v, %v", tools, err)
 	}
-	res, err := s.call(ctx, tgt, "check_outage", json.RawMessage(`{"service":"email"}`))
+	res, err := s.call(ctx, uuid.Nil, 0, tgt, "check_outage", json.RawMessage(`{"service":"email"}`))
 	if err != nil || res.IsError || res.Text != "Service email: operating normally. No outages reported." {
 		t.Fatalf("check_outage = %+v, %v", res, err)
 	}
@@ -100,17 +102,17 @@ func TestListAndCallAgainstTheFake(t *testing.T) {
 	}
 
 	// A tool error is a result with isError, not a failure.
-	if res, err := s.call(ctx, tgt, "broken", nil); err != nil || !res.IsError || res.Text != "the backend is down" {
+	if res, err := s.call(ctx, uuid.Nil, 0, tgt, "broken", nil); err != nil || !res.IsError || res.Text != "the backend is down" {
 		t.Fatalf("broken = %+v, %v", res, err)
 	}
 	// The result the model reads is cut, with a note.
-	res, err = s.call(ctx, tgt, "huge", nil)
+	res, err = s.call(ctx, uuid.Nil, 0, tgt, "huge", nil)
 	if err != nil || !res.Truncated || res.Size != testutil.FakeMCPHugeChars || !strings.Contains(res.Text, "[The result was cut") {
 		t.Fatalf("huge = size %d truncated %v, %v", res.Size, res.Truncated, err)
 	}
 	// An MRTR input request is refused.
 	var e *Error
-	if _, err := s.call(ctx, tgt, "needs_input", nil); !errors.As(err, &e) || e.Class != ClassInputRequired {
+	if _, err := s.call(ctx, uuid.Nil, 0, tgt, "needs_input", nil); !errors.As(err, &e) || e.Class != ClassInputRequired {
 		t.Fatalf("needs_input = %v", err)
 	}
 	// The server's timeout bounds a call.
@@ -118,7 +120,7 @@ func TestListAndCallAgainstTheFake(t *testing.T) {
 	short := tgt
 	short.timeout = 300 * time.Millisecond
 	start := time.Now()
-	if _, err := s.call(ctx, short, "slow", nil); !errors.As(err, &e) || e.Class != ClassTimeout || time.Since(start) > 3*time.Second {
+	if _, err := s.call(ctx, uuid.Nil, 0, short, "slow", nil); !errors.As(err, &e) || e.Class != ClassTimeout || time.Since(start) > 3*time.Second {
 		t.Fatalf("slow = %v after %s", err, time.Since(start))
 	}
 }

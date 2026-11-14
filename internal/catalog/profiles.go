@@ -9,7 +9,6 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
-	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -87,7 +86,7 @@ func (s *Service) createProfile(ctx context.Context, a authz.Actor, in ProfileIn
 		return Profile{}, err
 	}
 	var out Profile
-	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err = s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		if err := q.LockModelConfig(ctx); err != nil {
 			return err
 		}
@@ -154,7 +153,7 @@ func (s *Service) UpdateProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 		return Profile{}, errAdminOnly
 	}
 	var out Profile
-	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err := s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		if err := q.LockModelConfig(ctx); err != nil {
 			return err
 		}
@@ -199,7 +198,7 @@ func (s *Service) DeleteProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 	if !a.IsPlatformAdmin() {
 		return errAdminOnly
 	}
-	return store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	return s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		if err := q.LockModelConfig(ctx); err != nil {
 			return err
 		}

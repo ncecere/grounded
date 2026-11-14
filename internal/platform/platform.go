@@ -16,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 var (
@@ -32,6 +33,8 @@ type Service struct {
 	Gate *MaintenanceGate
 	// mcp caches the MCP server's switch (mcp.go).
 	mcp mcpSwitch
+	// public caches the public switch (settings.go).
+	public ttlcache.Value[bool]
 }
 
 func NewService(pool *pgxpool.Pool) *Service {

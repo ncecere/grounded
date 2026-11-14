@@ -133,7 +133,7 @@ var ErrSystemOneUnusable = apperr.New(503, "systemone_unavailable", "The SystemO
 // enabled connection. The client always honours the connection pacer's
 // backoff (429, 529, 503 with Retry-After), even without a request limit.
 func (s *Service) SystemOneTarget(ctx context.Context, modelID uuid.UUID) (ModerationTarget, error) {
-	t, err := s.target(ctx, modelID, func(k string) bool { return k == KindSystemOne })
+	t, err := s.cachedTarget(ctx, modelID, func(k string) bool { return k == KindSystemOne })
 	if errors.Is(err, errUnusable) {
 		return t, ErrSystemOneUnusable
 	}
@@ -143,9 +143,20 @@ func (s *Service) SystemOneTarget(ctx context.Context, modelID uuid.UUID) (Moder
 var errUnusable = errors.New("unusable")
 
 // target loads an enabled model of an accepted kind on an enabled
-// connection, with a client.
+// connection, with a client. The rows are read every time (the moderation
+// provider, vision): cachedTarget is the rerank and SystemOne models'.
 func (s *Service) target(ctx context.Context, modelID uuid.UUID, kind func(string) bool) (ModerationTarget, error) {
-	m, err := s.q.GetModel(ctx, modelID)
+	return s.loadTarget(ctx, modelID, kind, s.q.GetModel, s.q.GetConnection)
+}
+
+// cachedTarget is target with the rows cached briefly (rowcache.go).
+func (s *Service) cachedTarget(ctx context.Context, modelID uuid.UUID, kind func(string) bool) (ModerationTarget, error) {
+	return s.loadTarget(ctx, modelID, kind, s.cachedModel, s.cachedConnection)
+}
+
+func (s *Service) loadTarget(ctx context.Context, modelID uuid.UUID, kind func(string) bool,
+	model func(context.Context, uuid.UUID) (dbgen.Model, error), connection func(context.Context, uuid.UUID) (dbgen.ModelConnection, error)) (ModerationTarget, error) {
+	m, err := model(ctx, modelID)
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
 		return ModerationTarget{}, errUnusable
 	} else if err != nil {
@@ -154,7 +165,7 @@ func (s *Service) target(ctx context.Context, modelID uuid.UUID, kind func(strin
 	if !kind(m.Kind) || !m.Enabled {
 		return ModerationTarget{}, errUnusable
 	}
-	conn, err := s.q.GetConnection(ctx, m.ConnectionID)
+	conn, err := connection(ctx, m.ConnectionID)
 	if err != nil {
 		return ModerationTarget{}, err
 	}

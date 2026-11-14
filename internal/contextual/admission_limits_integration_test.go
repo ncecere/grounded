@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 func TestPGConcurrentAdmissionCannotOverspendEitherWindow(t *testing.T) {
@@ -62,6 +64,7 @@ func TestPGAdmissionRequiresKnownPricesEvenWithCostModeOff(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), `UPDATE cost_settings SET mode = 'off'`); err != nil {
 		t.Fatal(err)
 	}
+	ttlcache.InvalidateAll() // the cost settings are cached briefly (internal/ttlcache)
 	if _, err := f.pool.Exec(t.Context(), `DELETE FROM model_prices WHERE model_id = $1 AND unit = 'chat_tokens_out'`, f.res.ModelID); err != nil {
 		t.Fatal(err)
 	}
@@ -92,6 +95,7 @@ func TestPGAdmissionDoesNotMixCurrenciesOrResetTheirWindow(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), `UPDATE cost_settings SET currency = 'EUR'`); err != nil {
 		t.Fatal(err)
 	}
+	ttlcache.InvalidateAll() // the cost settings are cached briefly (internal/ttlcache)
 	_, err = f.store.Reserve(t.Context(), f.res)
 	if !errors.As(err, &wait) || wait.Code != "contextual_currency" {
 		t.Fatalf("currency change reset the charged window: %v", err)

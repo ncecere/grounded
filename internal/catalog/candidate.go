@@ -71,6 +71,7 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 		return Profile{}, fmt.Errorf("preview of %s: %w", live.Key, err)
 	}
 	if ch.BoilerplateFuzzy != nil && *ch.BoilerplateFuzzy {
+		defer s.rows.invalidate()
 		if err := s.q.SetCandidateBoilerplateFuzzy(ctx, p.ID); err != nil {
 			return Profile{}, err
 		}

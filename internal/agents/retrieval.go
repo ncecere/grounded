@@ -96,8 +96,13 @@ func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string, ca
 // by relevance, dropped passages are left out and conflicting ones follow
 // (marked). sj is nil when nothing was judged.
 func (r *retriever) search(ctx context.Context, query string, maxResults int) ([]numberedHit, *searchJudging, error) {
+	return r.number(r.prepare(ctx, query, maxResults))
+}
+
+// prepare is a search up to its numbering: fetched, judged and expanded (judgeAndExpand).
+func (r *retriever) prepare(ctx context.Context, query string, maxResults int) judgedSearch {
 	ctx, span := r.startSearch(ctx)
-	return r.finishSearch(ctx, span, r.fetch(ctx, query), maxResults)
+	return r.judgeAndExpand(ctx, span, r.fetch(ctx, query), maxResults)
 }
 
 // startSearch starts a search's span. The query is never recorded: only
@@ -133,13 +138,25 @@ func (r *retriever) fetch(ctx context.Context, query string) candidates {
 
 // finishSearch judges the candidates (when judging is on), numbers them
 // and ends the search's span.
-func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candidates, maxResults int) (out []numberedHit, sj *searchJudging, err error) {
-	defer func() {
-		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(out)))
-		tracing.End(span, err)
-	}()
+func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candidates, maxResults int) ([]numberedHit, *searchJudging, error) {
+	return r.number(r.judgeAndExpand(ctx, span, c, maxResults))
+}
+
+// judgedSearch is a search fetched, judged and expanded, before its sources are numbered: everything that doesn't
+// depend on the answer's other searches, so the searches of one model turn can run it concurrently (prefetch.go).
+type judgedSearch struct {
+	span                trace.Span
+	err                 error
+	merged, conflicting []*fusedHit
+	sj                  *searchJudging
+	maxResults          int
+}
+
+// judgeAndExpand judges the candidates (when judging is on) and expands the
+// parents of those that can be numbered.
+func (r *retriever) judgeAndExpand(ctx context.Context, span trace.Span, c candidates, maxResults int) judgedSearch {
 	if c.err != nil {
-		return nil, nil, c.err
+		return judgedSearch{span: span, err: c.err}
 	}
 	limit := c.total
 	if c.reranked { // the reranked best few replace the results per search
@@ -148,32 +165,42 @@ func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candida
 	if maxResults <= 0 || maxResults > limit {
 		maxResults = limit
 	}
-	merged := c.merged
-	var conflicting []*fusedHit
-	if r.judge != nil && len(merged) > 0 {
-		var js []systemone.Judgment
-		merged, conflicting, js = r.judgeCandidates(ctx, span, c.query, merged, false)
-		sj = &searchJudging{judged: len(js), dropped: countDropped(js)}
+	js := judgedSearch{span: span, merged: c.merged, maxResults: maxResults}
+	if r.judge != nil && len(js.merged) > 0 {
+		var judgments []systemone.Judgment
+		js.merged, js.conflicting, judgments = r.judgeCandidates(ctx, span, c.query, js.merged, false)
+		js.sj = &searchJudging{judged: len(judgments), dropped: countDropped(judgments)}
 	}
-
 	// Only the hits that can be numbered are expanded (with room for the ones numbering skips as found again).
-	r.expandParents(ctx, span, merged[:min(len(merged), 3*maxResults)], conflicting[:min(len(conflicting), 3*min(maxConflicting, maxResults))])
+	r.expandParents(ctx, span, js.merged[:min(len(js.merged), 3*maxResults)], js.conflicting[:min(len(js.conflicting), 3*min(maxConflicting, maxResults))])
+	return js
+}
 
+// number gives a judged search's hits their source numbers, in the order the
+// searches are numbered (the model's call order), and ends its span.
+func (r *retriever) number(js judgedSearch) (out []numberedHit, sj *searchJudging, err error) {
+	defer func() {
+		js.span.SetAttributes(attribute.Int("grounded.retrieval.results", len(out)))
+		tracing.End(js.span, err)
+	}()
+	if js.err != nil {
+		return nil, nil, js.err
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.searches++
-	out = r.number(merged, maxResults)
-	for _, h := range r.number(conflicting, min(maxConflicting, maxResults)) {
+	out = r.numberHits(js.merged, js.maxResults)
+	for _, h := range r.numberHits(js.conflicting, min(maxConflicting, js.maxResults)) {
 		h.Conflicting = true
 		out = append(out, h)
 	}
-	if sj != nil {
-		sj.kept = len(out)
+	if js.sj != nil {
+		js.sj.kept = len(out)
 	}
 	if len(out) > 0 {
 		r.hitSearches++
 	}
-	return out, sj, nil
+	return out, js.sj, nil
 }
 
 // kbResult is one KB's search result.
@@ -259,12 +286,12 @@ func (r *retriever) fuse(results []kbResult) ([]*fusedHit, error) {
 	return merged, nil
 }
 
-// number gives the fused hits their source numbers (a chunk found again
+// numberHits gives the fused hits their source numbers (a chunk found again
 // keeps its number) until maxResults or the token budget is reached. A hit
 // with a parent (parents.go) is numbered with the parent's text when it
 // fits the remaining budget, and a parent already numbered keeps its number.
 // r.mu must be held.
-func (r *retriever) number(merged []*fusedHit, maxResults int) []numberedHit {
+func (r *retriever) numberHits(merged []*fusedHit, maxResults int) []numberedHit {
 	var out []numberedHit
 	seen := map[int]bool{}
 	again := func(prev *numberedHit) { // a source found again is paid for once, and listed once per search
@@ -364,14 +391,14 @@ type toolDetails struct {
 func (ru *run) searchTool() agentloop.Tool {
 	return agentloop.Tool{
 		Name: "search_knowledge", Label: "Search knowledge", Description: searchToolDescription,
-		Parameters: searchToolSchema, Mode: agentloop.Sequential,
-		Execute: func(ctx context.Context, _ string, params json.RawMessage, _ func(agentloop.ToolResult)) (agentloop.ToolResult, error) {
+		Parameters: searchToolSchema, Mode: agentloop.Sequential, Prefetch: ru.prefetchSearch,
+		Execute: func(ctx context.Context, id string, params json.RawMessage, _ func(agentloop.ToolResult)) (agentloop.ToolResult, error) {
 			var args searchArgs
 			if err := json.Unmarshal(params, &args); err != nil {
 				return agentloop.ToolResult{}, err
 			}
 			q := strings.TrimSpace(args.Query)
-			hits, sj, err := ru.retr.search(ctx, q, args.MaxResults)
+			hits, sj, err := ru.searchCall(ctx, id, q, args.MaxResults)
 			if err != nil {
 				ru.s.Log.Warn("search_knowledge failed", "err", err, "agent", ru.agent.ID)
 				return agentloop.ToolResult{Content: "The search failed. Try again later.", IsError: true,
@@ -386,10 +413,11 @@ func (ru *run) searchTool() agentloop.Tool {
 	}
 }
 
-// restrictedKnowledge reports whether any source of the retriever's knowledge bases has restricted documents.
-func (r *retriever) restrictedKnowledge(ctx context.Context) (bool, error) {
+// restrictedKnowledge reports whether any source of the knowledge bases has restricted documents (which keeps the
+// answer out of the answer cache).
+func restrictedKnowledge(ctx context.Context, svc *kbs.Service, list []kbs.KB) (bool, error) {
 	var ids []uuid.UUID
-	for _, kb := range r.kbs {
+	for _, kb := range list {
 		for _, src := range kb.Sources {
 			ids = append(ids, src.ID)
 		}
@@ -397,5 +425,5 @@ func (r *retriever) restrictedKnowledge(ctx context.Context) (bool, error) {
 	if len(ids) == 0 {
 		return false, nil
 	}
-	return r.svc.SourcesHaveRestricted(ctx, ids)
+	return svc.SourcesHaveRestricted(ctx, ids)
 }

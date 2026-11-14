@@ -67,6 +67,10 @@ type Service struct {
 	MaxResponseBytes int64
 	Log              *slog.Logger
 	lookup           resolver
+	// conns keeps a connection per server for agents' calls (pool.go).
+	conns pool
+	// protocolVersion asks servers for an older protocol revision (tests; "": the latest).
+	protocolVersion string
 }
 
 // New returns a Service.
@@ -109,11 +113,23 @@ func (s *session) close() {
 	s.done()
 }
 
-// open connects to a server: server/discover (2026-07-28), or the
-// initialize handshake for older servers.
+// open connects to a server with a connection of its own (Test server, Read
+// tools, the health job): server/discover (2026-07-28), or the initialize
+// handshake for older servers. Agents' calls use the pool's (pool.go).
 func (s *Service) open(ctx context.Context, t target) (*session, error) {
 	ex := &exchange{}
-	hc, done := s.httpClient(t, ex)
+	ctx = withExchange(ctx, ex)
+	hc, done := s.httpClient(t)
+	cs, err := s.connect(ctx, t, hc)
+	if err != nil {
+		done()
+		return nil, s.classify(ctx, ex, err)
+	}
+	return &session{cs: cs, ex: ex, done: done}, nil
+}
+
+// connect opens an MCP session over hc.
+func (s *Service) connect(ctx context.Context, t target, hc *http.Client) (*mcp.ClientSession, error) {
 	client := mcp.NewClient(&mcp.Implementation{Name: "grounded", Title: "Grounded", Version: buildinfo.Version}, &mcp.ClientOptions{
 		Logger: slog.New(slog.DiscardHandler),
 		// No roots, sampling or elicitation: an agent answering a person
@@ -126,12 +142,11 @@ func (s *Service) open(ctx context.Context, t target) (*session, error) {
 	client.AddSendingMiddleware(tracing.MCPClientMiddleware())
 	tr := &mcp.StreamableClientTransport{Endpoint: t.url, HTTPClient: hc, MaxRetries: -1, DisableStandaloneSSE: true,
 		MaxEventSize: int(s.maxResponse())}
-	cs, err := client.Connect(ctx, tr, nil)
-	if err != nil {
-		done()
-		return nil, s.classify(ctx, ex, err)
+	var opts *mcp.ClientSessionOptions
+	if s.protocolVersion != "" {
+		opts = &mcp.ClientSessionOptions{ProtocolVersion: s.protocolVersion}
 	}
-	return &session{cs: cs, ex: ex, done: done}, nil
+	return client.Connect(ctx, tr, opts)
 }
 
 // ListedTool is a tool as the server lists it.
@@ -194,24 +209,22 @@ type CallResult struct {
 	Truncated bool
 }
 
-// call runs tools/call and reads the result.
-func (s *Service) call(ctx context.Context, t target, tool string, args json.RawMessage) (CallResult, error) {
+// call runs tools/call on the server's kept connection (pool.go; id and
+// revision name it, uuid.Nil in tests) and reads the result.
+func (s *Service) call(ctx context.Context, id uuid.UUID, revision int64, t target, tool string, args json.RawMessage) (CallResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, t.timeout)
 	defer cancel()
-	sess, err := s.open(ctx, t)
-	if err != nil {
-		return CallResult{}, err
-	}
-	defer sess.close()
 	var arguments map[string]any
 	if len(args) > 0 {
 		if err := json.Unmarshal(args, &arguments); err != nil {
 			return CallResult{}, &Error{Class: ClassBadRequest, Message: "The arguments are not a JSON object."}
 		}
 	}
-	res, err := sess.cs.CallTool(ctx, &mcp.CallToolParams{Name: tool, Arguments: arguments})
+	ex := &exchange{}
+	ctx = withExchange(ctx, ex)
+	res, err := s.pooledCall(ctx, id, revision, t, &mcp.CallToolParams{Name: tool, Arguments: arguments})
 	if err != nil {
-		return CallResult{}, s.classify(ctx, sess.ex, err)
+		return CallResult{}, s.classify(ctx, ex, err)
 	}
 	if res.NeedsInput() || len(res.InputRequests) > 0 {
 		return CallResult{}, &Error{Class: ClassInputRequired,

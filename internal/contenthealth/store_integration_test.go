@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/testutil"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // The signals are collected minutes before they are stored, so what they name can be deleted in between. These tests delete it at
@@ -452,6 +453,7 @@ func TestReportMakesNoHTTPRequestsAndCallsNoModel(t *testing.T) {
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { modelHits.Add(1); http.Error(w, "no", http.StatusTeapot) }))
 	defer model.Close()
 	f.exec(`UPDATE model_connections SET base_url = $1`, model.URL+"/v1")
+	ttlcache.InvalidateAll() // the connection rows are cached briefly (internal/ttlcache)
 	web, up := f.source(f.teamA, "Site", "web"), f.source(f.teamA, "Files", "upload")
 	crawl := f.id(`INSERT INTO web_crawls (source_id, team_id, status, trigger, config, finished_at) VALUES ($1, $2, 'completed', 'schedule', '{}', now()) RETURNING id`, web, f.teamA)
 	f.exec(`INSERT INTO web_frontier (crawl_id, url, depth, status, reason, http_status) VALUES ($1, 'https://example.edu/gone', 0, 'failed', 'not_found', 404)`, crawl)

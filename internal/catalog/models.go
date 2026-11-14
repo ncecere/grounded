@@ -10,7 +10,6 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
-	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -62,7 +61,7 @@ func (s *Service) CreateModel(ctx context.Context, a authz.Actor, in ModelInput)
 		return dbgen.Model{}, apperr.Invalid("invalid_kind", "Kind must be chat, embedding, rerank, moderation, systemone or vision")
 	}
 	var out dbgen.Model
-	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err := s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		if _, err := q.GetConnection(ctx, in.ConnectionID); err != nil {
 			return notFound(err, apperr.Invalid("unknown_connection", "Unknown model connection"))
 		}
@@ -149,7 +148,7 @@ func (s *Service) UpdateModel(ctx context.Context, a authz.Actor, id uuid.UUID, 
 		return dbgen.Model{}, errAdminOnly
 	}
 	var out dbgen.Model
-	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err := s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := q.LockModel(ctx, id)
 		if err != nil {
 			return notFound(err, errNoModel)
@@ -198,7 +197,7 @@ func (s *Service) DeleteModel(ctx context.Context, a authz.Actor, id uuid.UUID) 
 	if !a.IsPlatformAdmin() {
 		return errAdminOnly
 	}
-	return store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	return s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := q.LockModel(ctx, id)
 		if err != nil {
 			return notFound(err, errNoModel)

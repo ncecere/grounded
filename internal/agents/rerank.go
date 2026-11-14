@@ -24,8 +24,12 @@ func (r *retriever) planRerank(ctx context.Context, c Config) {
 	if !c.Rerank || r.svc == nil {
 		return
 	}
-	p := r.svc.RerankPlan(ctx)
-	if p == nil {
+	r.useRerank(r.svc.RerankPlan(ctx), c)
+}
+
+// useRerank sets a plan read already (preflight.go; nil: none).
+func (r *retriever) useRerank(p *rerank.Plan, c Config) {
+	if !c.Rerank || r.svc == nil || p == nil {
 		return
 	}
 	r.rerank, r.topN, r.rerankOK = p, c.RerankTopN, true

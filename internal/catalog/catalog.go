@@ -40,6 +40,8 @@ type Service struct {
 	// no limits are enforced).
 	Pacer *ratelimit.Pacer
 	Log   *slog.Logger
+	// rows caches the answer path's model, connection and profile rows (rowcache.go).
+	rows rowCache
 }
 
 func NewService(pool *pgxpool.Pool, box *secrets.Box) *Service {
@@ -231,7 +233,7 @@ func (s *Service) CreateConnection(ctx context.Context, a authz.Actor, in Connec
 		return Connection{}, err
 	}
 	var out dbgen.ModelConnection
-	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err = s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		out, err = q.InsertConnection(ctx, dbgen.InsertConnectionParams{
 			ID: id, Name: in.Name, Description: in.Description, BaseURL: base,
 			ApiKeyCiphertext: ct, ApiKeyHint: hint, TimeoutSeconds: in.TimeoutSeconds, Enabled: in.Enabled,
@@ -254,7 +256,7 @@ func (s *Service) UpdateConnection(ctx context.Context, a authz.Actor, id uuid.U
 		return Connection{}, errAdminOnly
 	}
 	var out Connection
-	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	err := s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := q.LockConnection(ctx, id)
 		if err != nil {
 			return notFound(err, errNoConn)
@@ -345,7 +347,7 @@ func (s *Service) DeleteConnection(ctx context.Context, a authz.Actor, id uuid.U
 	if !a.IsPlatformAdmin() {
 		return errAdminOnly
 	}
-	return store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+	return s.inTx(ctx, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := q.LockConnection(ctx, id)
 		if err != nil {
 			return notFound(err, errNoConn)
