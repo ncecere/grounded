@@ -18,7 +18,7 @@ func resync(t *testing.T, env *webEnv, srcPath string) apitypes.Crawl {
 
 // An unchanged page's links are followed from the links kept with it, without reading the page back from object
 // storage: with every stored page gone from storage, a re-sync still sees every page and deletes none (#250). A page
-// stored without kept links (before migration 00072) is read back once and gets them.
+// stored without kept links (before migration 00074) is read back once and gets them.
 func TestUnchangedPagesFollowKeptLinks(t *testing.T) {
 	env := newWebEnv(t, true)
 	owner, site := env.owner, env.site

@@ -1,5 +1,5 @@
 // Following a page's links, and keeping them with its document so an unchanged page's links are followed without
-// reading the page back from object storage (#250, migration 00072). The links kept are every link of the page a crawl
+// reading the page back from object storage (#250, migration 00074). The links kept are every link of the page a crawl
 // could follow, whatever the scope: each run applies its own scope and depth.
 
 package web

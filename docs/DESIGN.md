@@ -197,7 +197,7 @@ yoink is **not a runtime dependency**. We port its crawl, scrape, batch and map 
 - robots.txt and per-origin rate limits are always respected.
 - **Public sites only in v1.** The config schema leaves room for an authenticated-crawl option later.
 - Crawl state (frontier, page status) is stored in our Postgres, and crawl steps run as River jobs.
-- **Unchanged pages.** A page that answers 304, or the same content, is not stored again, and its links are followed from the links kept with its stored version (`web_page_links`, migration 00072), without reading the page back from object storage (#250).
+- **Unchanged pages.** A page that answers 304, or the same content, is not stored again, and its links are followed from the links kept with its stored version (`web_page_links`, migration 00074), without reading the page back from object storage (#250).
 - **Deletions.** Pages missing from a completed full crawl are marked deleted (tombstoned). Non-HTML files found by the crawler (PDF, DOCX) go through our parser.
 - Per-team limits cover pages per day and concurrent crawls.
 
