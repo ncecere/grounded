@@ -4,6 +4,7 @@
  * the API, and then nothing is shown (the notice above says a preview is under way).
  */
 import { useQuery } from "@tanstack/react-query";
+import { indexPreviewKey } from "@/api/queries";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { Badge } from "@/components/ui/badge/badge";
 import { Stack } from "@/components/ui/layout/layout";
@@ -14,7 +15,6 @@ import p from "../../admin/profile-migrations/profile-migrations.module.css";
 
 type Item = NonNullable<Schemas["ProfileMigrationComparison"]["sets"][number]["items"]>[number];
 
-export const indexPreviewKey = (team: string, kbId: string) => ["teams", team, "kbs", kbId, "index-preview"];
 
 export function useIndexPreview(team: string, kbId: string, enabled: boolean) {
   return useQuery({

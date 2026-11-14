@@ -4,6 +4,9 @@ import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } fr
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { routeTree } from "../router";
+// The signed-in shell is a lazy chunk (lazy-shell.tsx) that the app starts loading with the entry: loaded with the test
+// file here, so the first test doesn't spend its time on transforming it.
+import "../components/layout/shell";
 import { withFeatures } from "./admin-features";
 import { builtInSourceTypes } from "./source-types";
 import { testQueryClient } from "./query-client";
@@ -122,7 +125,7 @@ export const shellRoutes = (role: Parameters<typeof meFor>[0] = "none", teamRole
 
 export function renderApp(path: string) {
   const qc = testQueryClient();
-  const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [path] }) });
+  const router = createRouter({ routeTree, context: { queryClient: qc }, history: createMemoryHistory({ initialEntries: [path] }) });
   const utils = render(
     <QueryClientProvider client={qc}>
       <RouterProvider router={router} />

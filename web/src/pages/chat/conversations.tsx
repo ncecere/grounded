@@ -6,7 +6,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Download, MessageSquareOff, MoreHorizontal, Pencil, Share2, SquarePen, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { memo, useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { conversationsKey } from "../../api/queries";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -172,8 +172,11 @@ type ListProps = {
   className?: string;
 };
 
-/** "New conversation" and the user's conversations with the agent, newest first, grouped by day (W11). */
-export function ConversationList({ card, conversations, selected, onNew, more, onPick, className }: ListProps) {
+/**
+ * "New conversation" and the user's conversations with the agent, newest first, grouped by day (W11). Memoised: the
+ * chat page re-renders for every streamed token, and its props stay the same objects meanwhile (#252).
+ */
+export const ConversationList = memo(function ConversationList({ card, conversations, selected, onNew, more, onPick, className }: ListProps) {
   const items = conversations.data?.items ?? [];
   return (
     <nav aria-label={`Conversations with ${card.name}`} className={className}>
@@ -221,4 +224,4 @@ export function ConversationList({ card, conversations, selected, onNew, more, o
       )}
     </nav>
   );
-}
+});

@@ -1,6 +1,6 @@
-import { Outlet, createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect, useRouterState } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRouteComponent, redirect, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, Suspense, lazy as reactLazy } from "react";
-import { AppLayout } from "./components/layout/shell";
+import { AppLayout, preloadShellFor } from "./components/layout/lazy-shell";
 import { NotFoundState } from "./components/not-found";
 import { publicRef } from "./pages/public/session";
 import {
@@ -31,12 +31,13 @@ import { useSessionUnavailable } from "./components/layout/session-unavailable";
 import { ColorModeSync } from "./components/layout/theme";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Toaster } from "@/components/ui/toast/toast";
+import { type RouterContext, loaders } from "./route-data";
 import styles from "./router.module.css";
 
 /*
  * Pages load on demand, one chunk per page module (a feature folder's
- * routes.ts groups its pages into one); the shell (router, session, layout
- * and UI library) stays in the main bundle.
+ * routes.ts groups its pages into one); the router, session and UI library
+ * stay in the main bundle, the signed-in layout in its own (lazy-shell.tsx).
  */
 const pages = {
   user: () => import("./pages/user"),
@@ -132,25 +133,18 @@ function Root() {
 
 // The session gate wraps the app (not the root), so routes outside it stay
 // possible. Route ids are unchanged ("/app/...").
-const rootRoute = createRootRoute({
+const shellLoading = <Loading className={styles.fullPage} label="Loading…" />;
+const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Root,
   notFoundComponent: () => (
     <SessionGate>
-      <AppLayout>
+      <AppLayout fallback={shellLoading}>
         <NotFoundState />
       </AppLayout>
     </SessionGate>
   ),
 });
-const appRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "app",
-  component: () => (
-    <SessionGate>
-      <AppLayout />
-    </SessionGate>
-  ),
-});
+const appRoute = createRoute({ getParentRoute: () => rootRoute, id: "app", component: () => <SessionGate><AppLayout fallback={shellLoading} /></SessionGate> });
 
 const homeRoute = createRoute({ getParentRoute: () => appRoute, path: "/", component: lazy(pages.user, "HomePage") });
 const agentDirectoryRoute = createRoute({ getParentRoute: () => appRoute, path: "agents", component: lazy(pages.directory, "AgentDirectoryPage") });
@@ -189,7 +183,7 @@ const notificationSettingsRoute = createRoute({ getParentRoute: () => appRoute, 
 const connectedAppsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/connected-apps", component: lazy(pages.oauth, "ConnectedAppsPage") });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/profile", component: lazy(pages.account, "ProfilePage") });
 const myKeysRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/api-keys", component: lazy(pages.account, "MyKeysPage") }); const teamRequestsRoute = createRoute({ getParentRoute: () => appRoute, path: "team-requests", component: lazy(pages.teamRequests, "TeamRequestsPage") });
-const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "teams/$team", component: lazy(pages.teamLayout, "TeamLayout") });
+const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "teams/$team", loader: ({ context, params }) => loaders.team(context.queryClient, params), component: lazy(pages.teamLayout, "TeamLayout") });
 type Page = ReturnType<typeof lazyRouteComponent>;
 
 /** The team overview's old tabs, now in Team settings (D1): /teams/x?tab=members → /teams/x/settings. */
@@ -230,8 +224,8 @@ const team = <P extends string>(path: P, component: Page) => createRoute({ getPa
 const teamList = <P extends string>(path: P, component: Page) =>
   createRoute({ getParentRoute: () => teamRoute, path, validateSearch: (s: Record<string, unknown>): Record<string, unknown> => s, component });
 /** A team page whose sections are tabs (?tab=). */
-const teamTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean }) =>
-  createRoute({ getParentRoute: () => teamRoute, path, validateSearch: tabSearch(tabs, opts), component });
+const teamTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean; load?: (typeof loaders)["source" | "kb"] }) =>
+  createRoute({ getParentRoute: () => teamRoute, path, validateSearch: tabSearch(tabs, opts), component, loader: ({ context, params }) => opts?.load?.(context.queryClient, params as never) });
 
 /**
  * The agent editor: ?tab= plus its tabs' own parameters (?test=, ?record=,
@@ -259,6 +253,7 @@ const agentEditorRoute = createRoute({
     const rest = q.toString();
     throw redirect({ href: `${location.pathname}${rest ? `?${rest}` : ""}`, replace: true });
   },
+  loader: ({ context, params }) => loaders.agent(context.queryClient, params),
   component: lazy(pages.agentEditor, "AgentEditorPage"),
 });
 
@@ -339,9 +334,9 @@ const appTree = appRoute.addChildren([
     teamRoute.addChildren([
       teamIndexRoute,
       teamTabs("sources", dataSourceTabs, lazy(pages.sources, "SourcesPage"), { passthrough: true }),
-      teamTabs("sources/$sourceId", sourceTabs, lazy(pages.sources, "SourceDetailPage"), { passthrough: true }),
+      teamTabs("sources/$sourceId", sourceTabs, lazy(pages.sources, "SourceDetailPage"), { passthrough: true, load: loaders.source }),
       team("kbs", lazy(pages.kbs, "KBsPage")),
-      teamTabs("kbs/$kbId", kbTabs, lazy(pages.kbs, "KBDetailPage"), { passthrough: true }),
+      teamTabs("kbs/$kbId", kbTabs, lazy(pages.kbs, "KBDetailPage"), { passthrough: true, load: loaders.kb }),
       teamList("evaluations", lazy(pages.evaluations, "TeamEvaluationsPage")), teamTabs("gaps", gapTabs, lazy(pages.gaps, "TeamGapsPage"), { passthrough: true }), team("content-health", lazy(pages.contentHealth, "TeamContentHealthPage")),
       teamTabs("evaluations/$setId", evaluationSetTabs, lazy(pages.evaluations, "EvaluationSetPage"), { passthrough: true }),
       team("agents", lazy(pages.agents, "AgentsPage")),
@@ -386,15 +381,20 @@ const oauthConsentRoute = createRoute({ getParentRoute: () => rootRoute, path: "
 const sharedRoute = createRoute({ getParentRoute: () => rootRoute, path: "shared/$token", component: lazy(pages.sharedConversation, "SharedPage") }); // outside the session gate: the page handles it
 export const routeTree = rootRoute.addChildren([createRoute({ getParentRoute: () => rootRoute, path: "accessibility", component: lazyRouteComponent(() => import("./pages/accessibility"), "AccessibilityPage") }), appTree, embedRoute, sharedRoute, oauthConsentRoute]);
 
-export const router = createRouter({
-  routeTree,
-  defaultPreload: "intent",
-  // Shown while a page's chunk loads (after a short delay, so fast loads don't flash).
-  defaultPendingComponent: () => <Loading className={styles.pending} label="Loading…" />,
-});
+/** The app's router; `queryClient` is the one the loaders fill (route-data.ts). */
+export function createAppRouter(context: RouterContext) {
+  preloadShellFor(globalThis.location?.pathname ?? "/");
+  return createRouter({
+    routeTree,
+    context,
+    defaultPreload: "intent",
+    // Shown while a page's chunk loads (after a short delay, so fast loads don't flash).
+    defaultPendingComponent: () => <Loading className={styles.pending} label="Loading…" />,
+  });
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof createAppRouter>;
   }
 }

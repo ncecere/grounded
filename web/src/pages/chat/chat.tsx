@@ -113,7 +113,10 @@ function AgentChat({ card, fetched }: { card: Card; fetched: { current: string |
   // All the conversations, a page at a time (Load more in the list): it used to stop at the newest 50 (#124).
   const pages = useInfiniteQuery(agentConversationsQuery(card.id));
   const items = useMemo(() => pages.data?.pages.flatMap((p) => p.items) ?? [], [pages.data]);
-  const conversations = { isLoading: pages.isLoading, error: pages.error, data: { items } };
+  // The same objects while the list is: a streamed token re-renders this page, not the two conversation lists (#252).
+  const conversations = useMemo(() => ({ isLoading: pages.isLoading, error: pages.error, data: { items } }), [pages.isLoading, pages.error, items]);
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = pages;
+  const more = useMemo(() => ({ hasNextPage, isFetchingNextPage, fetchNextPage }), [hasNextPage, isFetchingNextPage, fetchNextPage]);
   const disabledReason =
     card.status === "disabled_by_platform"
       ? "A platform admin turned this agent off. Your conversations are still here to read."
@@ -153,15 +156,29 @@ function AgentChat({ card, fetched }: { card: Card; fetched: { current: string |
   /** A link to a deleted or unknown conversation: say so once, and the next question starts a new one (US-01). */
   const gone = Boolean(selected) && isNotFound(detail.error);
   useConversationSync(gone ? undefined : selected, chat);
-  const { reset } = chat;
+  const { reset, adopt } = chat;
+  /** The conversation whose stored messages are on screen. */
+  const shown = useRef<string | undefined>(undefined);
   useEffect(() => {
     current.current = gone ? undefined : selected;
+    shown.current = undefined;
     if (selected && local.current.has(selected)) return;
     reset([]);
   }, [selected, gone, reset]);
+  const streaming = useRef(chat.streaming);
+  streaming.current = chat.streaming;
   useEffect(() => {
-    if (detail.data && detail.data.conversation.id === selected) reset(itemsFromConversation(detail.data.messages));
-  }, [detail.data, selected, reset]);
+    if (!detail.data || detail.data.conversation.id !== selected) return;
+    const stored = itemsFromConversation(detail.data.messages);
+    if (shown.current !== selected) {
+      shown.current = selected;
+      reset(stored);
+      return;
+    }
+    // A later copy (a background refetch) adds what another tab stored and never replaces the thread: reset would
+    // abort an answer that is streaming (#252). While one streams, useConversationSync catches up when it ends.
+    if (!streaming.current) adopt(stored);
+  }, [detail.data, selected, reset, adopt]);
 
   // A new chat starts in the message box (US2-04): once, when the page opens, on a device with a keyboard, and only
   // if nothing else has focus. The box's description reads the agent's welcome, so a screen reader hears where it is.
@@ -172,14 +189,15 @@ function AgentChat({ card, fetched }: { card: Card; fetched: { current: string |
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on opening the page only, not when a conversation starts
   }, []);
 
-  const newChat = () => {
+  const newChat = useCallback(() => {
     current.current = undefined;
     void navigate({ to: ".", search: {}, replace: false });
     reset([]);
     composer.current?.clear();
     setSheetOpen(false);
     setTimeout(() => inputRef.current?.focus(), 0);
-  };
+  }, [navigate, reset]);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
   const currentSummary = conversations.data?.items.find((x) => x.id === selected);
   // The same object while the card is: the answers are memoised on it (thread.tsx).
   const agentLook = useMemo(
@@ -187,7 +205,7 @@ function AgentChat({ card, fetched }: { card: Card; fetched: { current: string |
     [card],
   );
 
-  const list = { card, conversations, selected, onNew: newChat, more: pages };
+  const list = { card, conversations, selected, onNew: newChat, more };
 
   return (
     <div className={c.page}>
@@ -216,7 +234,7 @@ function AgentChat({ card, fetched }: { card: Card; fetched: { current: string |
             // Not the navigation's icon: on a phone both buttons show, one above the other (US-18).
             trigger={<IconButton icon={<MessagesSquare aria-hidden />} label="Show conversations" className={c.sheetToggle} />}
           >
-            <ConversationList {...list} onPick={() => setSheetOpen(false)} className={c.sheetList} />
+            <ConversationList {...list} onPick={closeSheet} className={c.sheetList} />
           </Sheet>
           <AgentAvatar agent={card} size="md" />
           <div className={c.headerText}>

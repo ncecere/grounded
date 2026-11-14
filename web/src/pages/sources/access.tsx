@@ -5,6 +5,7 @@
  * audited as source.access_update). Restricting needs a platform admin to have turned document permissions on.
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { accessGroupsKey } from "@/api/queries";
 import { useEffect, useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
@@ -49,7 +50,7 @@ export function SourceAccess({ source, team }: { source: DataSource; team: strin
   }, [source.revision, source.access?.restricted, source.access?.principals]);
 
   const known = useQuery({
-    queryKey: ["teams", team, "access-groups"],
+    queryKey: accessGroupsKey(team),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/access/groups", { params: { path: { team } } })),
     enabled: mode === "restricted",
     staleTime: 60_000,

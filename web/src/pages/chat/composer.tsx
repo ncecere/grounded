@@ -7,7 +7,7 @@
  * without touching what is being typed, clear the box for a new chat.
  */
 import { RotateCcw } from "lucide-react";
-import { type ReactNode, type Ref, type RefObject, useImperativeHandle, useState } from "react";
+import { type ReactNode, type Ref, type RefObject, useId, useImperativeHandle, useState } from "react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { ConversationAnnouncer } from "@/components/ui/conversation/conversation";
@@ -57,7 +57,9 @@ type Props = {
 export function Composer({ ref: handle, chat, agentName, inputRef: ref, composerId, disabledReason, errorExtra, maxLength = defaultMaxLength, welcomeId }: Props) {
   const [text, setText] = useState("");
   const over = charCount(text) > maxLength;
-  const describedBy = [over && "composer-count", welcomeId].filter(Boolean).join(" ") || undefined;
+  // Two chat panels can share a document (the Share tab's preview beside the editor's Try it): no fixed id.
+  const countId = useId();
+  const describedBy = [over && countId, welcomeId].filter(Boolean).join(" ") || undefined;
 
   const send = async (message: string) => {
     if (!message.trim() || over || chat.streaming || disabledReason) return;
@@ -128,7 +130,7 @@ export function Composer({ ref: handle, chat, agentName, inputRef: ref, composer
             <span className={cx(c.hint, !chat.streaming && a.keyHint)}>
               {chat.streaming ? "Answering… You can type your next question meanwhile." : "Enter to send, Shift+Enter for a new line."}
             </span>
-            <span id="composer-count" className={c.count} data-over={over ? "" : undefined}>
+            <span id={countId} className={c.count} data-over={over ? "" : undefined}>
               {charCount(text).toLocaleString()} / {maxLength.toLocaleString()}
               {over && " (too long)"}
             </span>

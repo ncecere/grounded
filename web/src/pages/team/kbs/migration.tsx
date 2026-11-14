@@ -6,6 +6,7 @@
  * to manage it, or to start one.
  */
 import { useQuery } from "@tanstack/react-query";
+import { kbMigrationKey } from "@/api/queries";
 import { Link } from "@tanstack/react-router";
 import { api, unwrap } from "@/api/client";
 import { Alert } from "@/components/ui/alert/alert";
@@ -17,7 +18,7 @@ import { IndexPreviewDetail } from "./index-preview";
 
 export function useKBMigration(team: string, kbId: string) {
   return useQuery({
-    queryKey: ["teams", team, "kbs", kbId, "profile-migration"],
+    queryKey: kbMigrationKey(team, kbId),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs/{kbId}/profile-migration", { params: { path: { team, kbId } } })),
     refetchInterval: (q) => (q.state.data?.status === "running" ? pollMs : false),
   });

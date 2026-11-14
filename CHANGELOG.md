@@ -17,6 +17,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **The API's source `type` is an open string** instead of the list `upload`, `web` (`DataSource.type`, `DataSourceCreate.type`, `SharedSource.type`, `Classification.allowedSourceTypes`). Clients that send or compare `upload` and `web` are unaffected; a generated client loses the two-value enum. Read `GET /v1/source-types` for the types an install has.
 - Migration 00070 replaces the lists of types in the database with a format check, so a new source type needs no migration. Schema 70; it changes no row and can run while the previous release serves.
 
+- **Public pages load less, and team pages start sooner** (#252). The widget, shared conversations, public agent pages and the accessibility statement no longer download the signed-in app's sidebar, command palette, search and notifications: the entry script is half the size (40.5 kB to 19.9 kB compressed), and a public agent's page downloads 330 kB compressed instead of 362 kB (a shared conversation 317 kB instead of 350 kB). Signed-in pages start loading that part at once, alongside the session. Pointing at a link to an agent, a data source or a knowledge base now starts loading its record together with the page's code, instead of after it.
+
+### Fixed
+
+- **A streaming answer could be cut off and replaced** when the open conversation was read again in the background (after the network came back, for example). The stored conversation now only fills the thread when it is opened; later copies add what other tabs stored without touching the answer being written (#252).
+- A knowledge base's index-migration notice and index preview, and a source's list of access groups, were not refreshed with the rest of a team's pages, for example after a configuration import (#252).
+- Two chat panels on one page (an agent's Share tab beside Try it) gave their character counters the same id (#252).
+- For contributors: the conversation list on the chat page is no longer drawn again for every streamed word, and the router takes the query client as its context (`createAppRouter`); tests that build the real route tree pass `context: { queryClient }` (#252).
+
 ### Security
 
 - **Go 1.26.11.** It fixes GO-2026-6859, a crash of the HTTP/1 server from a race on a request-body size limit's header, which `govulncheck` reports as reachable from Grounded's HTTP handlers. `govulncheck` reports no vulnerabilities again.
