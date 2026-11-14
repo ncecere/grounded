@@ -114,7 +114,7 @@ func (r *Runner) label(ctx context.Context, t labelTarget) error {
 	lctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	msg, err := llm.Complete(lctx, newProvider(target.Client), llm.ModelFromRow(target.Model),
-		llm.Context{SystemPrompt: LabelPrompt, Messages: []llm.Message{llm.UserMessage{Content: LabelRequest(questions)}}},
+		llm.Context{SystemPrompt: LabelPrompt, Messages: []llm.Message{llm.UserMessage{Content: labelRequest(questions)}}},
 		llm.Options{MaxTokens: labelMaxTokens, ReasoningEffort: "low", User: llm.UserTag(t.team, t.agent)})
 	if err != nil {
 		return err
@@ -138,8 +138,8 @@ func (r *Runner) label(ctx context.Context, t labelTarget) error {
 	})
 }
 
-// LabelRequest is the user message of a label request: the questions only.
-func LabelRequest(questions []string) string {
+// labelRequest is the user message of a label request: the questions only.
+func labelRequest(questions []string) string {
 	var b strings.Builder
 	b.WriteString("Questions:\n")
 	for _, q := range questions {

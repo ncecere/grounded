@@ -15,8 +15,10 @@ import (
 
 	"github.com/ncecere/grounded/internal/access"
 	"github.com/ncecere/grounded/internal/agents"
+	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
+	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/auditstream"
 	"github.com/ncecere/grounded/internal/auth"
@@ -56,6 +58,7 @@ import (
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/sourcesync"
+	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/teamconfig"
@@ -131,6 +134,10 @@ type Services struct {
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
+	// AuditLog, Analytics and Groups (SSO group mapping) serve the admin pages.
+	AuditLog  *audit.Log
+	Analytics *analytics.Service
+	Groups    *ssogroups.Service
 	// MCP registers MCP servers and calls their tools from agents
 	// (docs/mcp-client.md).
 	MCP *mcpclient.Service
@@ -161,8 +168,8 @@ func NewBlobStore(ctx context.Context, cfg config.Config) (blob.Store, error) {
 	return blob.NewFS(cfg.BlobDir)
 }
 
-// NewParser builds the parse router: built-in parsers, plus Tika when configured.
-func NewParser(cfg config.Config, log *slog.Logger) (*parse.Router, *parse.Builtin) {
+// newParser builds the parse router: built-in parsers, plus Tika when configured.
+func newParser(cfg config.Config, log *slog.Logger) (*parse.Router, *parse.Builtin) {
 	b := parse.NewBuiltin(parse.Limits{}, cfg.PDFWorkers)
 	r := &parse.Router{Builtin: b, Log: log, PreferTika: map[parse.Kind]bool{}}
 	if cfg.TikaURL != "" {
@@ -187,9 +194,9 @@ func NewFetcher(cfg config.Config, kvs *kv.Store) *crawl.Fetcher {
 	})
 }
 
-// SeedFirstRun applies the one-time first-run configuration (ADR-0018):
+// seedFirstRun applies the one-time first-run configuration (ADR-0018):
 // CRAWL_ALLOWLIST_SEED. Each step runs at most once per database.
-func SeedFirstRun(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
+func seedFirstRun(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
 	_, err := web.SeedAllowlist(ctx, pool, cfg.Crawl.AllowlistSeed, log)
 	return err
 }
@@ -211,6 +218,9 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		Catalog:      catalog.NewService(pool, box),
 		Blob:         store,
 		HealthChecks: healthcheck.New(pool),
+		Analytics:    analytics.New(pool),
+		AuditLog:     audit.NewLog(pool),
+		Groups:       ssogroups.New(pool, cfg.OIDC.GroupsClaim, cfg.OIDC.Enabled()),
 		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
 	wireContent(s, cfg, pool, jobsClient, kvs, store, log)
@@ -239,7 +249,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		s.OAuth.Log = log
 	}
 	s.Notify = notify.New(pool, jobsClient, cfg.SMTP.Enabled(), log)
-	s.Mail = NewMailSender(cfg)
+	s.Mail = newMailSender(cfg)
 	s.BreakGlass = breakglass.New(pool, s.Teams, s.Notify, log)
 	s.Sources.BreakGlass, s.Agents.BreakGlass = s.BreakGlass, s.BreakGlass
 	wireNotify(s)
@@ -249,7 +259,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	wireCosts(s, pool, jobsClient, log)
 	s.Retention = retention.New(pool, jobsClient, cfg.Retention, log)
 	s.RetentionMetrics = retention.NewMetrics()
-	s.Parser, s.builtin = NewParser(cfg, log)
+	s.Parser, s.builtin = newParser(cfg, log)
 	tika, _ := s.Parser.Tika.(*parse.Tika)
 	s.PII = &pii.Service{Pool: pool}
 	s.SCIM = &scim.Service{Pool: pool, Issuer: scimIssuer(cfg), MatchClaim: cfg.OIDC.SCIMMatchClaim}
@@ -466,28 +476,6 @@ func appHost(appURL string) string {
 		return u.Hostname()
 	}
 	return "grounded"
-}
-
-// exportCopyPeriodic copies the signed daily exports to the operator's bucket, when one is configured.
-func exportCopyPeriodic(copier *auditexport.Copier) []*river.PeriodicJob {
-	if copier == nil {
-		return nil
-	}
-	return []*river.PeriodicJob{auditexport.CopyPeriodic()}
-}
-
-// newExportCopier connects the external copy bucket (docs/signed-daily-audit-export.md, "External copy"); nil when none is set.
-func newExportCopier(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, store blob.Store, log *slog.Logger) (*auditexport.Copier, error) {
-	c := cfg.AuditExportCopy
-	if c.Bucket == "" {
-		return nil, nil
-	}
-	dest, err := blob.NewS3(ctx, blob.S3Config{Endpoint: c.Endpoint, Region: c.Region, Bucket: c.Bucket, AccessKey: c.AccessKey, SecretKey: c.SecretKey,
-		ForcePathStyle: c.ForcePathStyle, CAFile: c.CAFile, Prefix: c.Prefix})
-	if err != nil {
-		return nil, fmt.Errorf("audit export copy bucket: %w", err)
-	}
-	return &auditexport.Copier{Pool: pool, Store: store, Dest: dest, Log: log}, nil
 }
 
 // wireDocumentAccess gives search and the viewers the same document-permission resolver (docs/specs/document-acls/DESIGN.md).

@@ -63,7 +63,7 @@ func (in CaseInput) Normalize() (CaseInput, error) {
 	if out.Expected, err = in.Expected.Normalize(); err != nil {
 		return out, err
 	}
-	if out.MustMention, err = NormalizePhrases(in.MustMention); err != nil {
+	if out.MustMention, err = normalizePhrases(in.MustMention); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -90,9 +90,9 @@ func Parse(format, content string) ([]ImportRow, []ImportProblem, error) {
 	var probs []ImportProblem
 	switch format {
 	case FormatCSV:
-		rows, probs = ParseCSV(content)
+		rows, probs = parseCSV(content)
 	case FormatJSONL:
-		rows, probs = ParseJSONL(content)
+		rows, probs = parseJSONL(content)
 	default:
 		return nil, nil, apperr.Invalid("invalid_format", "The format must be csv or jsonl")
 	}
@@ -119,9 +119,9 @@ func problemText(err error) string {
 	return err.Error()
 }
 
-// ParseCSV reads question,expected,must_mention[,note] rows. A first row
+// parseCSV reads question,expected,must_mention[,note] rows. A first row
 // starting with "question" is a header.
-func ParseCSV(content string) ([]ImportRow, []ImportProblem) {
+func parseCSV(content string) ([]ImportRow, []ImportProblem) {
 	r := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
 	r.FieldsPerRecord = -1
 	r.TrimLeadingSpace = true
@@ -161,7 +161,7 @@ func ParseCSV(content string) ([]ImportRow, []ImportProblem) {
 			in.Expected = e
 		}
 		if len(rec) > 2 {
-			in.MustMention = SplitList(rec[2])
+			in.MustMention = splitList(rec[2])
 		}
 		if len(rec) > 3 {
 			in.Note = rec[3]
@@ -178,9 +178,9 @@ type urlQuestion struct {
 	URLs     []string `json:"urls"`
 }
 
-// ParseJSONL reads {"id","question","urls":[...]} lines; blank lines are
+// parseJSONL reads {"id","question","urls":[...]} lines; blank lines are
 // skipped. The id isn't kept.
-func ParseJSONL(content string) ([]ImportRow, []ImportProblem) {
+func parseJSONL(content string) ([]ImportRow, []ImportProblem) {
 	sc := bufio.NewScanner(strings.NewReader(content))
 	sc.Buffer(make([]byte, 64<<10), MaxImportBytes)
 	var rows []ImportRow
@@ -209,9 +209,9 @@ func addRow(rows []ImportRow, probs []ImportProblem, line int, in CaseInput) ([]
 	return append(rows, ImportRow{Line: line, CaseInput: n}), probs
 }
 
-// Dedupe drops rows repeating a question already in the set or earlier in
+// dedupe drops rows repeating a question already in the set or earlier in
 // the import (case and spacing aside), as problems.
-func Dedupe(rows []ImportRow, existing []string) ([]ImportRow, []ImportProblem) {
+func dedupe(rows []ImportRow, existing []string) ([]ImportRow, []ImportProblem) {
 	key := func(q string) string { return strings.ToLower(strings.Join(strings.Fields(q), " ")) }
 	seen := map[string]bool{}
 	for _, q := range existing {
@@ -239,8 +239,8 @@ type ExportRow struct {
 	Note        string
 }
 
-// WriteCSV writes questions in the import's CSV format, with a header.
-func WriteCSV(w io.Writer, rows []ExportRow) error {
+// writeCSV writes questions in the import's CSV format, with a header.
+func writeCSV(w io.Writer, rows []ExportRow) error {
 	cw := csv.NewWriter(w)
 	if err := cw.Write([]string{"question", "expected", "must_mention", "note"}); err != nil {
 		return err

@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
-	"github.com/ncecere/grounded/internal/store"
 )
 
 // analyticsRoutes: platform analytics (docs/phase4-publishing.md §9).
@@ -37,14 +35,11 @@ func dateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok b
 func (a *api) analyticsFilter(w http.ResponseWriter, r *http.Request) (analytics.Filter, bool) {
 	f := analytics.Filter{Audience: r.URL.Query().Get("audience")}
 	if slug := r.URL.Query().Get("team"); slug != "" {
-		t, err := a.q.GetTeamBySlug(r.Context(), slug)
-		if errors.Is(store.NotFound(err), store.ErrNotFound) {
-			httpx.Error(w, http.StatusNotFound, "team_not_found", "Team not found")
-			return f, false
-		} else if failed(w, r, err) {
+		acc, err := a.Teams.Get(r.Context(), a.actor(r), slug)
+		if failed(w, r, err) {
 			return f, false
 		}
-		f.Team = uuid.NullUUID{UUID: t.ID, Valid: true}
+		f.Team = uuid.NullUUID{UUID: acc.Team.ID, Valid: true}
 	}
 	return f, true
 }
@@ -58,7 +53,7 @@ func (a *api) adminGetAnalytics(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ov, err := a.analytics.Overview(r.Context(), a.actor(r), from, to, f)
+	ov, err := a.Analytics.Overview(r.Context(), a.actor(r), from, to, f)
 	if failed(w, r, err) {
 		return
 	}
@@ -114,7 +109,7 @@ func (a *api) adminExportAnalyticsDaily(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	from, to, days, err := a.analytics.Daily(r.Context(), a.actor(r), from, to, f)
+	from, to, days, err := a.Analytics.Daily(r.Context(), a.actor(r), from, to, f)
 	if failed(w, r, err) {
 		return
 	}
@@ -202,7 +197,7 @@ func (a *api) adminListModerationEvents(w http.ResponseWriter, r *http.Request) 
 		}
 		f.AgentID = &id
 	}
-	rows, more, err := a.analytics.ModerationEvents(r.Context(), a.actor(r), f)
+	rows, next, err := a.Analytics.ModerationEvents(r.Context(), a.actor(r), f)
 	if failed(w, r, err) {
 		return
 	}
@@ -214,9 +209,8 @@ func (a *api) adminListModerationEvents(w http.ResponseWriter, r *http.Request) 
 			Decision: apitypes.ModerationEventDecision(e.Decision), TopCategory: e.TopCategory, Score: e.Score,
 			Categories: e.Categories, Downgraded: e.Downgraded, Provider: e.Provider, Calibrated: e.Calibrated, LatencyMs: e.LatencyMs}
 	}
-	if more {
-		last := rows[len(rows)-1]
-		page.NextCursor = encodeCursor(strconv.FormatInt(last.ID, 10), last.Stage)
+	if next != nil {
+		page.NextCursor = encodeCursor(strconv.FormatInt(next.ID, 10), next.Stage)
 	}
 	httpx.JSON(w, http.StatusOK, page)
 }

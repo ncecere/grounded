@@ -8,7 +8,6 @@ import (
 	"maps"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/jobs"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -58,18 +58,7 @@ func canWrite(a authz.Actor) error {
 }
 
 // Person names who changed or asked for something (zero ID: nobody).
-type Person struct {
-	ID          uuid.UUID
-	DisplayName string
-	Email       string
-}
-
-func person(id uuid.NullUUID, name, email string) Person {
-	if !id.Valid || email == "" {
-		return Person{}
-	}
-	return Person{ID: id.UUID, DisplayName: name, Email: email}
-}
+type Person = people.Person
 
 // Level is a classification level's conversation retention (set on the
 // level, in Administration > Classifications).
@@ -106,7 +95,7 @@ func (s *Service) settings(ctx context.Context) (Settings, error) {
 	if err != nil {
 		return Settings{}, err
 	}
-	stored, err := ParseStored(row.Periods)
+	stored, err := parseStored(row.Periods)
 	if err != nil {
 		return Settings{}, err
 	}
@@ -115,8 +104,8 @@ func (s *Service) settings(ctx context.Context) (Settings, error) {
 		return Settings{}, err
 	}
 	return Settings{
-		Periods: Resolve(stored, s.Env), Levels: levels, Revision: row.Revision, UpdatedAt: row.UpdatedAt,
-		UpdatedBy: person(row.UpdatedBy, row.UpdatedByName, row.UpdatedByEmail),
+		Periods: resolve(stored, s.Env), Levels: levels, Revision: row.Revision, UpdatedAt: row.UpdatedAt,
+		UpdatedBy: people.From(row.UpdatedBy, row.UpdatedByName, row.UpdatedByEmail),
 	}, nil
 }
 
@@ -182,7 +171,7 @@ func (s *Service) SetPeriods(ctx context.Context, a authz.Actor, in []PeriodUpda
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
-		before, err := ParseStored(cur.Periods)
+		before, err := parseStored(cur.Periods)
 		if err != nil {
 			return err
 		}

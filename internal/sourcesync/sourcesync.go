@@ -125,8 +125,8 @@ func ValidSchedule(s string) bool {
 	return false
 }
 
-// NextSync is when a source on schedule syncs next after from (nil: only on request).
-func NextSync(schedule string, from time.Time) *time.Time {
+// nextSync is when a source on schedule syncs next after from (nil: only on request).
+func nextSync(schedule string, from time.Time) *time.Time {
 	var d time.Duration
 	switch schedule {
 	case ScheduleHourly:

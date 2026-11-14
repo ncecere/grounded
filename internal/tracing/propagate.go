@@ -30,11 +30,11 @@ func ExtractHeader(ctx context.Context, h http.Header) context.Context {
 	return otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(h))
 }
 
-// InjectMeta writes ctx's trace context into an MCP _meta map (or River job
+// injectMeta writes ctx's trace context into an MCP _meta map (or River job
 // metadata): traceparent and tracestate as strings. It returns meta
 // unchanged when there is nothing to write, and a new map (never nil) when
 // there is and meta was nil.
-func InjectMeta(ctx context.Context, meta map[string]any) map[string]any {
+func injectMeta(ctx context.Context, meta map[string]any) map[string]any {
 	c := propagation.MapCarrier{}
 	otel.GetTextMapPropagator().Inject(ctx, c)
 	if len(c) == 0 {
@@ -49,9 +49,9 @@ func InjectMeta(ctx context.Context, meta map[string]any) map[string]any {
 	return meta
 }
 
-// ExtractMeta returns ctx with the remote trace context from an MCP _meta
+// extractMeta returns ctx with the remote trace context from an MCP _meta
 // map, if it has one. Only string traceparent and tracestate values are read.
-func ExtractMeta(ctx context.Context, meta map[string]any) context.Context {
+func extractMeta(ctx context.Context, meta map[string]any) context.Context {
 	c := propagation.MapCarrier{}
 	for _, k := range []string{KeyTraceparent, KeyTracestate} {
 		if s, ok := meta[k].(string); ok && s != "" {
@@ -75,7 +75,7 @@ func InjectJSON(ctx context.Context, raw []byte) []byte {
 		return raw
 	}
 	before := len(m)
-	m = InjectMeta(ctx, m)
+	m = injectMeta(ctx, m)
 	if len(m) == before {
 		return raw
 	}
@@ -92,7 +92,7 @@ func ExtractJSON(ctx context.Context, raw []byte) context.Context {
 	if len(raw) == 0 || json.Unmarshal(raw, &m) != nil {
 		return ctx
 	}
-	return ExtractMeta(ctx, m)
+	return extractMeta(ctx, m)
 }
 
 // Transport wraps an HTTP RoundTripper with a client span per request

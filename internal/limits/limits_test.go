@@ -120,7 +120,7 @@ func TestValidation(t *testing.T) {
 		{Setting{Default: nil, Ceiling: n(20)}, false}, // unlimited above a ceiling
 		{Setting{Default: n(-1)}, false},
 	} {
-		if err := ValidateSetting(d, c.st); (err == nil) != c.ok {
+		if err := validateSetting(d, c.st); (err == nil) != c.ok {
 			t.Errorf("%v/%v: err = %v", deref(c.st.Default), deref(c.st.Ceiling), err)
 		}
 	}
@@ -138,11 +138,11 @@ func TestValidation(t *testing.T) {
 	// mcp_calls_per_answer has a built-in maximum of 25: no default, ceiling or team value above it.
 	mcp, _ := Lookup(MCPCallsPerAnswer)
 	for _, st := range []Setting{{Default: n(26)}, {Default: n(5), Ceiling: n(30)}} {
-		if err := ValidateSetting(mcp, st); err == nil || !strings.Contains(err.Error(), "at most 25") {
+		if err := validateSetting(mcp, st); err == nil || !strings.Contains(err.Error(), "at most 25") {
 			t.Errorf("%v/%v: err = %v", deref(st.Default), deref(st.Ceiling), err)
 		}
 	}
-	if err := ValidateSetting(mcp, Setting{Default: n(25), Ceiling: n(25)}); err != nil {
+	if err := validateSetting(mcp, Setting{Default: n(25), Ceiling: n(25)}); err != nil {
 		t.Error(err)
 	}
 	if err := ValidateOverride(mcp, Setting{}, n(26)); err == nil {

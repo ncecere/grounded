@@ -2,9 +2,11 @@ package app
 
 import "github.com/ncecere/grounded/internal/httpapi"
 
-// withHTTPServices adds domain services to the transport's existing infrastructure.
-// Keeping this mapping separate lets Run own lifecycle rather than field wiring.
-func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
+// HTTPDeps adds the domain services to the transport's infrastructure (the
+// config, pool, KV, metrics, health and log in d). It is the one mapping from
+// Services to httpapi.Deps: Run and the API test harness both use it, so a
+// new service is wired once (#253). The transport builds no service itself.
+func (s *Services) HTTPDeps(d httpapi.Deps) httpapi.Deps {
 	d.AuditExports = s.AuditExports
 	d.AuditStream = s.AuditStream
 	d.DocumentAccess = s.DocumentAccess
@@ -18,5 +20,6 @@ func (s *Services) withHTTPServices(d httpapi.Deps) httpapi.Deps {
 	d.Contextual = s.Contextual
 	d.TeamRequests, d.Webhooks, d.TeamConfig = s.TeamRequests, s.Webhooks, s.TeamConfig
 	d.Gaps, d.ContentHealth, d.AnswerCache = s.Gaps, s.ContentHealth, s.AnswerCache
+	d.Analytics, d.Groups, d.HealthChecks, d.AuditLog = s.Analytics, s.Groups, s.HealthChecks, s.AuditLog
 	return d
 }

@@ -33,8 +33,8 @@ func randomString(n int) string {
 	return string(b)
 }
 
-// NewKey returns a new publishable key and its id part.
-func NewKey() (key, id string) {
+// newKey returns a new publishable key and its id part.
+func newKey() (key, id string) {
 	id = randomString(keyIDLen)
 	return keyPrefix + id + "_" + randomString(keySecretLen), id
 }

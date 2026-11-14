@@ -234,7 +234,7 @@ Every stream below was also replayed through Grounded's own provider (`internal/
 
 ```sh
 set -a && . ./ai.env && set +a            # gateway, Spark and SystemOne endpoints (never printed)
-go build -o /tmp/sparkbench/sparkbench ./cmd/sparkbench
+go build -tags bench -o /tmp/sparkbench/sparkbench ./cmd/sparkbench
 S=/tmp/sparkbench/sparkbench
 $S embed-probe -n 512                      # dims, Matryoshka, max input, latency, throughput
 $S retrieval -set fiqa                     # needs grounded_bench (scale-10k.md) and /tmp/ragbench caches

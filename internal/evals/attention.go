@@ -65,7 +65,7 @@ func (s *Service) Problems(ctx context.Context, a authz.Actor, teamRef string, s
 	}
 	cases := make([]Case, len(rows))
 	for i, r := range rows {
-		cases[i] = DecodeCase(r)
+		cases[i] = decodeCase(r)
 	}
 	sources, err := s.setSources(ctx, set)
 	if err != nil {

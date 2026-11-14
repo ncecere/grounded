@@ -7,22 +7,22 @@ import (
 // cutSlack is what the cut mark and the line breaks around a bounded field can add beyond its bound, in tokens.
 const cutSlack = 8
 
-// PromptOverhead is what a call carries besides the document's text: the instructions and the empty frame of the user message.
-func PromptOverhead(c chunk.TokenCounter) int {
+// promptOverhead is what a call carries besides the document's text: the instructions and the empty frame of the user message.
+func promptOverhead(c chunk.TokenCounter) int {
 	return c.Count(SystemPrompt) + c.Count(UserMessage(Input{})) + 16 + 4*cutSlack
 }
 
-// CallInputMax is the ceiling enforced by fitInput on derived prompt fields,
+// callInputMax is the ceiling enforced by fitInput on derived prompt fields,
 // including escaped delimiters, joins, cut marks and local chat framing.
 // It is the most local input tokens one call of a document can carry, counted with c: the overhead, the title and heading path at their
 // bounds, the start of the document (at most its own length) and the unit's text (at most its own length). docTokens is the document's
 // passages' tokens added up; unitTokens the unit's.
-func CallInputMax(c chunk.TokenCounter, docTokens, unitTokens int) int {
-	return PromptOverhead(c) + TitleMaxTokens + PathMaxTokens + min(docTokens, ExcerptTokens+cutSlack) + min(unitTokens, UnitMaxTokens+cutSlack)
+func callInputMax(c chunk.TokenCounter, docTokens, unitTokens int) int {
+	return promptOverhead(c) + TitleMaxTokens + PathMaxTokens + min(docTokens, ExcerptTokens+cutSlack) + min(unitTokens, UnitMaxTokens+cutSlack)
 }
 
-// WithMargin adds the share for tokenizer differences: the gateway's model counts differently from the counter used here.
-func WithMargin(n int) int { return n + n*InputMarginPercent/100 }
+// withMargin adds the share for tokenizer differences: the gateway's model counts differently from the counter used here.
+func withMargin(n int) int { return n + n*InputMarginPercent/100 }
 
 // DocPlan is the work of one document.
 type DocPlan struct {
@@ -33,10 +33,10 @@ type DocPlan struct {
 	InputMax int64
 }
 
-// PlanDocument plans one document's calls from its passages' sizes and heading paths.
-func PlanDocument(items []Item, c chunk.TokenCounter) DocPlan {
+// planDocument plans one document's calls from its passages' sizes and heading paths.
+func planDocument(items []Item, c chunk.TokenCounter) DocPlan {
 	p := DocPlan{Passages: len(items)}
-	units := PlanUnits(items)
+	units := planUnits(items)
 	p.Units = len(units)
 	if p.Units > MaxUnitsPerDocument {
 		p.Over = true
@@ -47,7 +47,7 @@ func PlanDocument(items []Item, c chunk.TokenCounter) DocPlan {
 		doc += it.Tokens
 	}
 	for _, u := range units {
-		p.InputMax += int64(WithMargin(CallInputMax(c, doc, u.Tokens)))
+		p.InputMax += int64(withMargin(callInputMax(c, doc, u.Tokens)))
 	}
 	return p
 }
@@ -90,8 +90,8 @@ func (t *Totals) Merge(o Totals) {
 	t.EmbeddingTokensAdded += o.EmbeddingTokensAdded
 }
 
-// UnknownCallTokensMax is the most one attempt of unknown usage (a timeout, an error, a crash) can have cost in tokens: an input at the
+// unknownCallTokensMax is the most one attempt of unknown usage (a timeout, an error, a crash) can have cost in tokens: an input at the
 // per-call bound and a full requested output. It is local accounting headroom, not a provider billing guarantee.
-func UnknownCallTokensMax(c chunk.TokenCounter) (in, out int) {
-	return WithMargin(CallInputMax(c, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)), RequestMaxTokens
+func unknownCallTokensMax(c chunk.TokenCounter) (in, out int) {
+	return withMargin(callInputMax(c, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)), RequestMaxTokens
 }

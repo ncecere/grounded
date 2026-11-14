@@ -310,8 +310,8 @@ func normalizePath(escaped string) string {
 	return res
 }
 
-// IsTrackingParam reports whether a (decoded) query key is removed by Normalize.
-func IsTrackingParam(key string) bool {
+// isTrackingParam reports whether a (decoded) query key is removed by Normalize.
+func isTrackingParam(key string) bool {
 	k := strings.ToLower(key)
 	switch k {
 	case "gclid", "fbclid", "mc_cid", "mc_eid":
@@ -336,7 +336,7 @@ func normalizeQuery(raw string) string {
 		if err != nil {
 			key = k
 		}
-		if IsTrackingParam(key) {
+		if isTrackingParam(key) {
 			continue
 		}
 		params = append(params, param{key, part})

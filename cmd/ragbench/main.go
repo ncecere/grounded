@@ -1,3 +1,5 @@
+//go:build bench
+
 // Command ragbench measures ingest scale and retrieval quality of a running
 // Grounded against a BEIR dataset (for example FiQA-2018), through the public API.
 //

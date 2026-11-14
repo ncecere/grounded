@@ -1,7 +1,7 @@
 // Vision models of the fake gateway (docs/ocr.md §2): a chat completion
 // with an image part is "transcribed" deterministically.
 
-package testutil
+package fakes
 
 import (
 	"bytes"

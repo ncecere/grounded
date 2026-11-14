@@ -9,12 +9,12 @@ import (
 )
 
 func TestResolvePeriods(t *testing.T) {
-	stored, err := ParseStored(json.RawMessage(`{"access_log": 30, "audit_log": null}`))
+	stored, err := parseStored(json.RawMessage(`{"access_log": 30, "audit_log": null}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	env := config.Retention{Days: map[string]int{"audit_log": 400, "usage_events": 90}}
-	p := Resolve(stored, env)
+	p := resolve(stored, env)
 	if d, ok := p.Days(AccessLog); !ok || d != 30 || p[AccessLog].Source != SourcePlatform {
 		t.Errorf("access log = %+v", p[AccessLog])
 	}
@@ -32,7 +32,7 @@ func TestResolvePeriods(t *testing.T) {
 	if _, ok := p[Conversations]; ok {
 		t.Error("conversations have a platform period (they are per level)")
 	}
-	if _, err := ParseStored(json.RawMessage(`[1]`)); err == nil {
+	if _, err := parseStored(json.RawMessage(`[1]`)); err == nil {
 		t.Error("a non-object was accepted")
 	}
 }

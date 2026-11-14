@@ -6,7 +6,7 @@
 //
 // It creates its own database (E2E_DB_NAME, default grounded_e2e) on the
 // Postgres at E2E_DATABASE_URL, serves the fake model gateway
-// (internal/testutil.FakeProxy, as `make fake-proxy`) on E2E_FAKE_ADDR, and
+// (internal/fakes.FakeProxy, as `make fake-proxy`) on E2E_FAKE_ADDR, and
 // runs `grounded serve` (E2E_GROUNDED_BIN, default bin/grounded, built with
 // the UI) with development sign-in on a loopback APP_URL (E2E_PORT). Valkey
 // keys get a per-run prefix. On SIGINT or SIGTERM it stops Grounded, drops
@@ -40,7 +40,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/ncecere/grounded/internal/testutil"
+	"github.com/ncecere/grounded/internal/fakes"
 )
 
 // The public example keys from .env.example: Grounded accepts them only on a
@@ -245,7 +245,7 @@ func deleteKeys(rawURL, prefix string) error {
 // serveFake serves the fake OpenAI-compatible gateway. Its models are the
 // ones web/e2e/seed.setup.ts registers.
 func serveFake(addr string) (*http.Server, error) {
-	p, h := testutil.NewFakeProxyHandler(fakeKey)
+	p, h := fakes.NewFakeProxyHandler(fakeKey)
 	p.AddChatModel("e2e-chat")
 	p.AddEmbeddingModel("e2e-embed", 64)
 	ln, err := net.Listen("tcp", addr)

@@ -15,7 +15,7 @@ var asOf = time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 func TestStaleBoundaryAndScope(t *testing.T) {
 	f := newFixture(t)
 	src := f.source(f.teamA, "Handbook", "upload")
-	cutoff := StaleCutoff(asOf, 365)
+	cutoff := staleCutoff(asOf, 365)
 	exact := f.addDoc(f.teamA, src, doc{processed: at(cutoff)})
 	justOver := f.addDoc(f.teamA, src, doc{processed: at(cutoff.Add(-time.Second))})
 	justUnder := f.addDoc(f.teamA, src, doc{processed: at(cutoff.Add(time.Second))})

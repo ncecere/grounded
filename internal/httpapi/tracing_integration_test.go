@@ -10,6 +10,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/testutil"
 	"github.com/ncecere/grounded/internal/tracing/tracingtest"
 )
@@ -165,7 +166,7 @@ func TestTracing(t *testing.T) {
 		mustCode(t, "create MCP server", code, e, 201, "")
 		m.refresh(t)
 		m.approve(t, "check_outage")
-		tool := m.toolAgent(t, "Status helper", []string{"check_outage"}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
+		tool := m.toolAgent(t, "Status helper", []string{"check_outage"}, fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
 		if code, _, errCode := env.member.stream(env.chatPath(tool.Slug), map[string]any{"message": "Is email down for Zebulon?"}); code != 200 {
 			t.Fatalf("chat = %d %s", code, errCode)
 		}

@@ -109,8 +109,8 @@ type AgentSettings struct {
 	UpdatedAt     *time.Time
 }
 
-// DefaultAgentSettings are an agent's settings before anyone saved them.
-func DefaultAgentSettings() AgentSettings {
+// defaultAgentSettings are an agent's settings before anyone saved them.
+func defaultAgentSettings() AgentSettings {
 	return AgentSettings{ExpiryHours: DefaultExpiryHours, Revision: 1}
 }
 

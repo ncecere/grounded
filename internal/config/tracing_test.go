@@ -8,7 +8,7 @@ import (
 )
 
 func TestTracingOffByDefault(t *testing.T) {
-	c, err := LoadFrom("", env(nil))
+	c, err := loadFrom("", env(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,7 @@ func TestTracingOffByDefault(t *testing.T) {
 }
 
 func TestTracingSettings(t *testing.T) {
-	c, err := LoadFrom("", env(map[string]string{
+	c, err := loadFrom("", env(map[string]string{
 		"OTEL_EXPORTER_OTLP_ENDPOINT": "http://tempo.monitoring.svc:4318/",
 		"OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
 		"OTEL_EXPORTER_OTLP_HEADERS":  "Authorization=Bearer%20abc, X-Scope-OrgID=tenant-1",
@@ -38,7 +38,7 @@ func TestTracingSettings(t *testing.T) {
 		tr.Sampler != "parentbased_always_on" || tr.SamplerArg != 0.25 {
 		t.Errorf("tracing = %+v", tr)
 	}
-	if c, err := LoadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_PROTOCOL": "gRPC"})); err != nil || c.Tracing.Protocol != "grpc" {
+	if c, err := loadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_PROTOCOL": "gRPC"})); err != nil || c.Tracing.Protocol != "grpc" {
 		t.Errorf("grpc: %v %q", err, c.Tracing.Protocol)
 	}
 	if tr.Headers["Authorization"] != "Bearer abc" || tr.Headers["X-Scope-OrgID"] != "tenant-1" || len(tr.Headers) != 2 {
@@ -55,13 +55,13 @@ func TestTracingInvalidValues(t *testing.T) {
 		"OTEL_TRACES_SAMPLER_ARG":     "1.5",
 		"OTEL_SERVICE_NAME":           "two\nlines",
 	} {
-		_, err := LoadFrom("", env(map[string]string{key: value}))
+		_, err := loadFrom("", env(map[string]string{key: value}))
 		if err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("%s=%q: want an error naming it, got %v", key, value, err)
 		}
 	}
 	for _, v := range []string{"https://user:pw@collector.example.org", "http://collector.example.org:4318?x=1"} {
-		if _, err := LoadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_ENDPOINT": v})); err == nil {
+		if _, err := loadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_ENDPOINT": v})); err == nil {
 			t.Errorf("endpoint %q accepted", v)
 		}
 	}
@@ -69,7 +69,7 @@ func TestTracingInvalidValues(t *testing.T) {
 
 // A header value (usually a token) never appears in an error.
 func TestTracingHeaderErrorsHideValues(t *testing.T) {
-	_, err := LoadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer%zzsecret-token"}))
+	_, err := loadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer%zzsecret-token"}))
 	if err == nil || strings.Contains(err.Error(), "secret-token") {
 		t.Fatalf("err = %v", err)
 	}
@@ -82,7 +82,7 @@ func TestTracingHeadersFromFile(t *testing.T) {
 	if err := os.WriteFile(f, []byte("Authorization=Basic%20dXNlcjpwdw==\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c, err := LoadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_HEADERS_FILE": f}))
+	c, err := loadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_HEADERS_FILE": f}))
 	if err != nil || c.Tracing.Headers["Authorization"] != "Basic dXNlcjpwdw==" {
 		t.Fatalf("err = %v, headers %d", err, len(c.Tracing.Headers))
 	}

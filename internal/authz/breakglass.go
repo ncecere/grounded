@@ -130,7 +130,7 @@ func NormalizeBreakGlassRequest(a Actor, r BreakGlassRequest, p BreakGlassPolicy
 	}
 	if r.Duration < BreakGlassMinDuration || r.Duration > p.MaxDuration || r.Duration%time.Minute != 0 {
 		return r, apperr.Invalid("invalid_duration", fmt.Sprintf(
-			"The duration must be between 5 minutes and %s, in whole minutes", HumanDuration(p.MaxDuration)))
+			"The duration must be between 5 minutes and %s, in whole minutes", humanDuration(p.MaxDuration)))
 	}
 	return r, nil
 }
@@ -238,9 +238,9 @@ func BreakGlassEndStatus(a Actor, s BreakGlassSession, now time.Time) (string, e
 	return "", apperr.Conflict("break_glass_closed", "This break-glass session has already ended")
 }
 
-// HumanDuration renders a whole-minute duration: "1 hour", "90 minutes",
+// humanDuration renders a whole-minute duration: "1 hour", "90 minutes",
 // "8 hours".
-func HumanDuration(d time.Duration) string {
+func humanDuration(d time.Duration) string {
 	m := int(d / time.Minute)
 	switch {
 	case m%(24*60) == 0 && m >= 24*60:

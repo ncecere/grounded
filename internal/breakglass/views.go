@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -48,9 +49,9 @@ type sessionRow struct {
 func (s *Service) view(r sessionRow) Session {
 	out := Session{
 		BreakGlassSession: r.b, Team: Team{ID: r.b.TeamID, Slug: r.slug, Name: r.name},
-		RequestedBy: person(uuid.NullUUID{UUID: r.b.RequestedBy, Valid: true}, r.rName, r.rEmail),
-		DecidedBy:   person(r.b.DecidedBy, r.dName, r.dEmail),
-		EndedBy:     person(r.b.EndedBy, r.eName, r.eEmail),
+		RequestedBy: people.From(uuid.NullUUID{UUID: r.b.RequestedBy, Valid: true}, r.rName, r.rEmail),
+		DecidedBy:   people.From(r.b.DecidedBy, r.dName, r.dEmail),
+		EndedBy:     people.From(r.b.EndedBy, r.eName, r.eEmail),
 	}
 	out.Status = rule(r.b).EffectiveStatus(s.now())
 	return out
@@ -120,11 +121,10 @@ func (s *Service) List(ctx context.Context, a authz.Actor, f Filter, after *Curs
 	if err != nil {
 		return nil, nil, err
 	}
+	rows, last := store.Page(rows, limit)
 	var next *Cursor
-	if len(rows) > int(limit) {
-		rows = rows[:limit]
-		last := rows[len(rows)-1].BreakGlassSession
-		next = &Cursor{RequestedAt: last.RequestedAt, ID: last.ID}
+	if last != nil {
+		next = &Cursor{RequestedAt: last.BreakGlassSession.RequestedAt, ID: last.BreakGlassSession.ID}
 	}
 	out := make([]Session, len(rows))
 	for i, r := range rows {
@@ -208,11 +208,9 @@ func (s *Service) Reads(ctx context.Context, a authz.Actor, id uuid.UUID, before
 	if err != nil {
 		return nil, nil, err
 	}
-	var next *int64
-	if len(rows) > int(limit) {
-		rows = rows[:limit]
-		last := rows[len(rows)-1].ID
-		next = &last
+	rows, last := store.Page(rows, limit)
+	if last == nil {
+		return rows, nil, nil
 	}
-	return rows, next, nil
+	return rows, &last.ID, nil
 }

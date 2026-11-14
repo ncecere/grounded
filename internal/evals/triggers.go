@@ -137,7 +137,7 @@ func (s *Service) checkDrop(ctx context.Context, run dbgen.EvalRun, set dbgen.Ev
 	if err != nil {
 		return err
 	}
-	d := DetectDrop(DecodeRun(prev).Summary, sum, prevStatus, curStatus)
+	d := detectDrop(decodeRun(prev).Summary, sum, prevStatus, curStatus)
 	if !d.Notify() {
 		return nil
 	}

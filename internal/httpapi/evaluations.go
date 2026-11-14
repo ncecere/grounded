@@ -8,7 +8,6 @@ import (
 	"context"
 	"net/http"
 	"regexp"
-	"strconv"
 
 	"github.com/google/uuid"
 
@@ -54,34 +53,6 @@ func (a *api) evaluationsOn(ctx context.Context) bool {
 	}
 	on, err := a.Evaluations.Enabled(ctx)
 	return err == nil && on
-}
-
-// queryUUID reads an optional UUID query parameter.
-func queryUUID(w http.ResponseWriter, r *http.Request, name string) (*uuid.UUID, bool) {
-	raw := r.URL.Query().Get(name)
-	if raw == "" {
-		return nil, true
-	}
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid "+name)
-		return nil, false
-	}
-	return &id, true
-}
-
-// queryLimit reads ?limit= between 1 and max (0 when absent).
-func queryLimit(w http.ResponseWriter, r *http.Request, max int) (int, bool) {
-	raw := r.URL.Query().Get("limit")
-	if raw == "" {
-		return 0, true
-	}
-	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > max {
-		httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and "+strconv.Itoa(max))
-		return 0, false
-	}
-	return n, true
 }
 
 // ---- sets --------------------------------------------------------------------------
@@ -155,7 +126,7 @@ func (a *api) listEvaluationDocuments(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	limit, ok := queryLimit(w, r, 50)
+	limit, ok := queryLimit(w, r, 0, 50)
 	if !ok {
 		return
 	}
@@ -174,7 +145,7 @@ func (a *api) listEvaluationTargetDocuments(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	limit, ok := queryLimit(w, r, 50)
+	limit, ok := queryLimit(w, r, 0, 50)
 	if !ok {
 		return
 	}
@@ -357,7 +328,7 @@ func (a *api) listEvaluationRuns(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	limit, ok := queryLimit(w, r, 200)
+	limit, ok := queryLimit(w, r, 0, 200)
 	if !ok {
 		return
 	}

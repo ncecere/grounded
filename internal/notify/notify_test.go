@@ -63,7 +63,7 @@ func TestResolve(t *testing.T) {
 		{"mandatory default", required, nil, Channels{InApp: true, Email: true}},
 	}
 	for _, c := range cases {
-		if got := Resolve(c.def, c.saved); got != c.want {
+		if got := resolve(c.def, c.saved); got != c.want {
 			t.Errorf("%s: got %+v, want %+v", c.name, got, c.want)
 		}
 	}
@@ -157,7 +157,7 @@ func TestEventConstructors(t *testing.T) {
 
 func TestRender(t *testing.T) {
 	site := Site{Instance: "Campus RAG", AppURL: "https://rag.example.edu"}
-	r, err := Render(site, Content{
+	r, err := render(site, Content{
 		Type: DomainRequestDecided, Title: "Domain request approved: <b>x</b>", Link: "/teams/registrar/domains",
 		Body: "First paragraph.\n\nNote from the reviewer: <script>alert(1)</script>",
 	})
@@ -188,7 +188,7 @@ func TestRender(t *testing.T) {
 		t.Error("html is not escaped")
 	}
 	// Mandatory events say so instead of pointing at a setting; no link, no button.
-	m, _ := Render(site, Content{Type: ClassificationLowered, Title: "Lowered", Mandatory: true})
+	m, _ := render(site, Content{Type: ClassificationLowered, Title: "Lowered", Mandatory: true})
 	if !strings.Contains(m.Text, "can't be turned off") || strings.Contains(m.Text, "Open in") || strings.Contains(m.HTML, "Open in") {
 		t.Errorf("mandatory text = %s", m.Text)
 	}
@@ -214,7 +214,7 @@ func TestMessageBytes(t *testing.T) {
 func TestSMTPSenderDeliversToSink(t *testing.T) {
 	sink := testutil.NewSMTPSink(t)
 	s := &SMTPSender{Config: SMTPConfig{Host: sink.Host(), Port: sink.Port(), TLS: "none", Timeout: 5 * time.Second}}
-	r, _ := Render(Site{Instance: "Campus RAG", AppURL: "http://127.0.0.1:8080"}, Content{Type: TeamInvited, Title: "You're invited to join Registrar", Body: "Welcome.", Link: "/", Mandatory: true})
+	r, _ := render(Site{Instance: "Campus RAG", AppURL: "http://127.0.0.1:8080"}, Content{Type: TeamInvited, Title: "You're invited to join Registrar", Body: "Welcome.", Link: "/", Mandatory: true})
 	if err := s.Send(context.Background(), Message{From: "Campus RAG <rag@example.edu>", To: "new@example.edu", Rendered: r}); err != nil {
 		t.Fatal(err)
 	}

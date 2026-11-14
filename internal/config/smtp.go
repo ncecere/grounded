@@ -43,7 +43,7 @@ var smtpSettings = []setting{
 }
 
 // Kept in this file so the settings table in settings.go stays about the
-// core process; LoadFrom reads both.
+// core process; loadFrom reads both.
 func init() { settings = append(settings, smtpSettings...) }
 
 // validate checks the relay settings when email is enabled. Links in

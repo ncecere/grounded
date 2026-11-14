@@ -127,7 +127,7 @@ func agentSettings(ctx context.Context, q querier, agentID uuid.UUID, lock bool)
 	if lock {
 		sql += " FOR UPDATE"
 	}
-	st := DefaultAgentSettings()
+	st := defaultAgentSettings()
 	var at time.Time
 	err := q.QueryRow(ctx, sql, agentID).Scan(&st.Enabled, &st.NearIdentical, &st.ExpiryHours, &st.Revision, &at)
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -15,7 +16,7 @@ func TestChatModelTestChecksThinkingOff(t *testing.T) {
 	proxy := testutil.NewFakeProxy(t)
 	// a model is unique by connection and upstream ID, so each case has its own; the fake reasons on every reply except
 	// for the models whose ID starts with FakeNoThinkPrefix, and then only when asked to turn thinking off
-	for _, id := range []string{"ignores-switch", testutil.FakeNoThinkPrefix + "-effort", testutil.FakeNoThinkPrefix + "-template"} {
+	for _, id := range []string{"ignores-switch", fakes.FakeNoThinkPrefix + "-effort", fakes.FakeNoThinkPrefix + "-template"} {
 		proxy.AddChatModel(id)
 	}
 
@@ -58,7 +59,7 @@ func TestChatModelTestChecksThinkingOff(t *testing.T) {
 
 	// The model honours either switch.
 	for key, way := range map[string]string{"effort": "reasoning_effort_none", "template": "enable_thinking_false"} {
-		got := test(create(key, testutil.FakeNoThinkPrefix+"-"+key, map[string]any{"thinkingOff": way})).ThinkingOff
+		got := test(create(key, fakes.FakeNoThinkPrefix+"-"+key, map[string]any{"thinkingOff": way})).ThinkingOff
 		if got == nil || !got.Honoured || got.ReasoningTokens != nil || got.Error != nil || !strings.Contains(got.Message, "works") {
 			t.Errorf("%s (%s): %+v, want honoured", key, way, got)
 		}

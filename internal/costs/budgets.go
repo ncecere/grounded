@@ -179,7 +179,7 @@ type TeamBudgetInput struct {
 }
 
 func (in TeamBudgetInput) validate() (*big.Rat, error) {
-	if in.Mode != ModeInherit && !ValidMode(in.Mode) {
+	if in.Mode != ModeInherit && !validMode(in.Mode) {
 		return nil, apperr.Invalid("invalid_mode", "The mode must be inherit, off, track or enforce")
 	}
 	if in.WarnPercent != nil {
@@ -281,7 +281,7 @@ func (s *Service) GrantExtension(ctx context.Context, a authz.Actor, teamRef, am
 	if err != nil {
 		return TeamBudget{}, err
 	}
-	month := MonthOf(s.now(), st.Location())
+	month := monthOf(s.now(), st.Location())
 	teamID := acc.Team.ID
 	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		row, err := q.InsertBudgetExtension(ctx, dbgen.InsertBudgetExtensionParams{TeamID: teamID, Month: pgDate(month), Amount: Format(amt),
@@ -319,7 +319,7 @@ func (s *Service) RevokeExtension(ctx context.Context, a authz.Actor, teamRef st
 	if err != nil {
 		return TeamBudget{}, err
 	}
-	month := MonthOf(s.now(), st.Location())
+	month := monthOf(s.now(), st.Location())
 	teamID := acc.Team.ID
 	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		row, err := q.DeleteBudgetExtension(ctx, dbgen.DeleteBudgetExtensionParams{ID: extensionID, TeamID: teamID, Month: pgDate(month)})

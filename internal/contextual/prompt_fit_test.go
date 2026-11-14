@@ -26,17 +26,17 @@ func checkFittedDocument(t testing.TB, text, title string, n int) {
 	for i := range before {
 		before[i].HeadingPath = slices.Clone(before[i].HeadingPath)
 	}
-	plan := PlanDocument(ItemsOf(chunks), c)
+	plan := planDocument(itemsOf(chunks), c)
 	opening := Opening(chunks, c)
 	doc := n * c.Count(text)
 	var total int64
-	for _, u := range PlanUnits(ItemsOf(chunks)) {
-		raw := BuildInput(title, u.Path, opening, UnitText(chunks, u, c), c)
-		ceiling := CallInputMax(c, doc, u.Tokens)
+	for _, u := range planUnits(itemsOf(chunks)) {
+		raw := buildInput(title, u.Path, opening, unitText(chunks, u, c), c)
+		ceiling := callInputMax(c, doc, u.Tokens)
 		in := fitInput(raw, ceiling, c)
-		actual := WithMargin(promptTokens(in, c))
-		if actual > WithMargin(ceiling) {
-			t.Fatalf("reservation %d > ceiling %d", actual, WithMargin(ceiling))
+		actual := withMargin(promptTokens(in, c))
+		if actual > withMargin(ceiling) {
+			t.Fatalf("reservation %d > ceiling %d", actual, withMargin(ceiling))
 		}
 		if fitInput(raw, ceiling, c) != in || fitInput(in, ceiling, c) != in {
 			t.Fatal("fitting is not deterministic/idempotent")
@@ -91,7 +91,7 @@ func TestGeneratorReservationFitsMetadataPlan(t *testing.T) {
 	for i := range before {
 		before[i].HeadingPath = slices.Clone(before[i].HeadingPath)
 	}
-	plan := PlanDocument(ItemsOf(req.Chunks), e.g.Counter)
+	plan := planDocument(itemsOf(req.Chunks), e.g.Counter)
 	result, err := e.g.Contextualize(t.Context(), req)
 	if err != nil || result.Calls != 1 {
 		t.Fatalf("generation: %+v %v", result, err)
@@ -104,7 +104,7 @@ func TestGeneratorReservationFitsMetadataPlan(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("wire calls=%d", len(calls))
 	}
-	wire := int64(WithMargin(e.g.Counter.Count(calls[0].System) + e.g.Counter.Count(calls[0].User) + 16))
+	wire := int64(withMargin(e.g.Counter.Count(calls[0].System) + e.g.Counter.Count(calls[0].User) + 16))
 	if wire != total {
 		t.Fatalf("wire input=%d differs from admission=%d", wire, total)
 	}
@@ -117,7 +117,7 @@ func TestRawEscapedPromptDispatchStillChecksCapacity(t *testing.T) {
 	e := newGen(t)
 	req, _ := escapedCapacityRequest(t, e)
 	c := e.g.Counter
-	in := BuildInput(req.Title, req.Chunks[0].HeadingPath, Opening(req.Chunks, c), req.Chunks[0].Content, c)
+	in := buildInput(req.Title, req.Chunks[0].HeadingPath, Opening(req.Chunks, c), req.Chunks[0].Content, c)
 	required := int32(e.g.promptInputTokens(in) + RequestMaxTokens)
 	if int(required) <= MinContextWindow() {
 		t.Fatal("raw fixture no longer exercises above-floor capacity")

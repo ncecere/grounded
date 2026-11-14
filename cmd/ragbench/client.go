@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -11,6 +13,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // state records what setup created and when uploads ran, so later commands
@@ -124,7 +128,7 @@ func (c *client) send(req *http.Request, out any) error {
 			} `json:"error"`
 		}
 		_ = json.Unmarshal(raw, &e)
-		return &apiError{Status: resp.StatusCode, Code: e.Error.Code, Body: truncate(string(raw), 500)}
+		return &apiError{Status: resp.StatusCode, Code: e.Error.Code, Body: strutil.Clip(string(raw), 500)}
 	}
 	if out == nil || len(raw) == 0 {
 		return nil
@@ -136,11 +140,4 @@ func (c *client) send(req *http.Request, out any) error {
 		raw = env.Data
 	}
 	return json.Unmarshal(raw, out)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
 }

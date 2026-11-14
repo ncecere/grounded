@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -19,6 +21,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // endpoint is one OpenAI-compatible service. The key stays in the struct and
@@ -148,14 +152,7 @@ type httpError struct {
 }
 
 func (h *httpError) Error() string {
-	return fmt.Sprintf("HTTP %d: %s", h.Status, truncate(h.Body, 400))
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+	return fmt.Sprintf("HTTP %d: %s", h.Status, strutil.Clip(h.Body, 400))
 }
 
 // embedResult is one /embeddings response.

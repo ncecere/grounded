@@ -23,7 +23,7 @@ type Peppers struct {
 }
 
 // PepperID identifies a pepper without revealing it: the first 8 bytes of
-// SHA-256 over a domain label and the pepper (distinct from KeyID, so the
+// SHA-256 over a domain label and the pepper (distinct from keyID, so the
 // same value used as an encryption key and a pepper gets different ids).
 func PepperID(pepper []byte) []byte {
 	h := sha256.New()

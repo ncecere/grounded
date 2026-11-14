@@ -34,13 +34,14 @@ func TestHTTPServicesPreserveInfrastructureAndDomainIdentity(t *testing.T) {
 		{"ProfileMigrations", "ProfileMigrations"}, {"Evaluations", "Evaluations"}, {"MCP", "MCP"}, {"OAuth", "OAuth"},
 		{"Contextual", "Contextual"}, {"TeamRequests", "TeamRequests"}, {"Webhooks", "Webhooks"},
 		{"Gaps", "Gaps"}, {"ContentHealth", "ContentHealth"}, {"AnswerCache", "AnswerCache"}, {"TeamConfig", "TeamConfig"},
+		{"Analytics", "Analytics"}, {"Groups", "Groups"}, {"HealthChecks", "HealthChecks"}, {"AuditLog", "AuditLog"},
 	}
 	for _, pair := range pairs {
 		field := reflect.ValueOf(s).Elem().FieldByName(pair[0])
 		field.Set(reflect.New(field.Type().Elem()))
 		reflect.ValueOf(&want).Elem().FieldByName(pair[1]).Set(field)
 	}
-	got := s.withHTTPServices(base)
+	got := s.HTTPDeps(base)
 	if !reflect.DeepEqual(got, want) {
 		t.Error("HTTP dependencies changed infrastructure or lost/substituted a domain service")
 	}

@@ -1,6 +1,6 @@
 // Package teamconfig validates bounded, strict portable team configuration and
 // exports authorized snapshots without content, secrets or side effects.
-// DecodeEnvelope remains a syntax-only boundary; use DecodeDocument for domain
+// decodeEnvelope remains a syntax-only boundary; use DecodeDocument for domain
 // validation. Export always runs the full document validator before download.
 package teamconfig
 
@@ -46,12 +46,12 @@ func invalid(code, path string, n *yaml.Node) error {
 	return e
 }
 
-// DecodeEnvelope reads one bounded YAML team envelope and returns deterministic
+// decodeEnvelope reads one bounded YAML team envelope and returns deterministic
 // JSON for the future strict resource-schema stage. A successful result remains
 // untrusted input, not a plan or an export-safe representation. Arrays retain
 // their order; only JSON mapping keys are sorted. No network or persistence work
 // is possible here. All six envelope fields are required; null is unsupported.
-func DecodeEnvelope(r io.Reader) (json.RawMessage, error) {
+func decodeEnvelope(r io.Reader) (json.RawMessage, error) {
 	raw, err := io.ReadAll(io.LimitReader(r, MaxBytes+1))
 	if err != nil {
 		return nil, invalid("read_failed", "$", nil)

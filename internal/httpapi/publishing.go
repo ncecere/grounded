@@ -160,7 +160,7 @@ func (a *api) adminSetAgentShortName(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	levels, err := a.q.ListClassificationLevels(r.Context())
+	levels, err := a.Platform.ListClassifications(r.Context())
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

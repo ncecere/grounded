@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Client kinds (oauth_grants.client_kind).
@@ -79,15 +80,8 @@ func (s *Service) ResolveClient(ctx context.Context, clientID string) (Client, e
 	} else if err != nil {
 		return Client{}, err
 	}
-	return Client{ID: row.ClientID, Kind: KindRegistered, Name: row.ClientName, URI: deref(row.ClientUri), LogoURI: deref(row.LogoUri),
+	return Client{ID: row.ClientID, Kind: KindRegistered, Name: row.ClientName, URI: strutil.Deref(row.ClientUri), LogoURI: strutil.Deref(row.LogoUri),
 		RedirectURIs: row.RedirectUris}, nil
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 func ptr(s string) *string {

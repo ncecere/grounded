@@ -66,9 +66,9 @@ func optFormat(r *big.Rat) *string {
 	return &s
 }
 
-// PerUnits is how many units one price covers: a million tokens, or one
+// perUnits is how many units one price covers: a million tokens, or one
 // request.
-func PerUnits(unit string) int64 {
+func perUnits(unit string) int64 {
 	switch unit {
 	case UnitSystemOneRequests, UnitModeration, UnitMCPCalls, UnitRerankRequests:
 		return 1
@@ -76,11 +76,11 @@ func PerUnits(unit string) int64 {
 	return 1_000_000
 }
 
-// Cost is quantity units at price (per PerUnits(unit) units).
+// Cost is quantity units at price (per perUnits(unit) units).
 func Cost(quantity int64, unit string, price *big.Rat) *big.Rat {
 	c := new(big.Rat).SetInt64(quantity)
 	c.Mul(c, price)
-	return c.Quo(c, new(big.Rat).SetInt64(PerUnits(unit)))
+	return c.Quo(c, new(big.Rat).SetInt64(perUnits(unit)))
 }
 
 // Percent is spent as a whole percentage of limit, rounded down (nil when

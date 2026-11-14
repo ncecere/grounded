@@ -14,12 +14,12 @@ import (
 
 // Load reads GROUNDED_CONFIG_FILE (if set) and the process environment.
 func Load() (Config, error) {
-	return LoadFrom(os.Getenv("GROUNDED_CONFIG_FILE"), os.LookupEnv)
+	return loadFrom(os.Getenv("GROUNDED_CONFIG_FILE"), os.LookupEnv)
 }
 
-// LoadFrom resolves configuration from an optional YAML file and an
+// loadFrom resolves configuration from an optional YAML file and an
 // environment lookup function. It performs no network calls.
-func LoadFrom(path string, lookup func(string) (string, bool)) (Config, error) {
+func loadFrom(path string, lookup func(string) (string, bool)) (Config, error) {
 	c := Defaults()
 	file := map[string]string{}
 	if path != "" {

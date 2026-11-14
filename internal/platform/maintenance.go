@@ -26,6 +26,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -43,11 +44,7 @@ const MaxMaintenanceReason = 500
 
 // Person names who started or last changed maintenance mode (zero ID: nobody,
 // or the user no longer exists).
-type Person struct {
-	ID          uuid.UUID
-	DisplayName string
-	Email       string
-}
+type Person = people.Person
 
 // MaintenanceState is the current maintenance mode.
 type MaintenanceState struct {
@@ -73,17 +70,10 @@ func Maintenance(ctx context.Context, db dbgen.DBTX) (MaintenanceState, error) {
 	}
 	return MaintenanceState{
 		Enabled: r.Enabled, Reason: r.Reason, PlannedEndAt: r.PlannedEndAt, StartedAt: r.StartedAt,
-		StartedBy: person(r.StartedBy, r.StartedByName, r.StartedByEmail),
-		UpdatedAt: r.UpdatedAt, UpdatedBy: person(r.UpdatedBy, r.UpdatedByName, r.UpdatedByEmail),
+		StartedBy: people.From(r.StartedBy, r.StartedByName, r.StartedByEmail),
+		UpdatedAt: r.UpdatedAt, UpdatedBy: people.From(r.UpdatedBy, r.UpdatedByName, r.UpdatedByEmail),
 		Revision: r.Revision,
 	}, nil
-}
-
-func person(id uuid.NullUUID, name, email string) Person {
-	if !id.Valid || email == "" {
-		return Person{}
-	}
-	return Person{ID: id.UUID, DisplayName: name, Email: email}
 }
 
 // Err is the error of an operation refused while maintenance mode is on
@@ -126,8 +116,8 @@ type MaintenanceGate struct {
 	now func() time.Time
 }
 
-// NewMaintenanceGate reads through db, caching for ttl (MaintenanceTTL when 0).
-func NewMaintenanceGate(db dbgen.DBTX, ttl time.Duration) *MaintenanceGate {
+// newMaintenanceGate reads through db, caching for ttl (MaintenanceTTL when 0).
+func newMaintenanceGate(db dbgen.DBTX, ttl time.Duration) *MaintenanceGate {
 	if ttl <= 0 {
 		ttl = MaintenanceTTL
 	}

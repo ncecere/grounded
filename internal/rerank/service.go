@@ -59,11 +59,11 @@ func load(ctx context.Context, q *dbgen.Queries, lock bool) (Stored, error) {
 		row, err = q.GetRerankSettings(ctx)
 	}
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
-		return Stored{Settings: DefaultSettings(), Revision: 1}, nil
+		return Stored{Settings: defaultSettings(), Revision: 1}, nil
 	} else if err != nil {
 		return Stored{}, err
 	}
-	out := Stored{Settings: DecodeSettings(row.Settings), Revision: row.Revision, UpdatedAt: &row.UpdatedAt}
+	out := Stored{Settings: decodeSettings(row.Settings), Revision: row.Revision, UpdatedAt: &row.UpdatedAt}
 	if row.ModelID.Valid {
 		id := row.ModelID.UUID
 		out.ModelID = &id

@@ -1,3 +1,5 @@
+//go:build bench
+
 // Command vecbench runs the vector-store benchmark gate (ADR-0004).
 //
 // It loads clustered synthetic vectors into a pgvector table shaped like the

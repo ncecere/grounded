@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // counts are per-page counter increments.
@@ -162,7 +163,7 @@ func (v *pageVisit) fetchFailed(ctx context.Context, pg crawl.Page, ferr error) 
 	if err := v.keepStored(ctx, "", ""); err != nil {
 		return err
 	}
-	return v.mark(ctx, "failed", clip(ferr.Error(), 300), 0)
+	return v.mark(ctx, "failed", strutil.Clip(ferr.Error(), 300), 0)
 }
 
 // fetched records a 2xx page: stored when new or changed, then its links

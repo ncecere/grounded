@@ -48,7 +48,7 @@ Never commit `.env`, `ai.env` (credentials for a real model gateway) or anything
 - Integration tests find the dependencies through `GROUNDED_TEST_DATABASE_URL` and `GROUNDED_TEST_VALKEY_URL`; the Makefile points them at the compose services.
 - Every integration test gets its own database, copied from a template that is migrated once per set of migrations (`internal/testutil/template.go`; `GROUNDED_TEST_NO_TEMPLATE=1` migrates each database instead). The API tests in `internal/httpapi` run in parallel, each with its own database, Valkey prefix and server; a test that replaces something the whole process shares (the tracer provider, `http.DefaultTransport`) calls `serial(t)` first.
 - S3 blob tests run when `GROUNDED_TEST_S3_*` is set. Start a local S3-compatible store with `docker compose --profile s3 up -d minio minio-init`; the variables are listed in `internal/blob/s3_test.go`.
-- Tests against a real model gateway are opt-in (`GROUNDED_LIVE_LLM=1`) and never required. Use the fake gateway (`cmd/fakeproxy`, `testutil.FakeProxy`) instead.
+- Tests against a real model gateway are opt-in (`GROUNDED_LIVE_LLM=1`) and never required. Use the fake gateway (`cmd/fakeproxy`, or `testutil.NewFakeProxy` in a test; the fake itself is `internal/fakes`) instead.
 - Add or update tests with every behaviour change. Bug fixes come with a test that fails without the fix.
 
 CI's `test` job runs, in order: `make check-generated`, `make lint`, `npm run check:styling` (in `web/`), `make web-test`, `make test SKIP_AUTHZ=1` and `make web build`; the `authz` job runs `make test-authz` alongside it. Run the same (or plain `make test`, which includes the matrix) before opening a pull request. The required checks on `main` are `test`, `authz`, `e2e`, `k8s` and `k8s-smoke`.

@@ -85,8 +85,8 @@ func ParseKey(s string) ([]byte, error) {
 	return nil, errors.New("key must be base64")
 }
 
-// KeyID is the id a key's ciphertexts carry: the first 8 bytes of SHA-256.
-func KeyID(raw []byte) []byte {
+// keyID is the id a key's ciphertexts carry: the first 8 bytes of SHA-256.
+func keyID(raw []byte) []byte {
 	sum := sha256.Sum256(raw)
 	return sum[:IDLen]
 }
@@ -101,7 +101,7 @@ func newKey(raw []byte) (key, error) {
 		return key{}, err
 	}
 	var k key
-	copy(k.id[:], KeyID(raw))
+	copy(k.id[:], keyID(raw))
 	k.aead = aead
 	return k, nil
 }

@@ -29,7 +29,7 @@ func passages(paths [][]string, tokens int) []chunk.Chunk {
 
 func TestPlanUnitsGroupsByPathAndBounds(t *testing.T) {
 	a, b := []string{"A"}, []string{"A", "B"}
-	units := PlanUnits(ItemsOf(passages([][]string{a, a, b, b, a}, 100)))
+	units := planUnits(itemsOf(passages([][]string{a, a, b, b, a}, 100)))
 	want := [][2]int{{0, 1}, {2, 3}, {4, 4}}
 	if len(units) != len(want) {
 		t.Fatalf("units = %+v", units)
@@ -44,19 +44,19 @@ func TestPlanUnitsGroupsByPathAndBounds(t *testing.T) {
 	for i := range same {
 		same[i] = a
 	}
-	for _, u := range PlanUnits(ItemsOf(passages(same, 10))) {
+	for _, u := range planUnits(itemsOf(passages(same, 10))) {
 		if u.Last-u.First+1 > UnitMaxPassages {
 			t.Errorf("unit of %d passages passes the bound", u.Last-u.First+1)
 		}
 	}
-	for _, u := range PlanUnits(ItemsOf(passages(same, 700))) {
+	for _, u := range planUnits(itemsOf(passages(same, 700))) {
 		if u.Last > u.First && u.Tokens > UnitMaxTokens {
 			t.Errorf("unit of %d tokens passes the bound", u.Tokens)
 		}
 	}
 	// Every passage is in exactly one unit, in order.
 	next := 0
-	for _, u := range PlanUnits(ItemsOf(passages(same, 300))) {
+	for _, u := range planUnits(itemsOf(passages(same, 300))) {
 		if u.First != next {
 			t.Fatalf("gap or overlap at %d", u.First)
 		}
@@ -109,16 +109,16 @@ func TestUserMessageDelimitsAndEscapesUntrustedText(t *testing.T) {
 func TestCleanRefusesAndBounds(t *testing.T) {
 	c := counter(t)
 	for _, refusal := range []string{"UNABLE", "unable.", "I'm sorry, but I can't help with that.", "I cannot describe this.", "As an AI language model, I do not know", "Sorry, no."} {
-		if _, err := Clean(refusal, c); err != ErrRefused {
+		if _, err := clean(refusal, c); err != ErrRefused {
 			t.Errorf("%q: err = %v, want ErrRefused", refusal, err)
 		}
 	}
 	for _, bad := range []string{"", "   \n", "ok", "\u200b\u200b\u200b"} {
-		if _, err := Clean(bad, c); err != ErrUnusable {
+		if _, err := clean(bad, c); err != ErrUnusable {
 			t.Errorf("%q: err = %v, want ErrUnusable", bad, err)
 		}
 	}
-	got, err := Clean("**This** is a `description`\nof the *handbook* — see https://evil.example.com/x?y=1 and www.evil.example.org now. \"Quoted\" <b>tag</b> \u202e rtl", c)
+	got, err := clean("**This** is a `description`\nof the *handbook* — see https://evil.example.com/x?y=1 and www.evil.example.org now. \"Quoted\" <b>tag</b> \u202e rtl", c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestCleanRefusesAndBounds(t *testing.T) {
 			t.Errorf("cleaned text still has %q: %q", bad, got)
 		}
 	}
-	long, err := Clean(strings.Repeat("handbook registration deadlines ", 200), c)
+	long, err := clean(strings.Repeat("handbook registration deadlines ", 200), c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestCleanRefusesAndBounds(t *testing.T) {
 		t.Errorf("%d tokens kept, bound %d", n, ContextMaxTokens)
 	}
 	// Unicode text is kept.
-	if got, err := Clean("Wörterbuch der Universität: Anmeldung und Fristen", c); err != nil || !strings.Contains(got, "Universität") {
+	if got, err := clean("Wörterbuch der Universität: Anmeldung und Fristen", c); err != nil || !strings.Contains(got, "Universität") {
 		t.Errorf("unicode: %q %v", got, err)
 	}
 }
@@ -176,21 +176,21 @@ func TestEstimateBoundsEveryCall(t *testing.T) {
 				chunks[i].Tokens = c.Count(chunks[i].Content)
 			}
 		}
-		plan := PlanDocument(ItemsOf(chunks), c)
+		plan := planDocument(itemsOf(chunks), c)
 		if plan.Over {
 			continue
 		}
-		units := PlanUnits(ItemsOf(chunks))
+		units := planUnits(itemsOf(chunks))
 		opening := Opening(chunks, c)
 		var sum int64
 		for _, u := range units {
-			in := BuildInput(strings.Repeat("Title ", 100), u.Path, opening, UnitText(chunks, u, c), c)
-			actual := WithMargin(promptTokens(in, c))
+			in := buildInput(strings.Repeat("Title ", 100), u.Path, opening, unitText(chunks, u, c), c)
+			actual := withMargin(promptTokens(in, c))
 			docTokens := 0
 			for _, ch := range chunks {
 				docTokens += ch.Tokens
 			}
-			if max := WithMargin(CallInputMax(c, docTokens, u.Tokens)); actual > max {
+			if max := withMargin(callInputMax(c, docTokens, u.Tokens)); actual > max {
 				t.Errorf("%s: a call carries %d tokens, the ceiling is %d", name, actual, max)
 			}
 			sum += int64(actual)
@@ -214,8 +214,8 @@ func manyPaths(n int) [][]string {
 
 func TestTooManySectionsMakeNoCalls(t *testing.T) {
 	c := counter(t)
-	items := ItemsOf(passages(manyPaths(MaxUnitsPerDocument+1), 50))
-	p := PlanDocument(items, c)
+	items := itemsOf(passages(manyPaths(MaxUnitsPerDocument+1), 50))
+	p := planDocument(items, c)
 	if !p.Over || p.InputMax != 0 {
 		t.Fatalf("plan = %+v", p)
 	}
@@ -229,14 +229,14 @@ func TestTooManySectionsMakeNoCalls(t *testing.T) {
 func TestCutTokensBoundsHugeText(t *testing.T) {
 	c := counter(t)
 	huge := strings.Repeat("word ", 200000)
-	got := CutTokens(huge, 100, c)
+	got := cutTokens(huge, 100, c)
 	if n := c.Count(got); n > 100+cutSlack {
 		t.Errorf("cut text is %d tokens", n)
 	}
 	if !strings.HasSuffix(got, "[…]") {
 		t.Error("a cut text is marked")
 	}
-	if short := "a short text"; CutTokens(short, 100, c) != short {
+	if short := "a short text"; cutTokens(short, 100, c) != short {
 		t.Error("a short text is not touched")
 	}
 }

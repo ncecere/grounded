@@ -7,7 +7,7 @@ import (
 )
 
 func TestKeyFormat(t *testing.T) {
-	key, id := NewKey()
+	key, id := newKey()
 	if !strings.HasPrefix(key, "pk_"+id+"_") || len(key) != 3+12+1+32 {
 		t.Fatalf("key %q id %q", key, id)
 	}
@@ -38,7 +38,7 @@ func TestHashKey(t *testing.T) {
 }
 
 func TestNormalizeAllowedOrigins(t *testing.T) {
-	got, err := NormalizeAllowedOrigins([]string{"https://WWW.Example.edu/", "https://www.example.edu:443", "*.example.edu",
+	got, err := normalizeAllowedOrigins([]string{"https://WWW.Example.edu/", "https://www.example.edu:443", "*.example.edu",
 		"http://127.0.0.1:8095", "https://apps.example.edu:8443", " ", "http://localhost:80"})
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestNormalizeAllowedOrigins(t *testing.T) {
 	}
 	for _, bad := range []string{"https://example.edu/path", "ftp://example.edu", "https://*.edu", "https://a.*.edu", "https://ex ample.edu",
 		"https://example.edu?x=1", "https://user@example.edu", "https://example.edu:0", "https://example.edu:70000", "https://-a.example.edu", "*"} {
-		if _, err := NormalizeAllowedOrigins([]string{bad}); err == nil {
+		if _, err := normalizeAllowedOrigins([]string{bad}); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
 	}
@@ -61,7 +61,7 @@ func TestNormalizeAllowedOrigins(t *testing.T) {
 	for i := range many {
 		many[i] = "https://h" + string(rune('a'+i)) + ".example.edu"
 	}
-	if _, err := NormalizeAllowedOrigins(many); err == nil {
+	if _, err := normalizeAllowedOrigins(many); err == nil {
 		t.Error("21 origins accepted")
 	}
 }
@@ -69,7 +69,7 @@ func TestNormalizeAllowedOrigins(t *testing.T) {
 // F-08: a missing scheme is http for the local machine and https
 // otherwise; the saved value is reported; problems are named.
 func TestOriginSchemesAndProblems(t *testing.T) {
-	got, changes, err := NormalizeOrigins([]string{"localhost:8095", "127.0.0.1:8095", "[::1]:3000", "app.localhost", "www.example.edu", "https://www.example.edu"})
+	got, changes, err := normalizeOrigins([]string{"localhost:8095", "127.0.0.1:8095", "[::1]:3000", "app.localhost", "www.example.edu", "https://www.example.edu"})
 	if err != nil {
 		t.Fatal(err)
 	}

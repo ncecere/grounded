@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/systemone"
@@ -342,7 +343,7 @@ func TestCheckCitationsEvidence(t *testing.T) {
 	}
 }
 
-func proxyVerdict(t *testing.T, proxy *testutil.FakeProxy, claim string) systemone.Verdict {
+func proxyVerdict(t *testing.T, proxy *fakes.FakeProxy, claim string) systemone.Verdict {
 	t.Helper()
 	cl := systemone.NewClient(gateway.New(proxy.BaseURL(), proxy.APIKey, 5*time.Second), "jev", uuid.New(), uuid.New(), 1)
 	vs, _ := cl.CheckClaims(t.Context(), []systemone.ClaimPair{{Claim: claim, Source: "Arrays are values."}}, 5*time.Second)

@@ -226,7 +226,7 @@ func TestHumanDuration(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		time.Hour: "1 hour", 8 * time.Hour: "8 hours", 90 * time.Minute: "90 minutes", time.Minute: "1 minute", 48 * time.Hour: "2 days",
 	} {
-		if got := HumanDuration(d); got != want {
+		if got := humanDuration(d); got != want {
 			t.Errorf("%v = %q, want %q", d, got, want)
 		}
 	}

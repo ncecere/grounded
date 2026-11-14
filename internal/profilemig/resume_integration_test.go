@@ -14,6 +14,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/profilemig"
 	"github.com/ncecere/grounded/internal/secrets"
@@ -28,7 +29,7 @@ import (
 type resumeEnv struct {
 	svc      *profilemig.Service
 	worker   *profilemig.SetWorker
-	proxy    *testutil.FakeProxy
+	proxy    *fakes.FakeProxy
 	kb, src  uuid.UUID
 	from, to uuid.UUID
 	scalar   func(sql string, args ...any) int64

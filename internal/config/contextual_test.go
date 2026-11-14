@@ -16,7 +16,7 @@ func TestContextualChunksRequireExplicitPlatformOptIn(t *testing.T) {
 		{name: "explicit off", vars: map[string]string{"CONTEXTUAL_CHUNKS": "false"}, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := LoadFrom("", env(tc.vars))
+			c, err := loadFrom("", env(tc.vars))
 			if err != nil {
 				t.Fatal(err)
 			}

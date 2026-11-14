@@ -1,11 +1,12 @@
-package testutil
+package fakes
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
-	"testing"
 	"time"
 )
 
@@ -159,20 +160,18 @@ func NewFakeProxyHandler(apiKey string) (*FakeProxy, http.Handler) {
 	return p, p.auth(mux)
 }
 
-// NewFakeProxy starts a fake proxy for one test.
-func NewFakeProxy(t testing.TB) *FakeProxy {
-	t.Helper()
+// StartFakeProxy starts a fake proxy on a loopback address with a random
+// key; Close stops it.
+func StartFakeProxy() *FakeProxy {
 	p, h := NewFakeProxyHandler("sk-test-" + randomSuffix())
 	p.Server = httptest.NewServer(h)
-	t.Cleanup(p.Close)
 	return p
 }
 
-// NewFakeSystemOneService starts a fake that serves only POST
+// StartFakeSystemOneService starts a fake that serves only POST
 // /v1/systemone, like a SystemOne service (ADR-0020): every other path,
 // GET /v1/models included, answers 404.
-func NewFakeSystemOneService(t testing.TB) *FakeProxy {
-	t.Helper()
+func StartFakeSystemOneService() *FakeProxy {
 	p, h := NewFakeProxyHandler("sk-test-" + randomSuffix())
 	p.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/v1/systemone" {
@@ -181,8 +180,13 @@ func NewFakeSystemOneService(t testing.TB) *FakeProxy {
 		}
 		h.ServeHTTP(w, r)
 	}))
-	t.Cleanup(p.Close)
 	return p
+}
+
+func randomSuffix() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // BaseURL returns the OpenAI-style base URL including /v1.

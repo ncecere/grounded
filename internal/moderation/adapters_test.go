@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
@@ -21,7 +22,7 @@ import (
 )
 
 // fakeProvider builds an adapter for a model on the fake gateway.
-func fakeProvider(t *testing.T, p *testutil.FakeProxy, kind, family, upstream string) Provider {
+func fakeProvider(t *testing.T, p *fakes.FakeProxy, kind, family, upstream string) Provider {
 	t.Helper()
 	m := dbgen.Model{Kind: catalog.KindModeration, UpstreamModel: upstream, ModerationProvider: &kind, Compat: json.RawMessage(`{}`)}
 	if kind == catalog.ModerationSystemOne { // a SystemOne model (ADR-0020)

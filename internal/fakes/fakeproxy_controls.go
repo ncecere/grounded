@@ -1,4 +1,4 @@
-package testutil
+package fakes
 
 import (
 	"encoding/json"

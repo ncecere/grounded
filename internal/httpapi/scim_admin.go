@@ -7,6 +7,7 @@ import (
 	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
+	"github.com/ncecere/grounded/internal/scimapi"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -61,4 +62,15 @@ func (a *api) adminRevokeScimToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeOK(w, r, a.SCIM.RevokeToken(r.Context(), a.actor(r), id))
+}
+
+// scimRoutes mounts SCIM provisioning (internal/scimapi) behind the same
+// middleware as the API.
+func scimRoutes(d Deps) []route {
+	var out []route
+	for _, rt := range scimapi.Routes(scimapi.Deps{SCIM: d.SCIM, KV: d.KV, Metrics: d.Metrics,
+		AppURL: d.Config.AppURL, TrustedProxies: d.Config.TrustedProxies}) {
+		out = append(out, route{rt.Method, rt.Path, rt.Handler})
+	}
+	return out
 }

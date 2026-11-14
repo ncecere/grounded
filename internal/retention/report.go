@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -57,7 +58,7 @@ func (s *Service) Report(ctx context.Context, a authz.Actor) (Report, error) {
 	now := time.Now()
 	out := Report{GeneratedAt: now}
 	err := pgx.BeginTxFunc(ctx, s.Pool, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
-		periods, err := LoadPeriods(ctx, tx, s.Env)
+		periods, err := loadPeriods(ctx, tx, s.Env)
 		if err != nil {
 			return err
 		}
@@ -153,7 +154,7 @@ func (s *Service) Runs(ctx context.Context, a authz.Actor, limit int32) ([]Run, 
 		if err != nil {
 			return nil, err
 		}
-		run.RequestedBy = person(r.RetentionRun.RequestedBy, r.RequestedByName, r.RequestedByEmail)
+		run.RequestedBy = people.From(r.RetentionRun.RequestedBy, r.RequestedByName, r.RequestedByEmail)
 		out = append(out, run)
 	}
 	return out, nil

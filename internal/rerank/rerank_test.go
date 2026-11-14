@@ -10,29 +10,30 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
-func testPlan(t *testing.T, p *testutil.FakeProxy) *Plan {
+func testPlan(t *testing.T, p *fakes.FakeProxy) *Plan {
 	t.Helper()
 	return &Plan{
 		Client: gateway.New(p.BaseURL(), p.APIKey, 5*time.Second), Candidates: DefaultCandidates, TimeLimit: time.Second,
-		Model: dbgen.Model{ID: uuid.New(), UpstreamModel: testutil.FakeRerankModel, MaxClassification: "internal", Compat: json.RawMessage(`{}`)},
+		Model: dbgen.Model{ID: uuid.New(), UpstreamModel: fakes.FakeRerankModel, MaxClassification: "internal", Compat: json.RawMessage(`{}`)},
 		ranks: map[string]int32{"open": 0, "internal": 1, "sensitive": 2},
 	}
 }
 
 func TestSettings(t *testing.T) {
-	s := DefaultSettings()
+	s := defaultSettings()
 	if s.Candidates != 40 || s.TimeLimitMs != 2000 || len(s.Validate()) != 0 || s.TimeLimit() != 2*time.Second {
 		t.Fatalf("defaults = %+v", s)
 	}
 	if p := (Settings{Candidates: 4, TimeLimitMs: 20000}).Validate(); len(p) != 2 || p[0].Field != "candidates" || p[1].Field != "timeLimitMs" {
 		t.Errorf("problems = %v", p)
 	}
-	if got := DecodeSettings(json.RawMessage(`{"candidates":12}`)); got.Candidates != 12 || got.TimeLimitMs != DefaultTimeLimitMs {
+	if got := decodeSettings(json.RawMessage(`{"candidates":12}`)); got.Candidates != 12 || got.TimeLimitMs != DefaultTimeLimitMs {
 		t.Errorf("decoded = %+v", got)
 	}
 }
@@ -52,7 +53,7 @@ func TestRerankOrdersMetersAndFailsOpen(t *testing.T) {
 	p := testPlan(t, fake)
 	m := &Meter{}
 	ctx := WithMeter(context.Background(), m)
-	docs := []string{"Parking permits.", "The library opens at 8 am.", testutil.FakeRerankTop + " Opening hours."}
+	docs := []string{"Parking permits.", "The library opens at 8 am.", fakes.FakeRerankTop + " Opening hours."}
 	out := p.Rerank(ctx, CallerRetrieve, "When does the library open?", docs, 2)
 	if !out.OK() || len(out.Order) != 2 || out.Order[0] != 2 || out.Order[1] != 1 || out.Scores[2] != 1 {
 		t.Fatalf("outcome = %+v", out)

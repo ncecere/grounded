@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -25,7 +26,7 @@ type ragEnv struct {
 	app   *testApp
 	admin *session
 	owner *session
-	proxy *testutil.FakeProxy
+	proxy *fakes.FakeProxy
 	team  string
 }
 

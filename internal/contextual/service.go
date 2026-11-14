@@ -285,7 +285,7 @@ func (s *Service) validateOptIn(ctx context.Context, q *dbgen.Queries, in PutInp
 	if !s.platformOn() {
 		return errSwitchedOff
 	}
-	if problem := ModelProblem(ctx, q, in.ModelID, classification); problem != nil {
+	if problem := modelProblem(ctx, q, in.ModelID, classification); problem != nil {
 		return problem
 	}
 	return nil
@@ -311,7 +311,7 @@ func auditSettings(st Settings) map[string]any {
 }
 
 func validateCaps(in PutInput) error {
-	if !ValidPolicy(in.FailurePolicy) {
+	if !validPolicy(in.FailurePolicy) {
 		return apperr.Invalid("invalid_failure_policy", "The failure policy must be fail or plain")
 	}
 	for _, n := range []int{in.MaxCalls, in.MaxCallsPerDay} {
@@ -322,10 +322,10 @@ func validateCaps(in PutInput) error {
 	return validateAdmission(in.Admission, in.Enabled)
 }
 
-// ModelProblem says why a model cannot write contexts for a source of the classification (nil: it can): it must be an enabled chat model
+// modelProblem says why a model cannot write contexts for a source of the classification (nil: it can): it must be an enabled chat model
 // on an enabled connection, cleared for the classification (ADR-0006 rule 4),
 // with a known window meeting the activation floor. Actual prompts are checked again.
-func ModelProblem(ctx context.Context, q *dbgen.Queries, modelID *uuid.UUID, classification string) *apperr.Error {
+func modelProblem(ctx context.Context, q *dbgen.Queries, modelID *uuid.UUID, classification string) *apperr.Error {
 	if modelID == nil {
 		return apperr.Invalid("model_required", "Choose the chat model that writes the context")
 	}
@@ -357,7 +357,7 @@ func ModelProblem(ctx context.Context, q *dbgen.Queries, modelID *uuid.UUID, cla
 // framing are locally counted and checked again before admission and dispatch;
 // this floor is not proof that every document fits a model's own tokenizer.
 func MinContextWindow() int {
-	return WithMargin(CallInputMax(approxCounter{}, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)) + RequestMaxTokens
+	return withMargin(callInputMax(approxCounter{}, ExcerptTokens+cutSlack, UnitMaxTokens+cutSlack)) + RequestMaxTokens
 }
 
 // approxCounter counts a token per four bytes; only the fixed overhead is counted with it, for the window check.

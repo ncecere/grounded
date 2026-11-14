@@ -56,8 +56,8 @@ func acceptancePreflight(config acceptanceConfig, g *Generator) (acceptanceUsage
 	plain, contextual := 0, 0
 	for _, doc := range acceptanceDocuments {
 		chunks := acceptanceChunks(doc, g.Counter)
-		in := BuildInput(doc.Title, chunks[0].HeadingPath, Opening(chunks, g.Counter), chunks[0].Content, g.Counter)
-		input := WithMargin(g.Counter.Count(SystemPrompt) + g.Counter.Count(UserMessage(in)) + 16)
+		in := buildInput(doc.Title, chunks[0].HeadingPath, Opening(chunks, g.Counter), chunks[0].Content, g.Counter)
+		input := withMargin(g.Counter.Count(SystemPrompt) + g.Counter.Count(UserMessage(in)) + 16)
 		if input+RequestMaxTokens > int(config.ContextWindow) {
 			return acceptanceUsage{}, errors.New("acceptance corpus exceeds configured context window")
 		}
@@ -75,7 +75,7 @@ func acceptancePreflight(config acceptanceConfig, g *Generator) (acceptanceUsage
 		query += g.Counter.Count(q.Text)
 	}
 	for _, input := range []int{plain, contextual, query} {
-		if err := probe.reserve("embedding", int64(WithMargin(input)+32), 0); err != nil {
+		if err := probe.reserve("embedding", int64(withMargin(input)+32), 0); err != nil {
 			return acceptanceUsage{}, err
 		}
 	}

@@ -32,7 +32,7 @@ func checkRule(field, category string, r Rule) []Problem {
 func (p Policy) Validate(audience string) []Problem {
 	var out []Problem
 	for c, r := range p.Categories {
-		if !IsCategory(c) {
+		if !isCategory(c) {
 			out = append(out, Problem{"categories." + c, "Unknown category"})
 			continue
 		}
@@ -49,7 +49,7 @@ func (p Policy) Validate(audience string) []Problem {
 	if p.ReasoningEffort != "" && !validEfforts[p.ReasoningEffort] {
 		out = append(out, Problem{"reasoningEffort", "Reasoning effort must be default, off, low, medium or high"})
 	}
-	if !ValidMode(p.OutputMode) {
+	if !validMode(p.OutputMode) {
 		out = append(out, Problem{"outputMode", "Output mode must be stream_retract, stream_checked or buffer"})
 	}
 	if audience == authz.AudiencePublic && !p.FailClosed {

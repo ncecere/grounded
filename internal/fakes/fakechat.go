@@ -1,7 +1,7 @@
 // Chat completions of the fake gateway: the deterministic reply rules
 // (documented on FakeProxy) and the JSON or SSE responses.
 
-package testutil
+package fakes
 
 import (
 	"encoding/json"

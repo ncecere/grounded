@@ -48,8 +48,8 @@ func TestLegacyValueOpens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(ct[1:9], KeyID(k)) {
-		t.Fatalf("vector key id %x != %x", ct[1:9], KeyID(k))
+	if !bytes.Equal(ct[1:9], keyID(k)) {
+		t.Fatalf("vector key id %x != %x", ct[1:9], keyID(k))
 	}
 	if box.Which(ct) != SlotPrevious {
 		t.Fatalf("slot = %v", box.Which(ct))
@@ -73,7 +73,7 @@ func TestOpenWithPreviousAndWrongKeys(t *testing.T) {
 		t.Fatalf("previous key: %q %v", pt, err)
 	}
 	fresh, _ := rotated.Seal([]byte("v"), []byte("aad"))
-	if rotated.Which(fresh) != SlotCurrent || !bytes.Equal(fresh[1:9], KeyID(newKey)) {
+	if rotated.Which(fresh) != SlotCurrent || !bytes.Equal(fresh[1:9], keyID(newKey)) {
 		t.Fatal("new values must be sealed with the current key")
 	}
 
@@ -134,7 +134,7 @@ func TestPeppers(t *testing.T) {
 	if NewPeppers(newP, newP).Previous != nil {
 		t.Fatal("previous equal to current kept")
 	}
-	if bytes.Equal(PepperID(newP), KeyID(newP)) || len(PepperID(newP)) != 8 {
+	if bytes.Equal(PepperID(newP), keyID(newP)) || len(PepperID(newP)) != 8 {
 		t.Fatal("pepper ids must be 8 bytes and distinct from encryption key ids")
 	}
 

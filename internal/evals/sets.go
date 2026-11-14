@@ -60,7 +60,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string, f Fil
 	if err != nil {
 		return nil, err
 	}
-	return s.q.ListEvalSetViews(ctx, dbgen.ListEvalSetViewsParams{TeamID: acc.Team.ID, KBID: nullID(f.KBID), AgentID: nullID(f.AgentID)})
+	return s.q.ListEvalSetViews(ctx, dbgen.ListEvalSetViewsParams{TeamID: acc.Team.ID, KBID: store.NullID(f.KBID), AgentID: store.NullID(f.AgentID)})
 }
 
 // Get returns one set.
@@ -134,7 +134,7 @@ func (s *Service) createSet(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a 
 			return err
 		}
 	}
-	if *set, err = q.InsertEvalSet(ctx, dbgen.InsertEvalSetParams{TeamID: acc.Team.ID, KBID: nullID(in.KBID), AgentID: nullID(in.AgentID),
+	if *set, err = q.InsertEvalSet(ctx, dbgen.InsertEvalSetParams{TeamID: acc.Team.ID, KBID: store.NullID(in.KBID), AgentID: store.NullID(in.AgentID),
 		Name: in.Name, Description: in.Description, AutoRun: in.AutoRun, CreatedBy: a.NullUser()}); err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func (s *Service) TargetDocuments(ctx context.Context, a authz.Actor, teamRef st
 	if err := s.checkTarget(ctx, s.q, acc.Team.ID, SetInput{KBID: f.KBID, AgentID: f.AgentID}); err != nil {
 		return nil, err
 	}
-	kbIDs, err := s.targetKBIDs(ctx, nullID(f.KBID), nullID(f.AgentID))
+	kbIDs, err := s.targetKBIDs(ctx, store.NullID(f.KBID), store.NullID(f.AgentID))
 	if err != nil {
 		return nil, err
 	}

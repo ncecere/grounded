@@ -221,8 +221,8 @@ func checkValue(d Def, what string, v *int64) error {
 	return nil
 }
 
-// ValidateSetting checks a platform default and ceiling.
-func ValidateSetting(d Def, st Setting) error {
+// validateSetting checks a platform default and ceiling.
+func validateSetting(d Def, st Setting) error {
 	if err := checkValue(d, "default", st.Default); err != nil {
 		return err
 	}

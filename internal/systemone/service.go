@@ -74,11 +74,11 @@ func load(ctx context.Context, q *dbgen.Queries, lock bool) (Stored, error) {
 		row, err = q.GetSystemOneSettings(ctx)
 	}
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
-		return Stored{Settings: DefaultSettings(), Revision: 1}, nil
+		return Stored{Settings: defaultSettings(), Revision: 1}, nil
 	} else if err != nil {
 		return Stored{}, err
 	}
-	out := Stored{Settings: DecodeSettings(row.Settings), Revision: row.Revision, UpdatedAt: &row.UpdatedAt, UpdatedBy: row.UpdatedBy}
+	out := Stored{Settings: decodeSettings(row.Settings), Revision: row.Revision, UpdatedAt: &row.UpdatedAt, UpdatedBy: row.UpdatedBy}
 	if row.ModelID.Valid {
 		id := row.ModelID.UUID
 		out.ModelID = &id

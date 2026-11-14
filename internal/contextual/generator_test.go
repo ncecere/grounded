@@ -13,6 +13,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -26,7 +27,7 @@ func (f fixedResolver) ChatTarget(context.Context, uuid.UUID) (catalog.ChatTarge
 
 type genEnv struct {
 	g     *Generator
-	proxy *testutil.FakeProxy
+	proxy *fakes.FakeProxy
 	store *memStore
 	model uuid.UUID
 }

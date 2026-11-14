@@ -79,8 +79,8 @@ type priceKey struct {
 // PriceBook finds the price in effect on a day.
 type PriceBook map[priceKey][]Price // newest effective date first
 
-// NewPriceBook indexes price rows.
-func NewPriceBook(rows []Price) PriceBook {
+// newPriceBook indexes price rows.
+func newPriceBook(rows []Price) PriceBook {
 	b := PriceBook{}
 	for _, p := range rows {
 		k := priceKey{p.ModelID, p.Unit}
@@ -123,7 +123,7 @@ func (s *Service) priceBook(ctx context.Context, generation int64) (PriceBook, e
 	for i, r := range rows {
 		list[i] = priceFrom(r.ID, r.ModelID, r.Unit, r.Price, r.EffectiveFrom.Time, r.CreatedBy, r.CreatedAt)
 	}
-	book := NewPriceBook(list)
+	book := newPriceBook(list)
 	s.mu.Lock()
 	s.prices = &priceCache{generation: generation, book: book}
 	s.mu.Unlock()
@@ -199,7 +199,7 @@ func (s *Service) ModelPrices(ctx context.Context, a authz.Actor, modelID uuid.U
 		out.History[i] = priceFrom(r.ID, r.ModelID, r.Unit, r.Price, r.EffectiveFrom.Time, r.CreatedBy, r.CreatedAt)
 		out.History[i].CreatedByName = r.CreatedByName
 	}
-	out.Current, _ = currentPrices(NewPriceBook(out.History), m.ID, out.Units, DayOf(s.now(), st.Location()))
+	out.Current, _ = currentPrices(newPriceBook(out.History), m.ID, out.Units, DayOf(s.now(), st.Location()))
 	return out, nil
 }
 

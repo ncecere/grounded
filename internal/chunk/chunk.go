@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Options configures Split.
@@ -159,12 +161,12 @@ func dropBlocks(blocks []*block, drop func(string) bool) []*block {
 // themselves.
 func EmbedText(title string, c Chunk) string {
 	var head []string
-	if t := oneLine(title); t != "" {
+	if t := strutil.OneLine(title); t != "" {
 		head = append(head, t)
 	}
 	path := make([]string, 0, len(c.HeadingPath))
 	for _, h := range c.HeadingPath {
-		if h = oneLine(h); h != "" {
+		if h = strutil.OneLine(h); h != "" {
 			path = append(path, h)
 		}
 	}
@@ -180,6 +182,3 @@ func EmbedText(title string, c Chunk) string {
 	}
 	return header + "\n\n" + c.Content
 }
-
-// oneLine collapses all whitespace runs (including newlines) to one space.
-func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }

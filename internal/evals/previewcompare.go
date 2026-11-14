@@ -117,7 +117,7 @@ func (s *Service) previewComparison(ctx context.Context, migrationID uuid.UUID, 
 		if r.Status == "queued" || r.Status == "running" {
 			out.Running = true
 		}
-		if ref := DecodeRun(r).Config.Preview; ref != nil && !seen[r.SetID] {
+		if ref := decodeRun(r).Config.Preview; ref != nil && !seen[r.SetID] {
 			seen[r.SetID] = true
 			order = append(order, r.SetID)
 		}
@@ -161,13 +161,13 @@ func pickPair(runs []dbgen.EvalRun, setID uuid.UUID) (live, cand *dbgen.EvalRun)
 	var newest *[2]*dbgen.EvalRun
 	for i := range runs { // newest first
 		c := runs[i]
-		ref := DecodeRun(c).Config.Preview
+		ref := decodeRun(c).Config.Preview
 		if c.SetID != setID || ref == nil || ref.Side != PreviewCandidate {
 			continue
 		}
 		var l *dbgen.EvalRun
 		for j := range runs {
-			lr := DecodeRun(runs[j]).Config.Preview
+			lr := decodeRun(runs[j]).Config.Preview
 			if runs[j].SetID == setID && lr != nil && lr.Side == PreviewLive && runs[j].CreatedAt.Equal(c.CreatedAt) {
 				l = &runs[j]
 				break
@@ -213,8 +213,8 @@ func (s *Service) fillPreviewSet(ctx context.Context, ps *PreviewSet, live, cand
 	if err != nil {
 		return err
 	}
-	k := DecodeRun(live).Config.ResultsPerSearch
-	ps.Live.Summary, ps.Candidate.Summary = Summarize(KindRetrieval, k, scL), Summarize(KindRetrieval, DecodeRun(cand).Config.ResultsPerSearch, scC)
+	k := decodeRun(live).Config.ResultsPerSearch
+	ps.Live.Summary, ps.Candidate.Summary = Summarize(KindRetrieval, k, scL), Summarize(KindRetrieval, decodeRun(cand).Config.ResultsPerSearch, scC)
 	ps.Live.FirstPlace, ps.Candidate.FirstPlace = firstPlaces(resL), firstPlaces(resC)
 	ps.Questions = len(resL)
 	for _, c := range compareResults(resL, resC) {

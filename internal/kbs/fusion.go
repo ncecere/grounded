@@ -73,7 +73,7 @@ func (kb KB) Weights(platform Weights) (Weights, string) {
 //	score = wv/(k+rank_vector) + wk/(k+rank_keyword)
 //
 // A list with weight 0 contributes no score but still records ranks. The
-// result is sorted by SortHits and not truncated.
+// result is sorted by sortHits and not truncated.
 func Fuse(vector []vectorstore.Hit, keyword []uuid.UUID, w Weights) []*Hit {
 	fused := make(map[uuid.UUID]*Hit, len(vector)+len(keyword))
 	get := func(id uuid.UUID) *Hit {
@@ -104,15 +104,15 @@ func Fuse(vector []vectorstore.Hit, keyword []uuid.UUID, w Weights) []*Hit {
 	for _, h := range fused {
 		ranked = append(ranked, h)
 	}
-	SortHits(ranked)
+	sortHits(ranked)
 	return ranked
 }
 
-// SortHits orders fused hits by score. Ties are common (ranks 1+2 against
+// sortHits orders fused hits by score. Ties are common (ranks 1+2 against
 // 2+1, or equal weights): they break on the vector rank first (the stronger
 // retriever on every set measured), then the keyword rank, then the chunk ID
 // for determinism. A missing rank sorts after every present one.
-func SortHits(ranked []*Hit) {
+func sortHits(ranked []*Hit) {
 	rankOrLast := func(r int) int {
 		if r == 0 {
 			return 1 << 30

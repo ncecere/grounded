@@ -45,7 +45,7 @@
 // Other noul questions answer FakeSafeScore, other score questions 0 and
 // choice questions their first option (sorted).
 
-package testutil
+package fakes
 
 import (
 	"encoding/json"

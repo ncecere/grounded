@@ -3,7 +3,7 @@
 // answers with a description made from the section text, or what a test scripts, so tests can check what was sent and what was embedded.
 // It never calls a real model. The inputs of embedding requests are recorded too.
 
-package testutil
+package fakes
 
 import (
 	"encoding/json"

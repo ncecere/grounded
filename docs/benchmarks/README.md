@@ -9,7 +9,7 @@
 | [`systemone.md`](systemone.md) | SystemOne passage judging, moderation, citation and scope checks |
 | [`load.md`](load.md) | Load tests at 2× the sizing estimates on the Kubernetes shape, with the fake model (k6, [`deploy/loadtest`](../../deploy/loadtest/README.md)) |
 
-The tools are [`cmd/ragbench`](../../cmd/ragbench), [`cmd/sparkbench`](../../cmd/sparkbench) and [`cmd/vecbench`](../../cmd/vecbench); run each with `-h`.
+The tools are [`cmd/ragbench`](../../cmd/ragbench), [`cmd/sparkbench`](../../cmd/sparkbench) and [`cmd/vecbench`](../../cmd/vecbench); run each with `-h`. They build only with the `bench` tag (`go run -tags bench ./cmd/ragbench -h`), so `go build ./...`, `go test ./...` and the unused-code checks leave them out; `make lint` still vets them with the tag.
 
 The reports were measured during Grounded's first test deployment, at a university, through that university's OpenAI-compatible AI gateway. They describe the gateway by its behaviour (request limits, token counts, latency), not by name.
 

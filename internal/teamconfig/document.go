@@ -119,7 +119,7 @@ func strictJSON(raw []byte, out any) error {
 // DecodeDocument adds strict per-resource types, domain checks and portable
 // reference validation to the existing hostile-YAML ingress boundary.
 func DecodeDocument(r io.Reader) (Document, error) {
-	raw, err := DecodeEnvelope(r)
+	raw, err := decodeEnvelope(r)
 	if err != nil {
 		return Document{}, err
 	}

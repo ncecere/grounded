@@ -358,7 +358,7 @@ func (s *Service) send(ctx context.Context, d dbgen.GetAuditStreamDestinationRow
 	if d.Kind == KindSyslog {
 		frames := make([][]byte, 0, len(events))
 		for _, e := range events {
-			f, err := SyslogFrame(s.Hostname, e)
+			f, err := syslogFrame(s.Hostname, e)
 			if err != nil {
 				return fail(ClassInternal, err)
 			}
@@ -366,7 +366,7 @@ func (s *Service) send(ctx context.Context, d dbgen.GetAuditStreamDestinationRow
 		}
 		return s.Sender.SendSyslog(ctx, d.Address, d.CaPem, frames)
 	}
-	body, ctype, err := HTTPBody(d.Format, events)
+	body, ctype, err := httpBody(d.Format, events)
 	if err != nil {
 		return fail(ClassInternal, err)
 	}

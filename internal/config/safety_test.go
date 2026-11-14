@@ -113,7 +113,7 @@ func TestSafetyChecks(t *testing.T) {
 
 // The development .env.example itself must start (APP_URL is loopback).
 func TestEnvExampleIsAllowedLocally(t *testing.T) {
-	c, err := LoadFrom("", func(k string) (string, bool) { v, ok := exampleEnv(t)[k]; return v, ok })
+	c, err := loadFrom("", func(k string) (string, bool) { v, ok := exampleEnv(t)[k]; return v, ok })
 	if err != nil {
 		t.Fatal(err)
 	}

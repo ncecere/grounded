@@ -28,7 +28,7 @@ const maxShownHits = 20
 // expected documents is in the knowledge base isn't scored (missing, with
 // the reason), but what the search returns is still recorded.
 func (x *executor) check(ctx context.Context, c dbgen.EvalCase) (dbgen.InsertEvalResultParams, error) {
-	cs := DecodeCase(c)
+	cs := decodeCase(c)
 	p := dbgen.InsertEvalResultParams{RunID: x.run.ID, CaseID: uuid.NullUUID{UUID: c.ID, Valid: true}, Question: c.Question,
 		Hits: json.RawMessage(`[]`), Scores: json.RawMessage(`{}`)}
 	start := time.Now()
@@ -170,7 +170,7 @@ func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResul
 		return nil, err
 	}
 	refused := ans.Refused || agents.IsRefusal(ans.Text, x.t.agent.Config.RefusalMessage)
-	scores, pass := ScoreAnswer(cs.Want, cs.MustMention, ans.Text, cited, refused, checks)
+	scores, pass := scoreAnswer(cs.Want, cs.MustMention, ans.Text, cited, refused, checks)
 	p.Status = StatusFail
 	if pass {
 		p.Status = StatusPass
@@ -266,4 +266,10 @@ func errorText(err error) string {
 		return e.Message
 	}
 	return "The check failed."
+}
+
+// DocumentsByID looks up the documents that questions expect (their titles
+// and sources, for the question list).
+func (s *Service) DocumentsByID(ctx context.Context, ids []uuid.UUID) ([]dbgen.EvalDocumentsByIDRow, error) {
+	return s.q.EvalDocumentsByID(ctx, ids)
 }

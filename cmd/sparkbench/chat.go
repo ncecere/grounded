@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -8,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Grounded's search_knowledge tool (internal/agents/prompt.go).
@@ -142,9 +146,9 @@ func report(name string, r streamResult, err error) {
 	var tcs []string
 	for _, t := range r.ToolCalls {
 		valid := json.Valid([]byte(t.Args))
-		tcs = append(tcs, fmt.Sprintf("%s(%s) id=%q validJSON=%v", t.Name, truncate(t.Args, 80), t.ID, valid))
+		tcs = append(tcs, fmt.Sprintf("%s(%s) id=%q validJSON=%v", t.Name, strutil.Clip(t.Args, 80), t.ID, valid))
 	}
 	fmt.Printf("%-13s finish=%s first=%s total=%s chunks=%d usage(prompt=%d out=%d reasoning=%d inChunk=%v final=%v) reasoningField=%q reasoningChars=%d\n              content=%q\n              toolCalls=%v\n",
 		name, r.FinishReason, r.FirstAny.Round(time.Millisecond), r.Total.Round(time.Millisecond), r.Chunks, r.PromptTokens, r.OutputTokens, r.ReasonTokens,
-		r.UsageInChunk, r.UsageInFinal, r.ReasoningField, len(r.Reasoning), truncate(strings.TrimSpace(r.Content), 300), tcs)
+		r.UsageInChunk, r.UsageInFinal, r.ReasoningField, len(r.Reasoning), strutil.Clip(strings.TrimSpace(r.Content), 300), tcs)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Mode is a tool's execution mode.
@@ -136,11 +137,11 @@ func (t *compiledTool) validate(args json.RawMessage) (json.RawMessage, error) {
 	if raw[0] == '"' {
 		var s string
 		_ = json.Unmarshal(raw, &s)
-		return nil, fmt.Errorf("arguments for tool %q are not valid JSON: %s", t.Name, truncate(s, 500))
+		return nil, fmt.Errorf("arguments for tool %q are not valid JSON: %s", t.Name, strutil.Clip(s, 500))
 	}
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &obj); err != nil {
-		return nil, fmt.Errorf("arguments for tool %q must be a JSON object, got: %s", t.Name, truncate(string(raw), 500))
+		return nil, fmt.Errorf("arguments for tool %q must be a JSON object, got: %s", t.Name, strutil.Clip(string(raw), 500))
 	}
 	changed := false
 	for k, v := range obj {
@@ -158,7 +159,7 @@ func (t *compiledTool) validate(args json.RawMessage) (json.RawMessage, error) {
 	}
 	if err := t.schema.Validate(inst); err != nil {
 		return nil, fmt.Errorf("validation failed for tool %q:\n%s\n\nreceived arguments:\n%s",
-			t.Name, describeValidation(err), truncate(string(args), 1000))
+			t.Name, describeValidation(err), strutil.Clip(string(args), 1000))
 	}
 	return raw, nil
 }
@@ -174,13 +175,6 @@ func describeValidation(err error) string {
 		msg = rest
 	}
 	return strings.TrimSpace(msg)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }
 
 // toolDecls is the tool list sent to the model, in configuration order.

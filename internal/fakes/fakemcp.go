@@ -1,4 +1,4 @@
-package testutil
+package fakes
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -52,11 +51,10 @@ type FakeMCPCall struct {
 // FakeMCPHugeChars is the length of the huge tool's result.
 const FakeMCPHugeChars = 50000
 
-// NewFakeMCP starts the fake on a loopback address (closed with the test).
-func NewFakeMCP(t testing.TB) *FakeMCP {
+// StartFakeMCP starts the fake on a loopback address; Close stops it.
+func StartFakeMCP() *FakeMCP {
 	f, h := NewFakeMCPHandler()
 	f.Server = httptest.NewServer(h)
-	t.Cleanup(f.Close)
 	return f
 }
 

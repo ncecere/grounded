@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Limits of a question.
@@ -105,7 +106,7 @@ func (e Expected) Normalize() (Expected, error) {
 			continue
 		}
 		if len(f) > maxFilenameLen || strings.ContainsAny(f, "/\\") {
-			return out, invalidExpected("%q isn't a filename, a document or an http(s) URL.", clip(f, 60))
+			return out, invalidExpected("%q isn't a filename, a document or an http(s) URL.", strutil.Clip(f, 60))
 		}
 		seen["f"+strings.ToLower(f)] = true
 		out.Filenames = append(out.Filenames, f)
@@ -126,7 +127,7 @@ func checkURL(u string) error {
 	base := strings.TrimSuffix(u, "*")
 	p, err := url.Parse(base)
 	if err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || strings.Contains(base, "*") {
-		return invalidExpected("%q isn't an http(s) URL (end it with * for a prefix).", clip(u, 80))
+		return invalidExpected("%q isn't an http(s) URL (end it with * for a prefix).", strutil.Clip(u, 80))
 	}
 	return nil
 }
@@ -216,9 +217,9 @@ func (e Expected) existence() (docs []uuid.UUID, urls, prefixes, filenames []str
 	return docs, urls, prefixes, filenames
 }
 
-// NormalizePhrases trims and deduplicates must-mention phrases (case
+// normalizePhrases trims and deduplicates must-mention phrases (case
 // aside): at most 20, each at most 200 characters.
-func NormalizePhrases(in []string) ([]string, error) {
+func normalizePhrases(in []string) ([]string, error) {
 	out := []string{}
 	seen := map[string]bool{}
 	for _, p := range in {
@@ -238,8 +239,8 @@ func NormalizePhrases(in []string) ([]string, error) {
 	return out, nil
 }
 
-// SplitList splits the | notation of must-mention phrases.
-func SplitList(s string) []string {
+// splitList splits the | notation of must-mention phrases.
+func splitList(s string) []string {
 	var out []string
 	for _, v := range strings.Split(s, "|") {
 		if v = strings.TrimSpace(v); v != "" {
@@ -247,11 +248,4 @@ func SplitList(s string) []string {
 		}
 	}
 	return out
-}
-
-func clip(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	return string([]rune(s)[:n]) + "…"
 }

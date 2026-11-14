@@ -28,8 +28,8 @@ type Case struct {
 	Want Expected
 }
 
-// DecodeCase reads a stored question.
-func DecodeCase(c dbgen.EvalCase) Case {
+// decodeCase reads a stored question.
+func decodeCase(c dbgen.EvalCase) Case {
 	out := Case{EvalCase: c}
 	_ = json.Unmarshal(c.Expected, &out.Want)
 	return out
@@ -76,7 +76,7 @@ func (s *Service) Questions(ctx context.Context, a authz.Actor, teamRef string, 
 	rows, err := s.q.ListEvalCases(ctx, setID)
 	out := make([]Case, len(rows))
 	for i, r := range rows {
-		out[i] = DecodeCase(r)
+		out[i] = decodeCase(r)
 	}
 	return out, err
 }
@@ -100,7 +100,7 @@ func (s *Service) Question(ctx context.Context, a authz.Actor, teamRef string, s
 		return Case{}, nil, err
 	}
 	results, err := s.q.ListCaseResults(ctx, dbgen.ListCaseResultsParams{CaseID: uuid.NullUUID{UUID: id, Valid: true}, Lim: 20})
-	return DecodeCase(c), results, err
+	return decodeCase(c), results, err
 }
 
 // setSources are the data sources of a set's knowledge bases.
@@ -125,7 +125,7 @@ func (s *Service) CreateQuestion(ctx context.Context, a authz.Actor, teamRef str
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		return s.createQuestion(ctx, q, tx, a, acc, setID, in, &c)
 	})
-	return DecodeCase(c), err
+	return decodeCase(c), err
 }
 
 // createQuestion is CreateQuestion's transaction.
@@ -198,7 +198,7 @@ func (s *Service) UpdateQuestion(ctx context.Context, a authz.Actor, teamRef str
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		return s.updateQuestion(ctx, q, tx, a, acc, setID, id, in, expectedRevision, &next)
 	})
-	return DecodeCase(next), err
+	return decodeCase(next), err
 }
 
 // updateQuestion is UpdateQuestion's transaction.
@@ -334,7 +334,7 @@ func (s *Service) usableRows(ctx context.Context, q *dbgen.Queries, set dbgen.Ev
 	for i, c := range existing {
 		questions[i] = c.Question
 	}
-	rows, probs := Dedupe(rows, questions)
+	rows, probs := dedupe(rows, questions)
 	var sources []uuid.UUID
 	var out []ImportRow
 	for _, r := range rows {
@@ -394,10 +394,10 @@ func (s *Service) Export(ctx context.Context, a authz.Actor, teamRef string, set
 	}
 	out := make([]ExportRow, len(rows))
 	for i, r := range rows {
-		c := DecodeCase(r)
+		c := decodeCase(r)
 		out[i] = ExportRow{Question: c.Question, Expected: c.Want, MustMention: c.MustMention, Note: c.Note}
 	}
 	var buf bytes.Buffer
-	err = WriteCSV(&buf, out)
+	err = writeCSV(&buf, out)
 	return set.Name, buf.Bytes(), err
 }

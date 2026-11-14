@@ -16,7 +16,7 @@ import (
 // their result, and GET /v1/admin/health-checks reads each subject's latest.
 
 func (a *api) adminListHealthChecks(w http.ResponseWriter, r *http.Request) {
-	checks, err := a.health.Latest(r.Context(), a.actor(r), r.URL.Query().Get("kind"))
+	checks, err := a.HealthChecks.Latest(r.Context(), a.actor(r), r.URL.Query().Get("kind"))
 	writeList(w, r, checks, err, toAPIHealthCheck)
 }
 
@@ -50,7 +50,7 @@ func toAPIHealthCheck(c healthcheck.Latest) apitypes.HealthCheck {
 // it implies for the connection's enabled models. A failure to store it is
 // logged, not returned: the admin still gets the test result.
 func (a *api) recordConnectionTest(r *http.Request, id uuid.UUID, test catalog.ConnectionTest, testErr error) {
-	err := a.health.RecordConnectionTest(r.Context(), id, test, testErr, healthcheck.TriggerManual, a.byActor(r))
+	err := a.HealthChecks.RecordConnectionTest(r.Context(), id, test, testErr, healthcheck.TriggerManual, a.byActor(r))
 	if err != nil && err != testErr {
 		a.Log.WarnContext(r.Context(), "could not store a connection test", "connection", id, "err", err)
 	}
@@ -72,7 +72,7 @@ func (a *api) writeModelTest(w http.ResponseWriter, r *http.Request, id uuid.UUI
 			}
 		}
 	}
-	if _, err := a.health.Record(r.Context(), res); err != nil {
+	if _, err := a.HealthChecks.Record(r.Context(), res); err != nil {
 		a.Log.WarnContext(r.Context(), "could not store a model test", "model", id, "err", err)
 	}
 	httpx.JSON(w, http.StatusOK, out)

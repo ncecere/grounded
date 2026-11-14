@@ -108,7 +108,7 @@ cd web && npx playwright test admin.e2e.ts -g "break-glass"   # after `make web 
 
 - creates its own database, `grounded_e2e` (`E2E_DB_NAME`, which must start with `grounded_e2e`), on the Postgres at `E2E_DATABASE_URL` (default: the compose stack on 127.0.0.1:55432), and drops it when the run ends;
 - uses Valkey at `E2E_VALKEY_URL` (default: the compose stack) under a per-run key prefix, deleted at the end;
-- serves the fake model gateway on 127.0.0.1:18490 (`E2E_FAKE_ADDR`; `internal/testutil.FakeProxy`, as `make fake-proxy`);
+- serves the fake model gateway on 127.0.0.1:18490 (`E2E_FAKE_ADDR`; `internal/fakes.FakeProxy`, as `make fake-proxy`);
 - runs `bin/grounded serve` (`E2E_GROUNDED_BIN`; build it with the UI: `make web build`) on http://127.0.0.1:18480 (`E2E_PORT`) with development sign-in, logging to `e2e-output/server.log`.
 
 Nothing reaches the internet: sources are uploads, and the widget's host pages are served by the spec itself on other loopback ports. It never touches the development server on :8080 or the `grounded` database.

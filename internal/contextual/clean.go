@@ -27,10 +27,10 @@ var (
 	spaceRE   = regexp.MustCompile(`\s+`)
 )
 
-// Clean turns a model's reply into a context: one plain paragraph with no markup, links, quotation marks or invisible characters, at most
+// clean turns a model's reply into a context: one plain paragraph with no markup, links, quotation marks or invisible characters, at most
 // ContextMaxChars characters and ContextMaxTokens tokens. A refusal or what is left of an empty reply is an error: it is not stored and not
 // embedded. The reply is data from a model that read an untrusted document; this is the only place it passes on the way to the embedder.
-func Clean(reply string, c chunk.TokenCounter) (string, error) {
+func clean(reply string, c chunk.TokenCounter) (string, error) {
 	s := strings.ToValidUTF8(reply, "")
 	if refusalRE.MatchString(s) {
 		return "", ErrRefused

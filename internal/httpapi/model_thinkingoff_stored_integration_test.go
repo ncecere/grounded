@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -14,7 +15,7 @@ func TestThinkingOffResultIsKeptOnTheModel(t *testing.T) {
 	app := newTestApp(t, nil)
 	admin := app.signIn("admin")
 	proxy := testutil.NewFakeProxy(t)
-	for _, id := range []string{"ignores-switch", testutil.FakeNoThinkPrefix + "-ok"} {
+	for _, id := range []string{"ignores-switch", fakes.FakeNoThinkPrefix + "-ok"} {
 		proxy.AddChatModel(id)
 	}
 	var conn apitypes.Connection
@@ -89,7 +90,7 @@ func TestThinkingOffResultIsKeptOnTheModel(t *testing.T) {
 	}
 
 	// Testing again with a model that honours it stores that; removing the way clears it again on the next Test.
-	ok := create("honours", testutil.FakeNoThinkPrefix+"-ok", map[string]any{"thinkingOff": "reasoning_effort_none"})
+	ok := create("honours", fakes.FakeNoThinkPrefix+"-ok", map[string]any{"thinkingOff": "reasoning_effort_none"})
 	test(ok)
 	if r := get(ok).ThinkingOffCheck; r == nil || r.Result != apitypes.ThinkingOffCheckResult("honoured") {
 		t.Fatalf("a model that honours it: %+v", r)

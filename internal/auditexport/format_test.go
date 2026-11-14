@@ -81,16 +81,16 @@ func TestEmptyRotationAndLink(t *testing.T) {
 	if err := Verify(next, strings.NewReader(""), trust(fixtureKey(2))); err != nil {
 		t.Fatal(err)
 	}
-	if VerifyLink(previous, next) != nil {
+	if verifyLink(previous, next) != nil {
 		t.Fatal("rotation broke chain")
 	}
 	next.Manifest.Day = time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
-	if VerifyLink(previous, next) == nil {
+	if verifyLink(previous, next) == nil {
 		t.Fatal("date gap accepted")
 	}
 	next.Manifest.Day = "2026-10-02"
 	next.Manifest.PreviousExport = ""
-	if VerifyLink(previous, next) == nil {
+	if verifyLink(previous, next) == nil {
 		t.Fatal("missing previous export accepted")
 	}
 }

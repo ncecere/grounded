@@ -329,7 +329,7 @@ func (s *Service) notifyEnded(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, 
 	if err != nil {
 		return err
 	}
-	return s.Notify.Emit(ctx, tx, notify.BreakGlassEndedEvent(team, info, how, SummaryLines(counts)).By(actor))
+	return s.Notify.Emit(ctx, tx, notify.BreakGlassEndedEvent(team, info, how, summaryLines(counts)).By(actor))
 }
 
 // describe names a session's team and admin for its notifications.
@@ -342,7 +342,7 @@ func (s *Service) describe(ctx context.Context, q *dbgen.Queries, row dbgen.Brea
 	if err != nil {
 		return notify.TeamRef{}, notify.BreakGlassInfo{}, err
 	}
-	info := notify.BreakGlassInfo{SessionID: row.ID, Admin: admin, Reason: row.Reason, Scopes: ScopeWords(row.Scopes), Location: platformZone(ctx, q)}
+	info := notify.BreakGlassInfo{SessionID: row.ID, Admin: admin, Reason: row.Reason, Scopes: scopeWords(row.Scopes), Location: platformZone(ctx, q)}
 	if row.ExpiresAt != nil {
 		info.ExpiresAt = *row.ExpiresAt
 	}
@@ -371,9 +371,9 @@ func (s *Service) userName(ctx context.Context, q *dbgen.Queries, id uuid.UUID) 
 	return Person{ID: u.ID, DisplayName: u.DisplayName, Email: u.Email}.Name(), nil
 }
 
-// ScopeWords renders scopes for people: "conversations", "documents",
+// scopeWords renders scopes for people: "conversations", "documents",
 // "conversations and documents".
-func ScopeWords(scopes []string) string {
+func scopeWords(scopes []string) string {
 	return strings.Join(scopes, " and ")
 }
 

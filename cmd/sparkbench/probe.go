@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -9,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 func cmdEmbedProbe(args []string) error {
@@ -85,7 +89,7 @@ func probeMaxInput(ctx context.Context, e *endpoint, list string) {
 		if err != nil {
 			var he *httpError
 			if errors.As(err, &he) {
-				err = fmt.Errorf("HTTP %d: %s", he.Status, truncate(he.Body, 240))
+				err = fmt.Errorf("HTTP %d: %s", he.Status, strutil.Clip(he.Body, 240))
 			}
 			fmt.Printf("input ~%d tokens: rejected: %v\n", toks, err)
 		} else {
@@ -119,7 +123,7 @@ func probeThroughput(ctx context.Context, e *endpoint, data string, n int, bs, c
 		Text  string `json:"text"`
 	}) error {
 		if t := strings.TrimSpace(d.Title + "\n" + d.Text); len(t) > 20 {
-			corpus = append(corpus, truncate(t, 4000))
+			corpus = append(corpus, strutil.Clip(t, 4000))
 		}
 		return nil
 	}); err != nil {

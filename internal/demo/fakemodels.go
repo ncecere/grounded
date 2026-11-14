@@ -1,19 +1,17 @@
 package demo
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"html"
 	"io"
-	"math"
 	"net/http"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-	"unicode"
+
+	"github.com/ncecere/grounded/internal/fakeembed"
 )
 
 // The built-in fake model gateway (`grounded demo --serve-fake-models`,
@@ -109,39 +107,11 @@ func fakeEmbeddings(w http.ResponseWriter, r *http.Request) {
 	data := make([]map[string]any, len(inputs))
 	tokens := 0
 	for i, text := range inputs {
-		data[i] = map[string]any{"object": "embedding", "index": i, "embedding": fakeEmbedding(text, FakeEmbedDims)}
+		data[i] = map[string]any{"object": "embedding", "index": i, "embedding": fakeembed.Vector(text, FakeEmbedDims)}
 		tokens += len(strings.Fields(text)) + 1
 	}
 	writeJSON(w, map[string]any{"object": "list", "data": data, "model": in.Model,
 		"usage": map[string]int{"prompt_tokens": tokens, "total_tokens": tokens}})
-}
-
-// fakeEmbedding is a hashed bag of words at unit length: texts sharing words
-// are close, equal texts are identical. A small hash of the whole text
-// avoids zero vectors.
-func fakeEmbedding(text string, dims int) []float32 {
-	v := make([]float64, dims)
-	for _, w := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
-		if len(w) < 3 {
-			continue // short function words carry little meaning
-		}
-		sum := sha256.Sum256([]byte(w))
-		v[binary.BigEndian.Uint32(sum[:4])%uint32(dims)]++
-	}
-	whole := sha256.Sum256([]byte(text))
-	var norm float64
-	for i := range v {
-		v[i] += float64(whole[i%len(whole)]) / 255 * 0.01
-		norm += v[i] * v[i]
-	}
-	norm = math.Sqrt(norm)
-	out := make([]float32, dims)
-	for i := range v {
-		out[i] = float32(v[i] / norm)
-	}
-	return out
 }
 
 type fakeChatRequest struct {

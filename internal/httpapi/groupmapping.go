@@ -47,7 +47,7 @@ func roleRef(role string) *apitypes.TeamRole {
 }
 
 func (a *api) adminGetGroupMapping(w http.ResponseWriter, r *http.Request) {
-	st, err := a.groups.Status(r.Context(), a.actor(r))
+	st, err := a.Groups.Status(r.Context(), a.actor(r))
 	if failed(w, r, err) {
 		return
 	}
@@ -64,7 +64,7 @@ func (a *api) adminGetGroupMapping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) adminListGroupRules(w http.ResponseWriter, r *http.Request) {
-	rules, err := a.groups.List(r.Context(), a.actor(r), r.URL.Query().Get("team"))
+	rules, err := a.Groups.List(r.Context(), a.actor(r), r.URL.Query().Get("team"))
 	writeList(w, r, rules, err, toAPIGroupRule)
 }
 
@@ -73,7 +73,7 @@ func (a *api) adminGetGroupRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v, err := a.groups.Get(r.Context(), a.actor(r), id)
+	v, err := a.Groups.Get(r.Context(), a.actor(r), id)
 	if failed(w, r, err) {
 		return
 	}
@@ -85,7 +85,7 @@ func (a *api) adminCreateGroupRule(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
-	v, err := a.groups.Create(r.Context(), a.actor(r), ssogroups.RuleInput{Group: in.Group, Team: in.Team, Role: string(in.Role)})
+	v, err := a.Groups.Create(r.Context(), a.actor(r), ssogroups.RuleInput{Group: in.Group, Team: in.Team, Role: string(in.Role)})
 	if failed(w, r, err) {
 		return
 	}
@@ -106,7 +106,7 @@ func (a *api) adminUpdateGroupRule(w http.ResponseWriter, r *http.Request) {
 		role := string(*in.Role)
 		upd.Role = &role
 	}
-	v, err := a.groups.Update(r.Context(), a.actor(r), id, upd, rev)
+	v, err := a.Groups.Update(r.Context(), a.actor(r), id, upd, rev)
 	if failed(w, r, err) {
 		return
 	}
@@ -118,7 +118,7 @@ func (a *api) adminDeleteGroupRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, r, a.groups.Delete(r.Context(), a.actor(r), id))
+	writeOK(w, r, a.Groups.Delete(r.Context(), a.actor(r), id))
 }
 
 func (a *api) adminPreviewGroupRule(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +139,7 @@ func (a *api) adminPreviewGroupRule(w http.ResponseWriter, r *http.Request) {
 	if in.Role != nil {
 		p.Role = string(*in.Role)
 	}
-	res, err := a.groups.Preview(r.Context(), a.actor(r), p)
+	res, err := a.Groups.Preview(r.Context(), a.actor(r), p)
 	if failed(w, r, err) {
 		return
 	}

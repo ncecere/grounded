@@ -12,7 +12,7 @@ Status: **passed on real embeddings, 2026-09-26, with one stress case that needs
   - m=24 / ef_construction=128: **0.997**, at 2.8× the build time.
 - Results are in §5. Small and medium KBs (up to 50k vectors) are still searched exactly and pass (§2).
 
-Run it with `go run ./cmd/vecbench` (see `-h`).
+Run it with `go run -tags bench ./cmd/vecbench` (see `-h`).
 
 - **Default mode** loads clustered synthetic vectors into a table shaped like the application's: `halfvec(768)`, HNSW cosine with m=16 and ef_construction=64, and a `source_id` filter. It measures recall@10 against exact search, and latency, for KBs of different sizes.
 - **`-real-table` mode** runs the same measurement on real vectors and real queries (§5).
@@ -166,7 +166,7 @@ These cover `internal/`, which this run did not change.
 # Real vectors + query vectors (see scale-10k.md §6 for ai.env and the throttle)
 ragbench offline -gateway-url http://127.0.0.1:18090 -queries-out /tmp/ragbench/queries-prefix.jsonl \
     -export-dsn "$DSN" -export-table bench_fiqa_nomic
-V="go run ./cmd/vecbench -dsn $DSN -real-table bench_fiqa_nomic -query-vectors /tmp/ragbench/queries-prefix.jsonl -maintenance-work-mem 900MB"
+V="go run -tags bench ./cmd/vecbench -dsn $DSN -real-table bench_fiqa_nomic -query-vectors /tmp/ragbench/queries-prefix.jsonl -maintenance-work-mem 900MB"
 $V -filler 500000                                        # KB alone, then + 500k synthetic
 $V -filler 500000 -filler-kind real -filler-cos 0.9      # + 500k near-duplicate
 $V -filler 1500000 -filler-kind real -filler-cos 0.9 -keep -real-work-table vecbench_real_big

@@ -103,11 +103,11 @@ type localPacer struct {
 	next     map[string]time.Time
 }
 
-// NewLocalPacer is an in-process pacer for tests/single node. Callers reserve
+// newLocalPacer is an in-process pacer for tests/single node. Callers reserve
 // slots in arrival order; a caller whose context ends while waiting forfeits
 // its slot (the origin simply stays quiet for that interval). An interval <= 0
 // disables pacing.
-func NewLocalPacer(interval time.Duration) Pacer {
+func newLocalPacer(interval time.Duration) Pacer {
 	return &localPacer{interval: interval, next: map[string]time.Time{}}
 }
 

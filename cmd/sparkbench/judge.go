@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -13,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/strutil"
 	"github.com/ncecere/grounded/internal/systemone"
 )
 
@@ -147,7 +150,7 @@ func (j *judger) pageText(ctx context.Context, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	t := truncate(strings.Join(parts, "\n\n"), j.maxChars)
+	t := strutil.Clip(strings.Join(parts, "\n\n"), j.maxChars)
 	j.pages[url] = t
 	return t, nil
 }

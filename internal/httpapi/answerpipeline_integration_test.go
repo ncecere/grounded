@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 )
@@ -95,7 +96,7 @@ func TestRewriteThatAnswersIsNotSearched(t *testing.T) {
 func TestToolTurnTextIsNotTheAnswer(t *testing.T) {
 	env := newPublishEnv(t)
 	narration := "I'll search the knowledge base first.\n\nA first draft: permits are sold online [1].\n\n"
-	env.proxy.SetToolCalls(testutil.FakeToolCall{Name: "search_knowledge", Args: `{"query":"parking permit"}`, Text: narration})
+	env.proxy.SetToolCalls(fakes.FakeToolCall{Name: "search_knowledge", Args: `{"query":"parking permit"}`, Text: narration})
 	t.Cleanup(func() { env.proxy.SetToolCalls() })
 	q := "Where do students buy a parking permit?"
 	answered := func(step string, evs sseEvents) string {
@@ -231,7 +232,7 @@ func TestToolResultsAreNotJudgedOut(t *testing.T) {
 	mustCode(t, "SystemOne model", code, e, 201, "")
 	(&systemOneEnv{agentEnv: env.agentEnv, judge: judge}).putSettings(t, nil)
 	env.approve(t, "check_outage")
-	ag := env.toolAgent(t, "Judged tools", []string{"check_outage"}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email IRRELEVANT"}`})
+	ag := env.toolAgent(t, "Judged tools", []string{"check_outage"}, fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"email IRRELEVANT"}`})
 	t.Cleanup(func() { env.proxy.SetToolCalls() })
 	before := env.proxy.JudgingRequests()
 
@@ -255,7 +256,7 @@ func TestToolResultsAreNotJudgedOut(t *testing.T) {
 	}
 
 	// A prompt injection is still left out.
-	env.proxy.SetToolCalls(testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"INJECTION"}`})
+	env.proxy.SetToolCalls(fakes.FakeToolCall{Name: "check_outage", Args: `{"service":"INJECTION"}`})
 	code, evs, errCode = env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Is email down right now?"})
 	mustCode(t, "injection", code, errCode, 200, "")
 	evs.one(t, "tool_result", &res)

@@ -11,9 +11,9 @@ import (
 // TriggerSCIM marks changes made because the identity provider changed a SCIM group (docs/specs/scim/DESIGN.md).
 const TriggerSCIM = "scim"
 
-// SCIMGroups is a SCIM-linked user's groups for the rules: each SCIM group's name and external ID, normalised, so a rule
+// scimGroups is a SCIM-linked user's groups for the rules: each SCIM group's name and external ID, normalised, so a rule
 // written for a group's name or for its object ID matches.
-func SCIMGroups(ctx context.Context, q *dbgen.Queries, userID uuid.UUID) (Seen, error) {
+func scimGroups(ctx context.Context, q *dbgen.Queries, userID uuid.UUID) (Seen, error) {
 	rows, err := q.SCIMGroupsOfUser(ctx, userID)
 	if err != nil {
 		return Seen{}, err
@@ -38,12 +38,12 @@ func SignInGroups(ctx context.Context, q *dbgen.Queries, user dbgen.User, claim 
 	if err != nil || !any {
 		return claim, err
 	}
-	return SCIMGroups(ctx, q, user.ID)
+	return scimGroups(ctx, q, user.ID)
 }
 
 // SyncSCIM applies the rules to a SCIM-linked user after their SCIM groups changed.
 func SyncSCIM(ctx context.Context, q *dbgen.Queries, userID uuid.UUID, o Origin) error {
-	seen, err := SCIMGroups(ctx, q, userID)
+	seen, err := scimGroups(ctx, q, userID)
 	if err != nil {
 		return err
 	}

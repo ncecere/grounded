@@ -51,7 +51,7 @@ func TestCheckClaimsVerdictMapping(t *testing.T) {
 }
 
 func TestCheckStateTrimsTheSource(t *testing.T) {
-	st := CheckState(ClaimPair{Claim: "c", Source: strings.Repeat("é", maxPassageRunes+10)})
+	st := checkState(ClaimPair{Claim: "c", Source: strings.Repeat("é", maxPassageRunes+10)})
 	if st["claim"] != "c" || len([]rune(st["section"])) != maxPassageRunes {
 		t.Errorf("state = %d runes", len([]rune(st["section"])))
 	}
@@ -102,13 +102,13 @@ func TestCheckScope(t *testing.T) {
 }
 
 func TestCheckSettings(t *testing.T) {
-	s := DefaultSettings()
+	s := defaultSettings()
 	if s.Citations.Enabled || s.Scope.Enabled || s.Citations.Mode != CitationAnnotate || s.Citations.AutoAccept != 0.8 || len(s.Validate()) != 0 {
 		t.Fatalf("defaults %+v", s)
 	}
 	// Settings saved before the checks existed get their defaults.
-	old := DecodeSettings(json.RawMessage(`{"judging": {"enabled": true, "candidates": 5, "mode": "per_passage", "timeoutMs": 5000}}`))
-	if old.Citations != DefaultCitations() || old.Scope != DefaultScope() || old.Judging.Candidates != 5 {
+	old := decodeSettings(json.RawMessage(`{"judging": {"enabled": true, "candidates": 5, "mode": "per_passage", "timeoutMs": 5000}}`))
+	if old.Citations != defaultCitations() || old.Scope != DefaultScope() || old.Judging.Candidates != 5 {
 		t.Errorf("decoded %+v", old)
 	}
 	s.Citations = Citations{Mode: "loud", AutoAccept: 2, TimeoutMs: 10}
@@ -126,7 +126,7 @@ func TestCheckSettings(t *testing.T) {
 		t.Error("AnyEnabled with everything off")
 	}
 
-	c := DefaultCitations()
+	c := defaultCitations()
 	if e := c.Effective(Override{Citations: OverrideOn, CitationMode: CitationEnforce}); !e.Enabled || e.Mode != CitationEnforce {
 		t.Errorf("override on/enforce: %+v", e)
 	}

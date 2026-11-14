@@ -49,19 +49,19 @@ const (
 	maxTimeLimitMs     = 10000
 )
 
-// DefaultSettings are the settings until an admin saves some.
-func DefaultSettings() Settings {
+// defaultSettings are the settings until an admin saves some.
+func defaultSettings() Settings {
 	return Settings{
 		Judging: Judging{Candidates: DefaultCandidates, Mode: ModePerPassage,
 			TimeoutMs: DefaultTimeoutMs, TimeLimitMs: DefaultTimeLimitMs, Thresholds: DefaultThresholds},
-		Citations: DefaultCitations(),
+		Citations: defaultCitations(),
 		Scope:     DefaultScope(),
 	}
 }
 
-// DecodeSettings reads stored settings over the defaults.
-func DecodeSettings(raw json.RawMessage) Settings {
-	s := DefaultSettings()
+// decodeSettings reads stored settings over the defaults.
+func decodeSettings(raw json.RawMessage) Settings {
+	s := defaultSettings()
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &s)
 	}

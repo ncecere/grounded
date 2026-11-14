@@ -10,7 +10,7 @@ import (
 // promptInputTokens counts the actual escaped messages and local framing with
 // the configured margin. It is not the gateway's tokenizer or an invoice bound.
 func (g *Generator) promptInputTokens(in Input) int64 {
-	return int64(WithMargin(promptTokens(in, g.Counter)))
+	return int64(withMargin(promptTokens(in, g.Counter)))
 }
 
 // checkPromptCapacity supplements the coarse activation floor with this exact

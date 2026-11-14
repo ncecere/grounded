@@ -106,9 +106,9 @@ var kindOrder = []string{
 	ReadDocument, ReadPassages, ReadTags, ReadCrawls, ReadBoilerplate,
 }
 
-// SummaryLines renders a session's read counts for the owners: one line per
+// summaryLines renders a session's read counts for the owners: one line per
 // kind, e.g. "- Conversation transcripts: 3 conversations (5 reads)".
-func SummaryLines(counts []dbgen.BreakGlassReadCountsRow) []string {
+func summaryLines(counts []dbgen.BreakGlassReadCountsRow) []string {
 	by := map[string]dbgen.BreakGlassReadCountsRow{}
 	for _, c := range counts {
 		by[c.Kind] = c

@@ -91,24 +91,24 @@ func (r *Runner) rules() []Rule {
 	return Rules()
 }
 
-// LoadPeriods reads the platform setting and resolves the effective periods.
-func LoadPeriods(ctx context.Context, db dbgen.DBTX, env config.Retention) (Periods, error) {
+// loadPeriods reads the platform setting and resolves the effective periods.
+func loadPeriods(ctx context.Context, db dbgen.DBTX, env config.Retention) (Periods, error) {
 	row, err := dbgen.New(db).GetRetentionSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read retention settings: %w", err)
 	}
-	stored, err := ParseStored(row.Periods)
+	stored, err := parseStored(row.Periods)
 	if err != nil {
 		return nil, err
 	}
-	return Resolve(stored, env), nil
+	return resolve(stored, env), nil
 }
 
 // Apply runs the rules once (only the given kinds when any), without the
 // run lock, a run record or an audit entry (Run adds those). A failing kind
 // doesn't stop the others; the error joins every failure.
 func (r *Runner) Apply(ctx context.Context, kinds []Kind) (Results, error) {
-	periods, err := LoadPeriods(ctx, r.Pool, r.Env)
+	periods, err := loadPeriods(ctx, r.Pool, r.Env)
 	if err != nil {
 		return nil, err
 	}

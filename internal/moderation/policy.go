@@ -45,8 +45,8 @@ const (
 // raise it).
 var modeRank = map[string]int{ModeStreamRetract: 0, ModeStreamChecked: 1, ModeBuffer: 2}
 
-// ValidMode reports whether m is an output mode.
-func ValidMode(m string) bool {
+// validMode reports whether m is an output mode.
+func validMode(m string) bool {
 	_, ok := modeRank[m]
 	return ok
 }
@@ -128,10 +128,10 @@ const (
 
 var validEfforts = map[string]bool{EffortDefault: true, EffortOff: true, EffortLow: true, "medium": true, "high": true}
 
-// DefaultEffort is an audience's reasoning effort until an admin chooses
+// defaultEffort is an audience's reasoning effort until an admin chooses
 // one: low for public (visitors wait for checked answers; a policy saved
 // before the field existed gets it too), the model's for the others.
-func DefaultEffort(audience string) string {
+func defaultEffort(audience string) string {
 	if audience == authz.AudiencePublic {
 		return EffortLow
 	}
@@ -154,7 +154,7 @@ func (p Policy) Effort() string {
 func DefaultPolicy(audience string) Policy {
 	p := Policy{Categories: map[string]CategoryRules{}, OutputMode: ModeStreamRetract, Notice: DefaultNotice,
 		SupportMessage: DefaultSupportMessage, UncalibratedBlockThreshold: DefaultUncalibratedBlockThreshold,
-		ReasoningEffort: DefaultEffort(audience)}
+		ReasoningEffort: defaultEffort(audience)}
 	action := ActionOff
 	if audience == authz.AudiencePublic {
 		action, p.OutputMode, p.FailClosed = ActionBlock, ModeStreamChecked, true
@@ -166,15 +166,15 @@ func DefaultPolicy(audience string) Policy {
 	return p
 }
 
-// DecodePolicy reads a stored policy over the audience's defaults.
-func DecodePolicy(audience string, raw json.RawMessage) Policy {
+// decodePolicy reads a stored policy over the audience's defaults.
+func decodePolicy(audience string, raw json.RawMessage) Policy {
 	p := DefaultPolicy(audience)
 	var in Policy
 	if json.Unmarshal(raw, &in) != nil {
 		return p
 	}
 	for c, r := range in.Categories {
-		if IsCategory(c) {
+		if isCategory(c) {
 			p.Categories[c] = r
 		}
 	}

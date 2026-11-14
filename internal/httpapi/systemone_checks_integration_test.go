@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/ncecere/grounded/internal/agents"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // Documents for citation checks. The fake answers with a list of every
@@ -416,7 +416,7 @@ func TestScopeCheck(t *testing.T) {
 	mustCode(t, "small talk", code, e, 200, "")
 	var end apitypes.ChatEventMessageEnd
 	evs.one(t, "message_end", &end)
-	if end.Text != testutil.FakeSmallTalk || end.NoContextReason == nil || *end.NoContextReason != "small_talk" || end.Refused ||
+	if end.Text != fakes.FakeSmallTalk || end.NoContextReason == nil || *end.NoContextReason != "small_talk" || end.Refused ||
 		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats+1 || strings.Join(statusSteps(evs), ",") != "searching,thinking,answering" {
 		t.Fatalf("small talk = %v %+v", evs.names(), end)
 	}

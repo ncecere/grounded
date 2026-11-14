@@ -163,10 +163,10 @@ func TestOverrideJSON(t *testing.T) {
 // TestSavedPublicPolicyKeepsItsMode: a Public policy an admin saved keeps
 // its mode (buffer included); an unsaved one gets checked paragraphs.
 func TestSavedPublicPolicyKeepsItsMode(t *testing.T) {
-	if p := DecodePolicy(authz.AudiencePublic, json.RawMessage(`{"outputMode":"buffer","failClosed":true}`)); p.OutputMode != ModeBuffer {
+	if p := decodePolicy(authz.AudiencePublic, json.RawMessage(`{"outputMode":"buffer","failClosed":true}`)); p.OutputMode != ModeBuffer {
 		t.Errorf("saved buffer = %s", p.OutputMode)
 	}
-	if p := DecodePolicy(authz.AudiencePublic, json.RawMessage(`{"failClosed":true}`)); p.OutputMode != ModeStreamChecked {
+	if p := decodePolicy(authz.AudiencePublic, json.RawMessage(`{"failClosed":true}`)); p.OutputMode != ModeStreamChecked {
 		t.Errorf("no mode = %s", p.OutputMode)
 	}
 	p := DefaultPolicy(authz.AudienceTeam)
@@ -177,7 +177,7 @@ func TestSavedPublicPolicyKeepsItsMode(t *testing.T) {
 }
 
 func TestDecodePolicyOverDefaults(t *testing.T) {
-	p := DecodePolicy(authz.AudiencePublic, json.RawMessage(`{"categories":{"violence":{"input":{"action":"flag","threshold":0.7},"output":{"action":"block","threshold":0.5}},"bogus":{}},"outputMode":"stream_retract","failClosed":true}`))
+	p := decodePolicy(authz.AudiencePublic, json.RawMessage(`{"categories":{"violence":{"input":{"action":"flag","threshold":0.7},"output":{"action":"block","threshold":0.5}},"bogus":{}},"outputMode":"stream_retract","failClosed":true}`))
 	if p.Categories[Violence].Input.Action != ActionFlag || p.OutputMode != ModeStreamRetract || p.Notice != DefaultNotice ||
 		p.Categories[Sexual].Input.Action != ActionBlock || len(p.Categories) != len(Categories) {
 		t.Errorf("decoded = %+v", p)
@@ -191,7 +191,7 @@ func TestClassifierPromptIsVersioned(t *testing.T) {
 			t.Errorf("prompt lacks %q", want)
 		}
 	}
-	if DefinitionsVersion() != "v1" {
+	if definitionsVersion() != "v1" {
 		t.Error("version")
 	}
 }
@@ -259,7 +259,7 @@ func TestSupportAndSeverity(t *testing.T) {
 	}
 	// The stored form keeps the support message and threshold.
 	raw, _ := json.Marshal(sev)
-	if back := DecodePolicy("team", raw); back.SeverityBlock == nil || back.SupportMessage != DefaultSupportMessage {
+	if back := decodePolicy("team", raw); back.SeverityBlock == nil || back.SupportMessage != DefaultSupportMessage {
 		t.Errorf("decoded = %+v", back)
 	}
 }

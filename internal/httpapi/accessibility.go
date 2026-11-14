@@ -6,13 +6,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/ncecere/grounded/internal/apperr"
-	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/displaytext"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -29,7 +25,7 @@ func accessibilityView(row dbgen.AccessibilitySetting) apitypes.AccessibilitySet
 }
 
 func (a *api) getAccessibilitySettings(w http.ResponseWriter, r *http.Request) {
-	row, err := a.q.GetAccessibilitySettings(r.Context())
+	row, err := a.Platform.Accessibility(r.Context())
 	if failed(w, r, err) {
 		return
 	}
@@ -85,23 +81,7 @@ func (a *api) putAccessibilitySettings(w http.ResponseWriter, r *http.Request) {
 		failed(w, r, apperr.Invalid("invalid_link", "Use HTTPS links or a simple mailto reporting contact, without credentials, HTML, headers or controls"))
 		return
 	}
-	var out dbgen.AccessibilitySetting
-	err := store.InTx(r.Context(), a.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := q.LockAccessibilitySettings(r.Context())
-		if err != nil {
-			return err
-		}
-		if cur.Revision != rev {
-			return apperr.Stale()
-		}
-		out, err = q.UpdateAccessibilitySettings(r.Context(), dbgen.UpdateAccessibilitySettingsParams{ContactUrl: in.ContactUrl, InstitutionUrl: in.InstitutionUrl, UpdatedBy: uuid.NullUUID{UUID: actor.UserID, Valid: true}})
-		if err != nil {
-			return err
-		}
-		event := actor.Audit("platform.accessibility", "accessibility_settings", "settings")
-		event.Before, event.After = accessibilityView(cur), accessibilityView(out)
-		return audit.Record(r.Context(), q, event)
-	})
+	out, err := a.Platform.UpdateAccessibility(r.Context(), actor, in.ContactUrl, in.InstitutionUrl, rev)
 	if failed(w, r, err) {
 		return
 	}

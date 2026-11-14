@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 type envelope struct {
@@ -167,9 +168,9 @@ func decodeProblem(err error) string {
 	case errors.As(err, &syntax) || errors.Is(err, io.ErrUnexpectedEOF):
 		return "The request body is not valid JSON"
 	case errors.As(err, &typed) && typed.Field != "":
-		return fmt.Sprintf("Field %q must be %s", clip(typed.Field, 80), jsonKind(typed.Type))
+		return fmt.Sprintf("Field %q must be %s", strutil.Clip(typed.Field, 80), jsonKind(typed.Type))
 	case strings.HasPrefix(err.Error(), "json: unknown field "): // encoding/json has no typed error for it
-		return "Unknown field " + strconv.Quote(clip(strings.Trim(strings.TrimPrefix(err.Error(), "json: unknown field "), `"`), 60))
+		return "Unknown field " + strconv.Quote(strutil.Clip(strings.Trim(strings.TrimPrefix(err.Error(), "json: unknown field "), `"`), 60))
 	}
 	return "The request body does not fit this operation: check its fields"
 }
@@ -213,10 +214,10 @@ func badIDMessage(raw []byte, dst any) string {
 		var text string
 		if v, ok := fields[name]; ok && json.Unmarshal(v, &text) == nil {
 			if _, err := uuid.Parse(text); err != nil {
-				return fmt.Sprintf("Field %q%s", clip(name, 80), tail)
+				return fmt.Sprintf("Field %q%s", strutil.Clip(name, 80), tail)
 			}
 		} else if ok && string(v) != "null" {
-			return fmt.Sprintf("Field %q%s", clip(name, 80), tail)
+			return fmt.Sprintf("Field %q%s", strutil.Clip(name, 80), tail)
 		}
 	}
 	return "An ID in the request body is not valid"
@@ -245,14 +246,6 @@ func jsonKind(t reflect.Type) string {
 		return "an object"
 	}
 	return "a different kind of value"
-}
-
-// clip cuts s to n characters, so a long field name sent by a client is never echoed whole.
-func clip(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n]) + "…"
-	}
-	return s
 }
 
 // Decode reads exactly one JSON object into dst, rejecting unknown fields.

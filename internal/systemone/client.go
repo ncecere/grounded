@@ -195,16 +195,16 @@ func requestOutcome(err error) string {
 	switch {
 	case err == nil:
 		return "ok"
-	case IsTimeout(err):
+	case isTimeout(err):
 		return "timeout"
 	default:
 		return "error"
 	}
 }
 
-// IsTimeout reports whether err is a timeout or cancellation rather than
+// isTimeout reports whether err is a timeout or cancellation rather than
 // an answer from the service.
-func IsTimeout(err error) bool {
+func isTimeout(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return true
 	}

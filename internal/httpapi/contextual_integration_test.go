@@ -12,8 +12,8 @@ import (
 
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/testutil"
 )
 
 // Contextual chunks (A4, #21; docs/contextual-chunks.md): fake models only.
@@ -690,5 +690,5 @@ func TestContextualPlatformSwitchRefusesToEnable(t *testing.T) {
 	if !found || env.contextual(t, src.Id).PlatformEnabled {
 		t.Errorf("estimate blockers = %+v", est.Blockers)
 	}
-	_ = testutil.FakeContextMarker
+	_ = fakes.FakeContextMarker
 }

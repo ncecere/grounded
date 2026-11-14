@@ -1,3 +1,5 @@
+//go:build bench
+
 package main
 
 import (
@@ -15,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // gatewayFlags configure direct calls to the OpenAI-compatible model proxy.
@@ -87,7 +91,7 @@ func (e *embedder) embed(ctx context.Context, inputs []string) ([][]float32, err
 		}
 		retryable := err != nil || status == 429 || status >= 500
 		if !retryable && status >= 300 {
-			return nil, fmt.Errorf("embeddings: HTTP %d: %s", status, truncate(string(raw), 300))
+			return nil, fmt.Errorf("embeddings: HTTP %d: %s", status, strutil.Clip(string(raw), 300))
 		}
 		if !retryable {
 			var out struct {

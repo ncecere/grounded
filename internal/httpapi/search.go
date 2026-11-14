@@ -3,10 +3,8 @@ package httpapi
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
-	"github.com/ncecere/grounded/internal/httpx"
 	objsearch "github.com/ncecere/grounded/internal/search"
 )
 
@@ -33,14 +31,9 @@ func (a *api) publicSwitch(ctx context.Context) (bool, error) {
 func (a *api) searchObjects(svc *objsearch.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		limit := objsearch.DefaultLimit
-		if raw := q.Get("limit"); raw != "" {
-			n, err := strconv.Atoi(raw)
-			if err != nil || n < 1 || n > objsearch.MaxLimit {
-				httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and 50")
-				return
-			}
-			limit = n
+		limit, ok := queryLimit(w, r, objsearch.DefaultLimit, objsearch.MaxLimit)
+		if !ok {
+			return
 		}
 		res, err := svc.Search(r.Context(), a.actor(r), q.Get("q"), limit)
 		writeList(w, r, res, err, toAPISearchResult)

@@ -44,14 +44,9 @@ func (a *api) adminListKnowledgeBases(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) adminListProfileMigrations(w http.ResponseWriter, r *http.Request) {
-	var kbID *uuid.UUID
-	if raw := r.URL.Query().Get("kbId"); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid kbId")
-			return
-		}
-		kbID = &id
+	kbID, ok := queryUUID(w, r, "kbId")
+	if !ok {
+		return
 	}
 	list, err := a.ProfileMigrations.List(r.Context(), a.actor(r), kbID)
 	writeList(w, r, list, err, toAPIProfileMigration)

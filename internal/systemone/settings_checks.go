@@ -55,9 +55,9 @@ const (
 	DefaultScopeTimeoutMs    = 5000
 )
 
-// DefaultCitations are the citation-check settings until an admin saves
+// defaultCitations are the citation-check settings until an admin saves
 // some: off, annotate.
-func DefaultCitations() Citations {
+func defaultCitations() Citations {
 	return Citations{Mode: CitationAnnotate, AutoAccept: DefaultAutoAccept, TimeoutMs: DefaultCitationTimeoutMs}
 }
 

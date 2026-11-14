@@ -7,7 +7,6 @@ import (
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/pii"
-	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
 // piiRoutes: Admin -> Personal data (B7, docs/pii-scanning.md). The document reviews are with the document routes.
@@ -43,7 +42,7 @@ func (a *api) adminPutPii(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) writePii(w http.ResponseWriter, r *http.Request, st pii.Settings) {
-	rows, err := dbgen.New(a.PII.Pool).CountPIIReviewByTeam(r.Context())
+	rows, err := a.PII.ReviewCounts(r.Context(), a.actor(r))
 	if failed(w, r, err) {
 		return
 	}

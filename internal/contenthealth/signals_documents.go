@@ -4,18 +4,20 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // day is the unit of every age.
 const day = 24 * time.Hour
 
-// StaleCutoff is the latest processing time that counts as stale: a document last processed exactly staleDays before asOf
+// staleCutoff is the latest processing time that counts as stale: a document last processed exactly staleDays before asOf
 // is stale ("at least staleDays old"), one second newer is not.
-func StaleCutoff(asOf time.Time, staleDays int) time.Time {
+func staleCutoff(asOf time.Time, staleDays int) time.Time {
 	return asOf.Add(-time.Duration(staleDays) * day)
 }
 
@@ -39,7 +41,7 @@ func (staleSignal) Collect(ctx context.Context, env *Env) (Result, error) {
 		return notApplicable(ReasonNoDocuments), nil
 	}
 	rows, err := env.Q.ContentHealthStale(ctx, dbgen.ContentHealthStaleParams{
-		TeamID: nullID(env.TeamID), SourceIds: env.SourceIDs(), Cutoff: StaleCutoff(env.AsOf, env.Params.StaleDays), PageSize: MaxFindingsPerSignal,
+		TeamID: nullID(env.TeamID), SourceIds: env.SourceIDs(), Cutoff: staleCutoff(env.AsOf, env.Params.StaleDays), PageSize: MaxFindingsPerSignal,
 	})
 	if err != nil {
 		return Result{}, err
@@ -172,10 +174,10 @@ func (personalDataSignal) Collect(ctx context.Context, env *Env) (Result, error)
 
 // clipDetail keeps a finding's detail within its column (64 characters), at a comma.
 func clipDetail(s string) string {
-	if len(s) <= 64 {
+	if utf8.RuneCountInString(s) <= 64 {
 		return s
 	}
-	s = s[:64]
+	s = strutil.Truncate(s, 64)
 	if i := strings.LastIndexByte(s, ','); i > 0 {
 		return s[:i]
 	}

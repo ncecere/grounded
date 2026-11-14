@@ -141,7 +141,7 @@ func TestPGLateCommitDuringPagesEventuallyExported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if empty.Manifest.Count != 0 || Verify(empty, strings.NewReader(""), trust(fixtureKey(2))) != nil || VerifyLink(second, empty) != nil {
+	if empty.Manifest.Count != 0 || Verify(empty, strings.NewReader(""), trust(fixtureKey(2))) != nil || verifyLink(second, empty) != nil {
 		t.Fatal("empty carry-forward day")
 	}
 }

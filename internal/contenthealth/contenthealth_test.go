@@ -16,7 +16,7 @@ import (
 func TestStaleThresholdBoundary(t *testing.T) {
 	asOf := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 	for _, days := range []int{MinStaleDays, 365, MaxStaleDays} {
-		cutoff := StaleCutoff(asOf, days)
+		cutoff := staleCutoff(asOf, days)
 		if want := asOf.Add(-time.Duration(days) * 24 * time.Hour); !cutoff.Equal(want) {
 			t.Errorf("cutoff for %d days = %v, want %v", days, cutoff, want)
 		}

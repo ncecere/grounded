@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ncecere/grounded/internal/gateway"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 var symbols = map[Status]string{OK: "✓", Warn: "⚠", Info: "ℹ", Fail: "✗", Skip: "-"}
@@ -32,7 +33,7 @@ func (rep Report) WriteText(w io.Writer) error {
 	counts := map[Status]int{}
 	for _, c := range rep.Checks {
 		counts[c.Status]++
-		fmt.Fprintf(&b, "%s %-*s  %8s  %s\n", symbols[c.Status], nameWidth, truncate(label(c), 32), duration(c.DurationMs), c.Detail)
+		fmt.Fprintf(&b, "%s %-*s  %8s  %s\n", symbols[c.Status], nameWidth, strutil.Clip(label(c), 32), duration(c.DurationMs), c.Detail)
 		if c.Timings != nil {
 			fmt.Fprintf(&b, "%s%s\n", indent, phases(*c.Timings))
 		}
@@ -51,13 +52,6 @@ func (rep Report) WriteText(w io.Writer) error {
 }
 
 func label(c Check) string { return c.Group + " " + c.Name }
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n-1] + "…"
-}
 
 func duration(ms float64) string {
 	if ms <= 0 {

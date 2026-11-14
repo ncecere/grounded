@@ -135,11 +135,11 @@ type Channels struct {
 // app and by email.
 var Default = Channels{InApp: true, Email: true}
 
-// Resolve returns a recipient's channels for an event: mandatory events use
+// resolve returns a recipient's channels for an event: mandatory events use
 // every channel; otherwise the user's saved choice (nil: none saved) or the
 // default. Whether email can actually be sent (SMTP configured, an
 // address) is decided by the caller.
-func Resolve(d Def, saved *Channels) Channels {
+func resolve(d Def, saved *Channels) Channels {
 	if d.Mandatory {
 		return Channels{InApp: true, Email: true}
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 	"github.com/ncecere/grounded/internal/teams"
 )
 
@@ -33,7 +34,7 @@ func adminOf(r dbgen.GetTeamRequestRow) AdminRequest {
 	return AdminRequest{
 		Request: Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
 			ApprovedClassification: r.ApprovedLevel, Status: r.Status,
-			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt},
+			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: strutil.Deref(r.TeamSlug), TeamName: strutil.Deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt},
 		RequesterID: r.RequesterID, RequesterEmail: r.RequesterEmail, RequesterName: r.RequesterName, DeciderEmail: r.DeciderEmail, OwnerSuspended: r.OwnerSuspended.Bool,
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/fakes"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/testutil"
@@ -38,7 +39,7 @@ func TestTruncate(t *testing.T) {
 
 // embedTarget is a profile of dims output dimensions on a native-2560 fake
 // model; dimsParam sets the model's supportsDimensionsParam flag.
-func embedTarget(p *testutil.FakeProxy, model string, dims int32, dimsParam bool) EmbedTarget {
+func embedTarget(p *fakes.FakeProxy, model string, dims int32, dimsParam bool) EmbedTarget {
 	native := int32(2560)
 	compat, _ := json.Marshal(Compat{SupportsDimensionsParam: &dimsParam})
 	return EmbedTarget{
@@ -54,7 +55,7 @@ func TestEmbedTargetOutputDimensions(t *testing.T) {
 	p.AddMatryoshkaEmbeddingModel("mrl-2560", 2560) // accepts it
 	ctx := context.Background()
 	texts := []string{"Drop/add ends on the fifth day of classes.", "Parking permits"}
-	want := func(text string) []float32 { return Truncate(testutil.FakeEmbedding(text, 2560), 768) }
+	want := func(text string) []float32 { return Truncate(fakes.FakeEmbedding(text, 2560), 768) }
 	check := func(name string, res gateway.EmbedResult) {
 		t.Helper()
 		for i, v := range res.Vectors {

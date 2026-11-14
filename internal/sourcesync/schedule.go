@@ -58,7 +58,7 @@ func (w *ScheduleWorker) Work(ctx context.Context, _ *river.Job[ScheduleArgs]) e
 				return err
 			}
 			// Provisional: the sync sets the next one when it finishes; one that can't start waits a period.
-			if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: NextSync(row.Schedule, now), LastSyncAt: src.LastSyncAt}); err != nil {
+			if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: nextSync(row.Schedule, now), LastSyncAt: src.LastSyncAt}); err != nil {
 				return err
 			}
 			if row.Schedule == ScheduleManual || !capable(src.Type) {

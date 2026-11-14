@@ -30,9 +30,9 @@ var problemText = map[string]string{
 	"other":     "failed to index",
 }
 
-// ProblemFilter is the status filter of a source's Documents tab that shows
+// problemFilter is the status filter of a source's Documents tab that shows
 // a reason's documents: Needs OCR, or Failed.
-func ProblemFilter(reason string) string {
+func problemFilter(reason string) string {
 	if reason == "needs_ocr" {
 		return "needs_ocr"
 	}
@@ -48,7 +48,7 @@ func DocumentsAttentionEvent(t TeamRef, p DocumentProblems) Event {
 		what = problemText["other"]
 	}
 	n := int(p.Documents)
-	q := url.Values{"tab": {"documents"}, "status": {ProblemFilter(p.Reason)}}
+	q := url.Values{"tab": {"documents"}, "status": {problemFilter(p.Reason)}}
 	return Event{
 		Type: DocumentsAttention, TeamID: t.ID, Link: t.path("/sources/" + p.SourceID.String() + "?" + q.Encode()),
 		Title: fmt.Sprintf("%d %s in %s %s (%s)", n, plural(n, "document", "documents"), p.SourceName, plural(n, "needs attention", "need attention"), t.Name),

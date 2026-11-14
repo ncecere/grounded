@@ -43,7 +43,7 @@ func TestDependsOnDay(t *testing.T) {
 }
 
 func TestAgentSettingsDefaults(t *testing.T) {
-	st := DefaultAgentSettings()
+	st := defaultAgentSettings()
 	if !st.On("public") || st.On("team") || st.On("all_authenticated") {
 		t.Error("the default is on for public agents only")
 	}

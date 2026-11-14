@@ -77,8 +77,8 @@ type Type struct {
 
 var keyRE = regexp.MustCompile(`^[a-z][a-z0-9_]{1,39}$`)
 
-// ValidKey reports whether key can name a type (the same pattern as the data_sources.type check).
-func ValidKey(key string) bool { return keyRE.MatchString(key) }
+// validKey reports whether key can name a type (the same pattern as the data_sources.type check).
+func validKey(key string) bool { return keyRE.MatchString(key) }
 
 var (
 	mu    sync.RWMutex
@@ -97,7 +97,7 @@ var (
 // Register adds a type. It panics on an invalid or duplicate key: registration happens at start-up, and a mistake
 // there is a programming error.
 func Register(t Type) {
-	if !ValidKey(t.Key) {
+	if !validKey(t.Key) {
 		panic(fmt.Sprintf("sourcetypes: invalid key %q", t.Key))
 	}
 	if t.Name == "" {

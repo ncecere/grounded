@@ -112,8 +112,8 @@ func (p Periods) Days(k Kind) (int, bool) {
 // days, or null to keep the data; a missing kind uses the environment default.
 type Stored map[string]*int
 
-// ParseStored reads retention_settings.periods.
-func ParseStored(raw json.RawMessage) (Stored, error) {
+// parseStored reads retention_settings.periods.
+func parseStored(raw json.RawMessage) (Stored, error) {
 	out := Stored{}
 	if len(raw) == 0 {
 		return out, nil
@@ -124,8 +124,8 @@ func ParseStored(raw json.RawMessage) (Stored, error) {
 	return out, nil
 }
 
-// Resolve combines the platform setting and the environment defaults.
-func Resolve(stored Stored, env config.Retention) Periods {
+// resolve combines the platform setting and the environment defaults.
+func resolve(stored Stored, env config.Retention) Periods {
 	out := Periods{}
 	for _, cp := range config.RetentionPeriods {
 		k := Kind(cp.Kind)

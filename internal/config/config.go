@@ -300,7 +300,7 @@ func Defaults() Config {
 	c.EvaluationConcurrency = 2
 	c.HealthCheckInterval = 15 * time.Minute
 	c.IngestDispatchInterval = 5 * time.Second
-	c.Tracing = TracingDefaults()
+	c.Tracing = tracingDefaults()
 	return c
 }
 

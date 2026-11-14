@@ -148,7 +148,7 @@ func (m AssistantMessage) Clone() AssistantMessage {
 // --- JSON ---------------------------------------------------------------
 //
 // Messages and blocks marshal with a discriminator ("role" / "type") so
-// transcripts can be stored and read back with UnmarshalMessage and
+// transcripts can be stored and read back with unmarshalMessage and
 // UnmarshalBlocks.
 
 func (b Text) MarshalJSON() ([]byte, error) {
@@ -286,8 +286,8 @@ func (m *ToolResultMessage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalMessage decodes a message written by json.Marshal of any Message.
-func UnmarshalMessage(data []byte) (Message, error) {
+// unmarshalMessage decodes a message written by json.Marshal of any Message.
+func unmarshalMessage(data []byte) (Message, error) {
 	var head struct {
 		Role Role `json:"role"`
 	}

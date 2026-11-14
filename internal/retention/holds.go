@@ -14,8 +14,10 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Legal holds (DESIGN.md §8, ADR-0010). A hold on a user, team, agent or
@@ -66,8 +68,8 @@ func toHold(r dbgen.ListLegalHoldsRow) Hold {
 	h := Hold{
 		ID: r.ID, ScopeType: r.ScopeType, ScopeID: r.ScopeID, ScopeLabel: r.LiveLabel, ScopeExists: r.LiveLabel != "",
 		ScopeContext: r.ScopeContext, Reason: r.Reason, CoversFrom: r.CoversFrom, CoversTo: r.CoversTo,
-		CreatedAt: r.CreatedAt, CreatedBy: person(uuid.NullUUID{UUID: r.CreatedBy, Valid: true}, r.CreatedByName, r.CreatedByEmail),
-		ReleasedAt: r.ReleasedAt, ReleasedBy: person(r.ReleasedBy, r.ReleasedByName, r.ReleasedByEmail),
+		CreatedAt: r.CreatedAt, CreatedBy: people.From(uuid.NullUUID{UUID: r.CreatedBy, Valid: true}, r.CreatedByName, r.CreatedByEmail),
+		ReleasedAt: r.ReleasedAt, ReleasedBy: people.From(r.ReleasedBy, r.ReleasedByName, r.ReleasedByEmail),
 		ReleaseReason: r.ReleaseReason, Conversations: r.Conversations, Deleted: r.DeletedConversations,
 	}
 	if !h.ScopeExists {
@@ -212,7 +214,7 @@ func (s *Service) PlaceHold(ctx context.Context, a authz.Actor, in NewHold) (Hol
 			return err
 		}
 		h, err := q.InsertLegalHold(ctx, dbgen.InsertLegalHoldParams{
-			ScopeType: in.ScopeType, ScopeID: id, ScopeLabel: truncate(label, 300), Reason: in.Reason,
+			ScopeType: in.ScopeType, ScopeID: id, ScopeLabel: strutil.Truncate(label, 300), Reason: in.Reason,
 			CoversFrom: in.CoversFrom, CoversTo: in.CoversTo, CreatedBy: a.UserID,
 		})
 		if err != nil {
@@ -280,7 +282,7 @@ func holdSnapshot(h dbgen.LegalHold) map[string]any {
 }
 
 func holdName(h dbgen.LegalHold) string {
-	return truncate(fmt.Sprintf("Legal hold on %s %s", h.ScopeType, h.ScopeLabel), 300)
+	return strutil.Truncate(fmt.Sprintf("Legal hold on %s %s", h.ScopeType, h.ScopeLabel), 300)
 }
 
 func timeOrNil(t *time.Time) any {
@@ -288,11 +290,4 @@ func timeOrNil(t *time.Time) any {
 		return nil
 	}
 	return t.UTC().Format(time.RFC3339)
-}
-
-func truncate(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	return string([]rune(s)[:n])
 }

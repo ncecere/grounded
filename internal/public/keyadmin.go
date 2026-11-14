@@ -88,7 +88,7 @@ func (s *Service) CreateKey(ctx context.Context, a authz.Actor, teamRef string, 
 	if next.Name == "" {
 		return Key{}, "", apperr.Invalid("invalid_name", "Name must be 1-100 characters")
 	}
-	raw, id := NewKey()
+	raw, id := newKey()
 	var out Key
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		if out, err = q.InsertPublishableKey(ctx, dbgen.InsertPublishableKeyParams{
@@ -172,7 +172,7 @@ func (s *Service) applyKeyInput(ctx context.Context, teamID uuid.UUID, k Key, in
 		}
 	}
 	if in.AllowedOrigins != nil {
-		origins, err := NormalizeAllowedOrigins(*in.AllowedOrigins)
+		origins, err := normalizeAllowedOrigins(*in.AllowedOrigins)
 		if err != nil {
 			return k, apperr.Invalid("invalid_origin", err.Error())
 		}

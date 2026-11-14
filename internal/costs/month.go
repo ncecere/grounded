@@ -23,15 +23,15 @@ func DayOf(t time.Time, loc *time.Location) Day {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-// MonthOf is the first day of t's local month in loc.
-func MonthOf(t time.Time, loc *time.Location) Day {
+// monthOf is the first day of t's local month in loc.
+func monthOf(t time.Time, loc *time.Location) Day {
 	y, m, _ := t.In(loc).Date()
 	return time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
 }
 
-// StartOf is the instant a local day begins in loc (local midnight, or the
+// startOf is the instant a local day begins in loc (local midnight, or the
 // first instant after it when a DST change skips midnight).
-func StartOf(d Day, loc *time.Location) time.Time {
+func startOf(d Day, loc *time.Location) time.Time {
 	y, m, dd := d.Date()
 	return time.Date(y, m, dd, 0, 0, 0, 0, loc)
 }
@@ -39,8 +39,8 @@ func StartOf(d Day, loc *time.Location) time.Time {
 // MonthBounds are the instants the local month of t begins and ends
 // ([start, end)), and the month's first day.
 func MonthBounds(t time.Time, loc *time.Location) (start, end time.Time, month Day) {
-	month = MonthOf(t, loc)
-	return StartOf(month, loc), StartOf(month.AddDate(0, 1, 0), loc), month
+	month = monthOf(t, loc)
+	return startOf(month, loc), startOf(month.AddDate(0, 1, 0), loc), month
 }
 
 // HourRange is the UTC hour buckets whose start lies in [from, to): those

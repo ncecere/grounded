@@ -26,7 +26,7 @@ func (s *Service) Test(ctx context.Context, a authz.Actor, id uuid.UUID) (TestRe
 	}
 	res := s.probe(ctx, sv.McpServer)
 	if s.Health != nil {
-		r := HealthResult(id, res)
+		r := healthResult(id, res)
 		r.Trigger, r.By = healthcheck.TriggerManual, by(a)
 		if _, err := s.Health.Record(context.WithoutCancel(ctx), r); err != nil {
 			s.Log.WarnContext(ctx, "could not store an MCP server test", "server", id, "err", err)
@@ -35,10 +35,10 @@ func (s *Service) Test(ctx context.Context, a authz.Actor, id uuid.UUID) (TestRe
 	return res, nil
 }
 
-// HealthResult turns a test into a stored-health result. Classes that
+// healthResult turns a test into a stored-health result. Classes that
 // stored health doesn't know are mapped to the nearest one (a timeout is
 // unavailable; an oversized or input-requesting answer is bad_response).
-func HealthResult(id uuid.UUID, t TestResult) healthcheck.Result {
+func healthResult(id uuid.UUID, t TestResult) healthcheck.Result {
 	r := healthcheck.Result{Kind: healthcheck.KindMCPServer, SubjectID: id, OK: t.OK, Latency: t.Latency}
 	if t.Err != nil {
 		r.OK, r.HTTPStatus, r.Message = false, t.Err.HTTPStatus, t.Err.Message
@@ -75,7 +75,7 @@ func (c checker) Targets(ctx context.Context) ([]healthcheck.Target, error) {
 		out = append(out, healthcheck.Target{
 			Key: healthcheck.KindMCPServer + ":" + r.ID.String(),
 			Probe: func(ctx context.Context) ([]healthcheck.Result, error) {
-				return []healthcheck.Result{HealthResult(sv.ID, c.s.probe(ctx, sv))}, nil
+				return []healthcheck.Result{healthResult(sv.ID, c.s.probe(ctx, sv))}, nil
 			},
 		})
 	}

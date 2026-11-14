@@ -495,7 +495,7 @@ func TestFetcherPacesEveryRequest(t *testing.T) {
 	}))
 	defer srv.Close()
 	const interval = 60 * time.Millisecond
-	rec := &recordingPacer{Pacer: NewLocalPacer(interval)}
+	rec := &recordingPacer{Pacer: newLocalPacer(interval)}
 	f := privateFetcher(FetcherConfig{Pacer: rec, RespectRobots: true})
 	for i := 0; i < 2; i++ {
 		if _, err := f.Fetch(context.Background(), srv.URL+"/r"); err != nil {

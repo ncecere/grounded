@@ -61,19 +61,41 @@ const (
 	maxPageSize     = 200
 )
 
-// pageLimit reads ?limit=. The query fetches one extra row to detect a
-// following page.
+// pageLimit reads ?limit= for a cursor-paged list (1 to 200, default 50).
+// The service reads one extra row to tell whether another page follows and
+// returns the next cursor, nil on the last page (store.Page).
 func pageLimit(w http.ResponseWriter, r *http.Request) (int32, bool) {
+	n, ok := queryLimit(w, r, defaultPageSize, maxPageSize)
+	return int32(n), ok
+}
+
+// queryLimit reads ?limit= between 1 and max; def when absent. Every list
+// reports a bad limit the same way (400 invalid_limit).
+func queryLimit(w http.ResponseWriter, r *http.Request, def, max int) (int, bool) {
 	raw := r.URL.Query().Get("limit")
 	if raw == "" {
-		return defaultPageSize, true
+		return def, true
 	}
 	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > maxPageSize {
-		httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and 200")
+	if err != nil || n < 1 || n > max {
+		httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and "+strconv.Itoa(max))
 		return 0, false
 	}
-	return int32(n), true
+	return n, true
+}
+
+// queryUUID reads an optional ID from the query string (nil when absent).
+func queryUUID(w http.ResponseWriter, r *http.Request, name string) (*uuid.UUID, bool) {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return nil, true
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid "+name)
+		return nil, false
+	}
+	return &id, true
 }
 
 // search reads ?q=, trimmed; empty means no filter.

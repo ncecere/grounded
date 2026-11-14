@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // newStoreFunc returns a fresh, empty store for one subtest. Cleanup is
@@ -224,22 +226,22 @@ var invalidKeys = []string{
 func testInvalidKeysRejected(t *testing.T, ctx context.Context, s Store) {
 	for _, k := range invalidKeys {
 		if err := s.Put(ctx, k, strings.NewReader("x"), 1, ""); !errors.Is(err, ErrInvalidKey) {
-			t.Errorf("Put(%q) = %v, want ErrInvalidKey", truncate(k), err)
+			t.Errorf("Put(%q) = %v, want ErrInvalidKey", strutil.Clip(k, 64), err)
 		}
 		if rc, err := s.Get(ctx, k); !errors.Is(err, ErrInvalidKey) {
 			if rc != nil {
 				rc.Close()
 			}
-			t.Errorf("Get(%q) = %v, want ErrInvalidKey", truncate(k), err)
+			t.Errorf("Get(%q) = %v, want ErrInvalidKey", strutil.Clip(k, 64), err)
 		}
 		if err := s.Delete(ctx, k); !errors.Is(err, ErrInvalidKey) {
-			t.Errorf("Delete(%q) = %v, want ErrInvalidKey", truncate(k), err)
+			t.Errorf("Delete(%q) = %v, want ErrInvalidKey", strutil.Clip(k, 64), err)
 		}
 		if k == "a/" {
 			continue // valid as a prefix (trailing slash is optional)
 		}
 		if err := s.DeletePrefix(ctx, k); !errors.Is(err, ErrInvalidKey) {
-			t.Errorf("DeletePrefix(%q) = %v, want ErrInvalidKey", truncate(k), err)
+			t.Errorf("DeletePrefix(%q) = %v, want ErrInvalidKey", strutil.Clip(k, 64), err)
 		}
 	}
 	if err := s.Put(ctx, "ok/key", strings.NewReader("x"), -2, ""); err == nil {

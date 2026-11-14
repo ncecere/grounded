@@ -91,12 +91,12 @@ func (s *Service) estimate(ctx context.Context, a authz.Actor, sourceID uuid.UUI
 	if override != nil {
 		est.Model = uuid.NullUUID{UUID: *override, Valid: true}
 	}
-	totals, err := PlanSource(ctx, s.Pool, sourceID, src.EmbeddingProfileID, s.Counter)
+	totals, err := planSource(ctx, s.Pool, sourceID, src.EmbeddingProfileID, s.Counter)
 	if err != nil {
 		return est, err
 	}
 	est.Totals = totals
-	est.UnknownCallTokensIn, est.UnknownCallTokensOut = UnknownCallTokensMax(s.Counter)
+	est.UnknownCallTokensIn, est.UnknownCallTokensOut = unknownCallTokensMax(s.Counter)
 	if est.CachedContexts, err = s.q.CountSourceContextualCache(ctx, sourceID); err != nil {
 		return est, err
 	}
@@ -120,7 +120,7 @@ func (s *Service) blockers(ctx context.Context, est *SourceEstimate) {
 			est.ModelName = m.DisplayName
 		}
 	}
-	if p := ModelProblem(ctx, s.q, id, est.Classification); p != nil {
+	if p := modelProblem(ctx, s.q, id, est.Classification); p != nil {
 		add(p.Code, p.Message)
 	}
 	if est.Calls > int64(est.MaxCalls) {
@@ -247,9 +247,9 @@ func sumCost(list []SourceEstimate) Cost {
 	return c
 }
 
-// PlanSource plans a source's calls from the stored passages of one profile: sizes and heading paths only, in document order, one document
+// planSource plans a source's calls from the stored passages of one profile: sizes and heading paths only, in document order, one document
 // in memory at a time. Bounded by the number of passages, with a time limit.
-func PlanSource(ctx context.Context, pool queryer, sourceID, profileID uuid.UUID, c chunk.TokenCounter) (Totals, error) {
+func planSource(ctx context.Context, pool queryer, sourceID, profileID uuid.UUID, c chunk.TokenCounter) (Totals, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	rows, err := pool.Query(ctx, `SELECT c.document_id, c.heading_path, c.token_count
@@ -267,7 +267,7 @@ ORDER BY c.document_id, c.ordinal`, sourceID, profileID)
 	)
 	flush := func() {
 		if len(items) > 0 {
-			t.Add(PlanDocument(items, c))
+			t.Add(planDocument(items, c))
 			items = items[:0]
 		}
 	}
@@ -288,7 +288,7 @@ ORDER BY c.document_id, c.ordinal`, sourceID, profileID)
 	return t, rows.Err()
 }
 
-// queryer is the part of a pool PlanSource needs.
+// queryer is the part of a pool planSource needs.
 type queryer interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }

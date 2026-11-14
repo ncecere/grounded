@@ -90,8 +90,8 @@ func ValidCurrency(code string) bool {
 	return err == nil
 }
 
-// ValidMode reports a platform mode.
-func ValidMode(m string) bool { return m == ModeOff || m == ModeTrack || m == ModeEnforce }
+// validMode reports a platform mode.
+func validMode(m string) bool { return m == ModeOff || m == ModeTrack || m == ModeEnforce }
 
 func validWarn(p int) error {
 	if p < 1 || p > 100 {
@@ -101,7 +101,7 @@ func validWarn(p int) error {
 }
 
 func (in SettingsInput) validate() (*big.Rat, error) {
-	if !ValidMode(in.Mode) {
+	if !validMode(in.Mode) {
 		return nil, apperr.Invalid("invalid_mode", "The mode must be off, track or enforce")
 	}
 	if !ValidCurrency(in.Currency) {

@@ -34,6 +34,7 @@ import (
 	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 	"github.com/ncecere/grounded/internal/tracing"
 )
 
@@ -186,15 +187,7 @@ func listed(t *mcp.Tool) ListedTool {
 	if title == "" && t.Annotations != nil {
 		title = t.Annotations.Title
 	}
-	return ListedTool{Name: t.Name, Title: clip(title, maxToolTitle), Description: clip(t.Description, maxToolDescription), InputSchema: schema}
-}
-
-func clip(s string, n int) string {
-	s = strings.ToValidUTF8(s, "")
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	return string([]rune(s)[:n])
+	return ListedTool{Name: t.Name, Title: strutil.Truncate(strings.ToValidUTF8(title, ""), maxToolTitle), Description: strutil.Truncate(strings.ToValidUTF8(t.Description, ""), maxToolDescription), InputSchema: schema}
 }
 
 // CallResult is a tool's answer.

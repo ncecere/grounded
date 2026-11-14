@@ -3,8 +3,6 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/platform"
@@ -59,11 +57,7 @@ func toAPIMaintenanceStatus(st platform.MaintenanceState) apitypes.MaintenanceSt
 func toAPIMaintenanceSettings(st platform.MaintenanceState) apitypes.MaintenanceSettings {
 	return apitypes.MaintenanceSettings{
 		Enabled: st.Enabled, Reason: st.Reason, PlannedEndAt: st.PlannedEndAt, StartedAt: st.StartedAt,
-		StartedBy: maintenancePerson(st.StartedBy), UpdatedBy: maintenancePerson(st.UpdatedBy),
+		StartedBy: personOf(st.StartedBy), UpdatedBy: personOf(st.UpdatedBy),
 		UpdatedAt: st.UpdatedAt, Revision: st.Revision,
 	}
-}
-
-func maintenancePerson(p platform.Person) *apitypes.PersonRef {
-	return personRef(uuid.NullUUID{UUID: p.ID, Valid: p.ID != uuid.Nil}, p.DisplayName, p.Email)
 }

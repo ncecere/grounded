@@ -11,7 +11,7 @@
 // counts tokens (Reasoning is a subset of Output); StopReason is stop,
 // length, toolUse, error or aborted, and error/aborted messages carry
 // ErrorMessage. Messages marshal to JSON with a "role" discriminator and read
-// back with UnmarshalMessage, so transcripts can be stored as-is.
+// back with unmarshalMessage, so transcripts can be stored as-is.
 //
 // # Stream contract
 //

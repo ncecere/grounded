@@ -19,7 +19,7 @@ func TestParseCSV(t *testing.T) {
 		"Bad URL,https://example.edu/a*b\n" +
 		"\"Quoted, with a comma\",https://example.edu/q\n" +
 		"'=SUM(A1),https://example.edu/formula\n"
-	rows, probs := ParseCSV(content)
+	rows, probs := parseCSV(content)
 	if len(rows) != 4 {
 		t.Fatalf("rows = %+v, problems %+v", rows, probs)
 	}
@@ -48,7 +48,7 @@ func TestParseCSV(t *testing.T) {
 			t.Errorf("line %d: %q doesn't end with a period", p.Line, p.Message)
 		}
 	}
-	_, probs = ParseCSV(strings.Repeat("x", MaxQuestionChars+1) + ",https://example.edu/\n")
+	_, probs = parseCSV(strings.Repeat("x", MaxQuestionChars+1) + ",https://example.edu/\n")
 	if len(probs) != 1 || probs[0].Message != "The question must be 1\u20134,000 characters." {
 		t.Errorf("a long question: %+v", probs)
 	}
@@ -63,7 +63,7 @@ func TestThousands(t *testing.T) {
 }
 
 func TestParseCSVBroken(t *testing.T) {
-	rows, probs := ParseCSV("q1,https://example.edu/a\n\"unterminated,https://example.edu/b\n")
+	rows, probs := parseCSV("q1,https://example.edu/a\n\"unterminated,https://example.edu/b\n")
 	if len(rows) != 1 || len(probs) != 1 || !strings.Contains(probs[0].Message, "isn't valid CSV") {
 		t.Errorf("rows %+v problems %+v", rows, probs)
 	}
@@ -77,7 +77,7 @@ not json
 {"id":"q4","question":"No URLs","urls":[]}
 {"id":"q5","question":"Two pages","urls":["https://example.edu/a","https://example.edu/b"]}
 `
-	rows, probs := ParseJSONL(content)
+	rows, probs := parseJSONL(content)
 	if len(rows) != 2 || rows[0].Line != 1 || rows[1].Line != 6 || len(rows[1].Expected.URLs) != 2 {
 		t.Fatalf("rows = %+v", rows)
 	}
@@ -101,7 +101,7 @@ func TestParseLimits(t *testing.T) {
 func TestDedupe(t *testing.T) {
 	rows := []ImportRow{{Line: 1, CaseInput: CaseInput{Question: "Where is the  office?"}}, {Line: 2, CaseInput: CaseInput{Question: "where is the office?"}},
 		{Line: 3, CaseInput: CaseInput{Question: "Parking?"}}}
-	out, probs := Dedupe(rows, []string{"parking?"})
+	out, probs := dedupe(rows, []string{"parking?"})
 	if len(out) != 1 || out[0].Line != 1 || len(probs) != 2 {
 		t.Errorf("out %+v problems %+v", out, probs)
 	}
@@ -114,13 +114,13 @@ func TestExportRoundTrip(t *testing.T) {
 		{Question: "=HYPERLINK(\"x\")", Expected: Expected{Filenames: []string{"guide.pdf"}}},
 	}
 	var buf bytes.Buffer
-	if err := WriteCSV(&buf, in); err != nil {
+	if err := writeCSV(&buf, in); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(buf.String(), "'=HYPERLINK") {
 		t.Errorf("a formula cell wasn't neutralised: %s", buf.String())
 	}
-	rows, probs := ParseCSV(buf.String())
+	rows, probs := parseCSV(buf.String())
 	if len(probs) != 0 || len(rows) != 2 {
 		t.Fatalf("rows %+v problems %+v", rows, probs)
 	}

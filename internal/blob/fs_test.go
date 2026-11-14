@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 func newTestFS(t *testing.T) Store {
@@ -36,12 +38,12 @@ func TestValidKey(t *testing.T) {
 	}
 	for _, k := range valid {
 		if !ValidKey(k) {
-			t.Errorf("ValidKey(%q) = false, want true", truncate(k))
+			t.Errorf("ValidKey(%q) = false, want true", strutil.Clip(k, 64))
 		}
 	}
 	for _, k := range invalidKeys {
 		if ValidKey(k) {
-			t.Errorf("ValidKey(%q) = true, want false", truncate(k))
+			t.Errorf("ValidKey(%q) = true, want false", strutil.Clip(k, 64))
 		}
 	}
 	for _, k := range []string{"a/b/", "a/..", "./a", "a~b", "a:b", "a\nb", "a/b/../c"} {

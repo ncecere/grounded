@@ -238,8 +238,8 @@ func (a *api) adminSetMCPToolApproval(w http.ResponseWriter, r *http.Request) {
 	}
 	name := ""
 	if t.ApprovedBy.Valid {
-		if u, err := a.q.GetUser(r.Context(), t.ApprovedBy.UUID); err == nil {
-			name = u.DisplayName
+		if u, err := a.Platform.GetUser(r.Context(), a.actor(r), t.ApprovedBy.UUID); err == nil {
+			name = u.User.DisplayName
 		}
 	}
 	httpx.JSON(w, http.StatusOK, toAPIMCPTool(t, name))
@@ -250,7 +250,7 @@ func (a *api) listUsableMCPTools(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	health, err := a.health.Statuses(r.Context(), healthcheck.KindMCPServer)
+	health, err := a.HealthChecks.Statuses(r.Context(), healthcheck.KindMCPServer)
 	writeList(w, r, tools, err, func(t mcpclient.UsableTool) apitypes.MCPToolOption {
 		return apitypes.MCPToolOption{Id: t.ID, ServerId: t.ServerID, ServerName: t.ServerName, Name: t.Name, Title: t.Title,
 			Description: t.Description, MaxClassification: t.ServerMaxClassification, ServerHealth: pickerHealth(health, t.ServerID)}

@@ -132,7 +132,7 @@ func TestBackpressureAndTimeout(t *testing.T) {
 		t.Fatalf("529 = %v, backoff %v", err, backoff)
 	}
 	_, err = cl.Ask(context.Background(), Call{Timeout: 50 * time.Millisecond}, "x", qs)
-	if !IsTimeout(err) {
+	if !isTimeout(err) {
 		t.Errorf("slow answer = %v, want a timeout", err)
 	}
 }
@@ -260,7 +260,7 @@ func TestJudgeModes(t *testing.T) {
 	if st.Requests != 1 || requests.Load() != 4 || js[1].Route != RouteDropped || js[2].Route != RouteEvidence {
 		t.Fatalf("batched = %+v %+v", js, st)
 	}
-	state, qs := BatchedRequest("q", ps)
+	state, qs := batchedRequest("q", ps)
 	if len(qs) != 12 || !strings.Contains(qs["p3_evidence"].Instructions, "`passages.p3`") || len(state.(map[string]any)["passages"].(map[string]Passage)) != 3 {
 		t.Errorf("batched request = %v %v", state, qs)
 	}
@@ -273,7 +273,7 @@ func TestJudgeModes(t *testing.T) {
 }
 
 func TestSettingsValidateAndOverride(t *testing.T) {
-	s := DefaultSettings()
+	s := defaultSettings()
 	if len(s.Validate()) != 0 || s.Judging.Enabled || s.Judging.Candidates != DefaultCandidates || s.Judging.Mode != ModePerPassage {
 		t.Fatalf("defaults = %+v %v", s, s.Validate())
 	}
@@ -281,7 +281,7 @@ func TestSettingsValidateAndOverride(t *testing.T) {
 	if p := s.Validate(); len(p) != 4 {
 		t.Errorf("problems = %v", p)
 	}
-	d := DecodeSettings(json.RawMessage(`{"judging":{"enabled":true,"candidates":8}}`))
+	d := decodeSettings(json.RawMessage(`{"judging":{"enabled":true,"candidates":8}}`))
 	if !d.Judging.Enabled || d.Judging.Candidates != 8 || d.Judging.TimeoutMs != DefaultTimeoutMs || d.Judging.Thresholds != DefaultThresholds {
 		t.Errorf("decoded = %+v", d)
 	}
@@ -290,7 +290,7 @@ func TestSettingsValidateAndOverride(t *testing.T) {
 	if j.Enabled || j.Candidates != 10 {
 		t.Errorf("off override = %+v", j)
 	}
-	if j := DefaultSettings().Judging.Effective(Override{Judging: OverrideOn}); !j.Enabled || j.Candidates != DefaultCandidates {
+	if j := defaultSettings().Judging.Effective(Override{Judging: OverrideOn}); !j.Enabled || j.Candidates != DefaultCandidates {
 		t.Errorf("on override = %+v", j)
 	}
 	fifty1 := 51

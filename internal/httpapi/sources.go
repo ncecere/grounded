@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/ncecere/grounded/internal/apperr"
@@ -192,7 +191,7 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	health, err := a.health.Statuses(r.Context(), healthcheck.KindModel)
+	health, err := a.HealthChecks.Statuses(r.Context(), healthcheck.KindModel)
 	if failed(w, r, err) {
 		return
 	}
@@ -343,16 +342,11 @@ func (a *api) listBoilerplate(owner ownerFunc) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		limit := int32(20)
-		if v := r.URL.Query().Get("limit"); v != "" {
-			n, err := strconv.Atoi(v)
-			if err != nil || n < 1 || n > 50 {
-				httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be 1-50")
-				return
-			}
-			limit = int32(n)
+		limit, ok := queryLimit(w, r, 20, 50)
+		if !ok {
+			return
 		}
-		list, err := a.Sources.TopBoilerplate(r.Context(), a.actor(r), owner(r), id, limit)
+		list, err := a.Sources.TopBoilerplate(r.Context(), a.actor(r), owner(r), id, int32(limit))
 		writeList(w, r, list, err, func(b sources.BoilerplateBlock) apitypes.BoilerplateBlock {
 			return apitypes.BoilerplateBlock{Text: b.Text, Documents: b.Documents, Variants: b.Variants}
 		})

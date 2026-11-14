@@ -10,12 +10,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/auditexport"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/store/dbgen"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 func (a *api) auditExportRoutes() []route {
@@ -39,7 +40,7 @@ func (a *api) exportSettings(row dbgen.AuditExportSetting) apitypes.AuditExportS
 		ExternalCopy: apitypes.AuditExportCopyTarget{Configured: cp.Bucket != "", Bucket: cp.Bucket, Prefix: cp.Prefix}}
 }
 func (a *api) getAuditExportSettings(w http.ResponseWriter, r *http.Request) {
-	row, err := a.q.GetAuditExportSettings(r.Context())
+	row, err := a.AuditExports.Settings(r.Context())
 	if failed(w, r, err) {
 		return
 	}
@@ -79,7 +80,7 @@ func exportError(err error) error {
 func (a *api) exportStatus(ctx context.Context, row dbgen.AuditExportRequest) (apitypes.AuditExportStatus, error) {
 	out := apitypes.AuditExportStatus{Id: row.ID, Day: openapi_types.Date{Time: row.Day.Time}, Revision: row.Revision, State: apitypes.AuditExportStatusState(row.State), FailureCode: row.FailureCode}
 	if row.State == "completed" && row.ExportID.Valid {
-		e, err := a.q.GetAuditExport(ctx, row.ExportID.UUID)
+		e, err := a.AuditExports.Export(ctx, row.ExportID.UUID)
 		if err != nil {
 			return out, err
 		}
@@ -93,7 +94,7 @@ func (a *api) exportStatus(ctx context.Context, row dbgen.AuditExportRequest) (a
 	return out, nil
 }
 func (a *api) listAuditExports(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.q.ListAuditExportRequests(r.Context())
+	rows, err := a.AuditExports.Requests(r.Context())
 	if failed(w, r, err) {
 		return
 	}
@@ -120,7 +121,7 @@ func (a *api) getAuditExport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	row, err := a.q.GetAuditExportRequest(r.Context(), id)
+	row, err := a.AuditExports.GetRequest(r.Context(), id)
 	if failed(w, r, exportError(err)) {
 		return
 	}
@@ -168,7 +169,7 @@ func (a *api) downloadAuditExport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	row, err := a.q.GetAuditExportRequest(r.Context(), id)
+	row, err := a.AuditExports.GetRequest(r.Context(), id)
 	if failed(w, r, exportError(err)) {
 		return
 	}

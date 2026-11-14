@@ -1,6 +1,10 @@
 package chunk
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ncecere/grounded/internal/strutil"
+)
 
 // ContextLabel starts the context line of an embedding input.
 const ContextLabel = "Context: "
@@ -11,7 +15,7 @@ const ContextLabel = "Context: "
 //
 //	"Student Handbook\nRegistration > Late registration\n\nContext: <context>\n\n<content>"
 func EmbedTextContext(title string, c Chunk, context string) string {
-	context = oneLine(context)
+	context = strutil.OneLine(context)
 	if context == "" {
 		return EmbedText(title, c)
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
@@ -60,26 +61,7 @@ var (
 )
 
 // Person names someone on a session (zero ID: nobody).
-type Person struct {
-	ID          uuid.UUID
-	DisplayName string
-	Email       string
-}
-
-// Name is the display name, or the email.
-func (p Person) Name() string {
-	if p.DisplayName != "" {
-		return p.DisplayName
-	}
-	return p.Email
-}
-
-func person(id uuid.NullUUID, name, email string) Person {
-	if !id.Valid || email == "" {
-		return Person{}
-	}
-	return Person{ID: id.UUID, DisplayName: name, Email: email}
-}
+type Person = people.Person
 
 // Settings is the platform setting with who changed it last.
 type Settings struct {
@@ -104,7 +86,7 @@ func (s *Service) settings(ctx context.Context, q *dbgen.Queries) (Settings, err
 	}
 	return Settings{
 		BreakGlassPolicy: policyOf(r.ApprovalRequired, r.MaxDurationMinutes, r.ApprovalTimeoutMinutes),
-		UpdatedAt:        r.UpdatedAt, UpdatedBy: person(r.UpdatedBy, r.UpdatedByName, r.UpdatedByEmail), Revision: r.Revision,
+		UpdatedAt:        r.UpdatedAt, UpdatedBy: people.From(r.UpdatedBy, r.UpdatedByName, r.UpdatedByEmail), Revision: r.Revision,
 	}, nil
 }
 

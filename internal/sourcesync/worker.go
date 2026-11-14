@@ -250,7 +250,7 @@ func (s *Service) afterSync(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, sr
 		return err
 	}
 	now := s.now()
-	if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: NextSync(row.Schedule, now), LastSyncAt: &now}); err != nil {
+	if err := q.SetNextSync(ctx, dbgen.SetNextSyncParams{ID: src.ID, NextSyncAt: nextSync(row.Schedule, now), LastSyncAt: &now}); err != nil {
 		return err
 	}
 	if s.Webhooks == nil || !src.TeamID.Valid {
