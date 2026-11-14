@@ -199,6 +199,10 @@ func TestProfilePreviewIsReadyEvenIfTheComparisonCannotStart(t *testing.T) {
 // bases and profiles through the pool, and doing that while holding them starved a small pool (CI, pool size 3: the migration
 // stayed running for good). The hook checks the lock is free from another connection, then starts the runs; the start is
 // audited by the system with its count.
+//
+// The check's connection goes back to the pool before the real hook runs: the hook holds the transaction's connection and reads
+// through the pool, so keeping a third one meant needing all of CI's 3 at once, and when any other job held one the comparison
+// waited for a connection until the embedding job's 15-minute timeout and never started (#281).
 func TestPreviewComparisonStartsOutsideTheMigrationLock(t *testing.T) {
 	env := newMigEnv(t)
 	src := env.source(t, "Handbook", upload{"parking.md", []byte(longText("Parking permits", 40))})
@@ -209,13 +213,8 @@ func TestPreviewComparisonStartsOutsideTheMigrationLock(t *testing.T) {
 	hook := env.app.Svc.ProfileMigrations.OnPreviewReady
 	held := make(chan bool, 4)
 	env.app.Svc.ProfileMigrations.OnPreviewReady = func(ctx context.Context, tx pgx.Tx, kbID, migration, live, cand uuid.UUID) (int, error) {
-		conn, err := env.app.Pool.Acquire(ctx)
-		if err != nil {
-			return 0, err
-		}
-		defer conn.Release()
 		var free bool
-		if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtext('grounded.profile_migrations'))`).Scan(&free); err != nil {
+		if err := env.app.Pool.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtext('grounded.profile_migrations'))`).Scan(&free); err != nil {
 			return 0, err
 		}
 		held <- !free

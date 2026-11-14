@@ -234,7 +234,6 @@ func TestWidgetEmbedAndGuardrails(t *testing.T) {
 	if code, e := anon.start(pub.Id, created.Key, "https://a.example.org"); code != 201 {
 		t.Fatalf("widget session = %d %s", code, e)
 	}
-	avoidMinuteBoundary()
 	if code, _, e := anon.ask(pub.Id, "Where do students buy a parking permit?"); code != 200 {
 		t.Fatalf("widget chat = %d %s", code, e)
 	}
@@ -429,7 +428,6 @@ func TestWidgetSessionIsItsOwn(t *testing.T) {
 	// The public page's session and conversation.
 	v := newVisitor(t, env.app.URL)
 	v.start(pub.Id, "", "")
-	avoidMinuteBoundary()
 	if code, _, e := v.ask(pub.Id, "Where do students buy a parking permit?"); code != 200 {
 		t.Fatalf("public chat = %d %s", code, e)
 	}

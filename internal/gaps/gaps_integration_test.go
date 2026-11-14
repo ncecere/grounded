@@ -169,3 +169,33 @@ func isCode(err error, code string) bool {
 	var ae *apperr.Error
 	return errors.As(err, &ae) && ae.Code == code
 }
+
+// TestARunThatFindsTheLockTakenSaysSo (#281): while another run holds the job's lock (in the API tests, the worker's run at start), a
+// run does nothing and says so with ErrBusy, instead of returning an empty summary that looks like a run with nothing to do; the
+// worker counts it as done. Once the lock is free, a run groups the questions.
+func TestARunThatFindsTheLockTakenSaysSo(t *testing.T) {
+	f := newFixture(t)
+	for _, a := range []string{"a1", "a2", "a3"} {
+		f.ask(a, parking, false, "no_context")
+	}
+	other, err := f.pool.Acquire(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Release()
+	if _, err := other.Exec(f.ctx, `SELECT pg_advisory_lock($1)`, 0x67617073); err != nil {
+		t.Fatal(err)
+	}
+	if sum, err := f.runner.Run(f.ctx); !errors.Is(err, gaps.ErrBusy) || sum != (gaps.Summary{}) {
+		t.Fatalf("a run while another holds the lock = %+v, %v; want nothing done and ErrBusy", sum, err)
+	}
+	if err := (&gaps.Worker{Runner: f.runner}).Work(f.ctx, nil); err != nil {
+		t.Errorf("the worker's run while another holds the lock = %v, want nil (the other run does the work)", err)
+	}
+	if _, err := other.Exec(f.ctx, `SELECT pg_advisory_unlock($1)`, 0x67617073); err != nil {
+		t.Fatal(err)
+	}
+	if sum := f.run(); sum.Assigned != 3 || sum.NewTopics != 1 {
+		t.Fatalf("the run after = %+v, want the 3 questions in one new topic", sum)
+	}
+}

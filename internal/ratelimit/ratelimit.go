@@ -18,6 +18,16 @@ import (
 
 type Limiter struct {
 	KV *kv.Store
+	// Now places events in their window (nil: time.Now). Tests that make a few requests in one window fix it, so a request never lands
+	// in the next minute's window.
+	Now func() time.Time
+}
+
+func (l *Limiter) now() time.Time {
+	if l.Now == nil {
+		return time.Now()
+	}
+	return l.Now()
 }
 
 var incrScript = redis.NewScript(`
@@ -41,7 +51,8 @@ func (l *Limiter) Allow(ctx context.Context, key string, limit int, window time.
 	if secs < 1 {
 		secs = 1
 	}
-	bucket := time.Now().Unix() / secs
+	now := l.now().Unix()
+	bucket := now / secs
 	k := l.KV.Key("rate", key, strconv.FormatInt(bucket, 10))
 	n, err := incrScript.Run(ctx, l.KV.Client, []string{k}, secs).Int64()
 	if err != nil {
@@ -49,7 +60,7 @@ func (l *Limiter) Allow(ctx context.Context, key string, limit int, window time.
 	}
 	res := Result{Allowed: n <= int64(limit), Remaining: max(0, limit-int(n))}
 	if !res.Allowed {
-		res.RetryAfter = time.Duration((bucket+1)*secs-time.Now().Unix()) * time.Second
+		res.RetryAfter = time.Duration((bucket+1)*secs-now) * time.Second
 	}
 	return res, nil
 }
@@ -98,5 +109,5 @@ func (l *Limiter) bucketKey(key string, window time.Duration) string {
 	if secs < 1 {
 		secs = 1
 	}
-	return l.KV.Key("rate", key, strconv.FormatInt(time.Now().Unix()/secs, 10))
+	return l.KV.Key("rate", key, strconv.FormatInt(l.now().Unix()/secs, 10))
 }

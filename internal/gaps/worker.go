@@ -2,6 +2,7 @@ package gaps
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/riverqueue/river"
@@ -39,7 +40,9 @@ func (w *Worker) Timeout(*river.Job[Args]) time.Duration { return runTimeout }
 // Work runs one pass.
 func (w *Worker) Work(ctx context.Context, _ *river.Job[Args]) error {
 	sum, err := w.Runner.Run(ctx)
-	if err != nil {
+	if errors.Is(err, ErrBusy) {
+		return nil // another worker's run is doing this hour's work
+	} else if err != nil {
 		return err
 	}
 	observe(sum)

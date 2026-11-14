@@ -2,12 +2,35 @@ package httpapi_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ncecere/grounded/internal/gaps"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
+	"github.com/ncecere/grounded/internal/testutil"
 )
+
+// runGapTopics runs the topics job once and waits until a run of its own has done the work. The app's worker runs the job when it
+// starts (gaps.Periodic, RunOnStart), at a moment the test does not choose: a run that finds the worker's run holding the job's lock
+// does nothing (gaps.ErrBusy), and the worker's run may have looked for questions before the test asked them (#281). So it tries
+// again until it gets the lock.
+func runGapTopics(t *testing.T, app *testApp) gaps.Summary {
+	t.Helper()
+	runner := &gaps.Runner{Pool: app.Pool, Catalog: app.Svc.Catalog}
+	deadline := time.Now().Add(testutil.Scale(30 * time.Second))
+	for {
+		sum, err := runner.Run(context.Background())
+		if err == nil {
+			return sum
+		}
+		if !errors.Is(err, gaps.ErrBusy) || time.Now().After(deadline) {
+			t.Fatalf("the topics job: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
 
 // TestGapCaptureFeedbackAndReport: a failed answer keeps its question with
 // the search's vector (no extra embedding); Try it keeps nothing; a
@@ -66,10 +89,7 @@ func TestGapCaptureFeedbackAndReport(t *testing.T) {
 	}
 
 	// The topics job groups the 3 askers' questions.
-	runner := &gaps.Runner{Pool: env.app.Pool, Catalog: env.app.Svc.Catalog}
-	if _, err := runner.Run(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	runGapTopics(t, env.app)
 	var list apitypes.GapTopicList
 	if code := env.editor.get(env.base+"/gap-topics?agentId="+picky.Id.String(), &list); code != 200 || len(list.Topics) != 1 ||
 		list.Topics[0].Askers != 3 || list.MinAskers != 3 {
@@ -128,10 +148,7 @@ func TestGapTextNeverReachesPlatformStaff(t *testing.T) {
 	code, e := env.member.call("POST", "/v1/messages/"+shared.MessageId.String()+"/feedback",
 		map[string]any{"rating": "down", "reason": "missing_sources", "share": true}, nil, nil)
 	mustCode(t, "share", code, e, 200, "")
-	runner := &gaps.Runner{Pool: env.app.Pool, Catalog: env.app.Svc.Catalog}
-	if _, err := runner.Run(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	runGapTopics(t, env.app)
 	var list apitypes.GapTopicList
 	env.editor.get(env.base+"/gap-topics?agentId="+picky.Id.String(), &list)
 	if len(list.Topics) != 1 {

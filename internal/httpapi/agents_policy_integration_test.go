@@ -593,7 +593,6 @@ func TestChatLimits(t *testing.T) {
 
 	// Per person per minute (the owner has not asked anything yet).
 	setTeamLimits(t, env.admin, env.team, map[string]any{"chat_tokens_per_day": nil, "user_queries_per_minute": 1})
-	avoidMinuteBoundary()
 	if code, raw := askAs(env.owner); code != 200 {
 		t.Fatalf("first in minute = %d %s", code, raw)
 	}

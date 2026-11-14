@@ -22,8 +22,10 @@ import (
 	"github.com/ncecere/grounded/internal/httpapi"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/jobs"
+	"github.com/ncecere/grounded/internal/kv"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/public"
 	"github.com/ncecere/grounded/internal/testutil"
 )
 
@@ -96,6 +98,16 @@ func serial(t *testing.T) {
 	t.Cleanup(func() { parallelTests.Delete(t) })
 }
 
+// fixRateWindows makes the per-minute counters (team, person, API key, public visitor) count in one fixed minute for the whole
+// test: a test that makes a few queries against a limit of 1 or 2 never sees them split across two windows, so none waits for a
+// new minute (#253). A counter still ends 60 s after its first query (its Valkey TTL), as in production.
+func fixRateWindows(svc *app.Services, kvs *kv.Store) {
+	window := time.Now().Truncate(time.Minute).Add(30 * time.Second)
+	clock := func() time.Time { return window }
+	svc.Limits.SetWindowClock(clock)
+	svc.Public.Guard.Counters = public.ValkeyCounters{KV: kvs, Now: clock}
+}
+
 // newTestAppOn serves an app over an existing database (for example a
 // second app with other keys, as after a key rotation).
 func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config), worker bool) *testApp {
@@ -152,6 +164,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	deps.DocumentAccess = svc.DocumentAccess
 	svc.Limits.OnBackendError = metrics.RateLimitErrors.Inc
 	svc.Public.Guard.OnBackendError = metrics.RateLimitErrors.Inc
+	fixRateWindows(svc, kvs)
 	deps.Auth = auth.NewService(cfg, pool, kvs, metrics, log)
 	handler = httpapi.NewAPIHandler(deps)
 

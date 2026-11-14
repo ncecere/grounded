@@ -61,6 +61,14 @@ type Service struct {
 	Now func() time.Time
 }
 
+// SetWindowClock replaces the clock that places queries in their per-minute window (Valkey counters; default time.Now). Tests fix it
+// so the queries of one check never straddle two minutes (#253).
+func (s *Service) SetWindowClock(now func() time.Time) {
+	if s.limiter != nil {
+		s.limiter.Now = now
+	}
+}
+
 // BudgetChecker admits model work for a team: an error (429
 // budget_exhausted) when its enforced monthly budget is used up
 // (docs/costs.md §4).

@@ -66,7 +66,6 @@ func TestReasoningEffortAndThinkingStatus(t *testing.T) {
 	}
 	v := newVisitor(t, env.app.URL)
 	v.start(pub.Id, "", "")
-	avoidMinuteBoundary()
 	code, evs, e := v.ask(pub.Id, "Where do students buy a parking permit?")
 	if code != 200 {
 		t.Fatalf("public chat = %d %s", code, e)

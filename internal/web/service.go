@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -47,6 +48,8 @@ type Service struct {
 	// Maintenance pauses crawling while maintenance mode is on (nil: never;
 	// maintenance.go).
 	Maintenance *platform.MaintenanceGate
+	// MaintenancePoll overrides how often a parked run checks whether maintenance mode has ended (0: MaintenancePoll; tests shorten it).
+	MaintenancePoll time.Duration
 	// Budget parks runs of teams whose monthly budget is used up (nil:
 	// none; docs/costs.md §4).
 	Budget BudgetGate

@@ -248,11 +248,13 @@ func unavailable() error {
 // ValkeyCounters implements Counters with Valkey.
 type ValkeyCounters struct {
 	KV *kv.Store
+	// Now places questions in their per-minute window (nil: time.Now; ratelimit.Limiter.Now).
+	Now func() time.Time
 }
 
 // Allow is ratelimit.Limiter.Allow.
 func (v ValkeyCounters) Allow(ctx context.Context, key string, limit int, window time.Duration) (ratelimit.Result, error) {
-	return (&ratelimit.Limiter{KV: v.KV}).Allow(ctx, key, limit, window)
+	return (&ratelimit.Limiter{KV: v.KV, Now: v.Now}).Allow(ctx, key, limit, window)
 }
 
 var acquireSlot = redis.NewScript(`

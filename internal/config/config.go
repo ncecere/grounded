@@ -83,6 +83,12 @@ type Config struct {
 	// connections and models (docs/operations/health.md); 0 turns the
 	// scheduled re-test off (Test buttons still store their results).
 	HealthCheckInterval time.Duration
+	// IngestDispatchInterval is how often the dispatcher runs besides its kicks (after an upload, after each document), so documents a
+	// kick missed or that waited (maintenance mode, a limit) are scheduled. Not an operator setting: tests shorten it.
+	IngestDispatchInterval time.Duration
+	// JobFetchPollInterval is how often a worker looks for due jobs nothing announced (a short retry or snooze; jobs.Registration);
+	// 0 keeps River's 1 s. Not an operator setting: tests shorten it.
+	JobFetchPollInterval time.Duration
 
 	// Boilerplate are the platform defaults of repeated-block suppression
 	// (ADR-0021); sources may override them.
@@ -293,6 +299,7 @@ func Defaults() Config {
 	c.ProfileMigrationGraceDays = 7
 	c.EvaluationConcurrency = 2
 	c.HealthCheckInterval = 15 * time.Minute
+	c.IngestDispatchInterval = 5 * time.Second
 	c.Tracing = TracingDefaults()
 	return c
 }

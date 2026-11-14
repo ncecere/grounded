@@ -4,6 +4,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"time"
@@ -31,6 +32,9 @@ type Registration struct {
 	Register func(*river.Workers)
 	Queues   map[string]river.QueueConfig
 	Periodic []*river.PeriodicJob
+	// FetchPollInterval is how often the worker looks for jobs that became due without an insert notification: a retry or a snooze
+	// shorter than River's scheduler interval is made available at once, then waits for this poll (0: River's default, 1 s).
+	FetchPollInterval time.Duration
 }
 
 // NewWorker returns a client that works the default queue (plus any
@@ -51,11 +55,14 @@ func NewWorker(pool *pgxpool.Pool, log *slog.Logger, concurrency int, reg Regist
 			&river.PeriodicJobOpts{RunOnStart: true}),
 	}, reg.Periodic...)
 	return river.NewClient(riverpgxv5.New(pool), &river.Config{
-		Logger:       log,
-		Queues:       queues,
-		Workers:      workers,
-		PeriodicJobs: periodic,
-		Middleware:   []rivertype.Middleware{&traceMiddleware{}, metricsMiddleware()},
+		Logger:            log,
+		Queues:            queues,
+		Workers:           workers,
+		PeriodicJobs:      periodic,
+		Middleware:        []rivertype.Middleware{&traceMiddleware{}, metricsMiddleware()},
+		FetchPollInterval: reg.FetchPollInterval,
+		// River refuses a poll shorter than the cooldown between fetches (100 ms by default).
+		FetchCooldown: min(river.FetchCooldownDefault, cmp.Or(reg.FetchPollInterval, river.FetchCooldownDefault)),
 	})
 }
 
