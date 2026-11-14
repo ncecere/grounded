@@ -240,3 +240,17 @@ RETURNING *;
 
 -- name: CountPendingDomainRequests :one
 SELECT count(*) FROM crawl_domain_requests WHERE status = 'pending';
+
+-- ---- stored pages' links (#250) ----------------------------------------------------------------------------------
+
+-- The links of a page as stored: written for the stored version (the document's digest) only, and only when they
+-- are not already there.
+-- name: SaveWebPageLinks :exec
+INSERT INTO web_page_links (document_id, sha256, links)
+SELECT d.id, d.sha256, @links::text[] FROM documents d
+WHERE d.source_id = @source_id AND d.external_id = @external_id AND d.sha256 = @sha256
+ON CONFLICT (document_id) DO UPDATE SET sha256 = EXCLUDED.sha256, links = EXCLUDED.links
+WHERE web_page_links.sha256 <> EXCLUDED.sha256;
+
+-- name: StoredWebPageLinks :one
+SELECT links FROM web_page_links WHERE document_id = @document_id AND sha256 = @sha256;

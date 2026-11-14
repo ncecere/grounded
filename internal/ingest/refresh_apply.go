@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -109,10 +110,12 @@ func insertBlocks(ctx context.Context, tx pgx.Tx, sourceID uuid.UUID, c classifi
 
 // applyStale brings a batch of documents chunked under an older revision up
 // to date: those whose dropped blocks are unchanged only move to the new
-// revision; the others are re-chunked. It returns how many documents it
-// looked at.
+// revision; the others are re-chunked, rechunkParallel at a time. It returns
+// how many documents it looked at.
 func (r *refresh) applyStale(ctx context.Context, rev int32, enabled bool) (int, error) {
-	rows, err := r.q.StaleDocumentBlocks(ctx, dbgen.StaleDocumentBlocksParams{SourceID: r.src.ID, Rev: rev, MaxRows: staleBatch})
+	rows, err := NextBatch(&r.stale, func(after uuid.UUID) ([]dbgen.StaleDocumentBlocksRow, error) {
+		return r.q.StaleDocumentBlocks(ctx, dbgen.StaleDocumentBlocksParams{SourceID: r.src.ID, Rev: rev, After: after, MaxRows: staleBatch})
+	})
 	if err != nil || len(rows) == 0 {
 		return 0, err
 	}
@@ -125,26 +128,57 @@ func (r *refresh) applyStale(ctx context.Context, rev int32, enabled bool) (int,
 		set = c.canonical()
 	}
 	var same []uuid.UUID
-	rechunked := 0
+	var todo []dbgen.StaleDocumentBlocksRow
+	handled := 0
 	for _, d := range rows {
-		if sameDrops(candidateDrops(d.Hashes, set, d.DocumentID), d.Dropped) {
+		drops := sameDrops(candidateDrops(d.Hashes, set, d.DocumentID), d.Dropped)
+		if !drops && len(todo) == rechunkBatch {
+			break // the next step, from here
+		}
+		if drops {
 			same = append(same, d.DocumentID)
-			continue
+		} else {
+			todo = append(todo, d)
 		}
-		if rechunked == rechunkBatch {
-			continue // the next step
-		}
-		rechunked++
-		if err := r.p.rechunk(ctx, r.src, d, set, rev); err != nil {
-			return 0, err
-		}
+		handled++
+	}
+	if err := r.rechunkAll(ctx, todo, set, rev); err != nil {
+		return 0, err
 	}
 	if len(same) > 0 {
 		if err := r.q.SetDocumentBlocksRev(ctx, dbgen.SetDocumentBlocksRevParams{Rev: rev, DocumentIds: same}); err != nil {
 			return 0, err
 		}
 	}
+	r.stale.Done(rows[handled-1].DocumentID)
 	return len(rows), nil
+}
+
+// rechunkParallel is how many documents a refresh re-chunks at once, as a profile migration's set embeds them
+// (profilemig.SetWorker.step): one at a time, each paid the embedding batcher's wait and a request of its own (#250).
+const rechunkParallel = 8
+
+// rechunkAll re-chunks the documents, rechunkParallel at a time, and returns the error of the first one that failed
+// (in the batch's order), after all have finished.
+func (r *refresh) rechunkAll(ctx context.Context, docs []dbgen.StaleDocumentBlocksRow, set map[int64]uuid.NullUUID, rev int32) error {
+	errs := make([]error, len(docs))
+	sem := make(chan struct{}, rechunkParallel)
+	var wg sync.WaitGroup
+	for i, d := range docs {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer func() { <-sem; wg.Done() }()
+			errs[i] = r.p.rechunk(ctx, r.src, d, set, rev)
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // candidateDrops is what a document would drop under set, before the

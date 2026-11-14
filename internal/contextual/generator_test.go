@@ -295,6 +295,9 @@ func TestTimeoutIsAnAttemptOfUnknownUsage(t *testing.T) {
 
 func TestCheckpointAndCancellationStopBeforeCalls(t *testing.T) {
 	e := newGen(t)
+	// One call at a time, so the count is exact: with more, the sections past their checkpoint when the stop is recorded
+	// still run, at most CONTEXTUAL_CONCURRENCY of them (docs/contextual-chunks.md section 11).
+	e.g.Concurrency = 1
 	req := e.req(sections(4))
 	req.Checkpoint = func(context.Context) error {
 		// A checkpoint also runs after a reply, before caching it. Simulate
@@ -392,5 +395,48 @@ func TestInjectionFixtureNeverReachesToolsOrOtherSources(t *testing.T) {
 		if strings.Contains(got, bad) {
 			t.Errorf("context %q still has %q", got, bad)
 		}
+	}
+}
+
+// A document's sections are described several at once, within the concurrency allowed, and the result is the one a call
+// after another gives: each text in its section's place (#250).
+func TestSectionsRunConcurrentlyInOrder(t *testing.T) {
+	serial, wide := newGen(t), newGen(t)
+	serial.g.Concurrency, wide.g.Concurrency = 1, 4
+	for _, e := range []*genEnv{serial, wide} {
+		e.proxy.SetContextDelay(100 * time.Millisecond)
+	}
+	chunks := sections(9)
+	results := make([]Result, 2)
+	took := make([]time.Duration, 2)
+	for i, e := range []*genEnv{serial, wide} {
+		req := e.req(chunks)
+		start := time.Now()
+		res, err := e.g.Contextualize(context.Background(), req)
+		if err != nil || res.State != StateContext || res.Calls != 9 {
+			t.Fatalf("concurrency %d: %+v %v", e.g.Concurrency, res, err)
+		}
+		results[i], took[i] = res, time.Since(start)
+	}
+	t.Logf("9 sections at 100 ms a call: %v one at a time, %v four at a time", took[0], took[1])
+	if fmt.Sprint(results[0].Contexts) != fmt.Sprint(results[1].Contexts) || results[0].TokensIn != results[1].TokensIn {
+		t.Errorf("results differ:\n%q\n%q", results[0].Contexts, results[1].Contexts)
+	}
+	// One call, then eight four at a time: three delays, not nine (with room for a loaded machine).
+	if took[1] > took[0]*3/4 {
+		t.Errorf("four at a time took %v, one at a time %v", took[1], took[0])
+	}
+}
+
+// A failing model still costs one attempt per run, not one per section: the first call runs alone.
+func TestFailingModelCostsOneAttempt(t *testing.T) {
+	e := newGen(t)
+	e.g.Concurrency = 4
+	e.proxy.FailContextWith(500)
+	if _, err := e.g.Contextualize(context.Background(), e.req(sections(6))); err == nil {
+		t.Fatal("no error")
+	}
+	if n := len(e.proxy.ContextCalls()); n != 1 {
+		t.Errorf("%d calls", n)
 	}
 }

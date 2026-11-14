@@ -1665,6 +1665,12 @@ type WebFrontier struct {
 	UpdatedAt  time.Time
 }
 
+type WebPageLink struct {
+	DocumentID uuid.UUID
+	Sha256     string
+	Links      []string
+}
+
 type Webhook struct {
 	ID                  uuid.UUID
 	TeamID              uuid.NullUUID

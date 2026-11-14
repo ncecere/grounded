@@ -59,12 +59,15 @@ func recordSketches(ctx context.Context, q *dbgen.Queries, docID uuid.UUID, s *b
 // backfillSketches records the sketches of ready documents processed before
 // near-duplicate matching was switched on, from their stored parsed text.
 func (r *refresh) backfillSketches(ctx context.Context) (int, error) {
-	docs, err := r.q.DocumentsMissingSketches(ctx, dbgen.DocumentsMissingSketchesParams{
-		SourceID: r.src.ID, SketchVersion: boilerplate.SketchVersion, MaxRows: backfillBatch})
+	docs, err := NextBatch(&r.sketches, func(after uuid.UUID) ([]dbgen.DocumentsMissingSketchesRow, error) {
+		return r.q.DocumentsMissingSketches(ctx, dbgen.DocumentsMissingSketchesParams{
+			SourceID: r.src.ID, SketchVersion: boilerplate.SketchVersion, After: after, MaxRows: backfillBatch})
+	})
 	if err != nil {
 		return 0, err
 	}
 	for _, d := range docs {
+		r.sketches.Done(d.ID)
 		s := &blockSketches{hashes: []int64{}, packed: []byte{}}
 		if md, err := r.p.readParsed(ctx, d.BlobKey); err == nil {
 			s = sketchBlocks(chunk.Blocks(md))

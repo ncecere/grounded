@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -152,8 +153,8 @@ func (g *Generator) log() *slog.Logger {
 	return slog.Default()
 }
 
-// Contextualize describes a document's sections, one call each, reusing what is cached. It stops at the first failure (the calls after it
-// would not change the outcome), so a failing model costs one attempt per run, not one per section.
+// Contextualize describes a document's sections, one call each, reusing what is cached, several at once (generate). It starts no call after
+// the first failure (the calls after it would not change the outcome).
 func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, error) {
 	g.init()
 	units := PlanUnits(ItemsOf(req.Chunks))
@@ -194,20 +195,16 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 		return res, err
 	}
 	texts := make([]string, len(units))
+	var todo []int
 	for i := range units {
 		if t, ok := known[keys[i]]; ok {
 			texts[i], res.Cached = t, res.Cached+1
 			continue
 		}
-		c, err := g.one(ctx, req, model, inputs[i], keys[i])
-		if c.made {
-			res.Calls++
-		}
-		res.TokensIn, res.TokensOut = res.TokensIn+c.in, res.TokensOut+c.out
-		if err != nil {
-			return g.apply(req, res, err)
-		}
-		texts[i] = c.text
+		todo = append(todo, i)
+	}
+	if err := g.generate(ctx, req, model, inputs, keys, todo, texts, &res); err != nil {
+		return g.apply(req, res, err)
 	}
 	if _, err := g.currentTarget(ctx, req, model); err != nil {
 		return res, err
@@ -225,6 +222,51 @@ func (g *Generator) Contextualize(ctx context.Context, req Request) (Result, err
 		}
 	}
 	return res, nil
+}
+
+// generate makes the calls for the sections not cached (todo, in order) and puts their texts in place. The first runs
+// alone, so a model that fails costs one attempt per run, not one per section; the rest run up to Concurrency at once
+// (the process-wide limit applies as well), and none starts after one has failed. Each text goes to its section's
+// place, so the result is the same as one call after another; the error is the first failed section's, in order (#250).
+func (g *Generator) generate(ctx context.Context, req Request, m Model, inputs []Input, keys [][32]byte, todo []int, texts []string, res *Result) error {
+	if len(todo) == 0 {
+		return nil
+	}
+	results, errs := make([]flightResult, len(todo)), make([]error, len(todo))
+	run := func(j int) { results[j], errs[j] = g.one(ctx, req, m, inputs[todo[j]], keys[todo[j]]) }
+	run(0)
+	if errs[0] == nil && len(todo) > 1 {
+		var failed atomic.Bool
+		var wg sync.WaitGroup
+		slots := make(chan struct{}, cap(g.sem))
+		for j := 1; j < len(todo); j++ {
+			slots <- struct{}{}
+			if failed.Load() {
+				break
+			}
+			wg.Add(1)
+			go func() {
+				defer func() { <-slots; wg.Done() }()
+				if run(j); errs[j] != nil {
+					failed.Store(true)
+				}
+			}()
+		}
+		wg.Wait()
+	}
+	var first error
+	for j, i := range todo {
+		c := results[j]
+		if c.made {
+			res.Calls++
+		}
+		res.TokensIn, res.TokensOut = res.TokensIn+c.in, res.TokensOut+c.out
+		if first == nil {
+			first = errs[j]
+		}
+		texts[i] = c.text
+	}
+	return first
 }
 
 // apply decides what a failed call means for the document: a wait, a stop and a model that is unreachable go up as they are; a reply that

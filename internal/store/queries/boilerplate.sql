@@ -103,14 +103,14 @@ WHERE document_id = @document_id
 -- name: DocumentsMissingSketches :many
 SELECT d.id, d.blob_key FROM document_blocks db
 JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
-WHERE db.source_id = @source_id AND db.sketch_version < @sketch_version
+WHERE db.source_id = @source_id AND db.sketch_version < @sketch_version AND d.id > @after::uuid
 ORDER BY d.id
 LIMIT @max_rows;
 
 -- Ready documents processed before blocks were recorded.
 -- name: DocumentsMissingBlocks :many
 SELECT d.id, d.blob_key FROM documents d
-WHERE d.source_id = @source_id AND d.status = 'ready'
+WHERE d.source_id = @source_id AND d.status = 'ready' AND d.id > @after::uuid
   AND NOT EXISTS (SELECT 1 FROM document_blocks db WHERE db.document_id = d.id)
 ORDER BY d.id
 LIMIT @max_rows;
@@ -120,7 +120,7 @@ LIMIT @max_rows;
 SELECT db.document_id, db.hashes, db.dropped, d.version, d.blob_key, d.title, d.team_id, d.uploaded_by
 FROM document_blocks db
 JOIN documents d ON d.id = db.document_id AND d.status = 'ready'
-WHERE db.source_id = @source_id AND db.rev < @rev
+WHERE db.source_id = @source_id AND db.rev < @rev AND db.document_id > @after::uuid
 ORDER BY db.document_id
 LIMIT @max_rows;
 
@@ -129,6 +129,10 @@ UPDATE document_blocks SET rev = @rev WHERE document_id = ANY(@document_ids::uui
 
 -- name: DocumentChunkKeys :many
 SELECT id, content, heading_path, page_start, page_end FROM chunks WHERE document_id = @document_id AND profile_id = @profile_id;
+
+-- What a document's passages were embedded with besides their own text (internal/ingest/reuse.go, #250).
+-- name: SetDocumentEmbed :exec
+UPDATE documents SET metadata = jsonb_set(metadata, '{embed}', @embed::jsonb) WHERE id = @id;
 
 -- name: SetDocumentChunkStats :exec
 UPDATE documents SET chunk_count = @chunk_count, token_count = @token_count, updated_at = now()

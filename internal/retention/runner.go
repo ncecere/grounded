@@ -138,16 +138,23 @@ func (r *Runner) apply(ctx context.Context, rule Rule, periods Periods, now time
 	var res Result
 	for range rounds {
 		var n int64
-		err := pgx.BeginFunc(ctx, r.Pool, func(tx pgx.Tx) error {
-			var err error
-			n, err = rule.purge(ctx, r, tx, candidates, now, batch)
-			return err
-		})
+		var err error
+		if rule.ownTx {
+			n, err = rule.purge(ctx, r, nil, candidates, now, batch)
+		} else {
+			err = pgx.BeginFunc(ctx, r.Pool, func(tx pgx.Tx) error {
+				var err error
+				n, err = rule.purge(ctx, r, tx, candidates, now, batch)
+				return err
+			})
+		}
+		if err == nil || rule.ownTx { // an ownTx purge's deletions are committed even when it fails part way
+			res.Deleted += n
+		}
 		if err != nil {
 			res.Error = err.Error()
 			return res
 		}
-		res.Deleted += n
 		if n < int64(batch) {
 			break
 		}

@@ -893,16 +893,17 @@ func (q *Queries) MarkEmbeddingSetReady(ctx context.Context, arg MarkEmbeddingSe
 const pendingSetDocuments = `-- name: PendingSetDocuments :many
 SELECT d.id, d.version, d.title, d.filename, d.external_id, d.blob_key, d.team_id, d.uploaded_by
 FROM documents d
-WHERE d.source_id = $1 AND d.status = 'ready'
-  AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.document_id = d.id AND c.profile_id = $2)
-  AND NOT EXISTS (SELECT 1 FROM embedding_set_failures f WHERE f.document_id = d.id AND f.profile_id = $2
+WHERE d.source_id = $1 AND d.status = 'ready' AND d.id > $2::uuid
+  AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.document_id = d.id AND c.profile_id = $3)
+  AND NOT EXISTS (SELECT 1 FROM embedding_set_failures f WHERE f.document_id = d.id AND f.profile_id = $3
                   AND f.version = d.version AND (f.permanent OR f.retry_after > now()))
 ORDER BY d.id
-LIMIT $3
+LIMIT $4
 `
 
 type PendingSetDocumentsParams struct {
 	SourceID  uuid.UUID
+	After     uuid.UUID
 	ProfileID uuid.UUID
 	MaxRows   int32
 }
@@ -921,7 +922,12 @@ type PendingSetDocumentsRow struct {
 // Ready documents of a source without chunks for the profile, and not
 // waiting after a failure of their current version.
 func (q *Queries) PendingSetDocuments(ctx context.Context, arg PendingSetDocumentsParams) ([]PendingSetDocumentsRow, error) {
-	rows, err := q.db.Query(ctx, pendingSetDocuments, arg.SourceID, arg.ProfileID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, pendingSetDocuments,
+		arg.SourceID,
+		arg.After,
+		arg.ProfileID,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package parse
 
 import (
 	"bytes"
+	"fmt"
 	"path"
 	"strings"
 	"unicode/utf8"
@@ -51,8 +52,11 @@ func firstHeading(md string) string {
 	return ""
 }
 
-func parseMarkdown(in Input) (Document, error) {
+func parseMarkdown(in Input, lim Limits) (Document, error) {
 	md := cleanMarkdown(decodeText(in.Data))
+	if err := textFits(md, lim); err != nil {
+		return Document{}, err
+	}
 	title := firstHeading(md)
 	if title == "" {
 		title = titleFromName(in.Name)
@@ -62,6 +66,19 @@ func parseMarkdown(in Input) (Document, error) {
 
 // parseText keeps plain text as-is. Lines that look like Markdown syntax are
 // harmless to the chunker, so no escaping is done.
-func parseText(in Input) (Document, error) {
-	return Document{Title: titleFromName(in.Name), Markdown: cleanMarkdown(decodeText(in.Data)), Parser: "builtin:text"}, nil
+func parseText(in Input, lim Limits) (Document, error) {
+	md := cleanMarkdown(decodeText(in.Data))
+	if err := textFits(md, lim); err != nil {
+		return Document{}, err
+	}
+	return Document{Title: titleFromName(in.Name), Markdown: md, Parser: "builtin:text"}, nil
+}
+
+// textFits applies the converted-text limit every other format has to text and Markdown, which are not converted: a
+// 100 MiB text file would otherwise be chunked, embedded and written as one document of some 50,000 passages (#250).
+func textFits(md string, lim Limits) error {
+	if len(md) > lim.MaxMarkdownBytes {
+		return fmt.Errorf("%w: the text is larger than %d MiB", ErrTooLarge, lim.MaxMarkdownBytes>>20)
+	}
+	return nil
 }

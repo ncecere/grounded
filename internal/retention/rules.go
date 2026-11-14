@@ -17,10 +17,14 @@ import (
 // under the current periods. Periods are inlined as integers.
 //
 // purge deletes up to batch unheld candidates in tx and returns how many.
+// With ownTx it is given no transaction (tx is nil) and runs its own short
+// ones: it calls the object store, which must not happen while row locks and
+// a connection are held (purgeFiles).
 type Rule struct {
 	Kind       Kind
 	candidates func(p Periods) (query string, ok bool)
 	purge      func(ctx context.Context, r *Runner, tx pgx.Tx, candidates string, now time.Time, batch int) (int64, error)
+	ownTx      bool
 }
 
 // Rules returns every rule, in run order.
@@ -32,7 +36,7 @@ func Rules() []Rule {
 		{Kind: AnalyticsEvents, candidates: periodic(AnalyticsEvents, analyticsEventsDue), purge: deleteFrom("message_events", "id")},
 		{Kind: UsageEvents, candidates: periodic(UsageEvents, usageEventsDue), purge: purgeUsage},
 		{Kind: AuditLog, candidates: periodic(AuditLog, auditLogDue), purge: purgeAudit},
-		{Kind: DeletedFiles, candidates: periodic(DeletedFiles, deletedFilesDue), purge: purgeFiles},
+		{Kind: DeletedFiles, candidates: periodic(DeletedFiles, deletedFilesDue), purge: purgeFiles, ownTx: true},
 		{Kind: ExpiredInvites, candidates: periodic(ExpiredInvites, expiredInvitesDue), purge: deleteFrom("team_invites", "id")},
 		{Kind: AnonymousSessions, candidates: func(Periods) (string, bool) { return anonymousSessionsDue, true }, purge: deleteFrom("anon_sessions", "id")},
 		{Kind: EvaluationRuns, candidates: periodic(EvaluationRuns, evaluationRunsDue), purge: deleteFrom("eval_runs", "id")},

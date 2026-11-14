@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"io"
 	"strings"
 	"time"
 
@@ -202,7 +201,7 @@ func (v *pageVisit) fetched(ctx context.Context, pg crawl.Page) error {
 		}
 	}
 	if v.r.cfg.Mode == ModeCrawl && isHTML(pg.ContentType) {
-		if err := v.r.follow(ctx, pg.Body, final, v.depth, &v.c); err != nil {
+		if err := v.r.followFetched(ctx, pg.Body, final, digest, v.depth, &v.c); err != nil {
 			return err
 		}
 	}
@@ -296,46 +295,4 @@ func (r *run) store(ctx context.Context, final string, pg crawl.Page, digest str
 		s.deletePrefix(ctx, strings.TrimSuffix(known.BlobKey, "original"))
 	}
 	return nil
-}
-
-// follow adds in-scope links of an HTML page at depth+1.
-func (r *run) follow(ctx context.Context, body []byte, pageURL string, depth int, c *counts) error {
-	if r.cfg.Mode != ModeCrawl || depth+1 > r.cfg.MaxDepth {
-		return nil
-	}
-	var urls []string
-	for _, link := range crawl.Links(body, pageURL) {
-		if len(link) > MaxURLBytes {
-			continue
-		}
-		if ok, _ := r.scope.Allows(link, depth+1); ok {
-			urls = append(urls, link)
-		}
-	}
-	n, err := r.add(ctx, urls, depth+1)
-	c.discovered += n
-	return err
-}
-
-// followStored follows the links of the stored version of an unchanged (or
-// temporarily unavailable) HTML page, so its children are still seen.
-func (r *run) followStored(ctx context.Context, doc dbgen.Document, depth int, c *counts) error {
-	if r.cfg.Mode != ModeCrawl || depth+1 > r.cfg.MaxDepth || !isHTML(doc.ContentType) || doc.BlobKey == "" {
-		return nil
-	}
-	rc, err := r.s.Blob.Get(ctx, doc.BlobKey)
-	if err != nil {
-		r.s.Log.WarnContext(ctx, "stored page unavailable", "document", doc.ID, "err", err)
-		return nil
-	}
-	defer rc.Close()
-	limit := r.s.MaxBody
-	if limit <= 0 {
-		limit = 20 << 20
-	}
-	body, err := io.ReadAll(io.LimitReader(rc, limit))
-	if err != nil {
-		return nil
-	}
-	return r.follow(ctx, body, doc.URL, depth, c)
 }
