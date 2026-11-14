@@ -203,11 +203,12 @@ export function renderWith(ui: ReactNode, { role, platformRole = "none" }: { rol
       ),
   });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ["/"] }) });
-  return render(
+  const utils = render(
     <QueryClientProvider client={qc}>
       <RouterProvider router={router as never} />
     </QueryClientProvider>,
   );
+  return { ...utils, qc };
 }
 
 export const common = {

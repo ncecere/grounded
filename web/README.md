@@ -90,6 +90,7 @@ Rules:
 - **Don't edit files in `src/components/ui` by hand.** Fix or extend the component in bitop-ui (with a docs page and tests), then run `update`. `update` skips files edited here and `diff --check` reports them, but `--overwrite` replaces them.
 - `bar-chart` (and the other chart items) come from bitop-ui like every other item.
 - **Nothing Grounded-specific goes in `src/components/ui`.** A component that only makes sense for Grounded lives in `src/components/` or next to its page in `src/pages/`. If Grounded needs a generic component bitop-ui doesn't have, add it to bitop-ui first.
+- The signed-in shell loads on demand too: `router.tsx` imports `AppLayout` from `layout/lazy-shell`, never from `layout/shell`, so the widget, shared conversations and public agent pages don't download the sidebar and command palette. Keep the queries the router's loaders use (`route-data.ts`) in `api/queries.ts`, not in page modules.
 - `react-markdown` loads on demand: chat renders `LazyResponse` (from `response/response-lazy`), so Markdown parsing is its own chunk, loaded only on the chat page and the agent editor's Test tab. Keep it that way (don't import `response/response` from shell code).
 
 ## End-to-end tests

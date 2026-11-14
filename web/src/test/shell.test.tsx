@@ -4,6 +4,9 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { routeTree } from "../router";
+// The signed-in shell is a lazy chunk (lazy-shell.tsx) that the app starts loading with the entry: loaded with the test
+// file here, so the first test doesn't spend its time on transforming it.
+import "../components/layout/shell";
 import { testQueryClient } from "./query-client";
 
 /* ---------- fixtures ---------- */
@@ -60,7 +63,7 @@ afterEach(() => {
 
 function renderApp(path = "/") {
   const qc = testQueryClient();
-  const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [path] }) });
+  const router = createRouter({ routeTree, context: { queryClient: qc }, history: createMemoryHistory({ initialEntries: [path] }) });
   const utils = render(
     <QueryClientProvider client={qc}>
       <RouterProvider router={router} />

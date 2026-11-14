@@ -7,7 +7,7 @@ import { formatStorage } from "@/lib/format";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
-import { classificationsQuery } from "../../api/queries";
+import { classificationsQuery, kbsKey, sourcesKey } from "../../api/queries";
 import type { TeamRole } from "../../components/roles";
 import { Badge } from "@/components/ui/badge/badge";
 
@@ -53,40 +53,9 @@ export function useTeam(): TeamCtx {
   return ctx;
 }
 
-export const sourcesKey = (team: string) => ["team", team, "sources"];
-export const sourceKey = (team: string, id: string) => ["team", team, "source", id];
-export const documentsKey = (team: string, id: string) => ["team", team, "source", id, "documents"];
-export const kbsKey = (team: string) => ["team", team, "kbs"];
-export const kbKey = (team: string, id: string) => ["team", team, "kb", id];
-export const keysKey = (team: string) => ["team", team, "api-keys"];
-export const agentsKey = (team: string) => ["team", team, "agents"];
-export const agentKey = (team: string, id: string) => ["team", team, "agent", id];
-
-/** The team view (team + the viewer's role). Shared by the team layout and the breadcrumbs. */
-export const teamQuery = (team: string) =>
-  queryOptions({
-    queryKey: ["team", team],
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}", { params: { path: { team } } })),
-  });
-
-export const sourceQuery = (team: string, sourceId: string) =>
-  queryOptions({
-    queryKey: sourceKey(team, sourceId),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}", { params: { path: { team, sourceId } } })),
-  });
-
-export const kbQuery = (team: string, kbId: string) =>
-  queryOptions({
-    queryKey: kbKey(team, kbId),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs/{kbId}", { params: { path: { team, kbId } } })),
-  });
-
-/** One agent with its draft, published summary and warnings (the editor and the breadcrumbs). */
-export const agentQuery = (team: string, agentId: string) =>
-  queryOptions({
-    queryKey: agentKey(team, agentId),
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}", { params: { path: { team, agentId } } })),
-  });
+// The keys and the one-record queries live in api/queries.ts, so the router's loaders and the shell's breadcrumbs
+// don't pull the team pages into the main bundle.
+export { agentKey, agentQuery, agentsKey, documentsKey, kbKey, kbQuery, kbsKey, keysKey, sourceKey, sourceQuery, sourcesKey, teamQuery } from "../../api/queries";
 
 /** Classification levels, least to most sensitive. */
 export function useClassificationLevels() {

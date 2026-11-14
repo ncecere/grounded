@@ -114,3 +114,45 @@ export const agentProfileQuery = (ref: { team: string; agent: string } | { id: s
           ? unwrap(await api.GET("/v1/agents/short/{shortName}", { params: { path: { shortName: ref.short } } }))
           : unwrap(await api.GET("/v1/agents/{team}/{agent}", { params: { path: { team: ref.team, agent: ref.agent } } })),
   });
+
+/* ---------------- one team (["team", slug, …]) ---------------- */
+
+export const sourcesKey = (team: string) => ["team", team, "sources"];
+export const sourceKey = (team: string, id: string) => ["team", team, "source", id];
+export const documentsKey = (team: string, id: string) => ["team", team, "source", id, "documents"];
+export const kbsKey = (team: string) => ["team", team, "kbs"];
+export const kbKey = (team: string, id: string) => ["team", team, "kb", id];
+/** A knowledge base's embedding-profile migration and its index preview: under the KB, so invalidating the team or the KB reaches them (#252). */
+export const kbMigrationKey = (team: string, kbId: string) => [...kbKey(team, kbId), "profile-migration"];
+export const indexPreviewKey = (team: string, kbId: string) => [...kbKey(team, kbId), "index-preview"];
+/** The team's access groups (a source's Access tab). */
+export const accessGroupsKey = (team: string) => ["team", team, "access-groups"];
+export const keysKey = (team: string) => ["team", team, "api-keys"];
+export const agentsKey = (team: string) => ["team", team, "agents"];
+export const agentKey = (team: string, id: string) => ["team", team, "agent", id];
+
+/** The team view (team + the viewer's role). Shared by the team layout and the breadcrumbs. */
+export const teamQuery = (team: string) =>
+  queryOptions({
+    queryKey: ["team", team],
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}", { params: { path: { team } } })),
+  });
+
+export const sourceQuery = (team: string, sourceId: string) =>
+  queryOptions({
+    queryKey: sourceKey(team, sourceId),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/sources/{sourceId}", { params: { path: { team, sourceId } } })),
+  });
+
+export const kbQuery = (team: string, kbId: string) =>
+  queryOptions({
+    queryKey: kbKey(team, kbId),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/kbs/{kbId}", { params: { path: { team, kbId } } })),
+  });
+
+/** One agent with its draft, published summary and warnings (the editor and the breadcrumbs). */
+export const agentQuery = (team: string, agentId: string) =>
+  queryOptions({
+    queryKey: agentKey(team, agentId),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}", { params: { path: { team, agentId } } })),
+  });

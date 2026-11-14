@@ -6,7 +6,7 @@ import { ApiError } from "./api/client";
 import { defaultStaleTime } from "./lib/query-defaults";
 import { isMaintenanceError, maintenanceKey } from "./lib/maintenance";
 import { appRetryDelay, shouldRetry } from "./lib/retry";
-import { router } from "./router";
+import { createAppRouter } from "./router";
 // bitop-ui (installed with the bitop CLI, see README.md): font, tokens, the
 // neutral theme and base styles. Grounded sets <html data-brand> from UI_THEME
 // when it serves index.html ("neutral" is the only theme).
@@ -42,6 +42,8 @@ const queryClient: QueryClient = new QueryClient({
     },
   },
 });
+
+const router = createAppRouter({ queryClient });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

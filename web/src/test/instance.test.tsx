@@ -7,6 +7,9 @@ import type { ReactNode } from "react";
 import { axe } from "vitest-axe";
 import { applyInstance, defaultInstance, instanceOf, tagline, type Instance } from "../lib/instance";
 import { routeTree } from "../router";
+// The signed-in shell is a lazy chunk (lazy-shell.tsx) that the app starts loading with the entry: loaded with the test
+// file here, so the first test doesn't spend its time on transforming it.
+import "../components/layout/shell";
 import { SignInPage } from "../session";
 import { testQueryClient } from "./query-client";
 
@@ -38,14 +41,14 @@ function mockApi(routes: Record<string, () => unknown>) {
   });
 }
 
-function withQuery(ui: ReactNode) {
-  const qc = testQueryClient();
+function withQuery(ui: ReactNode, qc = testQueryClient()) {
   return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
 }
 
 function renderApp(path = "/") {
-  const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [path] }) });
-  return render(withQuery(<RouterProvider router={router} />));
+  const qc = testQueryClient();
+  const router = createRouter({ routeTree, context: { queryClient: qc }, history: createMemoryHistory({ initialEntries: [path] }) });
+  return render(withQuery(<RouterProvider router={router} />, qc));
 }
 
 const me = {

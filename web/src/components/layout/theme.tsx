@@ -11,7 +11,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { setColorMode, useColorMode, type ColorMode } from "@/components/ui/color-mode/color-mode";
 import type { CommandGroup } from "@/components/ui/command-palette/command-palette";
 import { MenuRadioGroup, MenuRadioItem } from "@/components/ui/menu/menu";
-import l from "./layout.module.css";
+import l from "./theme.module.css";
 
 const MODES: { value: ColorMode; label: string; icon: typeof Sun }[] = [
   { value: "system", label: "System", icon: Monitor },
