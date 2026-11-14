@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,14 +83,9 @@ func (a *api) adminGetRetentionReport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) adminListRetentionRuns(w http.ResponseWriter, r *http.Request) {
-	limit := int32(50)
-	if v := r.URL.Query().Get("limit"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 || n > 200 {
-			httpx.Fail(w, r, apperr.Invalid("invalid_limit", "limit must be from 1 to 200"))
-			return
-		}
-		limit = int32(n)
+	limit, ok := pageLimit(w, r)
+	if !ok {
+		return
 	}
 	runs, err := a.Retention.Runs(r.Context(), a.actor(r), limit)
 	writeList(w, r, runs, err, toAPIRetentionRun)

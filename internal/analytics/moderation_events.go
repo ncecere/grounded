@@ -10,6 +10,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/store"
 )
 
 // The moderation drill-down (docs/ui-review F-02): the individual
@@ -59,16 +60,16 @@ var eventDecisions = map[string]bool{"": true, "block": true, "flag": true, "sup
 
 // ModerationEvents lists moderation decisions, newest first (platform
 // admins and auditors). The second result is true when more follow.
-func (s *Service) ModerationEvents(ctx context.Context, a authz.Actor, f ModerationEventFilter) ([]ModerationEvent, bool, error) {
+func (s *Service) ModerationEvents(ctx context.Context, a authz.Actor, f ModerationEventFilter) ([]ModerationEvent, *ModerationEvent, error) {
 	if err := authorize(a); err != nil {
-		return nil, false, err
+		return nil, nil, err
 	}
 	if !eventDecisions[f.Decision] {
-		return nil, false, apperr.Invalid("invalid_decision", "decision must be block, flag, support or error")
+		return nil, nil, apperr.Invalid("invalid_decision", "decision must be block, flag, support or error")
 	}
 	from, to, err := Range(f.From, f.To)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, err
 	}
 	var agent any
 	if f.AgentID != nil {
@@ -81,13 +82,10 @@ func (s *Service) ModerationEvents(ctx context.Context, a authz.Actor, f Moderat
 	rows, err := QueryInto(ctx, s.Pool, []ModerationEvent{}, scanModerationEvent, moderationEventsSQL,
 		from, to.AddDate(0, 0, 1), f.Decision, f.Category, agent, before, f.BeforeStage, f.Limit+1)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, err
 	}
-	more := len(rows) > int(f.Limit)
-	if more {
-		rows = rows[:f.Limit]
-	}
-	return rows, more, nil
+	rows, next := store.Page(rows, f.Limit)
+	return rows, next, nil
 }
 
 // One row per moderated stage with a decision other than pass, ordered by

@@ -53,14 +53,9 @@ func (a *api) listTeamConversations(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var agentID *uuid.UUID
-	if raw := r.URL.Query().Get("agentId"); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid agentId")
-			return
-		}
-		agentID = &id
+	agentID, ok := queryUUID(w, r, "agentId")
+	if !ok {
+		return
 	}
 	keys, ok := decodeCursor(w, r, 2)
 	if !ok {

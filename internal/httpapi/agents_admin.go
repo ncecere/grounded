@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
@@ -117,18 +115,11 @@ func (a *api) adminListAccessLog(w http.ResponseWriter, r *http.Request) {
 	if f.To, ok = parseTimeParam(w, r, "to", true); !ok {
 		return
 	}
-	for _, p := range []struct {
-		name string
-		dst  **uuid.UUID
-	}{{"agentId", &f.AgentID}, {"userId", &f.UserID}} {
-		if raw := r.URL.Query().Get(p.name); raw != "" {
-			id, err := uuid.Parse(raw)
-			if err != nil {
-				httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid "+p.name)
-				return
-			}
-			*p.dst = &id
-		}
+	if f.AgentID, ok = queryUUID(w, r, "agentId"); !ok {
+		return
+	}
+	if f.UserID, ok = queryUUID(w, r, "userId"); !ok {
+		return
 	}
 	if f.Channel = r.URL.Query().Get("channel"); f.Channel != "" && !accessChannels[f.Channel] {
 		httpx.Error(w, http.StatusBadRequest, "invalid_channel", "channel must be ui, api, openai, test, public or widget")
@@ -147,7 +138,7 @@ func (a *api) adminListAccessLog(w http.ResponseWriter, r *http.Request) {
 		}
 		f.BeforeAt, f.BeforeID = &t, &n
 	}
-	rows, more, err := a.Agents.AccessLog(r.Context(), a.actor(r), f)
+	rows, next, err := a.Agents.AccessLog(r.Context(), a.actor(r), f)
 	if failed(w, r, err) {
 		return
 	}
@@ -160,9 +151,8 @@ func (a *api) adminListAccessLog(w http.ResponseWriter, r *http.Request) {
 			Channel: apitypes.AccessLogEntryChannel(e.Channel),
 		}
 	}
-	if more && len(rows) > 0 {
-		last := rows[len(rows)-1]
-		out.NextCursor = encodeCursor(last.At.Format(time.RFC3339Nano), strconv.FormatInt(last.ID, 10))
+	if next != nil {
+		out.NextCursor = encodeCursor(next.At.Format(time.RFC3339Nano), strconv.FormatInt(next.ID, 10))
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }

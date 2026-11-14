@@ -51,11 +51,13 @@ type UserListParams struct {
 	Limit        int32
 }
 
-func (s *Service) ListUsers(ctx context.Context, a authz.Actor, p UserListParams) ([]dbgen.User, error) {
+// ListUsers lists users by email. next is the last user when more follow
+// (nil at the end).
+func (s *Service) ListUsers(ctx context.Context, a authz.Actor, p UserListParams) (users []dbgen.User, next *dbgen.User, err error) {
 	if !a.CanReadPlatform() {
-		return nil, errReadOnly
+		return nil, nil, errReadOnly
 	}
-	params := dbgen.ListUsersParams{Search: p.Search, PlatformRole: p.Role, Status: p.Status, AfterEmail: p.AfterEmail, PageSize: p.Limit}
+	params := dbgen.ListUsersParams{Search: p.Search, PlatformRole: p.Role, Status: p.Status, AfterEmail: p.AfterEmail, PageSize: p.Limit + 1}
 	if p.Search != nil {
 		escaped := store.EscapeLike(*p.Search)
 		params.Search = &escaped
@@ -63,7 +65,11 @@ func (s *Service) ListUsers(ctx context.Context, a authz.Actor, p UserListParams
 	if p.AfterID != nil {
 		params.AfterID = uuid.NullUUID{UUID: *p.AfterID, Valid: true}
 	}
-	return s.q.ListUsers(ctx, params)
+	if users, err = s.q.ListUsers(ctx, params); err != nil {
+		return nil, nil, err
+	}
+	users, next = store.Page(users, p.Limit)
+	return users, next, nil
 }
 
 // UserDetail is a user with their team memberships.

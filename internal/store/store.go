@@ -188,3 +188,17 @@ func NullID(id *uuid.UUID) uuid.NullUUID {
 	}
 	return uuid.NullUUID{UUID: *id, Valid: true}
 }
+
+// Page trims rows read with one extra row (limit+1) to limit. last is the
+// final row kept when another page follows, nil on the last page: a list
+// service builds its next cursor from it, and the handler encodes that (#253).
+func Page[T any](rows []T, limit int32) (page []T, last *T) {
+	if limit < 0 || len(rows) <= int(limit) {
+		return rows, nil
+	}
+	rows = rows[:limit]
+	if limit == 0 {
+		return rows, nil
+	}
+	return rows, &rows[limit-1]
+}

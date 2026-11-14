@@ -202,7 +202,7 @@ func (a *api) adminListModerationEvents(w http.ResponseWriter, r *http.Request) 
 		}
 		f.AgentID = &id
 	}
-	rows, more, err := a.analytics.ModerationEvents(r.Context(), a.actor(r), f)
+	rows, next, err := a.analytics.ModerationEvents(r.Context(), a.actor(r), f)
 	if failed(w, r, err) {
 		return
 	}
@@ -214,9 +214,8 @@ func (a *api) adminListModerationEvents(w http.ResponseWriter, r *http.Request) 
 			Decision: apitypes.ModerationEventDecision(e.Decision), TopCategory: e.TopCategory, Score: e.Score,
 			Categories: e.Categories, Downgraded: e.Downgraded, Provider: e.Provider, Calibrated: e.Calibrated, LatencyMs: e.LatencyMs}
 	}
-	if more {
-		last := rows[len(rows)-1]
-		page.NextCursor = encodeCursor(strconv.FormatInt(last.ID, 10), last.Stage)
+	if next != nil {
+		page.NextCursor = encodeCursor(strconv.FormatInt(next.ID, 10), next.Stage)
 	}
 	httpx.JSON(w, http.StatusOK, page)
 }

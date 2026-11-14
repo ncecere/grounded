@@ -145,24 +145,26 @@ type ListParams struct {
 	Limit          int32
 }
 
-// ListAll lists every team for platform admins and auditors.
-func (s *Service) ListAll(ctx context.Context, a authz.Actor, p ListParams) ([]Summary, error) {
+// ListAll lists every team for platform admins and auditors, by slug. next
+// is the last team when more follow (nil at the end).
+func (s *Service) ListAll(ctx context.Context, a authz.Actor, p ListParams) (out []Summary, next *Summary, err error) {
 	if !a.CanReadPlatform() {
-		return nil, errAdminOnly
+		return nil, nil, errAdminOnly
 	}
 	rows, err := s.q.ListTeamsAdmin(ctx, dbgen.ListTeamsAdminParams{
-		Search: p.Search, Status: p.Status, AfterSlug: p.AfterSlug, PageSize: p.Limit,
+		Search: p.Search, Status: p.Status, AfterSlug: p.AfterSlug, PageSize: p.Limit + 1,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	out := make([]Summary, len(rows))
+	out = make([]Summary, len(rows))
 	for i, r := range rows {
 		out[i] = Summary{Team: r.Team, MemberCount: r.MemberCount, OwnerCount: r.OwnerCount, OwnerInvites: r.OwnerInvites, Content: Content{
 			Agents: r.AgentCount, Sources: r.SourceCount, KBs: r.KbCount, Documents: r.DocumentCount, StorageBytes: r.StorageBytes,
 		}}
 	}
-	return out, nil
+	out, next = store.Page(out, p.Limit)
+	return out, next, nil
 }
 
 // GetSummary returns one team for platform admins and auditors.

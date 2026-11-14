@@ -174,7 +174,7 @@ func (s *seeder) demoTeam(ctx context.Context) (bool, error) {
 			}
 		}
 	}
-	existing, err := s.svc.Teams.ListAll(ctx, s.actor, teams.ListParams{Limit: 1})
+	existing, _, err := s.svc.Teams.ListAll(ctx, s.actor, teams.ListParams{Limit: 1})
 	if err != nil {
 		return false, err
 	}

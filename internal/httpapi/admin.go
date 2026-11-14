@@ -45,7 +45,7 @@ func (a *api) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p := platform.UserListParams{Search: q, Limit: limit + 1}
+	p := platform.UserListParams{Search: q, Limit: limit}
 	if !userFilters(w, r, &p) {
 		return
 	}
@@ -57,15 +57,13 @@ func (a *api) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		p.AfterEmail, p.AfterID = &keys[0], &id
 	}
-	users, err := a.Platform.ListUsers(r.Context(), a.actor(r), p)
+	users, next, err := a.Platform.ListUsers(r.Context(), a.actor(r), p)
 	if failed(w, r, err) {
 		return
 	}
 	page := apitypes.UserPage{Items: []apitypes.User{}}
-	if len(users) > int(limit) {
-		users = users[:limit]
-		last := users[len(users)-1]
-		page.NextCursor = encodeCursor(last.Email, last.ID.String())
+	if next != nil {
+		page.NextCursor = encodeCursor(next.Email, next.ID.String())
 	}
 	ids := make([]uuid.UUID, len(users))
 	for i, u := range users {
@@ -152,7 +150,7 @@ func (a *api) adminListTeams(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p := teams.ListParams{Limit: limit + 1}
+	p := teams.ListParams{Limit: limit}
 	if q != nil {
 		escaped := store.EscapeLike(*q)
 		p.Search = &escaped
@@ -167,14 +165,13 @@ func (a *api) adminListTeams(w http.ResponseWriter, r *http.Request) {
 	if keys != nil {
 		p.AfterSlug = &keys[0]
 	}
-	rows, err := a.Teams.ListAll(r.Context(), a.actor(r), p)
+	rows, next, err := a.Teams.ListAll(r.Context(), a.actor(r), p)
 	if failed(w, r, err) {
 		return
 	}
 	page := apitypes.TeamPage{Items: []apitypes.TeamSummary{}}
-	if len(rows) > int(limit) {
-		rows = rows[:limit]
-		page.NextCursor = encodeCursor(rows[len(rows)-1].Team.Slug)
+	if next != nil {
+		page.NextCursor = encodeCursor(next.Team.Slug)
 	}
 	for _, s := range rows {
 		page.Items = append(page.Items, toAPISummary(s))

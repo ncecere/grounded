@@ -42,13 +42,8 @@ func (a *api) listConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var f agents.ConversationFilter
-	if raw := r.URL.Query().Get("agentId"); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid agentId")
-			return
-		}
-		f.AgentID = &id
+	if f.AgentID, ok = queryUUID(w, r, "agentId"); !ok {
+		return
 	}
 	if f.Search = r.URL.Query().Get("q"); len(f.Search) > 200 {
 		httpx.Error(w, http.StatusBadRequest, "invalid_q", "q must be at most 200 characters")

@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/google/uuid"
-
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
@@ -134,7 +132,7 @@ func (a *api) getDocumentText(owner ownerFunc) http.HandlerFunc {
 
 // documentTextQuery reads ?from= (≥ 0), ?limit= (1-200, default 50) and ?around=.
 func documentTextQuery(w http.ResponseWriter, r *http.Request) (sources.DocumentTextQuery, bool) {
-	tq := sources.DocumentTextQuery{Limit: 50}
+	tq := sources.DocumentTextQuery{}
 	q := r.URL.Query()
 	if raw := q.Get("from"); raw != "" {
 		n, err := strconv.Atoi(raw)
@@ -144,21 +142,13 @@ func documentTextQuery(w http.ResponseWriter, r *http.Request) (sources.Document
 		}
 		tq.From = int32(n)
 	}
-	if raw := q.Get("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 1 || n > 200 {
-			httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and 200")
-			return tq, false
-		}
-		tq.Limit = int32(n)
+	limit, ok := pageLimit(w, r)
+	if !ok {
+		return tq, false
 	}
-	if raw := q.Get("around"); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid around")
-			return tq, false
-		}
-		tq.Around = &id
+	tq.Limit = limit
+	if tq.Around, ok = queryUUID(w, r, "around"); !ok {
+		return tq, false
 	}
 	return parentTextQuery(w, q, tq)
 }

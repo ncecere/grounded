@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -310,16 +309,11 @@ func (a *api) listDocumentPassages(owner ownerFunc) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		limit := int32(20)
-		if raw := r.URL.Query().Get("limit"); raw != "" {
-			n, err := strconv.Atoi(raw)
-			if err != nil || n < 1 || n > 100 {
-				httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and 100")
-				return
-			}
-			limit = int32(n)
+		limit, ok := queryLimit(w, r, 20, 100)
+		if !ok {
+			return
 		}
-		doc, rows, err := a.Sources.DocumentPassages(r.Context(), a.actor(r), owner(r), src, docID, limit)
+		doc, rows, err := a.Sources.DocumentPassages(r.Context(), a.actor(r), owner(r), src, docID, int32(limit))
 		if failed(w, r, err) {
 			return
 		}

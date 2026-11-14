@@ -10,6 +10,7 @@ import (
 	"github.com/ncecere/grounded/internal/analytics"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -274,10 +275,10 @@ type AccessLogFilter struct {
 type AccessLogEntry = dbgen.ListAccessLogRow
 
 // AccessLog lists the access log, newest first (platform admins and
-// auditors). The second result is true when more entries follow.
-func (s *Service) AccessLog(ctx context.Context, a authz.Actor, f AccessLogFilter) ([]AccessLogEntry, bool, error) {
+// auditors). next is the last entry when more follow (nil at the end).
+func (s *Service) AccessLog(ctx context.Context, a authz.Actor, f AccessLogFilter) (rows []AccessLogEntry, next *AccessLogEntry, err error) {
 	if a.Key != nil || !a.CanReadPlatform() {
-		return nil, false, apperr.Forbidden("Only platform admins and auditors can read the access log")
+		return nil, nil, apperr.Forbidden("Only platform admins and auditors can read the access log")
 	}
 	p := dbgen.ListAccessLogParams{FromAt: f.From, ToAt: f.To, BeforeAt: f.BeforeAt, BeforeID: f.BeforeID, PageSize: f.Limit + 1}
 	if f.AgentID != nil {
@@ -289,13 +290,10 @@ func (s *Service) AccessLog(ctx context.Context, a authz.Actor, f AccessLogFilte
 	if f.Channel != "" {
 		p.Channel = &f.Channel
 	}
-	rows, err := s.q.ListAccessLog(ctx, p)
+	rows, err = s.q.ListAccessLog(ctx, p)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, err
 	}
-	more := len(rows) > int(f.Limit)
-	if more {
-		rows = rows[:f.Limit]
-	}
-	return rows, more, nil
+	rows, next = store.Page(rows, f.Limit)
+	return rows, next, nil
 }

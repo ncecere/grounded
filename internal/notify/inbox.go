@@ -49,11 +49,13 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID, p ListParams) ([]I
 		arg.AfterCreated, arg.AfterID = &p.After.CreatedAt, nullUUID(p.After.ID)
 	}
 	rows, err := s.q.ListNotifications(ctx, arg)
-	if err != nil || len(rows) <= int(p.Limit) {
-		return rows, nil, err
+	if err != nil {
+		return nil, nil, err
 	}
-	rows = rows[:p.Limit]
-	last := rows[len(rows)-1]
+	rows, last := store.Page(rows, p.Limit)
+	if last == nil {
+		return rows, nil, nil
+	}
 	return rows, &Cursor{CreatedAt: last.CreatedAt, ID: last.ID}, nil
 }
 

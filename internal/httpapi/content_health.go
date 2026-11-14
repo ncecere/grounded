@@ -104,14 +104,9 @@ func (a *api) listContentHealthFindings(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	limit := contenthealth.DefaultPageSize
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 1 || n > contenthealth.PageSize {
-			httpx.Error(w, http.StatusBadRequest, "invalid_limit", "limit must be between 1 and 100")
-			return
-		}
-		limit = n
+	limit, ok := queryLimit(w, r, contenthealth.DefaultPageSize, contenthealth.PageSize)
+	if !ok {
+		return
 	}
 	keys, ok := decodeCursor(w, r, 1)
 	if !ok {
