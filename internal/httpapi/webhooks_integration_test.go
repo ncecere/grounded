@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/testutil"
 	"github.com/ncecere/grounded/internal/webhooks"
@@ -66,7 +67,9 @@ type hookEnv struct {
 
 func newHookEnv(t *testing.T) *hookEnv {
 	t.Helper()
-	env := &hookEnv{agentEnv: newAgentEnv(t), rx: &receiver{}}
+	// A retry of 20 ms (RetryBackoff below) is made available at once but waits for the worker's next poll for jobs: 100 ms, not
+	// River's 1 s, so the 8 attempts of a delivery take a second, not eight (#253).
+	env := &hookEnv{agentEnv: newAgentEnvWith(t, func(c *config.Config) { c.JobFetchPollInterval = 100 * time.Millisecond }), rx: &receiver{}}
 	rx := env.rx
 	rx.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)

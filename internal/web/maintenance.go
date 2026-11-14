@@ -7,6 +7,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"time"
 
@@ -42,5 +43,5 @@ func (s *Service) parkIfMaintenance(ctx context.Context, id uuid.UUID, waiting s
 			return err
 		}
 	}
-	return river.JobSnooze(MaintenancePoll)
+	return river.JobSnooze(cmp.Or(s.MaintenancePoll, MaintenancePoll))
 }

@@ -10,7 +10,8 @@ import (
 func TestWebhookDeliveriesWaitWhileWebhooksAreOff(t *testing.T) {
 	env := newHookEnv(t)
 	svc := env.app.Svc.Webhooks
-	svc.RetryBackoff = func(int) time.Duration { return 1500 * time.Millisecond }
+	// The retry is due only when the test says so (below), so it cannot come before the switch is off however slow the machine.
+	svc.RetryBackoff = func(int) time.Duration { return time.Hour }
 	svc.OffSnooze = 400 * time.Millisecond
 
 	env.rx.mu.Lock()
@@ -21,9 +22,15 @@ func TestWebhookDeliveriesWaitWhileWebhooksAreOff(t *testing.T) {
 	env.publishAgent(t, "Waiting help", env.agentConfig(env.kb.Id.String()))
 	env.rx.waitCalls(t, 1)
 
-	// Off while the retry is due: it comes and goes without sending.
+	// Off while the retry is due: it comes and goes without sending. River counts the job's snoozes in its metadata.
 	env.setWebhooks(t, false)
-	time.Sleep(3500 * time.Millisecond)
+	eventually(t, "the failed attempt's retry to be due now", func() bool { // once River has recorded the failure
+		return env.scalar(t, `WITH due AS (UPDATE river_job SET state = 'available', scheduled_at = now() WHERE kind = 'webhook.deliver'
+			AND state = 'retryable' RETURNING 1) SELECT count(*) FROM due`) == 1
+	})
+	eventually(t, "the retry to come and wait", func() bool {
+		return env.scalar(t, `SELECT count(*) FROM river_job WHERE kind = 'webhook.deliver' AND (metadata->>'snoozes')::int >= 1`) == 1
+	})
 	d := env.deliveries(t, env.tadmin, path)
 	if len(d) != 1 || string(d[0].Status) != "pending" {
 		t.Fatalf("a delivery waiting while webhooks are off = %+v, want one pending delivery", d)

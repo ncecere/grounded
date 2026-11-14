@@ -309,14 +309,6 @@ func uploadRaw(t *testing.T, s *session, path, name string, data []byte) (int, [
 	return res.StatusCode, raw
 }
 
-// avoidMinuteBoundary waits out the end of a fixed one-minute window, so a
-// per-minute sequence is not split across two windows.
-func avoidMinuteBoundary() {
-	if s := time.Now().Second(); s >= 50 {
-		time.Sleep(time.Duration(61-s) * time.Second)
-	}
-}
-
 func TestQueryLimits(t *testing.T) {
 	env := newRAGEnv(t)
 	owner, admin := env.owner, env.admin
@@ -333,7 +325,6 @@ func TestQueryLimits(t *testing.T) {
 
 	// Team per minute (Valkey).
 	setTeamLimits(t, admin, env.team, map[string]any{"queries_per_minute": 2})
-	avoidMinuteBoundary()
 	for i := 0; i < 2; i++ {
 		code, e := owner.call("POST", retrieve, query, nil, nil)
 		mustCode(t, "query "+strconv.Itoa(i), code, e, 200, "")
@@ -357,7 +348,6 @@ func TestQueryLimits(t *testing.T) {
 	var key apitypes.APIKeyCreated
 	code, e = owner.call("POST", base+"/api-keys", map[string]any{"name": "k", "scopes": []string{"query"}}, &key, nil)
 	mustCode(t, "api key", code, e, 201, "")
-	avoidMinuteBoundary()
 	code, e = keyCall(t, env.app.URL, "POST", retrieve, key.Secret, query, nil)
 	mustCode(t, "key query", code, e, 200, "")
 	code, e = keyCall(t, env.app.URL, "POST", retrieve, key.Secret, query, nil)

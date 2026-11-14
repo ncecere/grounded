@@ -13,6 +13,7 @@ package gaps
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -71,9 +72,15 @@ func (r *Runner) log() *slog.Logger {
 	return r.Log
 }
 
+// ErrBusy: another run holds the job's lock, so this one did nothing. The
+// worker treats it as done (the other run does the work); a caller that needs
+// a run to have happened, such as a test, tries again.
+var ErrBusy = errors.New("gaps: another run of the topics job is in progress")
+
 // Run runs every step once, under a cross-worker lock (a run that finds the
-// lock taken does nothing). Its SystemOne checks run at background priority
-// (docs/v0.4.1.md §4), behind answers waiting for the same connection.
+// lock taken does nothing and returns ErrBusy). Its SystemOne checks run at
+// background priority (docs/v0.4.1.md §4), behind answers waiting for the
+// same connection.
 func (r *Runner) Run(ctx context.Context) (Summary, error) {
 	var sum Summary
 	ctx = systemone.WithPriority(ctx, systemone.Background)
@@ -83,8 +90,10 @@ func (r *Runner) Run(ctx context.Context) (Summary, error) {
 	}
 	defer conn.Release()
 	var locked bool
-	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, lockKey).Scan(&locked); err != nil || !locked {
+	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, lockKey).Scan(&locked); err != nil {
 		return sum, err
+	} else if !locked {
+		return sum, ErrBusy
 	}
 	defer func() { _, _ = conn.Exec(context.WithoutCancel(ctx), `SELECT pg_advisory_unlock($1)`, lockKey) }()
 	if sum.Embedded, err = r.embedPending(ctx); err != nil {

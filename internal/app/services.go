@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -391,7 +392,8 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			auditexport.Queue:   {MaxWorkers: 1},
 			doccounts.Queue:     {MaxWorkers: 1},
 		},
-		Periodic: ingestPeriodic(cfg, copier),
+		Periodic:          ingestPeriodic(cfg, copier),
+		FetchPollInterval: cfg.JobFetchPollInterval,
 	}, nil
 }
 
@@ -415,7 +417,7 @@ func newProcessor(cfg config.Config, pool *pgxpool.Pool, s *Services, counter ch
 // ingestPeriodic lists the worker's periodic jobs.
 func ingestPeriodic(cfg config.Config, copier *auditexport.Copier) []*river.PeriodicJob {
 	return append([]*river.PeriodicJob{
-		river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
+		river.NewPeriodicJob(river.PeriodicInterval(cmp.Or(cfg.IngestDispatchInterval, 5*time.Second)),
 			func() (river.JobArgs, *river.InsertOpts) { return ingest.DispatchArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true}),
 		river.NewPeriodicJob(river.PeriodicInterval(10*time.Minute),

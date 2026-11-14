@@ -17,7 +17,6 @@ func TestPublicFeedback(t *testing.T) {
 	pub := env.publicAgent(t, "Open help")
 	v := newVisitor(t, env.app.URL)
 	v.start(pub.Id, "", "")
-	avoidMinuteBoundary()
 	code, evs, e := v.ask(pub.Id, "Where do students buy a parking permit?")
 	if code != 200 {
 		t.Fatalf("chat = %d %s", code, e)

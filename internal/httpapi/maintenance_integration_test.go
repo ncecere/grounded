@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/jobs"
@@ -175,7 +176,10 @@ func TestMaintenanceModePausesIngestionNotChat(t *testing.T) {
 // and waits; queued and pending documents wait; the scheduler starts no
 // crawl. When maintenance mode ends, all of it continues by itself.
 func TestMaintenanceModeParksAndResumesWork(t *testing.T) {
-	env := newWebEnv(t, true)
+	// The dispatcher runs every 200 ms instead of 5 s, so "nothing moves for a dispatch period" is seen in a moment, and the parked
+	// crawl looks again every 500 ms instead of 10 s, so it resumes as soon as maintenance ends (#253).
+	env := newWebEnvWith(t, true, func(c *config.Config) { c.IngestDispatchInterval = 200 * time.Millisecond })
+	env.app.Svc.Web.MaintenancePoll = 500 * time.Millisecond
 	ctx := context.Background()
 	owner := env.owner
 
@@ -252,8 +256,19 @@ func TestMaintenanceModeParksAndResumesWork(t *testing.T) {
 		t.Fatalf("the scheduler started a crawl during maintenance: %d runs", n)
 	}
 
-	// Nothing moves for a dispatch period.
-	time.Sleep(6 * time.Second)
+	// Nothing moves for a dispatch period: two dispatches have run since (the first may have started before this point).
+	var mark time.Time
+	if err := env.app.Pool.QueryRow(ctx, `SELECT now()`).Scan(&mark); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "two dispatches during maintenance", func() bool {
+		var n int
+		if err := env.app.Pool.QueryRow(ctx, `SELECT count(*) FROM river_job WHERE kind = 'ingest.dispatch' AND state = 'completed'
+			AND attempted_at > $1`, mark).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n >= 2
+	})
 	if a, b, c := status(docs["a.md"].Id), status(docs["b.md"].Id), crawlOf(); a != "pending" || b != "pending" || c.PagesFetched != parked.PagesFetched || c.Status != "running" {
 		t.Fatalf("during maintenance: a=%s b=%s crawl=%+v (parked at %d pages)", a, b, c, parked.PagesFetched)
 	}
