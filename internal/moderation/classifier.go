@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // classifier uses any chat model as a classifier (ADR-0019 kind
@@ -62,7 +63,7 @@ func (p *classifier) Check(ctx context.Context, in Input) (Result, error) {
 		return res, nil
 	}
 	// One retry, showing the model its reply and the problem.
-	msgs = append(msgs, chatMsg{Role: "assistant", Content: truncate(reply.Text, 2000)},
+	msgs = append(msgs, chatMsg{Role: "assistant", Content: strutil.Clip(reply.Text, 2000)},
 		chatMsg{Role: "user", Content: "That reply was not valid (" + perr.Error() + "). Reply with only the JSON object: " + string(zeroScores())})
 	reply, err = p.chat.complete(ctx, msgs, classifierMaxTokens, nil)
 	if err != nil {

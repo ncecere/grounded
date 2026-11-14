@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Kinds and formats.
@@ -69,28 +70,20 @@ func nullID(id uuid.NullUUID) string {
 	return ""
 }
 
-// clip bounds a free-text fact (an email, a request ID, an address).
-func clip(s string, n int) string {
-	if len(s) > n {
-		return s[:n]
-	}
-	return s
-}
-
 // ToEvent projects an entry. A target that isn't a UUID (a URL, a pattern, a settings key) is left out, as in the export.
 func ToEvent(instance string, r dbgen.NextAuditStreamEntriesRow) Event {
 	return Event{
-		Source: "grounded", Instance: clip(instance, 100), ID: r.ID, OccurredAt: r.OccurredAt.UTC().Format(time.RFC3339Nano),
-		ActorKind: safeIdent(r.ActorKind), ActorUserID: nullID(r.ActorUserID), ActorEmail: clip(r.ActorEmail, 320),
-		APIKeyID: uuidOrEmpty(r.APIKeyID), TeamID: nullID(r.TeamID), TeamSlug: clip(r.TeamSlug, 100),
+		Source: "grounded", Instance: strutil.TruncateBytes(instance, 100), ID: r.ID, OccurredAt: r.OccurredAt.UTC().Format(time.RFC3339Nano),
+		ActorKind: safeIdent(r.ActorKind), ActorUserID: nullID(r.ActorUserID), ActorEmail: strutil.TruncateBytes(r.ActorEmail, 320),
+		APIKeyID: uuidOrEmpty(r.APIKeyID), TeamID: nullID(r.TeamID), TeamSlug: strutil.TruncateBytes(r.TeamSlug, 100),
 		Action: safeIdent(r.Action), TargetType: safeIdent(r.TargetType), TargetID: uuidOrEmpty(r.TargetID),
-		RequestID: clip(r.RequestID, 100), ClientIP: clip(r.ClientIP, 64),
+		RequestID: strutil.TruncateBytes(r.RequestID, 100), ClientIP: strutil.TruncateBytes(r.ClientIP, 64),
 	}
 }
 
 // TestEvent is the entry a Test sends: marked as a test, never stored in the audit log.
 func TestEvent(instance string, now time.Time) Event {
-	return Event{Source: "grounded", Instance: clip(instance, 100), OccurredAt: now.UTC().Format(time.RFC3339Nano), ActorKind: "system",
+	return Event{Source: "grounded", Instance: strutil.TruncateBytes(instance, 100), OccurredAt: now.UTC().Format(time.RFC3339Nano), ActorKind: "system",
 		Action: "audit_stream.test", TargetType: "audit_stream_destination"}
 }
 
@@ -134,7 +127,7 @@ func sdSafe(s string, max int) string {
 	if s == "" {
 		return "-"
 	}
-	return clip(s, max)
+	return strutil.TruncateBytes(s, max)
 }
 
 // SyslogFrame renders one event as an RFC 5424 message with RFC 5425 octet-counting framing ("LEN SP MSG"). Facility 13

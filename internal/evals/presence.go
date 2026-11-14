@@ -14,7 +14,9 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // CheckInput is a question to check before it's saved: its set, or the
@@ -96,7 +98,7 @@ func (s *Service) checkScope(ctx context.Context, teamID uuid.UUID, in CheckInpu
 		if err := s.checkTarget(ctx, s.q, teamID, SetInput{KBID: in.KBID, AgentID: in.AgentID}); err != nil {
 			return nil, err
 		}
-		return s.targetKBIDs(ctx, nullID(in.KBID), nullID(in.AgentID))
+		return s.targetKBIDs(ctx, store.NullID(in.KBID), store.NullID(in.AgentID))
 	}
 	if in.KBID != nil || in.AgentID != nil {
 		return nil, apperr.Invalid("invalid_target", "Give one of setId, kbId and agentId")
@@ -185,7 +187,7 @@ func (s *Service) targetWords(ctx context.Context, set dbgen.EvalSet) (string, e
 func notInKBText(where string, items []ExpectedItem) string {
 	names := make([]string, 0, len(items))
 	for _, it := range items {
-		names = append(names, clip(it.Value, 80))
+		names = append(names, strutil.Clip(it.Value, 80))
 	}
 	return fmt.Sprintf("No document in %s matches %s yet. It'll count once one is added.", where, strings.Join(names, " or "))
 }

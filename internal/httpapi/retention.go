@@ -179,7 +179,7 @@ func holdID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 // ---- conversions -------------------------------------------------------------------------
 
 func toAPIRetentionSettings(st retention.Settings) apitypes.RetentionSettings {
-	out := apitypes.RetentionSettings{Revision: st.Revision, UpdatedAt: st.UpdatedAt, UpdatedBy: retentionPerson(st.UpdatedBy),
+	out := apitypes.RetentionSettings{Revision: st.Revision, UpdatedAt: st.UpdatedAt, UpdatedBy: personOf(st.UpdatedBy),
 		Periods: []apitypes.RetentionPeriod{}, Levels: make([]apitypes.RetentionLevel, 0, len(st.Levels))}
 	for _, k := range retention.Kinds {
 		p, ok := st.Periods[k]
@@ -204,7 +204,7 @@ func toAPIRetentionSettings(st retention.Settings) apitypes.RetentionSettings {
 
 func toAPIRetentionRun(r retention.Run) apitypes.RetentionRun {
 	out := apitypes.RetentionRun{
-		Id: r.ID, Trigger: apitypes.RetentionRunTrigger(r.Trigger), RequestedBy: retentionPerson(r.RequestedBy),
+		Id: r.ID, Trigger: apitypes.RetentionRunTrigger(r.Trigger), RequestedBy: personOf(r.RequestedBy),
 		Kinds: make([]apitypes.RetentionKind, 0, len(r.Kinds)), Status: apitypes.RetentionRunStatus(r.Status),
 		Results: []apitypes.RetentionRunResult{}, Error: r.Error, CreatedAt: r.CreatedAt, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
 	}
@@ -223,8 +223,8 @@ func toAPILegalHold(h retention.Hold) apitypes.LegalHold {
 	out := apitypes.LegalHold{
 		Id: h.ID, ScopeType: apitypes.LegalHoldScopeType(h.ScopeType), ScopeId: h.ScopeID, ScopeLabel: h.ScopeLabel,
 		ScopeExists: h.ScopeExists, ScopeContext: h.ScopeContext, Reason: h.Reason, Status: "active",
-		CreatedAt: h.CreatedAt, CreatedBy: retentionPerson(h.CreatedBy), ReleasedAt: h.ReleasedAt,
-		ReleasedBy: retentionPerson(h.ReleasedBy), ReleaseReason: h.ReleaseReason,
+		CreatedAt: h.CreatedAt, CreatedBy: personOf(h.CreatedBy), ReleasedAt: h.ReleasedAt,
+		ReleasedBy: personOf(h.ReleasedBy), ReleaseReason: h.ReleaseReason,
 		Conversations: h.Conversations, DeletedConversations: h.Deleted,
 	}
 	if !h.Active() {
@@ -237,8 +237,4 @@ func toAPILegalHold(h retention.Hold) apitypes.LegalHold {
 		out.CoversTo = &openapi_types.Date{Time: h.CoversTo.UTC().AddDate(0, 0, -1)} // exclusive time → inclusive day
 	}
 	return out
-}
-
-func retentionPerson(p retention.Person) *apitypes.PersonRef {
-	return personRef(uuid.NullUUID{UUID: p.ID, Valid: p.ID != uuid.Nil}, p.DisplayName, p.Email)
 }

@@ -92,13 +92,6 @@ func optional(s string) *string {
 	return &s
 }
 
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
-}
-
 // ModerationTarget is a moderation or SystemOne model with a client for its
 // connection.
 type ModerationTarget struct {

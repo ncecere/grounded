@@ -279,12 +279,8 @@ func toAPIBreakGlassSettings(st breakglass.Settings) apitypes.BreakGlassSettings
 		ApprovalTimeoutMinutes: int(st.ApprovalTimeout / time.Minute),
 		DefaultDurationMinutes: int(st.DefaultDuration() / time.Minute),
 		MinReasonLength:        authz.BreakGlassMinReason,
-		UpdatedAt:              st.UpdatedAt, UpdatedBy: breakGlassPerson(st.UpdatedBy), Revision: st.Revision,
+		UpdatedAt:              st.UpdatedAt, UpdatedBy: personOf(st.UpdatedBy), Revision: st.Revision,
 	}
-}
-
-func breakGlassPerson(p breakglass.Person) *apitypes.PersonRef {
-	return personRef(uuid.NullUUID{UUID: p.ID, Valid: p.ID != uuid.Nil}, p.DisplayName, p.Email)
 }
 
 func toAPIBreakGlassSession(s breakglass.Session) apitypes.BreakGlassSession {
@@ -295,11 +291,11 @@ func toAPIBreakGlassSession(s breakglass.Session) apitypes.BreakGlassSession {
 	out := apitypes.BreakGlassSession{
 		Id: s.ID, Team: apitypes.TeamRef{Id: s.Team.ID, Slug: s.Team.Slug, Name: s.Team.Name},
 		Reason: s.Reason, Scopes: scopes, DurationMinutes: int(s.DurationMinutes), Status: apitypes.BreakGlassStatus(s.Status),
-		RequestedAt: s.RequestedAt, ApprovalDeadline: s.ApprovalDeadline, DecidedBy: breakGlassPerson(s.DecidedBy),
+		RequestedAt: s.RequestedAt, ApprovalDeadline: s.ApprovalDeadline, DecidedBy: personOf(s.DecidedBy),
 		DecidedAt: s.DecidedAt, DecisionNote: s.DecisionNote, StartedAt: s.StartedAt, ExpiresAt: s.ExpiresAt,
-		EndedAt: s.EndedAt, EndedBy: breakGlassPerson(s.EndedBy),
+		EndedAt: s.EndedAt, EndedBy: personOf(s.EndedBy),
 	}
-	if p := breakGlassPerson(s.RequestedBy); p != nil {
+	if p := personOf(s.RequestedBy); p != nil {
 		out.RequestedBy = *p
 	} else {
 		out.RequestedBy = apitypes.PersonRef{Id: s.BreakGlassSession.RequestedBy}

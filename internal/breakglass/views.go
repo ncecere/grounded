@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -48,9 +49,9 @@ type sessionRow struct {
 func (s *Service) view(r sessionRow) Session {
 	out := Session{
 		BreakGlassSession: r.b, Team: Team{ID: r.b.TeamID, Slug: r.slug, Name: r.name},
-		RequestedBy: person(uuid.NullUUID{UUID: r.b.RequestedBy, Valid: true}, r.rName, r.rEmail),
-		DecidedBy:   person(r.b.DecidedBy, r.dName, r.dEmail),
-		EndedBy:     person(r.b.EndedBy, r.eName, r.eEmail),
+		RequestedBy: people.From(uuid.NullUUID{UUID: r.b.RequestedBy, Valid: true}, r.rName, r.rEmail),
+		DecidedBy:   people.From(r.b.DecidedBy, r.dName, r.dEmail),
+		EndedBy:     people.From(r.b.EndedBy, r.eName, r.eEmail),
 	}
 	out.Status = rule(r.b).EffectiveStatus(s.now())
 	return out

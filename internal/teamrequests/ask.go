@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/webhooks"
 )
@@ -52,13 +53,6 @@ type Mine struct {
 	Items     []Request
 }
 
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
-}
-
 // Mine lists the person's requests and whether they may ask now. It answers while the feature is off (the page then says so and shows
 // the requests already open), but nobody can ask.
 func (s *Service) Mine(ctx context.Context, a authz.Actor) (Mine, error) {
@@ -77,7 +71,7 @@ func (s *Service) Mine(ctx context.Context, a authz.Actor) (Mine, error) {
 	for i, r := range rows {
 		out.Items[i] = Request{ID: r.ID, Name: r.Name, Purpose: r.Purpose, OwnerEmail: r.OwnerEmail, Classification: r.Classification,
 			ApprovedClassification: r.ApprovedLevel, Status: r.Status,
-			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: deref(r.TeamSlug), TeamName: deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt}
+			DecisionReason: r.DecisionReason, DecidedAt: r.DecidedAt, TeamSlug: strutil.Deref(r.TeamSlug), TeamName: strutil.Deref(r.TeamName), Revision: r.Revision, CreatedAt: r.CreatedAt}
 		if r.Status == StatusPending {
 			out.OpenCount++
 		}

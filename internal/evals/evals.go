@@ -173,13 +173,6 @@ func loadSet(ctx context.Context, q *dbgen.Queries, teamID, id uuid.UUID, lock b
 	return set, err
 }
 
-func nullID(id *uuid.UUID) uuid.NullUUID {
-	if id == nil {
-		return uuid.NullUUID{}
-	}
-	return uuid.NullUUID{UUID: *id, Valid: true}
-}
-
 // audited records e for the team in q's transaction.
 func audited(ctx context.Context, q *dbgen.Queries, e audit.Entry, teamID uuid.UUID) error {
 	e.TeamID = teamID

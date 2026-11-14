@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
@@ -820,5 +821,24 @@ func TestEndToEndWithFakeProxy(t *testing.T) {
 	}
 	if u := msgs[2].(llm.AssistantMessage).Usage; u.Input == 0 || u.Reasoning != 3 {
 		t.Errorf("usage = %+v", u)
+	}
+}
+
+// A model's long arguments are quoted back to it clipped by characters: cut by
+// bytes, a multi-byte character could be split and the tool result would not
+// be valid UTF-8 (#253).
+func TestInvalidArgumentsAreClippedOnCharacterBoundaries(t *testing.T) {
+	var got []string
+	tools, err := compileTools([]Tool{searchTool(&got)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args, _ := json.Marshal("x" + strings.Repeat("é", 600))
+	_, verr := tools["search_knowledge"].validate(args)
+	if verr == nil {
+		t.Fatal("a JSON string was accepted as arguments")
+	}
+	if !utf8.ValidString(verr.Error()) || !strings.HasSuffix(verr.Error(), "…") {
+		t.Fatalf("clipped arguments are not valid UTF-8 or not marked: %q", verr.Error()[len(verr.Error())-8:])
 	}
 }

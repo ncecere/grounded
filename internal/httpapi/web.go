@@ -7,6 +7,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
+	"github.com/ncecere/grounded/internal/people"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/web"
 )
@@ -27,6 +28,12 @@ func personRef(id uuid.NullUUID, name, email string) *apitypes.PersonRef {
 		return nil
 	}
 	return &apitypes.PersonRef{Id: id.UUID, DisplayName: name, Email: email}
+}
+
+// personOf maps the person a service names (maintenance, retention,
+// break-glass); the zero Person is nobody.
+func personOf(p people.Person) *apitypes.PersonRef {
+	return personRef(uuid.NullUUID{UUID: p.ID, Valid: p.ID != uuid.Nil}, p.DisplayName, p.Email)
 }
 
 func toAPIDomainRequests(list []web.DomainRequest) []apitypes.DomainRequest {

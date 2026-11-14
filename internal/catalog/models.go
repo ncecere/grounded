@@ -11,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 func modelSnapshot(m dbgen.Model) map[string]any {
@@ -103,7 +104,7 @@ func specUpdate(cur dbgen.Model, in ModelUpdate) ModelSpec {
 		ContextWindow: cur.ContextWindow, MaxOutputTokens: cur.MaxOutputTokens,
 		SupportsTools: cur.SupportsTools, SupportsVision: cur.SupportsVision,
 		Dimensions: cur.Dimensions, MaxInputTokens: cur.MaxInputTokens, Compat: DecodeCompat(cur.Compat),
-		ModerationProvider: deref(cur.ModerationProvider), ModerationFamily: deref(cur.ModerationFamily),
+		ModerationProvider: strutil.Deref(cur.ModerationProvider), ModerationFamily: strutil.Deref(cur.ModerationFamily),
 		ModerationTimeoutSeconds: cur.ModerationTimeoutSeconds,
 	}
 	setValue(&spec.UpstreamModel, in.UpstreamModel)

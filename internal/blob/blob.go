@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // ErrNotFound is returned (possibly wrapped) by Get when the key does not exist.
@@ -85,7 +87,7 @@ func validKeyByte(c byte) bool {
 
 func checkKey(key string) error {
 	if !ValidKey(key) {
-		return fmt.Errorf("%w: %q", ErrInvalidKey, truncate(key))
+		return fmt.Errorf("%w: %q", ErrInvalidKey, strutil.Clip(key, 64))
 	}
 	return nil
 }
@@ -95,17 +97,9 @@ func checkKey(key string) error {
 func normalizePrefix(prefix string) (string, error) {
 	p := strings.TrimSuffix(prefix, "/")
 	if !ValidKey(p) {
-		return "", fmt.Errorf("%w: prefix %q", ErrInvalidKey, truncate(prefix))
+		return "", fmt.Errorf("%w: prefix %q", ErrInvalidKey, strutil.Clip(prefix, 64))
 	}
 	return p, nil
-}
-
-func truncate(s string) string {
-	const max = 64
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
 }
 
 func checkSize(size int64) error {

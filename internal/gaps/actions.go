@@ -206,10 +206,3 @@ func (s *Service) AddToEvaluations(ctx context.Context, a authz.Actor, teamRef s
 	sq.EvaluationQuestionID = uuid.NullUUID{UUID: c.ID, Valid: true}
 	return SharedQuestion(sq), c.ID, err
 }
-
-func nullID(id *uuid.UUID) uuid.NullUUID {
-	if id == nil {
-		return uuid.NullUUID{}
-	}
-	return uuid.NullUUID{UUID: *id, Valid: true}
-}

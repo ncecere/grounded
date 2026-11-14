@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -80,7 +81,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string, agent
 	if err != nil {
 		return TopicList{}, err
 	}
-	agent := nullID(agentID)
+	agent := store.NullID(agentID)
 	rows, err := s.q.ListGapTopics(ctx, dbgen.ListGapTopicsParams{TeamID: acc.Team.ID, AgentID: agent, States: st, MinAskers: MinAskers})
 	if err != nil {
 		return TopicList{}, err

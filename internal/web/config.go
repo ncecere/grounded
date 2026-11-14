@@ -11,6 +11,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/crawl"
+	"github.com/ncecere/grounded/internal/strutil"
 	"github.com/ncecere/grounded/internal/tags"
 )
 
@@ -141,7 +142,7 @@ func normalizeURLs(in []string) ([]string, error) {
 	for _, raw := range in {
 		n, err := crawl.Normalize(strings.TrimSpace(raw))
 		if err != nil {
-			return nil, invalid("%q is not a valid http(s) URL", clip(raw, 200))
+			return nil, invalid("%q is not a valid http(s) URL", strutil.Clip(raw, 200))
 		}
 		if len(n) > MaxURLBytes {
 			return nil, invalid("URLs must be at most %d characters", MaxURLBytes)
@@ -228,7 +229,7 @@ func pathPatterns(field string, in []string, globs bool) ([]string, error) {
 			continue
 		}
 		if len(p) > maxPatternLen || strings.ContainsAny(p, " \t\r\n#") || (!globs && strings.ContainsAny(p, "?*")) {
-			return nil, invalid("%s entry %q is not a valid path", field, clip(p, 100))
+			return nil, invalid("%s entry %q is not a valid path", field, strutil.Clip(p, 100))
 		}
 		if !strings.HasPrefix(p, "/") && !(globs && strings.HasPrefix(p, "*")) {
 			return nil, invalid("%s entries must start with /", field)
@@ -293,11 +294,4 @@ func NextSync(schedule string, from time.Time) *time.Time {
 		return nil
 	}
 	return &t
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }

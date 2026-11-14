@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/chunk"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // SystemPrompt is the fixed instruction of every call. It is the only text of ours in the prompt; everything else is the document's, between
@@ -34,14 +35,12 @@ type Input struct {
 // BuildInput bounds a unit's prompt fields: a one-line title and heading path cut to their token bounds, the opening and the section text.
 func BuildInput(title string, path []string, opening, section string, c chunk.TokenCounter) Input {
 	return Input{
-		Title:       CutTokens(oneLine(title), TitleMaxTokens, c),
-		HeadingPath: CutTokens(oneLine(strings.Join(path, " > ")), PathMaxTokens, c),
+		Title:       CutTokens(strutil.OneLine(title), TitleMaxTokens, c),
+		HeadingPath: CutTokens(strutil.OneLine(strings.Join(path, " > ")), PathMaxTokens, c),
 		Opening:     opening,
 		Section:     section,
 	}
 }
-
-func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // delimiterRE finds the delimiter words inside the document's text.
 var delimiterRE = regexp.MustCompile(`(?i)<(/?)untrusted`)

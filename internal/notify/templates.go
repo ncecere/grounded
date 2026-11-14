@@ -10,6 +10,8 @@ import (
 	htmltemplate "html/template"
 	"strings"
 	texttemplate "text/template"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 //go:embed templates/*.tmpl
@@ -55,7 +57,7 @@ type emailData struct {
 // Render builds an email for c. Links are absolute (APP_URL + path).
 func Render(site Site, c Content) (Rendered, error) {
 	d := emailData{
-		Instance: site.Instance, Title: oneLine(c.Title), Body: strings.TrimSpace(c.Body),
+		Instance: site.Instance, Title: strutil.OneLine(c.Title), Body: strings.TrimSpace(c.Body),
 		SettingsURL: site.AppURL + SettingsPath, Mandatory: c.Mandatory, Label: string(c.Type),
 	}
 	if def, ok := Lookup(c.Type); ok {
@@ -76,5 +78,5 @@ func Render(site Site, c Content) (Rendered, error) {
 	if err := htmlTmpl.Execute(&html, d); err != nil {
 		return Rendered{}, err
 	}
-	return Rendered{Subject: "[" + oneLine(site.Instance) + "] " + d.Title, Text: text.String(), HTML: html.String()}, nil
+	return Rendered{Subject: "[" + strutil.OneLine(site.Instance) + "] " + d.Title, Text: text.String(), HTML: html.String()}, nil
 }

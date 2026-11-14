@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // ---- Llama Guard 3 / 4 -------------------------------------------------------------
@@ -46,7 +47,7 @@ func parseLlamaGuard(reply chatReply) (Result, error) {
 	lines := strings.Split(strings.TrimSpace(reply.Text), "\n")
 	verdict := strings.ToLower(strings.TrimSpace(lines[0]))
 	if verdict != "safe" && verdict != "unsafe" {
-		return Result{}, badResponse("Llama Guard answered %q instead of safe or unsafe", truncate(verdict, 40))
+		return Result{}, badResponse("Llama Guard answered %q instead of safe or unsafe", strutil.Clip(verdict, 40))
 	}
 	pUnsafe, calibrated := labelProbability(reply.Tokens, "unsafe", "safe")
 	if !calibrated {
@@ -113,7 +114,7 @@ func parseGranite(reply chatReply) (p float64, calibrated bool, err error) {
 		verdict = strings.Trim(f[0], ".,:;!")
 	}
 	if verdict != "yes" && verdict != "no" {
-		return 0, false, badResponse("Granite Guardian answered %q instead of yes or no", truncate(text, 40))
+		return 0, false, badResponse("Granite Guardian answered %q instead of yes or no", strutil.Clip(text, 40))
 	}
 	if p, ok := labelProbability(reply.Tokens, "yes", "no"); ok {
 		return p, true, nil
@@ -179,7 +180,7 @@ func parseShieldGemma(reply chatReply) (float64, bool, error) {
 		verdict = strings.Trim(f[0], ".,:;!")
 	}
 	if verdict != "yes" && verdict != "no" {
-		return 0, false, badResponse("ShieldGemma answered %q instead of Yes or No", truncate(reply.Text, 40))
+		return 0, false, badResponse("ShieldGemma answered %q instead of Yes or No", strutil.Clip(reply.Text, 40))
 	}
 	if p, ok := labelProbability(reply.Tokens, "yes", "no"); ok {
 		return p, true, nil
@@ -239,11 +240,4 @@ func judgeEach(ctx context.Context, family string, cats []string, ask func(conte
 	})
 	out.Calibrated = calibrated
 	return out, err
-}
-
-func truncate(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n]) + "…"
-	}
-	return s
 }

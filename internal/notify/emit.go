@@ -16,6 +16,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // Event is one thing that happened, with its rendered text and recipients.
@@ -145,7 +146,7 @@ func insertEvent(ctx context.Context, q *dbgen.Queries, ev Event) (uuid.UUID, bo
 	}
 	p := dbgen.InsertNotificationEventParams{
 		Type: string(ev.Type), TeamID: nullUUID(ev.TeamID), ActorID: nullUUID(ev.Actor),
-		Title: clip(oneLine(ev.Title), 300), Body: clip(ev.Body, 4000), Link: ev.Link, Data: data,
+		Title: strutil.Clip(strutil.OneLine(ev.Title), 300), Body: strutil.Clip(ev.Body, 4000), Link: ev.Link, Data: data,
 	}
 	if ev.DedupeKey != "" {
 		p.DedupeKey = &ev.DedupeKey
@@ -254,15 +255,3 @@ func (s *Service) deliver(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, def 
 }
 
 func nullUUID(id uuid.UUID) uuid.NullUUID { return uuid.NullUUID{UUID: id, Valid: id != uuid.Nil} }
-
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
-func clip(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
-}

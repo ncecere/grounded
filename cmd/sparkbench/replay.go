@@ -13,6 +13,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 func cmdReplay(args []string) error {
@@ -57,7 +58,7 @@ func cmdReplay(args []string) error {
 		for i, b := range last.Message.Content {
 			switch v := b.(type) {
 			case llm.Text:
-				fmt.Printf("  block %d text: %q\n", i, truncate(v.Text, 200))
+				fmt.Printf("  block %d text: %q\n", i, strutil.Clip(v.Text, 200))
 			case llm.Thinking:
 				fmt.Printf("  block %d thinking: %d chars\n", i, len(v.Text))
 			case llm.ToolCall:

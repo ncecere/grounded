@@ -23,6 +23,7 @@ import (
 	"github.com/ncecere/grounded/internal/sourcetypes"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // sink is the connector.Sink of one sync.
@@ -93,17 +94,10 @@ func (k *sink) flush(ctx context.Context, force bool) error {
 
 func (k *sink) Skip(ctx context.Context, id, title, reason string) {
 	k.skipped++
-	problem := mustJSON(map[string]string{"id": clip(id, 300), "title": clip(title, 300), "reason": clip(reason, 300)})
+	problem := mustJSON(map[string]string{"id": strutil.Clip(id, 300), "title": strutil.Clip(title, 300), "reason": strutil.Clip(reason, 300)})
 	if err := k.s.q.AddSourceSyncProblem(ctx, dbgen.AddSourceSyncProblemParams{ID: k.run.ID, Problem: problem}); err != nil {
 		k.s.Log.WarnContext(ctx, "could not record a skipped item", "sync", k.run.ID, "err", err)
 	}
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return strings.ToValidUTF8(s[:n], "") + "…"
 }
 
 func (k *sink) find(ctx context.Context, id string) (dbgen.Document, bool, error) {
@@ -151,7 +145,7 @@ func (k *sink) Upsert(ctx context.Context, item connector.Item) (connector.Outco
 func (k *sink) seen(ctx context.Context, doc dbgen.Document, item connector.Item, principals []string, acl json.RawMessage) error {
 	q := k.s.q
 	if err := q.TouchConnectorDocument(ctx, dbgen.TouchConnectorDocumentParams{ID: doc.ID, SyncID: nullUUID(k.run.ID),
-		Title: clip(item.Title, 500), Filename: clip(item.Filename, 255), URL: clipURL(item.URL), ExternalVersion: item.Version, Modified: modified(item.ModifiedAt)}); err != nil {
+		Title: strutil.Clip(item.Title, 500), Filename: strutil.Clip(item.Filename, 255), URL: clipURL(item.URL), ExternalVersion: item.Version, Modified: modified(item.ModifiedAt)}); err != nil {
 		return err
 	}
 	if err := q.DropSyncRemoval(ctx, dbgen.DropSyncRemovalParams{SyncID: k.run.ID, DocumentID: doc.ID}); err != nil {
@@ -213,8 +207,8 @@ func (k *sink) store(ctx context.Context, doc dbgen.Document, found bool, item c
 		need = limits.Need{Bytes: sn.n - doc.SizeBytes}
 	}
 	inserted, err := k.save(ctx, need, dbgen.UpsertConnectorDocumentParams{
-		ID: docID, SourceID: k.src.ID, TeamID: k.src.TeamID, ExternalID: item.ID, Title: clip(item.Title, 500), Filename: clip(name, 255),
-		URL: clipURL(item.URL), ContentType: clip(item.ContentType, 200), SizeBytes: sn.n, Sha256: sum, BlobKey: key,
+		ID: docID, SourceID: k.src.ID, TeamID: k.src.TeamID, ExternalID: item.ID, Title: strutil.Clip(item.Title, 500), Filename: strutil.Clip(name, 255),
+		URL: clipURL(item.URL), ContentType: strutil.Clip(item.ContentType, 200), SizeBytes: sn.n, Sha256: sum, BlobKey: key,
 		ExternalVersion: item.Version, Modified: modified(item.ModifiedAt), SyncID: nullUUID(k.run.ID),
 		SetAcl: k.provider, Principals: principals, Acl: acl,
 	})

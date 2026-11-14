@@ -16,6 +16,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // EmailArgs sends one recorded email delivery.
@@ -89,7 +90,7 @@ func (w *EmailWorker) Work(ctx context.Context, job *river.Job[EmailArgs]) error
 	}
 	final := job.Attempt >= job.MaxAttempts
 	if err := q.RecordNotificationEmailError(bg, dbgen.RecordNotificationEmailErrorParams{
-		ID: d.ID, LastError: clip(sendErr.Error(), 1000), Final: final,
+		ID: d.ID, LastError: strutil.Clip(sendErr.Error(), 1000), Final: final,
 	}); err != nil {
 		w.Log.WarnContext(ctx, "could not record email failure", "delivery", d.ID, "err", err)
 	}

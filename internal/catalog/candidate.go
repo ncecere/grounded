@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // CandidateChanges are the settings a preview changes; nil keeps the live profile's value. They are the profile's immutable settings
@@ -46,8 +47,8 @@ func (s *Service) CreateCandidate(ctx context.Context, a authz.Actor, liveID uui
 	}
 	in := ProfileInput{
 		Key:            "preview-" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12],
-		Name:           pick(ch.Name, truncate(live.Name+" (new settings)", 100)),
-		Description:    truncate("An index preview of "+live.Name+"; not in use until an admin switches it.", 2000),
+		Name:           pick(ch.Name, strutil.Truncate(live.Name+" (new settings)", 100)),
+		Description:    strutil.Truncate("An index preview of "+live.Name+"; not in use until an admin switches it.", 2000),
 		ModelID:        pick(ch.ModelID, live.ModelID),
 		StorageType:    pick(ch.StorageType, live.StorageType),
 		DocumentPrefix: pick(ch.DocumentPrefix, live.DocumentPrefix),
@@ -85,11 +86,4 @@ func pick[T any](v *T, def T) T {
 		return def
 	}
 	return *v
-}
-
-func truncate(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n])
-	}
-	return s
 }

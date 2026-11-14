@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // streamResult is one streamed /chat/completions call.
@@ -126,7 +128,7 @@ func (p *streamParser) read(r io.Reader) error {
 		}
 		var ch wireChunk
 		if err := json.Unmarshal([]byte(data), &ch); err != nil {
-			return fmt.Errorf("bad chunk %q: %w", truncate(data, 200), err)
+			return fmt.Errorf("bad chunk %q: %w", strutil.Clip(data, 200), err)
 		}
 		p.chunk(ch)
 	}

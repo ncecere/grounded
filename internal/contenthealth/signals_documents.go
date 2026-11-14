@@ -4,10 +4,12 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/strutil"
 )
 
 // day is the unit of every age.
@@ -172,10 +174,10 @@ func (personalDataSignal) Collect(ctx context.Context, env *Env) (Result, error)
 
 // clipDetail keeps a finding's detail within its column (64 characters), at a comma.
 func clipDetail(s string) string {
-	if len(s) <= 64 {
+	if utf8.RuneCountInString(s) <= 64 {
 		return s
 	}
-	s = s[:64]
+	s = strutil.Truncate(s, 64)
 	if i := strings.LastIndexByte(s, ','); i > 0 {
 		return s[:i]
 	}
