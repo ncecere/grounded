@@ -388,15 +388,23 @@ func TestExpansionAfterTheDocumentChanged(t *testing.T) {
 	if len(hits) == 0 || hits[0].Parent == nil {
 		t.Fatalf("hits = %+v", hits)
 	}
-	// The same document with a different second passage onwards: new rows, so the hit's passage is gone.
+	// The same document with different "parking" passages: their rows are new, so a hit on one is gone. A passage that did
+	// not change keeps its row (#250), and its hit expands to the document as it is now, never to the old text.
 	env.uploadHandbook(t, env.source.Id, "handbook.md", strings.ReplaceAll(parentDoc(6), "parking", "driving"))
 	if err := env.app.Svc.KBs.ExpandParents(context.Background(), kb, kbs.MetadataFilter{}, access.Anyone(), hitPtrs(hits)); err != nil {
 		t.Fatal(err)
 	}
 	for _, h := range hits {
-		if h.Parent.Text != "" || h.Parent.Skipped != kbs.SkipIncomplete {
-			t.Errorf("a hit of the replaced document: text %q, skipped %q", h.Parent.Text, h.Parent.Skipped)
+		changed := strings.Contains(h.Content, "parking")
+		if changed && (h.Parent.Text != "" || h.Parent.Skipped != kbs.SkipIncomplete) {
+			t.Errorf("a hit on a replaced passage: text %q, skipped %q", h.Parent.Text, h.Parent.Skipped)
 		}
+		if strings.Contains(h.Parent.Text, "parking") {
+			t.Errorf("a hit expanded to the old text: %q", h.Parent.Text)
+		}
+	}
+	if !strings.Contains(hits[0].Content, "parking") {
+		t.Fatalf("the top hit is not a replaced passage: %q", hits[0].Content)
 	}
 
 	// And a deleted one.
