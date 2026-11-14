@@ -6,7 +6,6 @@ package agents
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -34,12 +33,13 @@ func (ru *run) prepareConversation(ctx context.Context) error {
 		return nil
 	}
 	if ru.conv != nil {
-		rows, err := s.q.RecentTurns(ctx, dbgen.RecentTurnsParams{ConversationID: ru.conv.ID, Limit: historyRows})
-		if err != nil {
-			return err
+		if !ru.turns.read { // read with the other preflight steps (preflight.go)
+			ru.loadHistory(ctx)
 		}
-		slices.Reverse(rows) // oldest first
-		ru.history = historyFromRows(rows)
+		if ru.turns.err != nil {
+			return ru.turns.err
+		}
+		ru.history = historyFromRows(ru.turns.rows)
 		ru.trimHistory()
 	}
 	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {

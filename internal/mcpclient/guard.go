@@ -166,6 +166,24 @@ func (e *exchange) setStatus(code int) {
 	}
 }
 
+func (e *exchange) reset() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.status = 0
+}
+
+// exchangeKey carries a call's exchange to the shared transport (headerTransport).
+type exchangeKey struct{}
+
+func withExchange(ctx context.Context, ex *exchange) context.Context {
+	return context.WithValue(ctx, exchangeKey{}, ex)
+}
+
+func exchangeOf(ctx context.Context) *exchange {
+	ex, _ := ctx.Value(exchangeKey{}).(*exchange)
+	return ex
+}
+
 func (e *exchange) lastStatus() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -175,14 +193,14 @@ func (e *exchange) lastStatus() int {
 // ErrResponseTooLarge: a response body passed MaxResponseBytes.
 var ErrResponseTooLarge = errors.New("mcpclient: response too large")
 
-// headerTransport adds the static header, records error statuses and caps
-// response bodies.
+// headerTransport adds the static header, records error statuses in the
+// request's exchange (one per call or test, in its context: the transport is
+// shared by a server's calls, pool.go) and caps response bodies.
 type headerTransport struct {
 	next        http.RoundTripper
 	header      string
 	value       string
 	maxResponse int64
-	ex          *exchange
 }
 
 func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -194,7 +212,9 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.ex.setStatus(res.StatusCode)
+	if ex := exchangeOf(req.Context()); ex != nil {
+		ex.setStatus(res.StatusCode)
+	}
 	res.Body = &cappedBody{ReadCloser: res.Body, left: t.maxResponse}
 	return res, nil
 }
@@ -220,10 +240,11 @@ func (b *cappedBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// httpClient builds the client of one exchange with a server: the guarded
-// dialer, no proxy from the environment, no redirects, the header, the
-// body cap and a client span per request. done closes its idle connections.
-func (s *Service) httpClient(t target, ex *exchange) (client *http.Client, done func()) {
+// httpClient builds the client of a server: the guarded dialer (every new
+// connection checks the addresses again), no proxy from the environment, no
+// redirects, the header, the body cap and a client span per request. done
+// closes its idle connections.
+func (s *Service) httpClient(t target) (client *http.Client, done func()) {
 	d := &dialer{allowPrivate: s.AllowPrivate, lookup: s.lookup, net: net.Dialer{Timeout: 10 * time.Second}}
 	tr := &http.Transport{
 		DialContext:           d.dial,
@@ -236,7 +257,7 @@ func (s *Service) httpClient(t target, ex *exchange) (client *http.Client, done 
 	return &http.Client{
 		// A client span per exchange, with traceparent (the guarded dialer
 		// still sees every connection).
-		Transport: tracing.Transport(&headerTransport{next: tr, header: t.headerName, value: t.headerValue, maxResponse: s.maxResponse(), ex: ex}, true),
+		Transport: tracing.Transport(&headerTransport{next: tr, header: t.headerName, value: t.headerValue, maxResponse: s.maxResponse()}, true),
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return fmt.Errorf("%w: MCP servers may not redirect", ErrBlockedAddress)
 		},

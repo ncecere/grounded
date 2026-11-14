@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // TestTodayUsesPlatformZone: the date the model is told and the saved
@@ -19,6 +21,7 @@ func TestTodayUsesPlatformZone(t *testing.T) {
 		if _, err := env.app.Pool.Exec(context.Background(), `UPDATE cost_settings SET time_zone = $1 WHERE singleton`, name); err != nil {
 			t.Fatal(err)
 		}
+		ttlcache.InvalidateAll() // the cost settings are cached briefly (internal/ttlcache)
 	}
 	lastPrompt := func() string {
 		t.Helper()

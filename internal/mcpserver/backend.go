@@ -12,6 +12,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/kbs"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -76,16 +77,22 @@ func (s *Services) teams(ctx context.Context, a authz.Actor) ([]team, error) {
 	if a.OAuth == nil || a.UserID == uuid.Nil {
 		return nil, nil
 	}
-	rows, err := s.Q.ListTeamsForUser(ctx, a.UserID)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]team, len(rows))
-	for i, r := range rows {
-		out[i] = team{ID: r.ID, Slug: r.Slug, Name: r.Name}
-	}
-	return out, nil
+	// Read once per request, though both lists ask (requestcache: For starts one).
+	return requestcache.Get(ctx, teamsKey{a.UserID}, func() ([]team, error) {
+		rows, err := s.Q.ListTeamsForUser(ctx, a.UserID)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]team, len(rows))
+		for i, r := range rows {
+			out[i] = team{ID: r.ID, Slug: r.Slug, Name: r.Name}
+		}
+		return out, nil
+	})
 }
+
+// teamsKey is the request cache's key of a person's teams.
+type teamsKey struct{ user uuid.UUID }
 
 // withTeam names the team after an option when the caller works in
 // several, so a model can tell two "Handbook"s apart.
@@ -114,13 +121,11 @@ func (s *Services) KnowledgeBases(ctx context.Context, a authz.Actor) ([]Knowled
 			}
 			return nil, err
 		}
+		// The classification rule of /retrieve, with one lookup for the list (#251; before, one per knowledge base).
+		if list, err = s.KnowledgeBaseService.DirectRetrievable(ctx, a, list); err != nil {
+			return nil, err
+		}
 		for _, kb := range list {
-			if err := s.KnowledgeBaseService.CheckDirectRetrieve(ctx, a, kb); err != nil {
-				if _, refused := apperr.As(err); refused {
-					continue
-				}
-				return nil, err
-			}
 			item := KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), SlugName: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
 			if a.Key == nil {
 				item.TeamSlug = t.Slug

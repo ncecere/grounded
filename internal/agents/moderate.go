@@ -15,6 +15,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/moderation"
+	"github.com/ncecere/grounded/internal/parallel"
 )
 
 // Moderation actions reported in the moderation event.
@@ -46,12 +47,32 @@ func (ru *run) planModeration(ctx context.Context) error {
 		ru.audienceEffort = moderation.DefaultPolicy(ru.grant).Effort()
 		return nil
 	}
-	if ru.mod != nil { // planned already (the answer cache's near-identical lookup)
-		return nil
+	if ru.modPlanned { // planned already (with the conversation, or by the answer cache's near-identical lookup)
+		return ru.modErr
 	}
+	// The policy is read for every answer, never cached (internal/ttlcache): a tightened policy applies to the next
+	// question in every process, and a policy that can't be read fails the answer (DESIGN.md §7.5: fail closed).
 	plan, effort, err := ru.s.Moderation.PlanEffort(ctx, ru.grant, ru.cfg.Moderation)
-	ru.mod, ru.audienceEffort = plan, effort
+	ru.mod, ru.audienceEffort, ru.modPlanned = plan, effort, err == nil // a failed read is read again by the next step
 	return err
+}
+
+// storeConversation stores the conversation (history.go) while, for a live answer, the moderation policy is read
+// (#251): both before the model starts, and independent. The policy's error is returned where the serial steps met it
+// (generate's planModeration, after the conversation is stored), so a failure reads exactly as before.
+func (ru *run) storeConversation(ctx context.Context) error {
+	if ru.cacheHitNow() || ru.s.Moderation == nil || ru.modPlanned {
+		return ru.prepareConversation(ctx)
+	}
+	return parallel.InOrder(
+		func() error { return ru.prepareConversation(ctx) },
+		func() error {
+			// generate's planModeration returns this read's outcome, failed or not: it is the read the serial steps made there.
+			ru.modErr = ru.planModeration(ctx)
+			ru.modPlanned = true
+			return nil
+		},
+	)
 }
 
 // startInputCheck checks the question in the background (nil when input

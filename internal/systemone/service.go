@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // Service stores the platform SystemOne settings and builds clients.
@@ -26,6 +27,8 @@ type Service struct {
 	Catalog *catalog.Service
 	Log     *slog.Logger
 	q       *dbgen.Queries
+	// stored is the settings for answers and searches, cached briefly (internal/ttlcache): every one reads them.
+	stored ttlcache.Value[Stored]
 }
 
 // New returns a Service.
@@ -83,9 +86,20 @@ func load(ctx context.Context, q *dbgen.Queries, lock bool) (Stored, error) {
 	return out, nil
 }
 
-// Load returns the stored settings without permission checks (the chat
-// pipeline and /retrieve).
-func (s *Service) Load(ctx context.Context) (Stored, error) { return load(ctx, s.q, false) }
+// Load returns the stored settings without permission checks (the chat pipeline and /retrieve), cached for a few
+// seconds (internal/ttlcache). SystemOne's features are quality features that fail open (a settings failure skips
+// them), so a change taking up to the TTL to reach another process weakens nothing; Put invalidates this process's.
+func (s *Service) Load(ctx context.Context) (Stored, error) {
+	return s.stored.Get(ctx, func(ctx context.Context) (Stored, error) { return load(ctx, s.q, false) })
+}
+
+// KeyRevision is the settings' revision as saved answers record it (docs/answer-cache.md): 0 for settings never saved.
+func (st Stored) KeyRevision() int64 {
+	if st.UpdatedAt == nil {
+		return 0
+	}
+	return st.Revision
+}
 
 var (
 	errAdminOnly = apperr.Forbidden("Only platform admins can do this")
@@ -97,7 +111,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor) (Stored, error) {
 	if a.Key != nil || !a.CanReadPlatform() {
 		return Stored{}, errReadOnly
 	}
-	return s.Load(ctx)
+	return load(ctx, s.q, false) // the admin page reads the row itself: its revision is the If-Match of the next save
 }
 
 // Input is the settings to save. KeepCitations and KeepScope keep the
@@ -177,6 +191,7 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevi
 		e.Before, e.After = snapshot(cur), snapshot(out)
 		return audit.Record(ctx, q, e)
 	})
+	s.stored.Invalidate()
 	return out, err
 }
 
@@ -292,10 +307,12 @@ type ScopePlan struct {
 }
 
 // Plans are the SystemOne features of one chat; nil members are off.
+// Revision is that of the settings they were built from (Stored.KeyRevision), for the answer cache's key.
 type Plans struct {
 	Judge     *JudgePlan
 	Citations *CitationPlan
 	Scope     *ScopePlan
+	Revision  int64
 }
 
 // Plans resolves every feature under an agent's override with one
@@ -303,18 +320,22 @@ type Plans struct {
 // member is nil and nothing changes (ADR-0020).
 func (s *Service) Plans(ctx context.Context, o Override) (Plans, error) {
 	st, err := s.Load(ctx)
-	if err != nil || st.ModelID == nil {
+	if err != nil {
 		return Plans{}, err
+	}
+	none := Plans{Revision: st.KeyRevision()}
+	if st.ModelID == nil {
+		return none, nil
 	}
 	j, c, sc := st.Settings.Judging.Effective(o), st.Settings.Citations.Effective(o), st.Settings.Scope.Effective(o)
 	if !j.Enabled && !c.Enabled && !sc.Enabled {
-		return Plans{}, nil
+		return none, nil
 	}
 	cl, err := s.usableClient(ctx, *st.ModelID)
 	if cl == nil {
-		return Plans{}, err
+		return none, err
 	}
-	var out Plans
+	out := none
 	if j.Enabled {
 		out.Judge = judgePlan(cl, j)
 	}

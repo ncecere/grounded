@@ -60,10 +60,54 @@ func LexicalSQL(docSQL string) string {
 
 // EmbedCache reuses query embeddings within one request (several KBs may
 // share a profile). The zero value is ready to use; it is safe for
-// concurrent use.
+// concurrent use. Searches running at once for the same text embed it once
+// (claim): an answer's searches of one model turn run concurrently (#251), and
+// they embed, and count tokens for, what the same searches one after another
+// would.
 type EmbedCache struct {
-	mu      sync.Mutex
-	vectors map[string][]float32
+	mu       sync.Mutex
+	vectors  map[string][]float32
+	inflight map[string]chan struct{}
+}
+
+// claim returns the cached vector (ok), or makes the caller the one to embed the text (wait nil: it must call
+// done), or returns a channel closed when the caller embedding it now is done (then claim again).
+func (c *EmbedCache) claim(key string) (vec []float32, ok bool, wait <-chan struct{}) {
+	if c == nil {
+		return nil, false, nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v, found := c.vectors[key]; found {
+		return v, true, nil
+	}
+	if ch, busy := c.inflight[key]; busy {
+		return nil, false, ch
+	}
+	if c.inflight == nil {
+		c.inflight = map[string]chan struct{}{}
+	}
+	c.inflight[key] = make(chan struct{})
+	return nil, false, nil
+}
+
+// done ends a claim: the vector is stored (nil: embedding failed, and the next claim tries again) and waiters wake.
+func (c *EmbedCache) done(key string, v []float32) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v != nil {
+		if c.vectors == nil {
+			c.vectors = map[string][]float32{}
+		}
+		c.vectors[key] = v
+	}
+	if ch, ok := c.inflight[key]; ok {
+		close(ch)
+		delete(c.inflight, key)
+	}
 }
 
 func (c *EmbedCache) get(key string) ([]float32, bool) {
@@ -81,18 +125,6 @@ func (c *EmbedCache) get(key string) ([]float32, bool) {
 // reuses it, docs/v0.4.0.md §2).
 func (c *EmbedCache) Lookup(profileID uuid.UUID, text string) ([]float32, bool) {
 	return c.get(profileID.String() + "\x00" + text)
-}
-
-func (c *EmbedCache) put(key string, v []float32) {
-	if c == nil {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.vectors == nil {
-		c.vectors = map[string][]float32{}
-	}
-	c.vectors[key] = v
 }
 
 // SearchParams is one internal search of one KB.
@@ -145,7 +177,7 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 		return res, nil
 	}
 	k := max(1, min(p.TopK, 50))
-	target, err := s.Catalog.EmbedTarget(ctx, kb.EmbeddingProfileID)
+	target, err := s.Catalog.QueryEmbedTarget(ctx, kb.EmbeddingProfileID) // cached briefly (internal/catalog/rowcache.go)
 	if err != nil {
 		return res, err
 	}
@@ -232,7 +264,7 @@ func searchSources(kb KB, f MetadataFilter) []uuid.UUID {
 // reuse it (the answer cache's near-identical lookup, docs/answer-cache.md).
 // tokens is 0 for a cached vector; modelID is the profile's model.
 func (s *Service) EmbedQuery(ctx context.Context, profileID uuid.UUID, text, user string, cache *EmbedCache) (vec []float32, tokens int, modelID uuid.UUID, err error) {
-	target, err := s.Catalog.EmbedTarget(ctx, profileID)
+	target, err := s.Catalog.QueryEmbedTarget(ctx, profileID)
 	if err != nil {
 		return nil, 0, uuid.Nil, err
 	}
@@ -245,11 +277,23 @@ func (s *Service) EmbedQuery(ctx context.Context, profileID uuid.UUID, text, use
 // Retry-After under backpressure.
 func queryVector(ctx context.Context, target catalog.EmbedTarget, profileID uuid.UUID, p SearchParams) (vec []float32, tokens int, err error) {
 	cacheKey := profileID.String() + "\x00" + p.Text
-	if vec, ok := p.Cache.get(cacheKey); ok {
-		return vec, 0, nil
+	for {
+		vec, ok, wait := p.Cache.claim(cacheKey)
+		if ok {
+			return vec, 0, nil
+		}
+		if wait == nil {
+			break
+		}
+		select { // another search of this request is embedding the same text
+		case <-wait:
+		case <-ctx.Done():
+			return nil, 0, ctx.Err()
+		}
 	}
 	emb, err := target.Embed(ctx, []string{target.Profile.QueryPrefix + p.Text}, p.User)
 	if err != nil {
+		p.Cache.done(cacheKey, nil)
 		var ge *gateway.Error
 		if errors.As(err, &ge) {
 			if ge.Backpressure() {
@@ -262,7 +306,7 @@ func queryVector(ctx context.Context, target catalog.EmbedTarget, profileID uuid
 		return nil, 0, err
 	}
 	vec = emb.Vectors[0]
-	p.Cache.put(cacheKey, vec)
+	p.Cache.done(cacheKey, vec)
 	return vec, max(emb.Usage.TotalTokens, 1), nil
 }
 

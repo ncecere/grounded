@@ -32,19 +32,15 @@ const NoContextJudgedOut = "judged_out"
 // search.
 const maxConflicting = 3
 
-// planSystemOne resolves the SystemOne features of this chat: passage
-// judging, citation checks and the scope check (nil: off, and the pipeline
-// is exactly as without SystemOne). A settings failure is logged and the
-// features skipped: they are quality features.
-func (ru *run) planSystemOne(ctx context.Context) {
+// useSystemOne sets the SystemOne features of this chat: passage judging,
+// citation checks and the scope check (nil: off, and the pipeline is exactly
+// as without SystemOne). The plans are read with the other preflight steps
+// (preflight.go). A settings failure is logged and the features skipped:
+// they are quality features.
+func (ru *run) useSystemOne(plans systemone.Plans, err error) {
 	if ru.s.SystemOne == nil {
 		return
 	}
-	var o systemone.Override
-	if ru.cfg.SystemOne != nil {
-		o = *ru.cfg.SystemOne
-	}
-	plans, err := ru.s.SystemOne.Plans(ctx, o)
 	if err != nil {
 		ru.s.Log.Warn("SystemOne features unavailable; skipping them", "err", err, "agent", ru.agent.ID)
 		return

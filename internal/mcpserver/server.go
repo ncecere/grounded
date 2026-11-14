@@ -1,9 +1,13 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -11,6 +15,8 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/parallel"
+	"github.com/ncecere/grounded/internal/requestcache"
 	"github.com/ncecere/grounded/internal/tracing"
 )
 
@@ -52,11 +58,44 @@ const instructions = "Grounded answers from an organisation's own documents. Use
 // has no ask tool. reqCtx is the HTTP request's context: a tool call ends
 // when the client goes away.
 func (s *Server) For(reqCtx context.Context, c Caller) (*mcp.Server, error) {
-	kbList, err := s.opts.Backend.KnowledgeBases(reqCtx, c.Actor())
-	if err != nil {
-		return nil, err
+	return s.build(reqCtx, c, true, true)
+}
+
+// ForRequest is For for one HTTP request (r's body is read and put back). A tools/call of ask or search is served
+// with that tool alone (#251): its list is built exactly as For builds it, so the names the call may use, and what it
+// may reach, are the same as in tools/list, read again for this request; the other tool's list isn't read.
+func (s *Server) ForRequest(reqCtx context.Context, c Caller, r *http.Request) (*mcp.Server, error) {
+	switch calledTool(r) {
+	case toolAsk:
+		return s.build(reqCtx, c, true, false)
+	case toolSearch:
+		return s.build(reqCtx, c, false, true)
 	}
-	agentList, err := s.opts.Backend.Agents(reqCtx, c.Actor())
+	return s.For(reqCtx, c)
+}
+
+// build builds the server with the ask tool, the search tool or both. The two lists are read concurrently, the
+// knowledge bases' error first, as when they were read one after the other.
+func (s *Server) build(reqCtx context.Context, c Caller, withAsk, withSearch bool) (*mcp.Server, error) {
+	var (
+		kbList    []KnowledgeBase
+		agentList []Agent
+	)
+	lctx := requestcache.With(reqCtx) // the lists share the caller's teams (backend.go)
+	err := parallel.InOrder(
+		func() (err error) {
+			if withSearch {
+				kbList, err = s.opts.Backend.KnowledgeBases(lctx, c.Actor())
+			}
+			return err
+		},
+		func() (err error) {
+			if withAsk {
+				agentList, err = s.opts.Backend.Agents(lctx, c.Actor())
+			}
+			return err
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +121,36 @@ func (s *Server) For(reqCtx context.Context, c Caller) (*mcp.Server, error) {
 		mcp.AddTool(srv, searchTool(opts), call.search(opts))
 	}
 	return srv, nil
+}
+
+// maxPeek bounds how much of a request body calledTool reads (a tool call's arguments are small; a larger body is
+// served by For).
+const maxPeek = 64 << 10
+
+// calledTool is the tool a request calls: the name of a single JSON-RPC tools/call ("" for anything else, a batch or
+// a body that can't be read, which For serves). The body is put back for the SDK, which reads and checks it as before.
+func calledTool(r *http.Request) string {
+	if r == nil || r.Body == nil {
+		return ""
+	}
+	buf, err := io.ReadAll(io.LimitReader(r.Body, maxPeek+1))
+	r.Body = struct {
+		io.Reader
+		io.Closer
+	}{io.MultiReader(bytes.NewReader(buf), r.Body), r.Body}
+	if err != nil || len(buf) > maxPeek {
+		return ""
+	}
+	var msg struct {
+		Method string `json:"method"`
+		Params struct {
+			Name string `json:"name"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(buf, &msg) != nil || msg.Method != "tools/call" {
+		return ""
+	}
+	return msg.Params.Name
 }
 
 // toolCall runs the tools of one request.

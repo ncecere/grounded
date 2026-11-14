@@ -26,14 +26,14 @@ var ErrChatModelUnusable = apperr.New(503, "model_unavailable", "The agent's cha
 // ChatTarget returns a client for an enabled chat model. Callers check
 // classification ceilings themselves.
 func (s *Service) ChatTarget(ctx context.Context, modelID uuid.UUID) (ChatTarget, error) {
-	m, err := s.q.GetModel(ctx, modelID)
+	m, err := s.cachedModel(ctx, modelID) // rowcache.go
 	if err != nil {
 		return ChatTarget{}, notFound(err, ErrChatModelUnusable)
 	}
 	if m.Kind != KindChat || !m.Enabled {
 		return ChatTarget{}, ErrChatModelUnusable
 	}
-	conn, err := s.q.GetConnection(ctx, m.ConnectionID)
+	conn, err := s.cachedConnection(ctx, m.ConnectionID)
 	if err != nil {
 		return ChatTarget{}, err
 	}

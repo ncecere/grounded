@@ -136,7 +136,7 @@ func (a *api) mcpServe() func(w http.ResponseWriter, r *http.Request, c mcpserve
 	return func(w http.ResponseWriter, r *http.Request, c mcpserver.Caller) {
 		ctx, cancel := context.WithTimeout(r.Context(), mcpRequestTimeout)
 		defer cancel()
-		s, err := srv.For(ctx, c)
+		s, err := srv.ForRequest(ctx, c, r) // a tools/call reads only its tool's list (#251)
 		if err != nil {
 			a.Log.ErrorContext(ctx, "mcp server", "err", err)
 			mcpError(w, http.StatusInternalServerError, "internal", "Something went wrong. Try again shortly.")

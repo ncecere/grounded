@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/ttlcache"
 )
 
 // Service stores the platform rerank settings and builds plans.
@@ -26,6 +27,8 @@ type Service struct {
 	Catalog *catalog.Service
 	Log     *slog.Logger
 	q       *dbgen.Queries
+	// stored is the settings for searches, cached briefly (internal/ttlcache): every search reads them.
+	stored ttlcache.Value[Stored]
 }
 
 // New returns a Service.
@@ -68,8 +71,19 @@ func load(ctx context.Context, q *dbgen.Queries, lock bool) (Stored, error) {
 	return out, nil
 }
 
-// Load returns the stored settings without permission checks.
-func (s *Service) Load(ctx context.Context) (Stored, error) { return load(ctx, s.q, false) }
+// Load returns the stored settings without permission checks, cached for a few seconds (internal/ttlcache): searches
+// and answers read them every time, and reranking is quality, not safety. Put invalidates the cache of this process.
+func (s *Service) Load(ctx context.Context) (Stored, error) {
+	return s.stored.Get(ctx, func(ctx context.Context) (Stored, error) { return load(ctx, s.q, false) })
+}
+
+// KeyRevision is the settings' revision as saved answers record it (docs/answer-cache.md): 0 for settings never saved.
+func (st Stored) KeyRevision() int64 {
+	if st.UpdatedAt == nil {
+		return 0
+	}
+	return st.Revision
+}
 
 var (
 	errAdminOnly = apperr.Forbidden("Only platform admins can do this")
@@ -81,7 +95,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor) (Stored, error) {
 	if a.Key != nil || !a.CanReadPlatform() {
 		return Stored{}, errReadOnly
 	}
-	return s.Load(ctx)
+	return load(ctx, s.q, false) // the admin page reads the row itself: its revision is the If-Match of the next save
 }
 
 // AgentCount is how many published agents rerank (their published version
@@ -162,6 +176,7 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevi
 		e.Before, e.After = snapshot(ctx, q, cur), snapshot(ctx, q, out)
 		return audit.Record(ctx, q, e)
 	})
+	s.stored.Invalidate()
 	return out, err
 }
 
@@ -214,9 +229,24 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 // Plan returns the platform's reranking, or nil when no rerank model is
 // set or it (or its connection) is disabled: retrieval is then as before.
 func (s *Service) Plan(ctx context.Context) (*Plan, error) {
+	p, _, err := s.PlanRevision(ctx)
+	return p, err
+}
+
+// PlanRevision is Plan with the revision of the settings it was built from (Stored.KeyRevision), read once, so a saved
+// answer is keyed by the settings that produced it even when they change during the answer.
+func (s *Service) PlanRevision(ctx context.Context) (*Plan, int64, error) {
 	st, err := s.Load(ctx)
-	if err != nil || st.ModelID == nil {
-		return nil, err
+	if err != nil {
+		return nil, 0, err
+	}
+	p, err := s.planFrom(ctx, st)
+	return p, st.KeyRevision(), err
+}
+
+func (s *Service) planFrom(ctx context.Context, st Stored) (*Plan, error) {
+	if st.ModelID == nil {
+		return nil, nil
 	}
 	t, err := s.Catalog.RerankTarget(ctx, *st.ModelID)
 	if errors.Is(err, catalog.ErrRerankUnusable) {

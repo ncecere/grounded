@@ -26,14 +26,26 @@ var ErrProfileUnusable = apperr.Conflict("profile_unusable", "The embedding mode
 // client. It is used by ingestion and retrieval, not by admin screens, so it
 // performs no authorization.
 func (s *Service) EmbedTarget(ctx context.Context, profileID uuid.UUID) (EmbedTarget, error) {
-	row, err := s.q.GetEmbeddingProfile(ctx, profileID)
+	return s.embedTarget(ctx, profileID, s.q.GetEmbeddingProfile, s.q.GetConnection)
+}
+
+// QueryEmbedTarget is EmbedTarget for embedding a search's query (every question and search), with the rows cached
+// briefly (rowcache.go). Ingestion reads them every time (EmbedTarget): a profile's settings decide how documents are
+// stored.
+func (s *Service) QueryEmbedTarget(ctx context.Context, profileID uuid.UUID) (EmbedTarget, error) {
+	return s.embedTarget(ctx, profileID, s.cachedProfile, s.cachedConnection)
+}
+
+func (s *Service) embedTarget(ctx context.Context, profileID uuid.UUID, profile func(context.Context, uuid.UUID) (dbgen.GetEmbeddingProfileRow, error),
+	connection func(context.Context, uuid.UUID) (dbgen.ModelConnection, error)) (EmbedTarget, error) {
+	row, err := profile(ctx, profileID)
 	if err != nil {
 		return EmbedTarget{}, notFound(err, errNoProfile)
 	}
 	if !row.Model.Enabled {
 		return EmbedTarget{}, ErrProfileUnusable
 	}
-	conn, err := s.q.GetConnection(ctx, row.Model.ConnectionID)
+	conn, err := connection(ctx, row.Model.ConnectionID)
 	if err != nil {
 		return EmbedTarget{}, err
 	}

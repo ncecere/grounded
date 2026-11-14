@@ -327,10 +327,13 @@ func (s *Services) limitsChanged(ctx context.Context, team uuid.NullUUID) {
 	}
 }
 
-// Close releases the PDF engine.
+// Close releases the PDF engine and the MCP client's kept sessions.
 func (s *Services) Close() {
 	if s.builtin != nil {
 		_ = s.builtin.Close()
+	}
+	if s.MCP != nil {
+		s.MCP.Close()
 	}
 }
 

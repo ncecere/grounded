@@ -112,6 +112,7 @@ func storedThinkingOff(t *ThinkingOffTest) (thinkingOffAction, string) {
 // keepThinkingOffResult stores what the Test found on the model (not a change of the model: its revision stays).
 func (s *Service) keepThinkingOffResult(ctx context.Context, id uuid.UUID, t *ThinkingOffTest) error {
 	action, result := storedThinkingOff(t)
+	defer s.rows.invalidate()
 	switch action {
 	case setThinkingOff:
 		return s.q.SetModelThinkingOff(ctx, dbgen.SetModelThinkingOffParams{ID: id, Result: &result})

@@ -40,6 +40,7 @@ func wireNotify(s *Services) {
 func wireCosts(s *Services, pool *pgxpool.Pool, jobsClient *jobs.Client, log *slog.Logger) {
 	s.Costs = costs.New(pool, s.Teams, log)
 	s.Limits.Budget = s.Costs
+	s.Agents.TimeZone = s.Costs.TimeZone // cached briefly, and dropped when the settings change here
 	s.Web.Budget = s.Costs
 	s.Costs.OnChange = func(ctx context.Context, team uuid.NullUUID) {
 		s.Web.BudgetChanged(ctx, team)

@@ -409,6 +409,40 @@ func (s *Service) CheckDirectRetrieve(ctx context.Context, a authz.Actor, kb KB)
 	return s.checkDirectRetrieve(ctx, a, kb)
 }
 
+// DirectRetrievable keeps the knowledge bases the actor may retrieve from directly (checkDirectRetrieve's rule), with
+// one read of the classification levels for the whole list instead of one per knowledge base (MCP's tool list, #251).
+func (s *Service) DirectRetrievable(ctx context.Context, a authz.Actor, list []KB) ([]KB, error) {
+	if !a.Delegated() {
+		return list, nil
+	}
+	var levels map[string]dbgen.ClassificationLevel
+	out := make([]KB, 0, len(list))
+	for _, kb := range list {
+		if kb.EffectiveClassification == "" {
+			out = append(out, kb)
+			continue
+		}
+		if levels == nil {
+			rows, err := s.q.ListClassifications(ctx)
+			if err != nil {
+				return nil, err
+			}
+			levels = make(map[string]dbgen.ClassificationLevel, len(rows))
+			for _, l := range rows {
+				levels[l.Key] = l
+			}
+		}
+		level, ok := levels[kb.EffectiveClassification]
+		if !ok { // as GetClassification would fail (a source's level is a foreign key: never, in practice)
+			return nil, fmt.Errorf("classification %q: %w", kb.EffectiveClassification, pgx.ErrNoRows)
+		}
+		if level.DirectRetrieve {
+			out = append(out, kb)
+		}
+	}
+	return out, nil
+}
+
 // checkDirectRetrieve refuses an API key's /retrieve (and an OAuth client's
 // search over MCP) on a knowledge base whose classification level doesn't
 // allow direct retrieval (DESIGN.md §4). People in the app and agents are

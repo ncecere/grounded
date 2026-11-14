@@ -500,6 +500,49 @@ func TestSequentialExecution(t *testing.T) {
 	}
 }
 
+// Prefetch starts every valid call's order-independent part at once, before the sequential calls execute one after
+// another in call order (#251); an invalid call gets no prefetch.
+func TestPrefetchBeforeSequentialExecution(t *testing.T) {
+	var mu sync.Mutex
+	var log []string
+	add := func(s string) { mu.Lock(); log = append(log, s); mu.Unlock() }
+	fetched := map[string]chan string{}
+	tool := Tool{Name: "search", Mode: Sequential,
+		Parameters: json.RawMessage(`{"type":"object","properties":{"q":{"type":"string"}},"required":["q"]}`),
+		Prefetch: func(ctx context.Context, id string, params json.RawMessage) {
+			add("prefetch " + id)
+			ch := make(chan string, 1)
+			mu.Lock()
+			fetched[id] = ch
+			mu.Unlock()
+			go func() { time.Sleep(20 * time.Millisecond); ch <- string(params) }()
+		},
+		Execute: func(ctx context.Context, id string, _ json.RawMessage, _ func(ToolResult)) (ToolResult, error) {
+			mu.Lock()
+			ch := fetched[id]
+			mu.Unlock()
+			add("execute " + id)
+			return ToolResult{Content: <-ch}, nil
+		}}
+	p := &scripted{turns: []turnFunc{reply(callsMsg(call("1", "search", `{"q":"a"}`), call("2", "search", `{}`), call("3", "search", `{"q":"c"}`))), reply(text("ok"))}}
+	_, msgs, err := run(t, context.Background(), Config{Provider: p, Tools: []Tool{tool}}, question)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(log) != "[prefetch 1 prefetch 3 execute 1 execute 3]" {
+		t.Errorf("log = %v", log)
+	}
+	if r := msgs[1].(llm.ToolResultMessage); r.ToolCallID != "1" || r.Content != `{"q":"a"}` {
+		t.Errorf("first result = %+v", r)
+	}
+	if r := msgs[2].(llm.ToolResultMessage); r.ToolCallID != "2" || !r.IsError {
+		t.Errorf("the invalid call = %+v", r)
+	}
+	if r := msgs[3].(llm.ToolResultMessage); r.ToolCallID != "3" || r.Content != `{"q":"c"}` {
+		t.Errorf("third result = %+v", r)
+	}
+}
+
 func TestMaxTurnsForcesFinalTurn(t *testing.T) {
 	var got []string
 	loopForever := reply(callsMsg(call("c", "search_knowledge", `{"query":"again"}`)))

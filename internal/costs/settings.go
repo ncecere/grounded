@@ -37,8 +37,15 @@ func settingsFrom(r dbgen.GetCostSettingsRow) Settings {
 		DefaultBudget: optRat(r.DefaultBudget), Generation: r.Generation, Revision: r.Revision, UpdatedAt: r.UpdatedAt}
 }
 
-// current reads the settings without permission checks.
+// current reads the settings without permission checks, cached for a few seconds (internal/ttlcache): every budget
+// check and every answer (its date, in the platform's time zone) reads them. A change made here invalidates the cache
+// at once (changed); another process's within the TTL, well inside the budget check's own spend cache (CacheTTL).
 func (s *Service) current(ctx context.Context) (Settings, error) {
+	return s.settings.Get(ctx, s.fresh)
+}
+
+// fresh reads the settings row itself.
+func (s *Service) fresh(ctx context.Context) (Settings, error) {
 	r, err := s.q.GetCostSettings(ctx)
 	if err != nil {
 		return Settings{}, err
@@ -46,12 +53,20 @@ func (s *Service) current(ctx context.Context) (Settings, error) {
 	return settingsFrom(r), nil
 }
 
-// Settings returns the platform cost settings (platform admins and auditors).
+// TimeZone is the platform's time zone name (cost_settings.time_zone), which dates answers and bounds months and
+// budgets (cached as current is).
+func (s *Service) TimeZone(ctx context.Context) (string, error) {
+	st, err := s.current(ctx)
+	return st.TimeZone, err
+}
+
+// Settings returns the platform cost settings (platform admins and auditors). It reads the row itself: its revision
+// is the If-Match of the next save.
 func (s *Service) Settings(ctx context.Context, a authz.Actor) (Settings, error) {
 	if !canRead(a) {
 		return Settings{}, errReadOnly
 	}
-	return s.current(ctx)
+	return s.fresh(ctx)
 }
 
 // SettingsInput is a full replacement of the settings.

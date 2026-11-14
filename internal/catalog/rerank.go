@@ -24,7 +24,7 @@ var ErrRerankUnusable = apperr.New(503, "rerank_unavailable", "The rerank model 
 // connection. The client honours the connection's request limit and the
 // proxy's backoff.
 func (s *Service) RerankTarget(ctx context.Context, modelID uuid.UUID) (ModerationTarget, error) {
-	t, err := s.target(ctx, modelID, func(k string) bool { return k == KindRerank })
+	t, err := s.cachedTarget(ctx, modelID, func(k string) bool { return k == KindRerank })
 	if errors.Is(err, errUnusable) {
 		return t, ErrRerankUnusable
 	}

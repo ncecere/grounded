@@ -25,7 +25,7 @@ func newTestRetriever(budget int) *retriever {
 func TestNumberGivesTheParentAndCountsItsCost(t *testing.T) {
 	r := newTestRetriever(1000)
 	h := parentHit(uuid.New(), 4, 100) // 800 characters: 200 tokens, 20 of markup and the title
-	out := r.number([]*fusedHit{h}, 5)
+	out := r.numberHits([]*fusedHit{h}, 5)
 	if len(out) != 1 || out[0].Content != h.hit.Parent.Text || !out[0].Parent.Expanded {
 		t.Fatalf("numbered = %+v", out)
 	}
@@ -45,7 +45,7 @@ func TestNumberGivesTheParentAndCountsItsCost(t *testing.T) {
 func TestNumberFallsBackToThePassageWhenTheParentDoesNotFit(t *testing.T) {
 	r := newTestRetriever(300)
 	h := parentHit(uuid.New(), 0, 400) // 1600 characters: 400 tokens
-	out := r.number([]*fusedHit{h}, 5)
+	out := r.numberHits([]*fusedHit{h}, 5)
 	if len(out) != 1 || out[0].Content != "passage" || out[0].Parent.Expanded || h.hit.Parent.Skipped != "budget" {
 		t.Fatalf("numbered = %+v (skipped %q)", out, h.hit.Parent.Skipped)
 	}
@@ -64,13 +64,13 @@ func TestNumberDeduplicatesParents(t *testing.T) {
 	doc := uuid.New()
 	a, b := parentHit(doc, 0, 50), parentHit(doc, 0, 50) // the same parent, found twice (two knowledge bases)
 	other := parentHit(uuid.New(), 0, 50)
-	out := r.number([]*fusedHit{a, b, other}, 5)
+	out := r.numberHits([]*fusedHit{a, b, other}, 5)
 	if len(out) != 2 || out[0].N != 1 || out[1].N != 2 || len(r.all) != 2 {
 		t.Fatalf("numbered = %d sources, %d in the answer; want 2 and 2", len(out), len(r.all))
 	}
 	left := r.budget
 	again := parentHit(doc, 0, 50) // another search, another passage of the first parent
-	out = r.number([]*fusedHit{again}, 5)
+	out = r.numberHits([]*fusedHit{again}, 5)
 	if len(out) != 1 || out[0].N != 1 || r.budget != left || len(r.all) != 2 {
 		t.Errorf("second search = %+v, budget %d -> %d", out, left, r.budget)
 	}
@@ -78,7 +78,7 @@ func TestNumberDeduplicatesParents(t *testing.T) {
 	r2 := newTestRetriever(2000)
 	x, y := parentHit(doc, 0, 50), parentHit(doc, 0, 50)
 	x.hit.Parent.Text, y.hit.Parent.Text = "", ""
-	if out := r2.number([]*fusedHit{x, y}, 5); len(out) != 2 {
+	if out := r2.numberHits([]*fusedHit{x, y}, 5); len(out) != 2 {
 		t.Errorf("unexpanded siblings = %d sources, want 2", len(out))
 	}
 }
@@ -87,7 +87,7 @@ func TestNumberDeduplicatesParents(t *testing.T) {
 func TestNumberWithoutParentsIsAsBefore(t *testing.T) {
 	r := newTestRetriever(1000)
 	f := &fusedHit{hit: kbs.Hit{ChunkID: uuid.New(), DocumentID: uuid.New(), Title: "Doc", Content: strings.Repeat("word ", 100)}}
-	out := r.number([]*fusedHit{f}, 5)
+	out := r.numberHits([]*fusedHit{f}, 5)
 	if len(out) != 1 || out[0].Content != f.hit.Content || out[0].Parent != nil || r.budget != 1000-hitCost(f.hit) || citationParent(out[0]) != nil {
 		t.Fatalf("numbered = %+v, budget %d", out, r.budget)
 	}
@@ -98,7 +98,7 @@ func TestNumberWithoutParentsIsAsBefore(t *testing.T) {
 	r3 := newTestRetriever(1000)
 	r3.noExpand = true
 	h := parentHit(uuid.New(), 0, 20)
-	if out := r3.number([]*fusedHit{h}, 5); out[0].Content != "passage" || citationParent(out[0]) != nil {
+	if out := r3.numberHits([]*fusedHit{h}, 5); out[0].Content != "passage" || citationParent(out[0]) != nil {
 		t.Errorf("noExpand numbered = %+v", out)
 	}
 }

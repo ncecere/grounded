@@ -28,15 +28,22 @@ type RerankInfo struct {
 // RerankPlan returns the platform's reranking (nil: none). A settings failure is logged and the search isn't reranked:
 // reranking is quality, not safety.
 func (s *Service) RerankPlan(ctx context.Context) *rerank.Plan {
+	p, _, _ := s.RerankPlanRevision(ctx)
+	return p
+}
+
+// RerankPlanRevision is RerankPlan with the revision of the settings it was built from (rerank.Stored.KeyRevision;
+// 0 without a rerank service). ok is false when the settings couldn't be read.
+func (s *Service) RerankPlanRevision(ctx context.Context) (p *rerank.Plan, revision int64, ok bool) {
 	if s.Rerank == nil {
-		return nil
+		return nil, 0, true
 	}
-	p, err := s.Rerank.Plan(ctx)
+	p, revision, err := s.Rerank.PlanRevision(ctx)
 	if err != nil {
 		s.Rerank.Log.Warn("rerank settings unavailable; searching without reranking", "err", err)
-		return nil
+		return nil, 0, false
 	}
-	return p
+	return p, revision, true
 }
 
 // PassageText is a hit as the reranker reads it: its title, heading path

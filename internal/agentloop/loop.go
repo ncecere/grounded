@@ -404,22 +404,28 @@ func (r *runner) run(ctx context.Context, t *compiledTool, c llm.ToolCall, args 
 }
 
 // execute runs the calls of one assistant message. Results are returned in
-// call order whatever the execution order.
+// call order whatever the execution order. Every valid call's Prefetch starts
+// first (Tool.Prefetch).
 func (r *runner) execute(ctx context.Context, calls []llm.ToolCall) []llm.ToolResultMessage {
 	sequential := false
-	for _, c := range calls {
+	prepared := make([]preparedCall, len(calls))
+	for i, c := range calls {
 		if t := r.tools[c.Name]; t != nil && t.Mode == Sequential {
 			sequential = true
+		}
+		p := &prepared[i]
+		if p.tool, p.args, p.imm = r.prepare(c); p.imm == nil && p.tool.Prefetch != nil && ctx.Err() == nil {
+			p.tool.Prefetch(ctx, c.ID, p.args)
 		}
 	}
 	outcomes := make([]outcome, len(calls))
 	if sequential {
 		for i, c := range calls {
 			r.emit(Event{Type: ToolExecutionStart, ToolCallID: c.ID, ToolName: c.Name, Args: c.Arguments})
-			if t, args, imm := r.prepare(c); imm != nil {
-				outcomes[i] = *imm
+			if p := prepared[i]; p.imm != nil {
+				outcomes[i] = *p.imm
 			} else {
-				outcomes[i] = r.run(ctx, t, c, args)
+				outcomes[i] = r.run(ctx, p.tool, c, p.args)
 			}
 			r.endCall(outcomes[i])
 		}
@@ -429,19 +435,27 @@ func (r *runner) execute(ctx context.Context, calls []llm.ToolCall) []llm.ToolRe
 	var wg sync.WaitGroup
 	for i, c := range calls {
 		r.emit(Event{Type: ToolExecutionStart, ToolCallID: c.ID, ToolName: c.Name, Args: c.Arguments})
-		t, args, imm := r.prepare(c)
-		if imm != nil {
-			outcomes[i] = *imm
+		p := prepared[i]
+		if p.imm != nil {
+			outcomes[i] = *p.imm
 			r.endCall(outcomes[i])
 			continue
 		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			outcomes[i] = r.run(ctx, t, c, args)
+			outcomes[i] = r.run(ctx, p.tool, c, p.args)
 			r.endCall(outcomes[i])
 		}()
 	}
 	wg.Wait()
 	return r.emitResults(outcomes)
+}
+
+// preparedCall is a call found and validated (prepare): its tool and
+// arguments, or its immediate error outcome.
+type preparedCall struct {
+	tool *compiledTool
+	args json.RawMessage
+	imm  *outcome
 }

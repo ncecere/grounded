@@ -1,6 +1,10 @@
 package httpapi_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ncecere/grounded/internal/ttlcache"
+)
 
 func TestContextualUnknownWindowDoesNotSaveOrStartWork(t *testing.T) {
 	env := newCtxEnv(t)
@@ -9,6 +13,7 @@ func TestContextualUnknownWindowDoesNotSaveOrStartWork(t *testing.T) {
 	if _, err := env.app.Pool.Exec(t.Context(), `UPDATE models SET context_window = NULL WHERE id = $1`, env.chat.Id); err != nil {
 		t.Fatal(err)
 	}
+	ttlcache.InvalidateAll() // the model rows are cached briefly (internal/ttlcache)
 	before := env.contextual(t, src.Id)
 	env.put(t, src.Id, map[string]any{"enabled": true, "modelId": env.chat.Id, "failurePolicy": "fail", "maxCalls": 10, "maxCallsPerDay": 10}, 409, "model_context_window")
 	after := env.contextual(t, src.Id)
@@ -28,6 +33,7 @@ func TestContextualLostWindowBlocksEstimateAndPreview(t *testing.T) {
 	if _, err := env.app.Pool.Exec(t.Context(), `UPDATE models SET context_window = NULL WHERE id = $1`, env.chat.Id); err != nil {
 		t.Fatal(err)
 	}
+	ttlcache.InvalidateAll() // the model rows are cached briefly (internal/ttlcache)
 	estimate := env.estimate(t, src.Id)
 	found := false
 	for _, blocker := range estimate.Blockers {

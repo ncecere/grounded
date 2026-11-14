@@ -24,10 +24,14 @@ func (s *Service) Settings(ctx context.Context) (Settings, error) {
 	return s.q.GetPlatformSettings(ctx)
 }
 
-// PublicAgentsEnabled reports the global public switch.
+// PublicAgentsEnabled reports the global public switch, which every public question reads: cached for a few seconds
+// (internal/ttlcache), like the MCP server's switch. Turning public agents off applies in this process at once and in
+// the others within the TTL; a failed read is an error (public chat is refused), never the last value.
 func (s *Service) PublicAgentsEnabled(ctx context.Context) (bool, error) {
-	st, err := s.q.GetPlatformSettings(ctx)
-	return st.PublicAgentsEnabled, err
+	return s.public.Get(ctx, func(ctx context.Context) (bool, error) {
+		st, err := s.q.GetPlatformSettings(ctx)
+		return st.PublicAgentsEnabled, err
+	})
 }
 
 // SetPublicAgentsEnabled turns public agents on or off (platform admins;
@@ -59,5 +63,6 @@ func (s *Service) SetPublicAgentsEnabled(ctx context.Context, a authz.Actor, ena
 		e.After = map[string]any{"publicAgentsEnabled": enabled}
 		return audit.Record(ctx, q, e)
 	})
+	s.public.Invalidate()
 	return out, err
 }
